@@ -1,0 +1,73 @@
+version: "2"
+
+run:
+  timeout: 5m
+  build-tags:
+    - linux
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - misspell
+    - unconvert
+    - nolintlint
+  settings:
+    errcheck:
+      exclude-functions:
+        - (net/http.ResponseWriter).Write
+        - os.Remove
+        - os.MkdirAll
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - io.WriteString
+        - (io.Closer).Close
+        - (*os.File).Close
+        - (net.Conn).Close
+        - (*database/sql.DB).Close
+        - (*database/sql.Stmt).Close
+        - (*database/sql.Rows).Close
+        - (*github.com/spf13/cobra.Command).MarkFlagRequired
+        - (*database/sql.Tx).Rollback
+    staticcheck:
+      checks:
+        - all
+        - -ST1000
+        - -ST1003
+        - -QF1008
+  exclusions:
+    generated: lax
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+      - path: cmd/routier-mock/
+        linters:
+          - errcheck
+      - path: tests/
+        linters:
+          - errcheck
+    paths:
+      - pkg/client/generated
+      - pkg/api/docs
+      - web/
+      - website/
+
+formatters:
+  enable:
+    - gofmt
+  exclusions:
+    paths:
+      - pkg/client/generated
+      - pkg/api/docs
+      - web/
+      - website/
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

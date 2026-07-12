@@ -1,0 +1,17 @@
+#!/sbin/openrc-run
+
+name="routier-net"
+description="Routier net virtual provider (stub)"
+
+depend() {
+    provide net
+    keyword -timeout
+}
+
+start() {
+    return 0
+}
+
+stop() {
+    return 0
+}

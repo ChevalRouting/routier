@@ -1,0 +1,46 @@
+#!/bin/sh
+set -eu
+
+install -dm700 /var/lib/routier
+install -dm700 /var/lib/routier/snapshots
+
+if ! id routier >/dev/null 2>&1; then
+	adduser -D -s /bin/ash -h /home/routier routier
+	printf 'routier:routier\n' | chpasswd
+	for grp in root wheel; do
+		addgroup routier "$grp" 2>/dev/null || true
+	done
+fi
+
+if [ ! -f /var/lib/routier/tls.key ]; then
+	(umask 077 && openssl ecparam -genkey -name prime256v1 -noout \
+		-out /var/lib/routier/tls.key) 2>/dev/null \
+	&& openssl req -new -x509 \
+		-key /var/lib/routier/tls.key \
+		-out /var/lib/routier/tls.crt \
+		-days 3650 \
+		-subj "/CN=$(hostname 2>/dev/null || echo routier)" 2>/dev/null || true
+fi
+
+if [ -x /usr/bin/routier ]; then
+	/usr/bin/routier takeover || echo "routier: network takeover skipped (see warnings above)"
+fi
+
+rc-update add routier default 2>/dev/null || true
+rc-update add routier-ui default 2>/dev/null || true
+rc-update add cronie default 2>/dev/null || true
+
+for _svc in keepalived radvd conntrackd; do
+    rc-update del "$_svc" default 2>/dev/null || true
+done
+
+rc-service cronie start 2>/dev/null || true
+
+cat <<'EOF'
+
+routier installed.
+  • Web UI:        browse https://<host>:8080 (routier-ui starts automatically)
+  • Native net:    backed up under /var/lib/routier/host-backup/latest
+  • To roll back:  /var/lib/routier/host-backup/latest/restore.sh
+
+EOF

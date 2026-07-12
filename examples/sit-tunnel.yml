@@ -1,0 +1,43 @@
+version: v3.0.0
+
+hostname: tunnel-gw-01
+
+interfaces:
+  wan:
+    select: eth[0]
+    addresses: [1.2.3.4/24]
+
+tunnels:
+  tounel:
+    mode: sit
+    local: 1.2.3.4
+    remote: 5.6.7.8
+    ttl: 255
+    addresses:
+      - fd42::1/64
+    mtu: 1400
+
+routing:
+  static:
+    - destination: 0.0.0.0/0
+      via: 5.6.7.8
+    - destination: ::/0
+      via: fd43::2
+      dev: tounel
+
+sysctl:
+  net.ipv4.ip_forward: "1"
+  net.ipv6.conf.all.forwarding: "1"
+
+dns:
+  nameservers: [1.1.1.1]
+
+users:
+  admin:
+    uid: 1000
+    shell: /bin/ash
+    groups: [wheel]
+    ssh_keys:
+      - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExample1 admin@laptop"
+ 
+services: {}

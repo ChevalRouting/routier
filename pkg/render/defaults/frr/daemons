@@ -1,0 +1,28 @@
+# routier:{{ .Hostname }}
+zebra=yes
+bgpd={{ if .Routing }}{{ if .Routing.BGP }}yes{{ else }}no{{ end }}{{ else }}no{{ end }}
+ospfd={{ if .Routing }}{{ if .Routing.OSPF }}yes{{ else }}no{{ end }}{{ else }}no{{ end }}
+staticd=no
+ospf6d={{ if hasOSPF6 }}yes{{ else }}no{{ end }}
+ripd=no
+ripngd=no
+isisd=no
+pimd=no
+ldpd=no
+nhrpd=no
+eigrpd=no
+babeld=no
+sharpd=no
+pbrd={{ if and .Routing .Routing.PBR }}yes{{ else }}no{{ end }}
+bfdd={{ if needBFD }}yes{{ else }}no{{ end }}
+fabricd=no
+vrrpd=no
+pathd=no
+
+vtysh_enable=yes
+zebra_options="  -A 127.0.0.1 -s 90000000"
+bgpd_options="   -A 127.0.0.1"
+ospfd_options="  -A 127.0.0.1"
+ospf6d_options="  -A ::1"
+staticd_options="-A 127.0.0.1"
+bfdd_options="   -A 127.0.0.1"

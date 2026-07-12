@@ -1,0 +1,20 @@
+#!/sbin/openrc-run
+
+name="routier-ui"
+description="Routier web UI"
+command="/usr/bin/routier-ui"
+command_args="${ROUTIER_UI_ARGS}"
+command_background="yes"
+pidfile="/run/routier-ui.pid"
+output_log="/var/log/routier-ui.log"
+error_log="/var/log/routier-ui.log"
+
+: ${ROUTIER_UI_ARGS:=}
+
+depend() {
+    after net
+}
+
+start_pre() {
+    checkpath --directory --owner root:root --mode 0750 /var/lib/routier
+}

@@ -1,0 +1,113 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* ── Adwaita design system ──
+     Libadwaita-inspired palette. Light is the default; .dark flips it. */
+
+  :root {
+    --background:          0 0% 98%;
+    --foreground:          0 0% 13%;
+    --card:                0 0% 100%;
+    --card-foreground:     0 0% 13%;
+    --popover:             0 0% 100%;
+    --popover-foreground:  0 0% 13%;
+    --primary:             213 76% 55%;
+    --primary-foreground:  0 0% 100%;
+    --secondary:           0 0% 93%;
+    --secondary-foreground: 0 0% 13%;
+    --muted:               0 0% 95%;
+    --muted-foreground:    0 0% 42%;
+    --accent:              0 0% 91%;
+    --accent-foreground:   0 0% 13%;
+    --destructive:         357 78% 49%;
+    --destructive-foreground: 0 0% 100%;
+    --border:              0 0% 86%;
+    --input:               0 0% 91%;
+    --ring:                213 76% 55%;
+    --radius:              0.625rem;
+    --sidebar-background:  0 0% 92%;
+    --sidebar-foreground:  0 0% 20%;
+    --sidebar-primary:     213 76% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent:      213 64% 89%;
+    --sidebar-accent-foreground: 213 76% 28%;
+    --sidebar-border:      0 0% 84%;
+    --sidebar-ring:        213 76% 55%;
+    --success:             153 62% 47%;
+    --success-foreground:  0 0% 100%;
+    --warning:             42 91% 47%;
+    --warning-foreground:  0 0% 12%;
+    --danger:              357 78% 49%;
+    --danger-foreground:   0 0% 100%;
+    --info:                213 76% 55%;
+    --info-foreground:     0 0% 100%;
+  }
+
+  .dark {
+    --background:          0 0% 14%;
+    --foreground:          0 0% 89%;
+    --card:                0 0% 18%;
+    --card-foreground:     0 0% 89%;
+    --popover:             0 0% 17%;
+    --popover-foreground:  0 0% 89%;
+    --primary:             213 80% 68%;
+    --primary-foreground:  0 0% 8%;
+    --secondary:           0 0% 21%;
+    --secondary-foreground: 0 0% 89%;
+    --muted:               0 0% 18%;
+    --muted-foreground:    0 0% 58%;
+    --accent:              0 0% 24%;
+    --accent-foreground:   0 0% 95%;
+    --destructive:         9 96% 70%;
+    --destructive-foreground: 0 0% 12%;
+    --border:              0 0% 24%;
+    --input:               0 0% 20%;
+    --ring:                213 80% 68%;
+    --sidebar-background:  0 0% 11%;
+    --sidebar-foreground:  0 0% 66%;
+    --sidebar-primary:     213 80% 68%;
+    --sidebar-primary-foreground: 0 0% 8%;
+    --sidebar-accent:      213 48% 24%;
+    --sidebar-accent-foreground: 0 0% 96%;
+    --sidebar-border:      0 0% 16%;
+    --sidebar-ring:        213 80% 68%;
+    --success:             141 72% 62%;
+    --success-foreground:  0 0% 12%;
+    --warning:             43 90% 57%;
+    --warning-foreground:  0 0% 12%;
+    --danger:              9 96% 70%;
+    --danger-foreground:   0 0% 12%;
+    --info:                213 80% 68%;
+    --info-foreground:     0 0% 12%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Adwaita Sans', 'Cantarell', 'Inter', system-ui, -apple-system, sans-serif;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  .font-mono {
+    font-variant-numeric: tabular-nums;
+  }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { @apply bg-border rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-muted-foreground/40; }
+}
+
+@layer utilities {
+  /* Hide the scrollbar while keeping the element scrollable (used for tab bars). */
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+}

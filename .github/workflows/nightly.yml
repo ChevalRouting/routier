@@ -1,0 +1,135 @@
+name: nightly
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: nightly-publish
+  cancel-in-progress: false
+
+env:
+  ALPINE_IMAGE: docker.io/library/alpine:3.23
+
+jobs:
+  publish:
+    runs-on: [self-hosted, sn]
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      commit: ${{ steps.v.outputs.commit }}
+      arch: ${{ steps.v.outputs.arch }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Restore signing key
+        run: |
+          printf '%s\n' "${{ secrets.ROUTIER_RSA }}" > routier.rsa
+          printf '%s\n' "${{ secrets.ROUTIER_RSA_PUB }}" > routier.rsa.pub
+          chmod 600 routier.rsa
+          chmod 644 routier.rsa.pub
+
+      - name: Compute version
+        id: v
+        run: |
+          base="$(git describe --tags --abbrev=0 2>/dev/null || echo v0.0.0)"
+          base="${base#v}"
+          count="$(git rev-list --count HEAD)"
+          commit="$(git rev-parse --short HEAD)"
+          echo "version=${base}_git${count}" >> "$GITHUB_OUTPUT"
+          echo "commit=${commit}" >> "$GITHUB_OUTPUT"
+          echo "arch=$(uname -m)" >> "$GITHUB_OUTPUT"
+          echo "building ${base}_git${count} (${commit}) for $(uname -m)"
+
+      - name: Build packages
+        run: make apk VERSION='${{ steps.v.outputs.version }}' PODMAN_TTY=
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.ROUTIER_STATIC_SSH_KEY }}" > ~/.ssh/routier_static
+          chmod 600 ~/.ssh/routier_static
+          printf '%s\n' "${{ secrets.ROUTIER_STATIC_KNOWN_HOSTS }}" > ~/.ssh/routier_static_known_hosts
+
+      - name: Publish and reindex on the repo host
+        env:
+          SSH_TARGET: "${{ vars.ROUTIER_STATIC_USER }}@${{ vars.ROUTIER_STATIC_HOST }}"
+          REPO_PATH: "${{ vars.ROUTIER_REPO_PATH || '/var/www/repo' }}"
+          ARCH: "${{ steps.v.outputs.arch }}"
+        run: |
+          podman run --rm \
+            -e SSH_TARGET -e REPO_PATH -e ARCH -e ALPINE_IMAGE \
+            -v "$PWD/dist/$ARCH:/pkgs:ro" \
+            -v "$PWD/routier.rsa:/priv/routier.rsa:ro" \
+            -v "$PWD/routier.rsa.pub:/pub/routier.rsa.pub:ro" \
+            -v "$PWD/scripts/repo-reindex.sh:/repo-reindex.sh:ro" \
+            -v "$HOME/.ssh:/ssh:ro" \
+            "$ALPINE_IMAGE" \
+            sh -c 'set -e
+              apk add --no-cache rsync openssh-client >/dev/null
+              SSH="ssh -i /ssh/routier_static -o IdentitiesOnly=yes -o UserKnownHostsFile=/ssh/routier_static_known_hosts"
+              rsync -az --mkpath --include="*.apk" --exclude="*" -e "$SSH" \
+                /pkgs/ "$SSH_TARGET:$REPO_PATH/nightly/$ARCH/"
+              rsync -az --mkpath -e "$SSH" /pub/routier.rsa.pub "$SSH_TARGET:$REPO_PATH/routier.rsa.pub"
+              KEYDIR=$($SSH "$SSH_TARGET" "mktemp -d")
+              rsync -az -e "$SSH" /priv/routier.rsa /pub/routier.rsa.pub "$SSH_TARGET:$KEYDIR/"
+              set +e
+              $SSH "$SSH_TARGET" "ALPINE_IMAGE=$ALPINE_IMAGE sh -s -- $REPO_PATH/nightly/$ARCH $ARCH 30 $KEYDIR/routier.rsa" < /repo-reindex.sh
+              rc=$?
+              $SSH "$SSH_TARGET" "rm -rf $KEYDIR"
+              exit $rc'
+
+      - name: Clean up secrets
+        if: always()
+        run: rm -f ~/.ssh/routier_static routier.rsa
+
+  docs:
+    needs: publish
+    runs-on: [self-hosted, sn]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Build website
+        run: |
+          podman run --rm \
+            --userns=keep-id \
+            -v "$PWD/website:/src:z" \
+            -v "$PWD/docs:/docs:z" \
+            -w /src \
+            -e HOME=/tmp \
+            -e npm_config_cache=/tmp/.npm-cache \
+            -e SITE_URL=https://routier.cloud \
+            -e SITE_BASE_URL=/ \
+            -e SITE_COMMIT='${{ needs.publish.outputs.commit }}' \
+            -e SITE_VERSION='${{ needs.publish.outputs.version }}' \
+            docker.io/library/node:24-bookworm-slim \
+            sh -c "npm ci --no-audit --no-fund && \
+              sh scripts/version-dev.sh && \
+              npm run build"
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.ROUTIER_STATIC_SSH_KEY }}" > ~/.ssh/routier_static
+          chmod 600 ~/.ssh/routier_static
+          printf '%s\n' "${{ secrets.ROUTIER_STATIC_KNOWN_HOSTS }}" > ~/.ssh/routier_static_known_hosts
+
+      - name: Deploy over rsync
+        env:
+          TARGET: "${{ vars.ROUTIER_STATIC_USER }}@${{ vars.ROUTIER_STATIC_HOST }}:${{ vars.ROUTIER_STATIC_PATH }}/"
+        run: |
+          podman run --rm \
+            -e TARGET \
+            -v "$PWD/website/build:/build:ro" \
+            -v "$HOME/.ssh:/ssh:ro" \
+            "$ALPINE_IMAGE" \
+            sh -c 'apk add --no-cache rsync openssh-client >/dev/null && \
+              rsync -az --delete \
+                -e "ssh -i /ssh/routier_static -o IdentitiesOnly=yes -o UserKnownHostsFile=/ssh/routier_static_known_hosts" \
+                /build/ "$TARGET"'
+
+      - name: Clean up SSH key
+        if: always()
+        run: rm -f ~/.ssh/routier_static

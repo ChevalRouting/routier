@@ -1,0 +1,15 @@
+#!/bin/sh
+set -eu
+
+install -dm700 /var/lib/routier
+install -dm700 /var/lib/routier/snapshots
+
+rc-update add routier default 2>/dev/null || true
+rc-update add routier-ui default 2>/dev/null || true
+rc-update add cronie default 2>/dev/null || true
+
+if rc-service routier-ui status >/dev/null 2>&1; then
+	rc-service routier-ui restart
+fi
+
+echo "routier upgraded${1:+ to $1}. Config and host backups left untouched."

@@ -1,0 +1,90 @@
+version: v3.0.0
+
+hostname: anycast-node-01
+
+interfaces:
+  wan:
+    select: eth[0]
+    addresses: [198.51.100.1/24]
+
+sysctl:
+  net.ipv4.ip_forward: "1"
+  net.ipv4.conf.all.rp_filter: "2"
+
+routing:
+  static:
+    - destination: 0.0.0.0/0
+      via: 198.51.100.254
+
+  bgp:
+    asn: 65100
+    router_id: 198.51.100.1
+    neighbors:
+      - address: 198.51.100.254
+        remote_asn: 65000
+        description: upstream fabric
+        address_families:
+          ipv4-unicast:
+            route_map_in: ACCEPT-ALL
+            route_map_out: ANYCAST-OUT
+    prefix_lists:
+      ANYCAST-NETS:
+        - { seq: 10, action: permit, prefix: "192.0.2.10/32" }
+        - { seq: 20, action: permit, prefix: "192.0.2.20/32" }
+        - { seq: 100, action: deny, prefix: "0.0.0.0/0", le: 32 }
+    route_maps:
+      ACCEPT-ALL:
+        - { seq: 10, action: permit }
+      ANYCAST-OUT:
+        - { seq: 10, action: permit, match: { "ip address prefix-list": ANYCAST-NETS } }
+
+  anycast:
+    services:
+      - name: dns
+        active: true
+        anycast_ips:
+          - 192.0.2.10/32
+        endpoints:
+          - ip: 127.0.0.1
+            distance: 1
+            dns_check:
+              type: A
+              query: health.example.com
+              expected: "93.184.216.34"
+
+      - name: http
+        active: true
+        anycast_ips:
+          - 192.0.2.20/32
+        endpoints:
+          - ip: 127.0.0.1
+            distance: 1
+            http_check:
+              verb: GET
+              url: http://127.0.0.1/healthz
+              expected_code: 200
+          - ip: 127.0.0.2
+            distance: 2
+            http_check:
+              verb: GET
+              url: http://127.0.0.2/healthz
+              expected_code: 200
+              headers:
+                Host: api.example.com
+
+dns:
+  nameservers: [1.1.1.1, 9.9.9.9]
+
+users:
+  admin:
+    uid: 1000
+    shell: /bin/ash
+    groups: [wheel]
+    ssh_keys:
+      - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExample1 admin@laptop"
+
+services:
+  crond:
+    enable: true
+  frr:
+    enable: true

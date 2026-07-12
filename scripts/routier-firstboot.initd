@@ -1,0 +1,12 @@
+#!/sbin/openrc-run
+
+name="routier-firstboot"
+description="Generate default routier config on first boot"
+command="/usr/bin/routier"
+command_args="firstboot"
+
+depend() {
+	before routier
+	after dev
+	keyword -timeout
+}

@@ -1,0 +1,63 @@
+version: v3.0.0
+
+hostname: router
+
+interfaces:
+  wan:
+    select: eth[0]
+    addresses: [dhcp]
+  lan:
+    select: eth[1]
+    addresses: [192.168.1.1/24]
+
+dhcp:
+  enabled: true
+  subnets4:
+    - subnet: 192.168.1.0/24
+      interface: lan
+      pools:
+        - 192.168.1.100-192.168.1.200
+      gateway: 192.168.1.1
+      dns: [192.168.1.1]
+
+nftables:
+  chains:
+    input:
+      policy: drop
+      rules: |
+        iifname lo accept
+        ct state established,related accept
+        ct state invalid drop
+        icmp type echo-request accept
+        icmpv6 type { echo-request, nd-neighbor-solicit, nd-neighbor-advert, nd-router-solicit } accept
+        iifname $lan_interfaces ip saddr $lan_network tcp dport { 22, 8080 } accept comment "Allow Routier UI and SSH from lan"
+        iifname $lan_interfaces udp dport 67 accept
+    forward:
+      policy: drop
+      rules: |
+        ct state established,related accept
+        ct state invalid drop
+        iifname $lan_interfaces oifname $wan_interfaces accept
+    postrouting:
+      rules: |
+        oifname $wan_interfaces masquerade
+
+sysctl:
+  net.ipv4.ip_forward: "1"
+  net.ipv6.conf.all.forwarding: "1"
+
+dns:
+  nameservers: [1.1.1.1, 9.9.9.9]
+
+ssh:
+  port: 22
+  permit_root_login: "no"
+  password_auth: "no"
+
+users:
+  admin:
+    uid: 1000
+    shell: /bin/ash
+    groups: [wheel]
+    ssh_keys:
+      - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExample alice@home"

@@ -1,0 +1,15 @@
+# routier:{{ .Hostname }}
+{{ if .SSH.Port }}Port {{ .SSH.Port }}
+{{ end }}{{ if .SSH.PermitRootLogin }}PermitRootLogin {{ .SSH.PermitRootLogin }}
+{{ end }}{{ if .SSH.PasswordAuth }}PasswordAuthentication {{ .SSH.PasswordAuth }}
+{{ end }}{{ if .SSH.PubkeyAuth }}PubkeyAuthentication {{ .SSH.PubkeyAuth }}
+{{ end }}{{ if .SSH.AllowTcpForwarding }}AllowTcpForwarding {{ .SSH.AllowTcpForwarding }}
+{{ end }}{{ if .SSH.X11Forwarding }}X11Forwarding {{ .SSH.X11Forwarding }}
+{{ end }}{{ if .SSH.MaxAuthTries }}MaxAuthTries {{ .SSH.MaxAuthTries }}
+{{ end }}{{ if .SSH.LoginGraceTime }}LoginGraceTime {{ .SSH.LoginGraceTime }}
+{{ end }}{{ if .SSH.ClientAliveInterval }}ClientAliveInterval {{ .SSH.ClientAliveInterval }}
+{{ end }}{{ if .SSH.ClientAliveCountMax }}ClientAliveCountMax {{ .SSH.ClientAliveCountMax }}
+{{ end }}{{ if .SSH.AllowUsers }}AllowUsers {{ join .SSH.AllowUsers " " }}
+{{ end }}{{ if .SSH.AllowGroups }}AllowGroups {{ join .SSH.AllowGroups " " }}
+{{ end }}{{ if .SSH.Banner }}Banner {{ .SSH.Banner }}
+{{ end }}

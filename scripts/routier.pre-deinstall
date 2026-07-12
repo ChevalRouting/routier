@@ -1,0 +1,3 @@
+#!/bin/sh
+rc-service routier stop 2>/dev/null || true
+rc-update del routier default 2>/dev/null || true

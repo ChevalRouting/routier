@@ -1,0 +1,10 @@
+* * * * * root /usr/bin/routier --log-level debug watchdog 2>&1 | logger -t routier
+* * * * * root sleep 30 && /usr/bin/routier --log-level debug watchdog 2>&1 | logger -t routier
+
+* * * * * root /usr/bin/routier anycast run /etc/routier/config.yml 2>&1 | logger -t routier-anycast
+
+*/5 * * * * root /usr/bin/routier collect-stats 2>&1 | logger -t routier-stats
+
+0 * * * * root /usr/bin/routier prune-stats 2>&1 | logger -t routier-stats
+
+*/5 * * * * root /usr/bin/routier write-motd 2>&1 | logger -t routier-motd

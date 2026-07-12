@@ -1,0 +1,11 @@
+#!/usr/sbin/nft -f
+# routier:{{ .Hostname }}
+flush ruleset
+
+{{ nftDefines }}
+{{ nftUserDefines }}
+{{ nftRoutierTable }}
+{{- range nftIncludes }}
+# --- include ---
+{{ . }}
+{{- end }}

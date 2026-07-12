@@ -1,0 +1,38 @@
+#!/sbin/openrc-run
+
+name="routier"
+description="routier watchdog, auto-rollback pending applies"
+command="/usr/bin/routier"
+command_args="watchdog"
+
+depend() {
+    after firewall
+}
+
+start() {
+    ebegin "Applying routier configuration"
+    if [ -f /etc/routier/config.yml ]; then
+        /usr/bin/routier boot /etc/routier/config.yml
+    fi
+    eend $?
+}
+
+confirm() {
+    if [ -f /var/lib/routier/pending ]; then 
+        /usr/bin/routier confirm 
+    fi
+}
+
+stop() {
+    ebegin "Stopping routier"
+    eend 0
+}
+
+status() {
+    if [ -f /var/lib/routier/pending ]; then
+        ewarn "pending apply, run 'routier confirm' or wait for rollback"
+        return 1
+    fi
+    einfo "routier: ok"
+    return 0
+}

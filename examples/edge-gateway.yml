@@ -1,0 +1,115 @@
+version: v3.0.0
+
+hostname: edge-gw-01
+
+interfaces:
+  wan:
+    select: eth[0]
+    addresses: [203.0.113.1/24]
+  lan:
+    select: eth[1]
+    addresses: [10.0.0.1/24]
+    mtu: 9000
+    vlans:
+      servers:
+        id: 100
+        addresses: [10.0.100.1/24]
+      users:
+        id: 200
+        addresses: [10.0.200.1/24]
+      mgmt:
+        id: 999
+        addresses: [10.0.99.1/24]
+
+routing:
+  static:
+    - destination: 0.0.0.0/0
+      via: 203.0.113.254
+      metric: 200
+
+  bgp:
+    asn: 65001
+    router_id: 203.0.113.1
+    neighbors:
+      - address: 203.0.113.2
+        remote_asn: 65000
+        description: ISP upstream
+        address_families:
+          ipv4-unicast:
+            route_map_in: UPSTREAM-IN
+            route_map_out: UPSTREAM-OUT
+    address_families:
+      ipv4-unicast:
+        networks:
+          - 10.0.100.0/24
+          - 10.0.200.0/24
+    prefix_lists:
+      OUR-NETS:
+        - { seq: 10, action: permit, prefix: "10.0.100.0/24" }
+        - { seq: 20, action: permit, prefix: "10.0.200.0/24" }
+        - { seq: 100, action: deny, prefix: "0.0.0.0/0", le: 32 }
+    route_maps:
+      UPSTREAM-IN:
+        - { seq: 10, action: permit, set: { "local-preference": "200" } }
+      UPSTREAM-OUT:
+        - { seq: 10, action: permit, match: { "ip address prefix-list": OUR-NETS } }
+
+  ospf:
+    router_id: 10.0.0.1
+    areas:
+      - id: "0.0.0.0"
+        networks:
+          - 10.0.0.0/24
+          - 10.0.100.0/24
+          - 10.0.200.0/24
+    passive_interfaces: [eth0]
+    redistribute: [static, bgp]
+
+wireguard:
+  wg0:
+    listen_port: 51820
+    private_key_file: /etc/wireguard/wg0.key
+    addresses: [10.10.0.1/24]
+    peers:
+      - name: remote-office
+        public_key: "YWJjMTIzNDU2Nzg5MGFiY2RlZjAxMjM0NTY3ODkwYWI="
+        allowed_ips: [10.10.0.2/32, 192.168.1.0/24]
+        endpoint: remote.example.com:51820
+        keepalive: 25
+      - name: admin-laptop
+        public_key: "ZGVmMDEyMzQ1Njc4OTBhYmNkZWYwMTIzNDU2Nzg5MGE="
+        allowed_ips: [10.10.0.10/32]
+
+sysctl:
+  net.ipv4.ip_forward: "1"
+  net.ipv6.conf.all.forwarding: "1"
+  net.ipv4.conf.all.rp_filter: "1"
+  net.ipv4.icmp_echo_ignore_broadcasts: "1"
+  net.ipv4.conf.all.accept_redirects: "0"
+  net.ipv4.conf.all.send_redirects: "0"
+  net.ipv4.tcp_syncookies: "1"
+  net.netfilter.nf_conntrack_max: "262144"
+
+users:
+  admin:
+    uid: 1000
+    shell: /bin/ash
+    groups: [wheel]
+    ssh_keys:
+      - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExample1 admin@laptop"
+      - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExample2 admin@phone"
+  deploy:
+    uid: 1001
+    shell: /sbin/nologin
+    ssh_keys:
+      - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExample3 deploy@ci"
+
+dns:
+  nameservers: [1.1.1.1, 8.8.8.8]
+  search: [internal.lan]
+
+services:
+  chronyd:
+    enable: true
+  crond:
+    enable: true
