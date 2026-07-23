@@ -6,14 +6,14 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: nightly-publish
+  group: nightly-build
   cancel-in-progress: false
 
 env:
   ALPINE_IMAGE: docker.io/library/alpine:3.23
 
 jobs:
-  publish:
+  build:
     runs-on: [self-hosted, sn]
     outputs:
       version: ${{ steps.v.outputs.version }}
@@ -86,7 +86,7 @@ jobs:
         run: rm -f ~/.ssh/routier_static routier.rsa
 
   docs:
-    needs: publish
+    needs: build
     runs-on: [self-hosted, sn]
     steps:
       - uses: actions/checkout@v5
@@ -102,8 +102,8 @@ jobs:
             -e npm_config_cache=/tmp/.npm-cache \
             -e SITE_URL=https://routier.cloud \
             -e SITE_BASE_URL=/ \
-            -e SITE_COMMIT='${{ needs.publish.outputs.commit }}' \
-            -e SITE_VERSION='${{ needs.publish.outputs.version }}' \
+            -e SITE_COMMIT='${{ needs.build.outputs.commit }}' \
+            -e SITE_VERSION='${{ needs.build.outputs.version }}' \
             docker.io/library/node:24-bookworm-slim \
             sh -c "npm ci --no-audit --no-fund && \
               sh scripts/version-dev.sh && \
