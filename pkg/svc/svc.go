@@ -340,6 +340,8 @@ func applyKeaServer(svcName, service string) error {
 		return fmt.Errorf("kea %s: config invalid: %w", svcName, err)
 	}
 
+	ensureNetProvider()
+
 	if !ServiceRunning(svcName) {
 		if err := runCmd([]string{"rc-service", svcName, "start"}, 0); err != nil {
 			return fmt.Errorf("kea %s: start failed: %w", svcName, err)
@@ -362,6 +364,16 @@ func applyKeaServer(svcName, service string) error {
 	}
 
 	return nil
+}
+
+func ensureNetProvider() {
+	if ServiceRunning("routier-net") {
+		return
+	}
+
+	if err := runCmd([]string{"rc-service", "routier-net", "start"}, 0); err != nil {
+		log.Debug().Err(err).Msg("start routier-net net provider")
+	}
 }
 
 type svcStatus int
@@ -522,6 +534,10 @@ func ReconcileServices(cfg *config.Config, dryRun bool) error {
 				log.Warn().Err(err).Msg("stop frr failed")
 			}
 		}
+	}
+
+	if !dryRun && (needKeaV4 || needKeaV6) {
+		ensureNetProvider()
 	}
 
 	services := []serviceEntry{

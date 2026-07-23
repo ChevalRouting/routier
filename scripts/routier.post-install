@@ -26,6 +26,7 @@ if [ -x /usr/bin/routier ]; then
 	/usr/bin/routier takeover || echo "routier: network takeover skipped (see warnings above)"
 fi
 
+rc-update add routier-net boot 2>/dev/null || true
 rc-update add routier default 2>/dev/null || true
 rc-update add routier-ui default 2>/dev/null || true
 rc-update add cronie default 2>/dev/null || true

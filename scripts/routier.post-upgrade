@@ -4,6 +4,7 @@ set -eu
 install -dm700 /var/lib/routier
 install -dm700 /var/lib/routier/snapshots
 
+rc-update add routier-net boot 2>/dev/null || true
 rc-update add routier default 2>/dev/null || true
 rc-update add routier-ui default 2>/dev/null || true
 rc-update add cronie default 2>/dev/null || true
