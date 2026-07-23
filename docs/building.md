@@ -45,7 +45,7 @@ server. Clients consume it with:
 
 ```bash
 wget -qO /etc/apk/keys/routier.rsa.pub %%REPO_URL%%/routier.rsa.pub
-apk add --repository %%REPO_URL%%/x86_64 routier
+apk add --repository %%REPO_URL%% routier
 ```
 
 ## Test a package
@@ -108,7 +108,7 @@ Consume the nightly channel like any apk repository:
 
 ```bash
 wget -qO /etc/apk/keys/routier.rsa.pub %%REPO_URL%%/routier.rsa.pub
-apk add --repository %%REPO_URL%%/nightly/x86_64 routier
+apk add --repository %%REPO_URL%%/nightly routier
 ```
 
 The workflow needs these repository secrets and variables:

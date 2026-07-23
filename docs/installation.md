@@ -11,7 +11,7 @@ Alpine's community repository, so enable it first:
 ```bash
 setup-apkrepos -c -1
 wget -qO /etc/apk/keys/routier.rsa.pub %%REPO_URL%%/routier.rsa.pub
-apk add --repository %%REPO_URL%%/nightly/x86_64 routier
+apk add --repository %%REPO_URL%%/nightly routier
 ```
 
 The package installs:

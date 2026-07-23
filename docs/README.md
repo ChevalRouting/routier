@@ -17,7 +17,7 @@ Turn a fresh Alpine Linux box into a Routier appliance:
    ```bash
    setup-apkrepos -c -1   # enable Alpine's community repo (Routier deps live there)
    wget -qO /etc/apk/keys/routier.rsa.pub %%REPO_URL%%/routier.rsa.pub
-   apk add --repository %%REPO_URL%%/nightly/x86_64 routier
+   apk add --repository %%REPO_URL%%/nightly routier
    ```
 
    The post-install step backs up the host's network configuration to
