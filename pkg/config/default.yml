@@ -1,0 +1,27 @@
+version: v3.0.0
+
+hostname: routier
+
+interfaces:
+  wan:
+    select: eth[0]
+    addresses: [dhcp]
+
+sysctl:
+  net.ipv4.ip_forward: "1"
+  net.ipv6.conf.all.forwarding: "1"
+
+nftables:
+  chains:
+    input:
+      rules: |
+        iifname "lo" accept
+        ct state established,related accept
+        ct state invalid drop
+        meta l4proto icmp accept
+        meta l4proto icmpv6 accept
+        tcp dport { ssh, 8080 } accept
+    forward:
+      rules: |
+        ct state established,related accept
+        ct state invalid drop

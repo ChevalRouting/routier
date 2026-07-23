@@ -177,21 +177,18 @@ func generateFallbackConfig(backupDir string) error {
 		return fmt.Errorf("no default route")
 	}
 
+	cfg, err := config.Default()
+	if err != nil {
+		return fmt.Errorf("load default config: %w", err)
+	}
+
 	hostname, _ := os.Hostname()
 	if hostname == "" {
 		hostname = "routier"
 	}
-
-	cfg := &config.Config{
-		Version:  config.CurrentVersion,
-		Hostname: hostname,
-		Interfaces: map[string]*config.Interface{
-			"uplink": {Select: ifn, Addresses: []string{"dhcp"}},
-		},
-		Sysctl: map[string]string{
-			"net.ipv4.ip_forward":          "1",
-			"net.ipv6.conf.all.forwarding": "1",
-		},
+	cfg.Hostname = hostname
+	cfg.Interfaces = map[string]*config.Interface{
+		"uplink": {Select: ifn, Addresses: []string{"dhcp"}},
 	}
 
 	data, err := yaml.Marshal(cfg)

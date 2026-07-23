@@ -56,30 +56,5 @@ func dumpTemplates(base string) error {
 }
 
 func dumpStarterConfig(dir string) error {
-	starter := `version: ` + config.CurrentVersion + `
-
-hostname: my-firewall
-
-interfaces:
-  wan:
-    select: eth[0]
-    addresses: [dhcp]
-  lan:
-    select: eth[1]
-    addresses: [10.0.0.1/24]
-    vlans:
-      servers:
-        id: 100
-        addresses: [10.0.100.1/24]
-
-routing:
-  static:
-    - destination: 0.0.0.0/0
-      via: 203.0.113.254
-
-sysctl:
-  net.ipv4.ip_forward: "1"
-  net.ipv6.conf.all.forwarding: "1"
-`
-	return os.WriteFile(filepath.Join(dir, "config.yml"), []byte(starter), 0644)
+	return os.WriteFile(filepath.Join(dir, "config.yml"), config.DefaultBytes(), 0644)
 }

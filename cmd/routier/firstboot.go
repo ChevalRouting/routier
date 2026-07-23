@@ -40,37 +40,22 @@ func runFirstboot(_ *cobra.Command, _ []string) error {
 		return fmt.Errorf("hash password: %w", err)
 	}
 
+	cfg, err := config.Default()
+	if err != nil {
+		return fmt.Errorf("load default config: %w", err)
+	}
+
 	hostname, _ := os.Hostname()
 	if hostname == "" {
 		hostname = "routier"
 	}
+	cfg.Hostname = hostname
 
 	ifaces := make(map[string]*config.Interface, len(nics))
 	for _, nic := range nics {
 		ifaces[nic] = &config.Interface{Select: nic, Addresses: []string{"dhcp"}}
 	}
-
-	cfg := &config.Config{
-		Version:    config.CurrentVersion,
-		Hostname:   hostname,
-		Interfaces: ifaces,
-		Sysctl: map[string]string{
-			"net.ipv4.ip_forward":          "1",
-			"net.ipv6.conf.all.forwarding": "1",
-		},
-		Nftables: &config.NftablesConfig{
-			Chains: map[string]*config.NftChain{
-				"input": {Rules: `iifname "lo" accept
-ct state established,related accept
-ct state invalid drop
-meta l4proto icmp accept
-meta l4proto icmpv6 accept
-tcp dport { ssh, 8080 } accept`},
-				"forward": {Rules: `ct state established,related accept
-ct state invalid drop`},
-			},
-		},
-	}
+	cfg.Interfaces = ifaces
 
 	if err := os.MkdirAll("/etc/routier", 0750); err != nil {
 		return err
