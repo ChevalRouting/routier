@@ -5,6 +5,7 @@ import (
 
 	"github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/render"
+	"github.com/ChevalRouting/routier/pkg/svc"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
@@ -13,6 +14,7 @@ func newPlanCommand() *cobra.Command {
 	var module string
 	var resolve bool
 	var raw bool
+	var check bool
 	cmd := &cobra.Command{
 		Use:   "plan [config]",
 		Short: "show rendered output without applying",
@@ -53,6 +55,26 @@ func newPlanCommand() *cobra.Command {
 				fmt.Println(o.Content)
 			}
 
+			if check {
+				errs := svc.ValidateArtifacts(outputs)
+				if len(errs) == 0 {
+					fmt.Println("=== validation ok ===")
+					return nil
+				}
+
+				fmt.Println("=== validation failed ===")
+				for _, e := range errs {
+					loc := e.Dest
+					if e.Line > 0 {
+						loc = fmt.Sprintf("%s:%d", e.Dest, e.Line)
+					}
+
+					fmt.Printf("  %s: %s\n", loc, e.Message)
+				}
+
+				return fmt.Errorf("artifact validation failed")
+			}
+
 			return nil
 		},
 	}
@@ -60,5 +82,6 @@ func newPlanCommand() *cobra.Command {
 	cmd.Flags().StringVarP(&module, "module", "m", "", "show only this template")
 	cmd.Flags().BoolVar(&resolve, "resolve", false, "resolve interface names against current system")
 	cmd.Flags().BoolVar(&raw, "raw", false, "dump parsed config as YAML, skip validation and resolution")
+	cmd.Flags().BoolVar(&check, "check", false, "validate rendered artifacts with their external tools")
 	return cmd
 }

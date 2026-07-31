@@ -57,6 +57,7 @@ func newRootCommand() *cobra.Command {
 		newRestoreCommand(),
 		newHistoryCommand(),
 		newSnapshotsCommand(),
+		newFailuresCommand(),
 		newMacrosCommand(),
 		newFriendsCommand(),
 		newNatCommand(),

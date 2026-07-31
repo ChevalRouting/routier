@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/diffutil"
+	"github.com/ChevalRouting/routier/pkg/failures"
 	"github.com/ChevalRouting/routier/pkg/friends"
 	"github.com/ChevalRouting/routier/pkg/managers"
 	"github.com/ChevalRouting/routier/pkg/motd"
@@ -58,6 +60,7 @@ func newApplyCommand() *cobra.Command {
 				ConfigPath: configArg(args),
 			}, armTimeout)
 			if err != nil {
+				printArtifactErrors(err)
 				return err
 			}
 
@@ -88,6 +91,27 @@ func newApplyCommand() *cobra.Command {
 	cmd.Flags().StringVar(&friendsCache, "friends-cache", defaultFriendsCache, "path to the friend interpolation cache")
 	_ = cmd.Flags().MarkHidden("source")
 	return cmd
+}
+
+func printArtifactErrors(err error) {
+	var ve *failures.ValidationError
+	if !errors.As(err, &ve) {
+		return
+	}
+
+	fmt.Fprintln(os.Stderr, "rendered artifact validation failed:")
+	for _, e := range ve.Errors {
+		loc := e.Dest
+		if e.Line > 0 {
+			loc = fmt.Sprintf("%s:%d", e.Dest, e.Line)
+		}
+
+		fmt.Fprintf(os.Stderr, "  %s\n", strings.TrimPrefix(loc+": "+e.Message, ": "))
+	}
+
+	if ve.BundleID != "" {
+		fmt.Fprintf(os.Stderr, "rendered output saved: routier failures show %s\n", ve.BundleID)
+	}
 }
 
 const defaultFriendsCache = friends.DefaultCachePath
