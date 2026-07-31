@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/ChevalRouting/routier/pkg/api/cfgstore"
 	"github.com/ChevalRouting/routier/pkg/api/friendcache"
 	cfgpkg "github.com/ChevalRouting/routier/pkg/config"
+	"github.com/ChevalRouting/routier/pkg/failures"
 	"github.com/ChevalRouting/routier/pkg/managers"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/rs/zerolog/log"
@@ -49,6 +51,12 @@ func Apply(w http.ResponseWriter, r *http.Request) {
 	res, err := managers.Apply(r.Context(), cfg, friendcache.InterpolationVars(),
 		managers.ApplyOptions{Source: "web", ConfigPath: app.ConfigPath}, managers.WatchdogTimeout)
 	if err != nil {
+		var ve *failures.ValidationError
+		if errors.As(err, &ve) {
+			types.OK(w, types.ApplyResult{Status: "validation_failed", BundleID: ve.BundleID, Errors: ve.Errors})
+			return
+		}
+
 		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "apply failed (rolled back)"))
 		return
 	}

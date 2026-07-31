@@ -554,7 +554,6 @@ const docTemplate = `{
                         "type": "boolean"
                     },
                     "interfaces": {
-                        "description": "Deprecated: interface binding is per-subnet (KeaSubnet.Interface).",
                         "items": {
                             "type": "string"
                         },
@@ -2508,6 +2507,9 @@ const docTemplate = `{
                     "finished_at": {
                         "type": "string"
                     },
+                    "has_bundle": {
+                        "type": "boolean"
+                    },
                     "id": {
                         "type": "string"
                     },
@@ -2568,6 +2570,16 @@ const docTemplate = `{
             },
             "types.ApplyResult": {
                 "properties": {
+                    "bundleID": {
+                        "type": "string"
+                    },
+                    "errors": {
+                        "items": {
+                            "$ref": "#/components/schemas/types.ArtifactError"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
                     "snapID": {
                         "type": "string"
                     },
@@ -2580,6 +2592,48 @@ const docTemplate = `{
                 },
                 "required": [
                     "status"
+                ],
+                "type": "object"
+            },
+            "types.ArtifactContent": {
+                "properties": {
+                    "content": {
+                        "type": "string"
+                    },
+                    "dest": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "content",
+                    "dest"
+                ],
+                "type": "object"
+            },
+            "types.ArtifactError": {
+                "properties": {
+                    "artifact": {
+                        "type": "string"
+                    },
+                    "column": {
+                        "type": "integer"
+                    },
+                    "dest": {
+                        "type": "string"
+                    },
+                    "line": {
+                        "type": "integer"
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "tool": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "line",
+                    "message"
                 ],
                 "type": "object"
             },
@@ -2918,6 +2972,53 @@ const docTemplate = `{
                     "text",
                     "type"
                 ],
+                "type": "object"
+            },
+            "types.FailureRecord": {
+                "properties": {
+                    "artifacts": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "errors": {
+                        "items": {
+                            "$ref": "#/components/schemas/types.ArtifactError"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "snap_id": {
+                        "type": "string"
+                    },
+                    "source": {
+                        "type": "string"
+                    },
+                    "time": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "time"
+                ],
+                "type": "object"
+            },
+            "types.FailuresResponse": {
+                "properties": {
+                    "failures": {
+                        "items": {
+                            "$ref": "#/components/schemas/types.FailureRecord"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    }
+                },
                 "type": "object"
             },
             "types.FileDiff": {
@@ -4423,6 +4524,23 @@ const docTemplate = `{
                 },
                 "type": "object"
             },
+            "types.Response-types_ArtifactContent": {
+                "properties": {
+                    "code": {
+                        "type": "integer"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "$ref": "#/components/schemas/types.ArtifactContent"
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
             "types.Response-types_ConfigureConntrackResult": {
                 "properties": {
                     "code": {
@@ -4484,6 +4602,40 @@ const docTemplate = `{
                     },
                     "result": {
                         "$ref": "#/components/schemas/types.DeriveWireguardResult"
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "types.Response-types_FailureRecord": {
+                "properties": {
+                    "code": {
+                        "type": "integer"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "$ref": "#/components/schemas/types.FailureRecord"
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "types.Response-types_FailuresResponse": {
+                "properties": {
+                    "code": {
+                        "type": "integer"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "$ref": "#/components/schemas/types.FailuresResponse"
                     },
                     "status": {
                         "type": "string"
@@ -6371,6 +6523,190 @@ const docTemplate = `{
                 "summary": "List configured DHCP subnets",
                 "tags": [
                     "dhcp"
+                ]
+            }
+        },
+        "/api/failures": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-types_FailuresResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "List preserved failed-apply bundles",
+                "tags": [
+                    "failures"
+                ]
+            }
+        },
+        "/api/failures/{id}": {
+            "delete": {
+                "parameters": [
+                    {
+                        "description": "bundle id",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-types_StatusResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Delete a failed-apply bundle",
+                "tags": [
+                    "failures"
+                ]
+            },
+            "get": {
+                "parameters": [
+                    {
+                        "description": "bundle id",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-types_FailureRecord"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Get a failed-apply bundle",
+                "tags": [
+                    "failures"
+                ]
+            }
+        },
+        "/api/failures/{id}/artifact": {
+            "get": {
+                "parameters": [
+                    {
+                        "description": "bundle id",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "rendered artifact destination path",
+                        "in": "query",
+                        "name": "dest",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-types_ArtifactContent"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Read a rendered artifact from a failed-apply bundle",
+                "tags": [
+                    "failures"
+                ]
+            }
+        },
+        "/api/failures/{id}/export": {
+            "get": {
+                "parameters": [
+                    {
+                        "description": "bundle id",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "redact secrets (default true)",
+                        "in": "query",
+                        "name": "redact",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/octet-stream": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "description": "bundle archive"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Download a failed-apply bundle as a tar.gz",
+                "tags": [
+                    "failures"
                 ]
             }
         },

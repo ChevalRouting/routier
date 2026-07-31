@@ -4,6 +4,7 @@ apis/AuthApi.ts
 apis/BackupApi.ts
 apis/ConfigApi.ts
 apis/DhcpApi.ts
+apis/FailuresApi.ts
 apis/FriendsApi.ts
 apis/HaApi.ts
 apis/LogsApi.ts
@@ -110,6 +111,8 @@ models/TypesApplyLogRecord.ts
 models/TypesApplyLogsResponse.ts
 models/TypesApplyPendingResponse.ts
 models/TypesApplyResult.ts
+models/TypesArtifactContent.ts
+models/TypesArtifactError.ts
 models/TypesBGPHistoryPoint.ts
 models/TypesBGPPeerSummary.ts
 models/TypesBGPStats.ts
@@ -125,6 +128,8 @@ models/TypesDeriveTunnelResult.ts
 models/TypesDeriveWireguardRequest.ts
 models/TypesDeriveWireguardResult.ts
 models/TypesDiffLine.ts
+models/TypesFailureRecord.ts
+models/TypesFailuresResponse.ts
 models/TypesFileDiff.ts
 models/TypesFriendDeleteResult.ts
 models/TypesFriendInfo.ts
@@ -190,10 +195,13 @@ models/TypesResponseTypesAnnouncement.ts
 models/TypesResponseTypesApplyLogsResponse.ts
 models/TypesResponseTypesApplyPendingResponse.ts
 models/TypesResponseTypesApplyResult.ts
+models/TypesResponseTypesArtifactContent.ts
 models/TypesResponseTypesConfigureConntrackResult.ts
 models/TypesResponseTypesConfigureVRRPResult.ts
 models/TypesResponseTypesDeriveTunnelResult.ts
 models/TypesResponseTypesDeriveWireguardResult.ts
+models/TypesResponseTypesFailureRecord.ts
+models/TypesResponseTypesFailuresResponse.ts
 models/TypesResponseTypesFriendDeleteResult.ts
 models/TypesResponseTypesFriendInfo.ts
 models/TypesResponseTypesFriendPairResponse.ts

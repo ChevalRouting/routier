@@ -36,6 +36,7 @@ func Logs(w http.ResponseWriter, _ *http.Request) {
 			FinishedAt:   rfc3339Ptr(r.FinishedAt),
 			SnapID:       r.SnapID,
 			Result:       r.Result,
+			HasBundle:    r.HasBundle,
 			ConfirmedAt:  rfc3339Ptr(r.ConfirmedAt),
 			RolledBackAt: rfc3339Ptr(r.RolledBackAt),
 		})

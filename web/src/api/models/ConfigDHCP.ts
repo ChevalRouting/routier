@@ -47,7 +47,7 @@ export interface ConfigDHCP {
      */
     enabled?: boolean;
     /**
-     * Deprecated: interface binding is per-subnet (KeaSubnet.Interface).
+     * 
      * @type {Array<string>}
      * @memberof ConfigDHCP
      */

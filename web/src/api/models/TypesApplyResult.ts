@@ -13,12 +13,32 @@
  */
 
 import { mapValues } from '../runtime';
+import type { TypesArtifactError } from './TypesArtifactError';
+import {
+    TypesArtifactErrorFromJSON,
+    TypesArtifactErrorFromJSONTyped,
+    TypesArtifactErrorToJSON,
+    TypesArtifactErrorToJSONTyped,
+} from './TypesArtifactError';
+
 /**
  * 
  * @export
  * @interface TypesApplyResult
  */
 export interface TypesApplyResult {
+    /**
+     * 
+     * @type {string}
+     * @memberof TypesApplyResult
+     */
+    bundleID?: string;
+    /**
+     * 
+     * @type {Array<TypesArtifactError>}
+     * @memberof TypesApplyResult
+     */
+    errors?: Array<TypesArtifactError>;
     /**
      * 
      * @type {string}
@@ -57,6 +77,8 @@ export function TypesApplyResultFromJSONTyped(json: any, ignoreDiscriminator: bo
     }
     return {
         
+        'bundleID': json['bundleID'] == null ? undefined : json['bundleID'],
+        'errors': json['errors'] == null ? undefined : ((json['errors'] as Array<any>).map(TypesArtifactErrorFromJSON)),
         'snapID': json['snapID'] == null ? undefined : json['snapID'],
         'status': json['status'],
         'warning': json['warning'] == null ? undefined : json['warning'],
@@ -74,6 +96,8 @@ export function TypesApplyResultToJSONTyped(value?: TypesApplyResult | null, ign
 
     return {
         
+        'bundleID': value['bundleID'],
+        'errors': value['errors'] == null ? undefined : ((value['errors'] as Array<any>).map(TypesArtifactErrorToJSON)),
         'snapID': value['snapID'],
         'status': value['status'],
         'warning': value['warning'],

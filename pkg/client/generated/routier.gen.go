@@ -226,11 +226,9 @@ type ConfigConntrackd struct {
 type ConfigDHCP struct {
 	ControlAgent *ConfigKeaControlAgent `json:"control_agent,omitempty"`
 	Enabled      *bool                  `json:"enabled,omitempty"`
-
-	// Interfaces Deprecated: interface binding is per-subnet (KeaSubnet.Interface).
-	Interfaces *[]string          `json:"interfaces,omitempty"`
-	Subnets4   *[]ConfigKeaSubnet `json:"subnets4,omitempty"`
-	Subnets6   *[]ConfigKeaSubnet `json:"subnets6,omitempty"`
+	Interfaces   *[]string              `json:"interfaces,omitempty"`
+	Subnets4     *[]ConfigKeaSubnet     `json:"subnets4,omitempty"`
+	Subnets6     *[]ConfigKeaSubnet     `json:"subnets6,omitempty"`
 }
 
 // ConfigDNS defines model for config.DNS.
@@ -880,6 +878,7 @@ type TypesApplyLogRecord struct {
 	ConfigPath   *string `json:"config_path,omitempty"`
 	ConfirmedAt  *string `json:"confirmed_at,omitempty"`
 	FinishedAt   *string `json:"finished_at,omitempty"`
+	HasBundle    *bool   `json:"has_bundle,omitempty"`
 	Id           string  `json:"id"`
 	Result       *string `json:"result,omitempty"`
 	RolledbackAt *string `json:"rolledback_at,omitempty"`
@@ -903,9 +902,27 @@ type TypesApplyPendingResponse struct {
 
 // TypesApplyResult defines model for types.ApplyResult.
 type TypesApplyResult struct {
-	SnapID  *string `json:"snapID,omitempty"`
-	Status  string  `json:"status"`
-	Warning *string `json:"warning,omitempty"`
+	BundleID *string               `json:"bundleID,omitempty"`
+	Errors   *[]TypesArtifactError `json:"errors,omitempty"`
+	SnapID   *string               `json:"snapID,omitempty"`
+	Status   string                `json:"status"`
+	Warning  *string               `json:"warning,omitempty"`
+}
+
+// TypesArtifactContent defines model for types.ArtifactContent.
+type TypesArtifactContent struct {
+	Content string `json:"content"`
+	Dest    string `json:"dest"`
+}
+
+// TypesArtifactError defines model for types.ArtifactError.
+type TypesArtifactError struct {
+	Artifact *string `json:"artifact,omitempty"`
+	Column   *int    `json:"column,omitempty"`
+	Dest     *string `json:"dest,omitempty"`
+	Line     int     `json:"line"`
+	Message  string  `json:"message"`
+	Tool     *string `json:"tool,omitempty"`
 }
 
 // TypesBGPHistoryPoint defines model for types.BGPHistoryPoint.
@@ -1025,6 +1042,21 @@ type TypesDiffLine struct {
 
 // TypesDiffLineType defines model for TypesDiffLine.Type.
 type TypesDiffLineType string
+
+// TypesFailureRecord defines model for types.FailureRecord.
+type TypesFailureRecord struct {
+	Artifacts *[]string             `json:"artifacts,omitempty"`
+	Errors    *[]TypesArtifactError `json:"errors,omitempty"`
+	Id        string                `json:"id"`
+	SnapId    *string               `json:"snap_id,omitempty"`
+	Source    *string               `json:"source,omitempty"`
+	Time      string                `json:"time"`
+}
+
+// TypesFailuresResponse defines model for types.FailuresResponse.
+type TypesFailuresResponse struct {
+	Failures *[]TypesFailureRecord `json:"failures,omitempty"`
+}
 
 // TypesFileDiff defines model for types.FileDiff.
 type TypesFileDiff struct {
@@ -1575,6 +1607,14 @@ type TypesResponseTypesApplyResult struct {
 	Status *string           `json:"status,omitempty"`
 }
 
+// TypesResponseTypesArtifactContent defines model for types.Response-types_ArtifactContent.
+type TypesResponseTypesArtifactContent struct {
+	Code   *int                  `json:"code,omitempty"`
+	Error  *string               `json:"error,omitempty"`
+	Result *TypesArtifactContent `json:"result,omitempty"`
+	Status *string               `json:"status,omitempty"`
+}
+
 // TypesResponseTypesConfigureConntrackResult defines model for types.Response-types_ConfigureConntrackResult.
 type TypesResponseTypesConfigureConntrackResult struct {
 	Code   *int                           `json:"code,omitempty"`
@@ -1605,6 +1645,22 @@ type TypesResponseTypesDeriveWireguardResult struct {
 	Error  *string                     `json:"error,omitempty"`
 	Result *TypesDeriveWireguardResult `json:"result,omitempty"`
 	Status *string                     `json:"status,omitempty"`
+}
+
+// TypesResponseTypesFailureRecord defines model for types.Response-types_FailureRecord.
+type TypesResponseTypesFailureRecord struct {
+	Code   *int                `json:"code,omitempty"`
+	Error  *string             `json:"error,omitempty"`
+	Result *TypesFailureRecord `json:"result,omitempty"`
+	Status *string             `json:"status,omitempty"`
+}
+
+// TypesResponseTypesFailuresResponse defines model for types.Response-types_FailuresResponse.
+type TypesResponseTypesFailuresResponse struct {
+	Code   *int                   `json:"code,omitempty"`
+	Error  *string                `json:"error,omitempty"`
+	Result *TypesFailuresResponse `json:"result,omitempty"`
+	Status *string                `json:"status,omitempty"`
 }
 
 // TypesResponseTypesFriendDeleteResult defines model for types.Response-types_FriendDeleteResult.
@@ -1936,6 +1992,18 @@ type GetApiDhcpFreeIpParams struct {
 type GetApiDhcpLeasesParams struct {
 	// Q filter (exact IP is looked up via kea, otherwise substring match on ip/mac/duid/hostname)
 	Q *string `form:"q,omitempty" json:"q,omitempty"`
+}
+
+// GetApiFailuresIdArtifactParams defines parameters for GetApiFailuresIdArtifact.
+type GetApiFailuresIdArtifactParams struct {
+	// Dest rendered artifact destination path
+	Dest string `form:"dest" json:"dest"`
+}
+
+// GetApiFailuresIdExportParams defines parameters for GetApiFailuresIdExport.
+type GetApiFailuresIdExportParams struct {
+	// Redact redact secrets (default true)
+	Redact *bool `form:"redact,omitempty" json:"redact,omitempty"`
 }
 
 // GetApiFriendsHelloParams defines parameters for GetApiFriendsHello.
@@ -2468,6 +2536,21 @@ type ClientInterface interface {
 
 	// GetApiDhcpSubnets request
 	GetApiDhcpSubnets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetApiFailures request
+	GetApiFailures(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteApiFailuresId request
+	DeleteApiFailuresId(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetApiFailuresId request
+	GetApiFailuresId(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetApiFailuresIdArtifact request
+	GetApiFailuresIdArtifact(ctx context.Context, id string, params *GetApiFailuresIdArtifactParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetApiFailuresIdExport request
+	GetApiFailuresIdExport(ctx context.Context, id string, params *GetApiFailuresIdExportParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetApiFriends request
 	GetApiFriends(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -3460,6 +3543,66 @@ func (c *Client) GetApiDhcpStats(ctx context.Context, reqEditors ...RequestEdito
 
 func (c *Client) GetApiDhcpSubnets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetApiDhcpSubnetsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetApiFailures(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetApiFailuresRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteApiFailuresId(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteApiFailuresIdRequest(c.Server, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetApiFailuresId(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetApiFailuresIdRequest(c.Server, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetApiFailuresIdArtifact(ctx context.Context, id string, params *GetApiFailuresIdArtifactParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetApiFailuresIdArtifactRequest(c.Server, id, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetApiFailuresIdExport(ctx context.Context, id string, params *GetApiFailuresIdExportParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetApiFailuresIdExportRequest(c.Server, id, params)
 	if err != nil {
 		return nil, err
 	}
@@ -6493,6 +6636,209 @@ func NewGetApiDhcpSubnetsRequest(server string) (*http.Request, error) {
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetApiFailuresRequest generates requests for GetApiFailures
+func NewGetApiFailuresRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/failures")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDeleteApiFailuresIdRequest generates requests for DeleteApiFailuresId
+func NewDeleteApiFailuresIdRequest(server string, id string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/failures/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetApiFailuresIdRequest generates requests for GetApiFailuresId
+func NewGetApiFailuresIdRequest(server string, id string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/failures/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetApiFailuresIdArtifactRequest generates requests for GetApiFailuresIdArtifact
+func NewGetApiFailuresIdArtifactRequest(server string, id string, params *GetApiFailuresIdArtifactParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/failures/%s/artifact", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "dest", runtime.ParamLocationQuery, params.Dest); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetApiFailuresIdExportRequest generates requests for GetApiFailuresIdExport
+func NewGetApiFailuresIdExportRequest(server string, id string, params *GetApiFailuresIdExportParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/failures/%s/export", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Redact != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "redact", runtime.ParamLocationQuery, *params.Redact); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
@@ -11340,6 +11686,21 @@ type ClientWithResponsesInterface interface {
 	// GetApiDhcpSubnetsWithResponse request
 	GetApiDhcpSubnetsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiDhcpSubnetsResponse, error)
 
+	// GetApiFailuresWithResponse request
+	GetApiFailuresWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiFailuresResponse, error)
+
+	// DeleteApiFailuresIdWithResponse request
+	DeleteApiFailuresIdWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*DeleteApiFailuresIdResponse, error)
+
+	// GetApiFailuresIdWithResponse request
+	GetApiFailuresIdWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*GetApiFailuresIdResponse, error)
+
+	// GetApiFailuresIdArtifactWithResponse request
+	GetApiFailuresIdArtifactWithResponse(ctx context.Context, id string, params *GetApiFailuresIdArtifactParams, reqEditors ...RequestEditorFn) (*GetApiFailuresIdArtifactResponse, error)
+
+	// GetApiFailuresIdExportWithResponse request
+	GetApiFailuresIdExportWithResponse(ctx context.Context, id string, params *GetApiFailuresIdExportParams, reqEditors ...RequestEditorFn) (*GetApiFailuresIdExportResponse, error)
+
 	// GetApiFriendsWithResponse request
 	GetApiFriendsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiFriendsResponse, error)
 
@@ -12526,6 +12887,115 @@ func (r GetApiDhcpSubnetsResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r GetApiDhcpSubnetsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetApiFailuresResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TypesResponseTypesFailuresResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetApiFailuresResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetApiFailuresResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteApiFailuresIdResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TypesResponseTypesStatusResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteApiFailuresIdResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteApiFailuresIdResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetApiFailuresIdResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TypesResponseTypesFailureRecord
+}
+
+// Status returns HTTPResponse.Status
+func (r GetApiFailuresIdResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetApiFailuresIdResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetApiFailuresIdArtifactResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TypesResponseTypesArtifactContent
+}
+
+// Status returns HTTPResponse.Status
+func (r GetApiFailuresIdArtifactResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetApiFailuresIdArtifactResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetApiFailuresIdExportResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r GetApiFailuresIdExportResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetApiFailuresIdExportResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -15505,6 +15975,51 @@ func (c *ClientWithResponses) GetApiDhcpSubnetsWithResponse(ctx context.Context,
 	return ParseGetApiDhcpSubnetsResponse(rsp)
 }
 
+// GetApiFailuresWithResponse request returning *GetApiFailuresResponse
+func (c *ClientWithResponses) GetApiFailuresWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiFailuresResponse, error) {
+	rsp, err := c.GetApiFailures(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetApiFailuresResponse(rsp)
+}
+
+// DeleteApiFailuresIdWithResponse request returning *DeleteApiFailuresIdResponse
+func (c *ClientWithResponses) DeleteApiFailuresIdWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*DeleteApiFailuresIdResponse, error) {
+	rsp, err := c.DeleteApiFailuresId(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteApiFailuresIdResponse(rsp)
+}
+
+// GetApiFailuresIdWithResponse request returning *GetApiFailuresIdResponse
+func (c *ClientWithResponses) GetApiFailuresIdWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*GetApiFailuresIdResponse, error) {
+	rsp, err := c.GetApiFailuresId(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetApiFailuresIdResponse(rsp)
+}
+
+// GetApiFailuresIdArtifactWithResponse request returning *GetApiFailuresIdArtifactResponse
+func (c *ClientWithResponses) GetApiFailuresIdArtifactWithResponse(ctx context.Context, id string, params *GetApiFailuresIdArtifactParams, reqEditors ...RequestEditorFn) (*GetApiFailuresIdArtifactResponse, error) {
+	rsp, err := c.GetApiFailuresIdArtifact(ctx, id, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetApiFailuresIdArtifactResponse(rsp)
+}
+
+// GetApiFailuresIdExportWithResponse request returning *GetApiFailuresIdExportResponse
+func (c *ClientWithResponses) GetApiFailuresIdExportWithResponse(ctx context.Context, id string, params *GetApiFailuresIdExportParams, reqEditors ...RequestEditorFn) (*GetApiFailuresIdExportResponse, error) {
+	rsp, err := c.GetApiFailuresIdExport(ctx, id, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetApiFailuresIdExportResponse(rsp)
+}
+
 // GetApiFriendsWithResponse request returning *GetApiFriendsResponse
 func (c *ClientWithResponses) GetApiFriendsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiFriendsResponse, error) {
 	rsp, err := c.GetApiFriends(ctx, reqEditors...)
@@ -17728,6 +18243,126 @@ func ParseGetApiDhcpSubnetsResponse(rsp *http.Response) (*GetApiDhcpSubnetsRespo
 		}
 		response.JSON200 = &dest
 
+	}
+
+	return response, nil
+}
+
+// ParseGetApiFailuresResponse parses an HTTP response from a GetApiFailuresWithResponse call
+func ParseGetApiFailuresResponse(rsp *http.Response) (*GetApiFailuresResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetApiFailuresResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TypesResponseTypesFailuresResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteApiFailuresIdResponse parses an HTTP response from a DeleteApiFailuresIdWithResponse call
+func ParseDeleteApiFailuresIdResponse(rsp *http.Response) (*DeleteApiFailuresIdResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteApiFailuresIdResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TypesResponseTypesStatusResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetApiFailuresIdResponse parses an HTTP response from a GetApiFailuresIdWithResponse call
+func ParseGetApiFailuresIdResponse(rsp *http.Response) (*GetApiFailuresIdResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetApiFailuresIdResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TypesResponseTypesFailureRecord
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetApiFailuresIdArtifactResponse parses an HTTP response from a GetApiFailuresIdArtifactWithResponse call
+func ParseGetApiFailuresIdArtifactResponse(rsp *http.Response) (*GetApiFailuresIdArtifactResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetApiFailuresIdArtifactResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TypesResponseTypesArtifactContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetApiFailuresIdExportResponse parses an HTTP response from a GetApiFailuresIdExportWithResponse call
+func ParseGetApiFailuresIdExportResponse(rsp *http.Response) (*GetApiFailuresIdExportResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetApiFailuresIdExportResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
 	}
 
 	return response, nil

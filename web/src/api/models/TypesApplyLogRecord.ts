@@ -39,6 +39,12 @@ export interface TypesApplyLogRecord {
     finished_at?: string;
     /**
      * 
+     * @type {boolean}
+     * @memberof TypesApplyLogRecord
+     */
+    has_bundle?: boolean;
+    /**
+     * 
      * @type {string}
      * @memberof TypesApplyLogRecord
      */
@@ -98,6 +104,7 @@ export function TypesApplyLogRecordFromJSONTyped(json: any, ignoreDiscriminator:
         'config_path': json['config_path'] == null ? undefined : json['config_path'],
         'confirmed_at': json['confirmed_at'] == null ? undefined : json['confirmed_at'],
         'finished_at': json['finished_at'] == null ? undefined : json['finished_at'],
+        'has_bundle': json['has_bundle'] == null ? undefined : json['has_bundle'],
         'id': json['id'],
         'result': json['result'] == null ? undefined : json['result'],
         'rolledback_at': json['rolledback_at'] == null ? undefined : json['rolledback_at'],
@@ -121,6 +128,7 @@ export function TypesApplyLogRecordToJSONTyped(value?: TypesApplyLogRecord | nul
         'config_path': value['config_path'],
         'confirmed_at': value['confirmed_at'],
         'finished_at': value['finished_at'],
+        'has_bundle': value['has_bundle'],
         'id': value['id'],
         'result': value['result'],
         'rolledback_at': value['rolledback_at'],

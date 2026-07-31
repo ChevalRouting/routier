@@ -6,6 +6,7 @@ export * from './AuthApi';
 export * from './BackupApi';
 export * from './ConfigApi';
 export * from './DhcpApi';
+export * from './FailuresApi';
 export * from './FriendsApi';
 export * from './HaApi';
 export * from './LogsApi';

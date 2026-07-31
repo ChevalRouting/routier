@@ -5,9 +5,11 @@ type StatusResponse struct {
 }
 
 type ApplyResult struct {
-	Status  string `json:"status"`
-	SnapID  string `json:"snapID,omitempty" validate:"optional"`
-	Warning string `json:"warning,omitempty" validate:"optional"`
+	Status   string          `json:"status"`
+	SnapID   string          `json:"snapID,omitempty" validate:"optional"`
+	Warning  string          `json:"warning,omitempty" validate:"optional"`
+	BundleID string          `json:"bundleID,omitempty" validate:"optional"`
+	Errors   []ArtifactError `json:"errors,omitempty" validate:"optional"`
 }
 
 type ApplyPendingResponse struct {
@@ -25,6 +27,7 @@ type ApplyLogRecord struct {
 	FinishedAt   *string `json:"finished_at,omitempty" validate:"optional"`
 	SnapID       string  `json:"snap_id,omitempty" validate:"optional"`
 	Result       string  `json:"result,omitempty" validate:"optional"`
+	HasBundle    bool    `json:"has_bundle,omitempty" validate:"optional"`
 	ConfirmedAt  *string `json:"confirmed_at,omitempty" validate:"optional"`
 	RolledBackAt *string `json:"rolledback_at,omitempty" validate:"optional"`
 }

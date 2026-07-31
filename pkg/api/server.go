@@ -33,6 +33,8 @@ import (
 
 	"github.com/ChevalRouting/routier/pkg/api/routes/snapshots"
 
+	failuresroutes "github.com/ChevalRouting/routier/pkg/api/routes/failures"
+
 	"github.com/ChevalRouting/routier/pkg/api/routes/setup"
 
 	"github.com/ChevalRouting/routier/pkg/api/routes/ha"
@@ -113,6 +115,7 @@ func buildRouter(app *appctx.App, staticFS fs.FS) *chi.Mux {
 		configroutes.Routes(r)
 		apply.Routes(r)
 		snapshots.Routes(r)
+		failuresroutes.Routes(r)
 		backup.Routes(r)
 		ha.Routes(r)
 		friendsroutes.Routes(r)
