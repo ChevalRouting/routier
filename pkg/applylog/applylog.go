@@ -34,6 +34,7 @@ type Record struct {
 	FinishedAt   *time.Time `json:"finished_at,omitempty"`
 	SnapID       string     `json:"snap_id,omitempty"`
 	Result       string     `json:"result,omitempty"`
+	HasBundle    bool       `json:"has_bundle,omitempty"`
 	ConfirmedAt  *time.Time `json:"confirmed_at,omitempty"`
 	RolledBackAt *time.Time `json:"rolledback_at,omitempty"`
 }
@@ -75,6 +76,14 @@ func Start(source, configPath string) *Recorder {
 
 	log.Logger = zerolog.New(w).With().Timestamp().Logger()
 	return r
+}
+
+func (r *Recorder) ID() string {
+	return r.rec.ID
+}
+
+func (r *Recorder) MarkBundle() {
+	r.rec.HasBundle = true
 }
 
 func (r *Recorder) Finish(snapID, result string) {

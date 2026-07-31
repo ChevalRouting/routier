@@ -2,6 +2,7 @@ package managers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"sync"
@@ -11,8 +12,10 @@ import (
 	"github.com/ChevalRouting/routier/pkg/apply"
 	"github.com/ChevalRouting/routier/pkg/applylog"
 	"github.com/ChevalRouting/routier/pkg/config"
+	"github.com/ChevalRouting/routier/pkg/failures"
 	"github.com/ChevalRouting/routier/pkg/render"
 	"github.com/ChevalRouting/routier/pkg/svc"
+	"github.com/ChevalRouting/routier/pkg/types"
 	anyk "github.com/m-vinc/anyk"
 	"github.com/rs/zerolog/log"
 	"gopkg.in/yaml.v3"
@@ -82,29 +85,54 @@ func acquireApplyLock(ctx context.Context) (func(), error) {
 	}, nil
 }
 
+func rawArtifactErrors(err error) []types.ArtifactError {
+	var ve *failures.ValidationError
+	if errors.As(err, &ve) {
+		return ve.Errors
+	}
+
+	return []types.ArtifactError{{Message: err.Error()}}
+}
+
 func ApplyConfig(ctx context.Context, cfg *config.Config, outputs []render.Output, opts ApplyOptions) (snapID string, err error) {
+	source := opts.Source
+	if source == "" {
+		source = "cli"
+	}
+
+	var rec *applylog.Recorder
 	if !opts.DryRun {
-		release, err := acquireApplyLock(ctx)
-		if err != nil {
-			return "", err
+		release, lerr := acquireApplyLock(ctx)
+		if lerr != nil {
+			return "", lerr
 		}
 
 		defer release()
 
-		source := opts.Source
-		if source == "" {
-			source = "cli"
-		}
-
-		rec := applylog.Start(source, opts.ConfigPath)
+		rec = applylog.Start(source, opts.ConfigPath)
 		defer func() {
 			result := "applied"
 			if err != nil {
 				result = "failed"
+				if snapID != "" {
+					_ = failures.Save(rec.ID(), source, snapID, cfg, outputs, rawArtifactErrors(err))
+					rec.MarkBundle()
+					log.Warn().Str("bundle", rec.ID()).Msg("apply failed, saved rendered artifacts")
+				}
 			}
 
 			rec.Finish(snapID, result)
 		}()
+	}
+
+	if !opts.DryRun {
+		if verrs := svc.ValidateArtifacts(outputs); len(verrs) > 0 {
+			_ = failures.Save(rec.ID(), source, "", cfg, outputs, verrs)
+			rec.MarkBundle()
+			ve := failures.NewValidationError(verrs)
+			ve.BundleID = rec.ID()
+			return "", ve
+		}
 	}
 
 	if err := apply.Hostname(cfg.Hostname, opts.DryRun); err != nil {
