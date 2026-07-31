@@ -5,12 +5,12 @@ import (
 	"io"
 	"net/http"
 	"regexp"
-	"strconv"
 	"strings"
 
 	appctx "github.com/ChevalRouting/routier/pkg/api/app"
 	"github.com/ChevalRouting/routier/pkg/api/cfgstore"
 	"github.com/ChevalRouting/routier/pkg/api/friendcache"
+	"github.com/ChevalRouting/routier/pkg/artifacterr"
 	cfgpkg "github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/render"
 	"github.com/ChevalRouting/routier/pkg/svc"
@@ -36,8 +36,6 @@ func GetNftablesVars(w http.ResponseWriter, r *http.Request) {
 	cfgpkg.ResolveInterfaces(cfg)
 	types.OK(w, render.NftVars(cfg, render.WithFriends(friendcache.InterpolationVars())))
 }
-
-var nftErrorLine = regexp.MustCompile(`:(\d+):\d+(?:-\d+)?:\s*Error:\s*(.*)`)
 
 var nftChainOpen = regexp.MustCompile(`^chain (\w+) \{$`)
 
@@ -99,19 +97,10 @@ func ValidateNftables(w http.ResponseWriter, r *http.Request) {
 }
 
 func parseNftErrors(out string) []types.NftValidateError {
-	var errs []types.NftValidateError
-	for _, line := range strings.Split(out, "\n") {
-		m := nftErrorLine.FindStringSubmatch(line)
-		if m == nil {
-			continue
-		}
-
-		ln, _ := strconv.Atoi(m[1])
-		errs = append(errs, types.NftValidateError{Line: ln, Message: strings.TrimSpace(m[2])})
-	}
-
-	if len(errs) == 0 {
-		errs = append(errs, types.NftValidateError{Message: strings.TrimSpace(out)})
+	parsed := artifacterr.Parse(artifacterr.ToolNft, "", out)
+	errs := make([]types.NftValidateError, len(parsed))
+	for i, e := range parsed {
+		errs[i] = types.NftValidateError{Line: e.Line, Message: e.Message}
 	}
 
 	return errs
