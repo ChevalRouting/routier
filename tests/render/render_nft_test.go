@@ -141,6 +141,41 @@ func TestNftFileAndInclude(t *testing.T) {
 	}
 }
 
+func TestNftVRFDefines(t *testing.T) {
+	cfg := &config.Config{
+		Hostname: "rtr",
+		VRFs: map[string]*config.VRFConfig{
+			"vm-public": {Table: 100},
+			"mgmt":      {Table: 200},
+		},
+		Interfaces: map[string]*config.Interface{
+			"wan":  {Device: "eth0", Addresses: []string{"203.0.113.2/24"}, VRF: "vm-public"},
+			"wan2": {Device: "eth1", VRF: "vm-public"},
+		},
+	}
+	out := renderNft(t, cfg)
+
+	if !strings.Contains(out, `define vm_public_interfaces = "vm-public"`) {
+		t.Fatalf("expected vrf master device define, got:\n%s", out)
+	}
+
+	if !strings.Contains(out, `define vm_public_members = { "eth0", "eth1" }`) {
+		t.Fatalf("expected vrf members define, got:\n%s", out)
+	}
+
+	if !strings.Contains(out, `define mgmt_interfaces = "mgmt"`) {
+		t.Fatalf("expected second vrf interface define, got:\n%s", out)
+	}
+
+	if strings.Contains(out, "define mgmt_members") {
+		t.Fatalf("vrf with no members should not emit a members define, got:\n%s", out)
+	}
+
+	if !strings.Contains(out, `define vrfs = { "mgmt", "vm-public" }`) {
+		t.Fatalf("expected vrfs aggregate define, got:\n%s", out)
+	}
+}
+
 func TestNftWireguardAllowOptIn(t *testing.T) {
 	cfg := &config.Config{
 		Hostname:   "rtr",

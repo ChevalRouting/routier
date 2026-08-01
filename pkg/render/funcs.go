@@ -362,6 +362,7 @@ func templateFuncs(data TemplateData) template.FuncMap {
 
 			var ifaceDevs, tunnelDevs, wgDevs []string
 			var meV4, meV6 []string
+			vrfMembers := map[string][]string{}
 
 			collectAddrs = func(addresses []string) {
 				for _, addr := range addresses {
@@ -403,6 +404,9 @@ func templateFuncs(data TemplateData) template.FuncMap {
 				fmt.Fprintf(&b, "define %s_interfaces = \"%s\"\n", sanitized, dev)
 				if dev != "" {
 					ifaceDevs = append(ifaceDevs, "\""+dev+"\"")
+					if iface.VRF != "" {
+						vrfMembers[iface.VRF] = append(vrfMembers[iface.VRF], "\""+dev+"\"")
+					}
 				}
 
 				writeAddrDefines(sanitized, iface.Addresses)
@@ -490,6 +494,24 @@ func templateFuncs(data TemplateData) template.FuncMap {
 				writeAddrDefines(sanitized, wg.Addresses)
 			}
 
+			vrfNames := make([]string, 0, len(cfg.VRFs))
+			for n := range cfg.VRFs {
+				vrfNames = append(vrfNames, n)
+			}
+
+			sort.Strings(vrfNames)
+
+			var vrfDevs []string
+			for _, name := range vrfNames {
+				sanitized := sanitizeNftName(name)
+				fmt.Fprintf(&b, "define %s_interfaces = \"%s\"\n", sanitized, name)
+				if members := vrfMembers[name]; len(members) > 0 {
+					fmt.Fprintf(&b, "define %s_members = %s\n", sanitized, nftSet(members))
+				}
+
+				vrfDevs = append(vrfDevs, "\""+name+"\"")
+			}
+
 			if len(ifaceDevs) > 0 {
 				fmt.Fprintf(&b, "define interfaces = %s\n", nftSet(ifaceDevs))
 			}
@@ -500,6 +522,10 @@ func templateFuncs(data TemplateData) template.FuncMap {
 
 			if len(wgDevs) > 0 {
 				fmt.Fprintf(&b, "define wireguard = %s\n", nftSet(wgDevs))
+			}
+
+			if len(vrfDevs) > 0 {
+				fmt.Fprintf(&b, "define vrfs = %s\n", nftSet(vrfDevs))
 			}
 
 			if cfg.DNS != nil && len(cfg.DNS.Nameservers) > 0 {
