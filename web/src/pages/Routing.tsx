@@ -192,7 +192,7 @@ export default function Routing() {
 
   const getVRFStaticRows = (): RouteRow[] => {
     if (vrfContext === 'global') return staticRows
-    return (vrfRoutings[vrfContext]?.static ?? []).map((r) => ({ ...r, id: newId() }))
+    return (vrfRoutings[vrfContext]?.static ?? []).map((r, i) => ({ ...r, id: i }))
   }
   const setVRFStaticRows: React.Dispatch<React.SetStateAction<RouteRow[]>> = (action) => {
     if (vrfContext === 'global') {
