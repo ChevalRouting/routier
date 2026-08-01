@@ -25,8 +25,18 @@ podman run --rm \
 		find . -maxdepth 1 -type f -name "*.apk" -mtime +"$DAYS" -exec rm -f {} +
 		set -- *.apk
 		[ -e "$1" ] || { echo "no packages in /repo" >&2; exit 1; }
-		apk index --rewrite-arch "$ARCH" -o APKINDEX.tar.gz "$@" 2>&1 \
-			| grep -v "WARNING: No provider\|WARNING: Total of.*unsatisfiable\|Your repository may be broken" || true
+		if ! apk index --rewrite-arch "$ARCH" -o APKINDEX.tar.gz.new "$@" 2>/tmp/idx.err; then
+			cat /tmp/idx.err >&2
+			echo "apk index failed - keeping the existing APKINDEX.tar.gz" >&2
+			exit 1
+		fi
+		grep -v "WARNING: No provider\|WARNING: Total of.*unsatisfiable\|Your repository may be broken" /tmp/idx.err >&2 || true
+		got=$(tar -Oxzf APKINDEX.tar.gz.new APKINDEX | grep -c "^P:")
+		if [ "$#" != "$got" ]; then
+			echo "index describes $got packages but $# apks are present - refusing to publish" >&2
+			exit 1
+		fi
+		mv APKINDEX.tar.gz.new APKINDEX.tar.gz
 		abuild-sign APKINDEX.tar.gz
 		echo "reindexed /repo ($# packages, pruned >${DAYS}d)"
 	'

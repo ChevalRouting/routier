@@ -27,8 +27,18 @@ fi
 cp /home/builder/.abuild/routier.rsa.pub /etc/apk/keys/
 cp /home/builder/.abuild/routier.rsa.pub "$OUTDIR/" || true
 
-su builder -c "cd /app/$OUTDIR && apk index --rewrite-arch \$(apk --print-arch) -o APKINDEX.tar.gz *.apk" 2>&1 \
-	| grep -v 'WARNING: No provider\|WARNING: Total of.*unsatisfiable\|Your repository may be broken' || true
+if ! su builder -c "cd /app/$OUTDIR && apk index --rewrite-arch \$(apk --print-arch) -o APKINDEX.tar.gz.new *.apk" 2>/tmp/idx.err; then
+	cat /tmp/idx.err >&2
+	echo "apk index failed" >&2
+	exit 1
+fi
+grep -v 'WARNING: No provider\|WARNING: Total of.*unsatisfiable\|Your repository may be broken' /tmp/idx.err >&2 || true
+
+want=$(set -- "$OUTDIR"/*.apk; echo $#)
+got=$(tar -Oxzf "$OUTDIR/APKINDEX.tar.gz.new" APKINDEX | grep -c "^P:")
+[ "$want" = "$got" ] || { echo "index describes $got of $want packages - refusing to publish" >&2; exit 1; }
+
+mv "$OUTDIR/APKINDEX.tar.gz.new" "$OUTDIR/APKINDEX.tar.gz"
 su builder -c "cd /app/$OUTDIR && abuild-sign APKINDEX.tar.gz"
 
 chown -R 0:0 /app/dist
