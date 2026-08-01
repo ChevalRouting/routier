@@ -23,6 +23,7 @@ if [ ! -f /var/lib/routier/tls.key ]; then
 fi
 
 if [ -x /usr/bin/routier ]; then
+	/usr/bin/routier version > /etc/routier/version 2>/dev/null || true
 	/usr/bin/routier takeover || echo "routier: network takeover skipped (see warnings above)"
 fi
 
