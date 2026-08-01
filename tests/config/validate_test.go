@@ -151,6 +151,93 @@ friends:
 	}
 }
 
+func TestValidateDuplicateSeq(t *testing.T) {
+	cases := map[string]string{
+		"prefix-list duplicate seq": `version: v3.0.0
+hostname: gw
+routing:
+  bgp:
+    asn: 65000
+    router_id: 10.0.0.1
+    prefix_lists:
+      L1:
+        - { seq: 10, action: permit, prefix: "10.0.0.0/8" }
+        - { seq: 10, action: deny, prefix: "192.168.0.0/16" }
+`,
+		"route-map duplicate seq": `version: v3.0.0
+hostname: gw
+routing:
+  bgp:
+    asn: 65000
+    router_id: 10.0.0.1
+    route_maps:
+      M1:
+        - { seq: 5, action: permit }
+        - { seq: 5, action: deny }
+`,
+		"vrf bgp route-map duplicate seq": `version: v3.0.0
+hostname: gw
+vrfs:
+  blue:
+    table: 100
+routing:
+  vrfs:
+    blue:
+      bgp:
+        asn: 65000
+        router_id: 10.0.0.1
+        route_maps:
+          M1:
+            - { seq: 5, action: permit }
+            - { seq: 5, action: deny }
+`,
+		"pbr map duplicate seq": `version: v3.0.0
+hostname: gw
+routing:
+  pbr:
+    nexthop_groups:
+      G1:
+        nexthops:
+          - address: 10.0.0.2
+    maps:
+      P1:
+        - { seq: 10, set_nexthop_group: G1 }
+        - { seq: 10, set_nexthop_group: G1 }
+`,
+	}
+
+	for name, yaml := range cases {
+		t.Run(name, func(t *testing.T) {
+			msg := validateErr(t, yaml)
+			if !strings.Contains(msg, "duplicate seq") {
+				t.Fatalf("expected duplicate seq error, got: %q", msg)
+			}
+		})
+	}
+}
+
+func TestValidateDistinctSeqAccepted(t *testing.T) {
+	yaml := `version: v3.0.0
+hostname: gw
+routing:
+  bgp:
+    asn: 65000
+    router_id: 10.0.0.1
+    prefix_lists:
+      L1:
+        - { seq: 10, action: permit, prefix: "10.0.0.0/8" }
+        - { seq: 20, action: deny, prefix: "192.168.0.0/16" }
+    route_maps:
+      M1:
+        - { seq: 5, action: permit }
+        - { seq: 10, action: deny }
+`
+
+	if msg := validateErr(t, yaml); msg != "" {
+		t.Fatalf("expected distinct seqs to pass, got: %s", msg)
+	}
+}
+
 func TestValidateDHCPValid(t *testing.T) {
 	yaml := `version: v3.0.0
 hostname: gw

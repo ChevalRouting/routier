@@ -324,7 +324,14 @@ func validateBGP(bgp *BGP, path string, vrfNames map[string]bool, bfdProfiles ma
 	}
 
 	for plName, entries := range bgp.PrefixLists {
+		seen := map[int]int{}
 		for i, e := range entries {
+			if prev, dup := seen[e.Seq]; dup {
+				add("%s.prefix_lists.%s[%d]: duplicate seq %d (also used by entry %d)", path, plName, i, e.Seq, prev)
+			} else {
+				seen[e.Seq] = i
+			}
+
 			if e.Action != "" && !slices.Contains([]string{"permit", "deny"}, e.Action) {
 				add("%s.prefix_lists.%s[%d]: action must be permit or deny", path, plName, i)
 			}
@@ -336,7 +343,14 @@ func validateBGP(bgp *BGP, path string, vrfNames map[string]bool, bfdProfiles ma
 	}
 
 	for rmName, entries := range bgp.RouteMaps {
+		seen := map[int]int{}
 		for i, e := range entries {
+			if prev, dup := seen[e.Seq]; dup {
+				add("%s.route_maps.%s[%d]: duplicate seq %d (also used by entry %d)", path, rmName, i, e.Seq, prev)
+			} else {
+				seen[e.Seq] = i
+			}
+
 			if e.Action != "" && !slices.Contains([]string{"permit", "deny"}, e.Action) {
 				add("%s.route_maps.%s[%d]: action must be permit or deny", path, rmName, i)
 			}
@@ -577,9 +591,14 @@ func validatePBR(pbr *PBR, add addfunc) {
 	}
 
 	for name, entries := range pbr.Maps {
+		seen := map[int]int{}
 		for i, e := range entries {
 			if e.Seq <= 0 {
 				add("routing.pbr.maps.%s[%d]: seq must be a positive integer", name, i)
+			} else if prev, dup := seen[e.Seq]; dup {
+				add("routing.pbr.maps.%s[%d]: duplicate seq %d (also used by entry %d)", name, i, e.Seq, prev)
+			} else {
+				seen[e.Seq] = i
 			}
 
 			if e.MatchSrc != "" && !isValidCIDR(e.MatchSrc) {
