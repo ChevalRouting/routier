@@ -292,6 +292,7 @@ export default function Routing() {
         )}
         {activeTab === 'bgp' && (
           <BGPTab
+            key={vrfContext}
             bgp={getVRFBGP()}
             setBGP={setVRFBGP}
             enabled={getVRFBGPEnabled()}
@@ -306,6 +307,7 @@ export default function Routing() {
         )}
         {activeTab === 'ospf' && (
           <OSPFTab
+            key={vrfContext}
             ospf={getVRFOSPF()}
             setOSPF={setVRFOSPF}
             enabled={getVRFOSPFEnabled()}
@@ -316,6 +318,7 @@ export default function Routing() {
         )}
         {activeTab === 'ospf6' && (
           <OSPF6Tab
+            key={vrfContext}
             ospf6={getVRFOSPF6()}
             setOSPF6={setVRFOSPF6}
             enabled={getVRFOSPF6Enabled()}
