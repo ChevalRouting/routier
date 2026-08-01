@@ -151,8 +151,16 @@ func ReloadFromOutputs(names []string, cfg *config.Config, dryRun bool, skipWire
 	if cfg != nil {
 		if dryRun {
 			log.Info().Msg("would: reconcile network")
-		} else if err := netlink.Reconcile(cfg, dryRun); err != nil {
-			return err
+		} else {
+			if len(cfg.VRFs) > 0 {
+				if err := ensureModule("vrf"); err != nil {
+					return err
+				}
+			}
+
+			if err := netlink.Reconcile(cfg, dryRun); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -361,6 +369,19 @@ func applyKeaServer(svcName, service string) error {
 
 	if err := runCmd([]string{"rc-service", svcName, "restart"}, 0); err != nil {
 		return fmt.Errorf("kea %s: restart failed: %w", svcName, err)
+	}
+
+	return nil
+}
+
+func ensureModule(name string) error {
+	if _, err := os.Stat("/sys/module/" + strings.ReplaceAll(name, "-", "_")); err == nil {
+		return nil
+	}
+
+	out, err := runCombined([]string{"modprobe", name}, 0)
+	if err != nil {
+		return fmt.Errorf("load kernel module %s: %w: %s", name, err, strings.TrimSpace(string(out)))
 	}
 
 	return nil
