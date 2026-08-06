@@ -73,11 +73,11 @@ func TestStatsIfaceHistoryAndTotals(t *testing.T) {
 
 	defer db.Close()
 
-	rxbps := 100.0
-	txbps := 50.0
+	wanRx, wanTx := 100.0, 50.0
+	lanRx, lanTx := 200.0, 80.0
 	rows := []webdb.IfaceStatRow{
-		{Iface: "wan", RxBytes: 1000, TxBytes: 500, RxBps: &rxbps, TxBps: &txbps, OperState: "up"},
-		{Iface: "lan", RxBytes: 2000, TxBytes: 800, OperState: "up"},
+		{Iface: "wan", RxBytes: 1000, TxBytes: 500, RxBytesPS: &wanRx, TxBytesPS: &wanTx, OperState: "up"},
+		{Iface: "lan", RxBytes: 2000, TxBytes: 800, RxBytesPS: &lanRx, TxBytesPS: &lanTx, OperState: "up"},
 	}
 	if err := webdb.InsertIfaceStats(db, 1000, rows); err != nil {
 		t.Fatalf("insert iface: %v", err)
@@ -92,9 +92,14 @@ func TestStatsIfaceHistoryAndTotals(t *testing.T) {
 		t.Fatalf("filtered history = %+v", filtered)
 	}
 
-	totals := webdb.IfaceTotals(db, 0, 1)
-	if len(totals) != 1 {
+	totals := webdb.IfaceTotals(db, 0, 1, nil)
+	if len(totals) != 1 || totals[0].RxBytesPS == nil || *totals[0].RxBytesPS != 300 {
 		t.Fatalf("totals = %+v", totals)
+	}
+
+	only := webdb.IfaceTotals(db, 0, 1, map[string]bool{"wan": true})
+	if len(only) != 1 || only[0].RxBytesPS == nil || *only[0].RxBytesPS != 100 {
+		t.Fatalf("wan-only totals = %+v", only)
 	}
 }
 

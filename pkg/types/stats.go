@@ -87,8 +87,8 @@ type IfaceHistoryPoint struct {
 	TxPkts    int64    `json:"tx_pkts"`
 	RxErrs    int64    `json:"rx_errs"`
 	TxErrs    int64    `json:"tx_errs"`
-	RxBps     *float64 `json:"rx_bps"`
-	TxBps     *float64 `json:"tx_bps"`
+	RxBytesPS *float64 `json:"rx_bytes_ps"`
+	TxBytesPS *float64 `json:"tx_bytes_ps"`
 	RxPps     *float64 `json:"rx_pps"`
 	TxPps     *float64 `json:"tx_pps"`
 	OperState string   `json:"operstate"`
@@ -130,11 +130,11 @@ type ProtoHistoryPoint struct {
 }
 
 type IfaceTotalPoint struct {
-	TS    int64    `json:"ts"`
-	RxBps *float64 `json:"rx_bps"`
-	TxBps *float64 `json:"tx_bps"`
-	RxPps *float64 `json:"rx_pps"`
-	TxPps *float64 `json:"tx_pps"`
+	TS        int64    `json:"ts"`
+	RxBytesPS *float64 `json:"rx_bytes_ps"`
+	TxBytesPS *float64 `json:"tx_bytes_ps"`
+	RxPps     *float64 `json:"rx_pps"`
+	TxPps     *float64 `json:"tx_pps"`
 }
 
 type IfaceUsagePoint struct {

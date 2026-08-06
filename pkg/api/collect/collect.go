@@ -132,17 +132,17 @@ func storeIfaceStats(db *sql.DB, now int64) error {
 
 	rows := make([]webdb.IfaceStatRow, 0, len(current))
 	for name, st := range current {
-		var rxBps, txBps, rxPps, txPps *float64
+		var rxBytesPS, txBytesPS, rxPps, txPps *float64
 		if p, ok := prevByIface[name]; ok && p.TS > 0 && now > p.TS {
 			dt := float64(now - p.TS)
 			if int64(st.RxBytes) >= p.RxBytes {
 				v := float64(int64(st.RxBytes)-p.RxBytes) / dt
-				rxBps = &v
+				rxBytesPS = &v
 			}
 
 			if int64(st.TxBytes) >= p.TxBytes {
 				v := float64(int64(st.TxBytes)-p.TxBytes) / dt
-				txBps = &v
+				txBytesPS = &v
 			}
 
 			if int64(st.RxPackets) >= p.RxPkts {
@@ -160,7 +160,7 @@ func storeIfaceStats(db *sql.DB, now int64) error {
 			Iface:   name,
 			RxBytes: st.RxBytes, TxBytes: st.TxBytes, RxPkts: st.RxPackets, TxPkts: st.TxPackets,
 			RxErrs: st.RxErrors, TxErrs: st.TxErrors,
-			RxBps: rxBps, TxBps: txBps, RxPps: rxPps, TxPps: txPps,
+			RxBytesPS: rxBytesPS, TxBytesPS: txBytesPS, RxPps: rxPps, TxPps: txPps,
 			OperState: st.OperState,
 		})
 	}
