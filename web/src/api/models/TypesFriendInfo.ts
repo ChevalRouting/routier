@@ -45,6 +45,12 @@ export interface TypesFriendInfo {
     hostname?: string;
     /**
      * 
+     * @type {boolean}
+     * @memberof TypesFriendInfo
+     */
+    manage?: boolean;
+    /**
+     * 
      * @type {string}
      * @memberof TypesFriendInfo
      */
@@ -88,6 +94,7 @@ export function TypesFriendInfoFromJSONTyped(json: any, ignoreDiscriminator: boo
         'fingerprint': json['fingerprint'] == null ? undefined : json['fingerprint'],
         'ha': json['ha'],
         'hostname': json['hostname'] == null ? undefined : json['hostname'],
+        'manage': json['manage'] == null ? undefined : json['manage'],
         'name': json['name'],
         'paired': json['paired'] == null ? undefined : json['paired'],
         'url': json['url'],
@@ -109,6 +116,7 @@ export function TypesFriendInfoToJSONTyped(value?: TypesFriendInfo | null, ignor
         'fingerprint': value['fingerprint'],
         'ha': value['ha'],
         'hostname': value['hostname'],
+        'manage': value['manage'],
         'name': value['name'],
         'paired': value['paired'],
         'url': value['url'],

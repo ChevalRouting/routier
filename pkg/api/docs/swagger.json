@@ -3080,6 +3080,9 @@
                     "hostname": {
                         "type": "string"
                     },
+                    "manage": {
+                        "type": "boolean"
+                    },
                     "name": {
                         "type": "string"
                     },
@@ -5288,6 +5291,9 @@
             "types.UpdateFriendRequest": {
                 "properties": {
                     "enabled": {
+                        "type": "boolean"
+                    },
+                    "manage": {
                         "type": "boolean"
                     },
                     "tls_skip_verify": {

@@ -30,6 +30,12 @@ export interface TypesUpdateFriendRequest {
      * @type {boolean}
      * @memberof TypesUpdateFriendRequest
      */
+    manage?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof TypesUpdateFriendRequest
+     */
     tls_skip_verify?: boolean;
     /**
      * 
@@ -63,6 +69,7 @@ export function TypesUpdateFriendRequestFromJSONTyped(json: any, ignoreDiscrimin
     return {
         
         'enabled': json['enabled'] == null ? undefined : json['enabled'],
+        'manage': json['manage'] == null ? undefined : json['manage'],
         'tls_skip_verify': json['tls_skip_verify'] == null ? undefined : json['tls_skip_verify'],
         'token': json['token'] == null ? undefined : json['token'],
         'url': json['url'] == null ? undefined : json['url'],
@@ -81,6 +88,7 @@ export function TypesUpdateFriendRequestToJSONTyped(value?: TypesUpdateFriendReq
     return {
         
         'enabled': value['enabled'],
+        'manage': value['manage'],
         'tls_skip_verify': value['tls_skip_verify'],
         'token': value['token'],
         'url': value['url'],

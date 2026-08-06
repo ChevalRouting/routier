@@ -59,6 +59,10 @@ func Update(w http.ResponseWriter, r *http.Request) {
 		f.Enabled = req.Enabled
 	}
 
+	if req.Manage != nil {
+		f.Manage = *req.Manage
+	}
+
 	if err := cfgstore.WriteLive(app.ConfigPath, cfg); err != nil {
 		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "save config"))
 		return

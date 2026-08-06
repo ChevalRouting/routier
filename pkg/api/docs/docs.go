@@ -3087,6 +3087,9 @@ const docTemplate = `{
                     "hostname": {
                         "type": "string"
                     },
+                    "manage": {
+                        "type": "boolean"
+                    },
                     "name": {
                         "type": "string"
                     },
@@ -5295,6 +5298,9 @@ const docTemplate = `{
             "types.UpdateFriendRequest": {
                 "properties": {
                     "enabled": {
+                        "type": "boolean"
+                    },
+                    "manage": {
                         "type": "boolean"
                     },
                     "tls_skip_verify": {
