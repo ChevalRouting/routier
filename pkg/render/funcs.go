@@ -504,9 +504,9 @@ func templateFuncs(data TemplateData) template.FuncMap {
 			var vrfDevs []string
 			for _, name := range vrfNames {
 				sanitized := sanitizeNftName(name)
-				fmt.Fprintf(&b, "define %s_interfaces = \"%s\"\n", sanitized, name)
+				fmt.Fprintf(&b, "define vrf_%s_interfaces = \"%s\"\n", sanitized, name)
 				if members := vrfMembers[name]; len(members) > 0 {
-					fmt.Fprintf(&b, "define %s_members = %s\n", sanitized, nftSet(members))
+					fmt.Fprintf(&b, "define vrf_%s_members = %s\n", sanitized, nftSet(members))
 				}
 
 				vrfDevs = append(vrfDevs, "\""+name+"\"")
