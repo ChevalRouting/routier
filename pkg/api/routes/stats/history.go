@@ -8,6 +8,7 @@ import (
 
 	appctx "github.com/ChevalRouting/routier/pkg/api/app"
 	webdb "github.com/ChevalRouting/routier/pkg/db"
+	sysstats "github.com/ChevalRouting/routier/pkg/stats"
 	"github.com/ChevalRouting/routier/pkg/types"
 )
 
@@ -39,6 +40,7 @@ func History(w http.ResponseWriter, r *http.Request) {
 	bucket := webdb.HistoryBucket(window, historyMaxPoints)
 
 	resp := types.StatsHistoryResponse{}
+	physical := sysstats.PhysicalIfaces()
 
 	var ifaceHistory map[string][]types.IfaceHistoryPoint
 	if want("interfaces") || want("usage") {
@@ -62,11 +64,11 @@ func History(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if want("total") {
-		resp.Total = webdb.IfaceTotals(app.DB, cutoff, bucket)
+		resp.Total = webdb.IfaceTotals(app.DB, cutoff, bucket, physical)
 	}
 
 	if want("usage") {
-		resp.Usage = summarizeUsage(ifaceHistory)
+		resp.Usage = summarizeUsage(ifaceHistory, physical)
 	}
 
 	types.OK(w, resp)
@@ -87,25 +89,27 @@ func parseSeries(raw string) func(string) bool {
 	return func(name string) bool { return set[name] }
 }
 
-func summarizeUsage(ifaceHistory map[string][]types.IfaceHistoryPoint) *types.UsageSummary {
+func summarizeUsage(ifaceHistory map[string][]types.IfaceHistoryPoint, physical map[string]bool) *types.UsageSummary {
 	usage := &types.UsageSummary{PerIface: make(map[string]types.IfaceUsagePoint)}
 	for iface, points := range ifaceHistory {
 		var rx, tx float64
 		for i := 1; i < len(points); i++ {
 			dt := float64(points[i].TS - points[i-1].TS)
-			if points[i].RxBps != nil {
-				rx += *points[i].RxBps * dt
+			if points[i].RxBytesPS != nil {
+				rx += *points[i].RxBytesPS * dt
 			}
 
-			if points[i].TxBps != nil {
-				tx += *points[i].TxBps * dt
+			if points[i].TxBytesPS != nil {
+				tx += *points[i].TxBytesPS * dt
 			}
 		}
 
 		u := types.IfaceUsagePoint{RxBytes: int64(rx), TxBytes: int64(tx)}
 		usage.PerIface[iface] = u
-		usage.Total.RxBytes += u.RxBytes
-		usage.Total.TxBytes += u.TxBytes
+		if len(physical) == 0 || physical[iface] {
+			usage.Total.RxBytes += u.RxBytes
+			usage.Total.TxBytes += u.TxBytes
+		}
 	}
 
 	return usage

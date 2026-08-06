@@ -3451,11 +3451,11 @@ const docTemplate = `{
                     "operstate": {
                         "type": "string"
                     },
-                    "rx_bps": {
-                        "type": "number"
-                    },
                     "rx_bytes": {
                         "type": "integer"
+                    },
+                    "rx_bytes_ps": {
+                        "type": "number"
                     },
                     "rx_errs": {
                         "type": "integer"
@@ -3469,11 +3469,11 @@ const docTemplate = `{
                     "ts": {
                         "type": "integer"
                     },
-                    "tx_bps": {
-                        "type": "number"
-                    },
                     "tx_bytes": {
                         "type": "integer"
+                    },
+                    "tx_bytes_ps": {
+                        "type": "number"
                     },
                     "tx_errs": {
                         "type": "integer"
@@ -3487,14 +3487,14 @@ const docTemplate = `{
                 },
                 "required": [
                     "operstate",
-                    "rx_bps",
                     "rx_bytes",
+                    "rx_bytes_ps",
                     "rx_errs",
                     "rx_pkts",
                     "rx_pps",
                     "ts",
-                    "tx_bps",
                     "tx_bytes",
+                    "tx_bytes_ps",
                     "tx_errs",
                     "tx_pkts",
                     "tx_pps"
@@ -3538,7 +3538,7 @@ const docTemplate = `{
             },
             "types.IfaceTotalPoint": {
                 "properties": {
-                    "rx_bps": {
+                    "rx_bytes_ps": {
                         "type": "number"
                     },
                     "rx_pps": {
@@ -3547,7 +3547,7 @@ const docTemplate = `{
                     "ts": {
                         "type": "integer"
                     },
-                    "tx_bps": {
+                    "tx_bytes_ps": {
                         "type": "number"
                     },
                     "tx_pps": {
@@ -3555,10 +3555,10 @@ const docTemplate = `{
                     }
                 },
                 "required": [
-                    "rx_bps",
+                    "rx_bytes_ps",
                     "rx_pps",
                     "ts",
-                    "tx_bps",
+                    "tx_bytes_ps",
                     "tx_pps"
                 ],
                 "type": "object"

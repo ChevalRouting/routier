@@ -30,13 +30,13 @@ export interface TypesIfaceHistoryPoint {
      * @type {number}
      * @memberof TypesIfaceHistoryPoint
      */
-    rx_bps: number;
+    rx_bytes: number;
     /**
      * 
      * @type {number}
      * @memberof TypesIfaceHistoryPoint
      */
-    rx_bytes: number;
+    rx_bytes_ps: number;
     /**
      * 
      * @type {number}
@@ -66,13 +66,13 @@ export interface TypesIfaceHistoryPoint {
      * @type {number}
      * @memberof TypesIfaceHistoryPoint
      */
-    tx_bps: number;
+    tx_bytes: number;
     /**
      * 
      * @type {number}
      * @memberof TypesIfaceHistoryPoint
      */
-    tx_bytes: number;
+    tx_bytes_ps: number;
     /**
      * 
      * @type {number}
@@ -98,14 +98,14 @@ export interface TypesIfaceHistoryPoint {
  */
 export function instanceOfTypesIfaceHistoryPoint(value: object): value is TypesIfaceHistoryPoint {
     if (!('operstate' in value) || value['operstate'] === undefined) return false;
-    if (!('rx_bps' in value) || value['rx_bps'] === undefined) return false;
     if (!('rx_bytes' in value) || value['rx_bytes'] === undefined) return false;
+    if (!('rx_bytes_ps' in value) || value['rx_bytes_ps'] === undefined) return false;
     if (!('rx_errs' in value) || value['rx_errs'] === undefined) return false;
     if (!('rx_pkts' in value) || value['rx_pkts'] === undefined) return false;
     if (!('rx_pps' in value) || value['rx_pps'] === undefined) return false;
     if (!('ts' in value) || value['ts'] === undefined) return false;
-    if (!('tx_bps' in value) || value['tx_bps'] === undefined) return false;
     if (!('tx_bytes' in value) || value['tx_bytes'] === undefined) return false;
+    if (!('tx_bytes_ps' in value) || value['tx_bytes_ps'] === undefined) return false;
     if (!('tx_errs' in value) || value['tx_errs'] === undefined) return false;
     if (!('tx_pkts' in value) || value['tx_pkts'] === undefined) return false;
     if (!('tx_pps' in value) || value['tx_pps'] === undefined) return false;
@@ -123,14 +123,14 @@ export function TypesIfaceHistoryPointFromJSONTyped(json: any, ignoreDiscriminat
     return {
         
         'operstate': json['operstate'],
-        'rx_bps': json['rx_bps'],
         'rx_bytes': json['rx_bytes'],
+        'rx_bytes_ps': json['rx_bytes_ps'],
         'rx_errs': json['rx_errs'],
         'rx_pkts': json['rx_pkts'],
         'rx_pps': json['rx_pps'],
         'ts': json['ts'],
-        'tx_bps': json['tx_bps'],
         'tx_bytes': json['tx_bytes'],
+        'tx_bytes_ps': json['tx_bytes_ps'],
         'tx_errs': json['tx_errs'],
         'tx_pkts': json['tx_pkts'],
         'tx_pps': json['tx_pps'],
@@ -149,14 +149,14 @@ export function TypesIfaceHistoryPointToJSONTyped(value?: TypesIfaceHistoryPoint
     return {
         
         'operstate': value['operstate'],
-        'rx_bps': value['rx_bps'],
         'rx_bytes': value['rx_bytes'],
+        'rx_bytes_ps': value['rx_bytes_ps'],
         'rx_errs': value['rx_errs'],
         'rx_pkts': value['rx_pkts'],
         'rx_pps': value['rx_pps'],
         'ts': value['ts'],
-        'tx_bps': value['tx_bps'],
         'tx_bytes': value['tx_bytes'],
+        'tx_bytes_ps': value['tx_bytes_ps'],
         'tx_errs': value['tx_errs'],
         'tx_pkts': value['tx_pkts'],
         'tx_pps': value['tx_pps'],

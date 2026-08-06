@@ -123,8 +123,8 @@ export default function Dashboard() {
   const trafficChartData = useMemo(() => {
     return (trafficHistory?.total ?? []).map((p) => ({
       ts:     p.ts,
-      rx_bps: p.rx_bps,
-      tx_bps: p.tx_bps,
+      rx_bytes_ps: p.rx_bytes_ps,
+      tx_bytes_ps: p.tx_bytes_ps,
       rx_pps: p.rx_pps,
       tx_pps: p.tx_pps,
     }))
@@ -298,8 +298,8 @@ export default function Dashboard() {
               <TimeSeriesChart
                 data={trafficChartData}
                 series={[
-                  { dataKey: 'rx_bps', label: 'RX', color: '#3584e4' },
-                  { dataKey: 'tx_bps', label: 'TX', color: '#26a269' },
+                  { dataKey: 'rx_bytes_ps', label: 'RX', color: '#3584e4' },
+                  { dataKey: 'tx_bytes_ps', label: 'TX', color: '#26a269' },
                 ]}
                 yFormatter={fmtBitrate}
                 height={200}

@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/ChevalRouting/routier/pkg/types"
 )
@@ -65,7 +66,7 @@ func LastIfaceCounters(db *sql.DB) map[string]IfaceCounter {
 type IfaceStatRow struct {
 	Iface                                            string
 	RxBytes, TxBytes, RxPkts, TxPkts, RxErrs, TxErrs uint64
-	RxBps, TxBps, RxPps, TxPps                       *float64
+	RxBytesPS, TxBytesPS, RxPps, TxPps               *float64
 	OperState                                        string
 }
 
@@ -82,7 +83,7 @@ func InsertIfaceStats(db *sql.DB, ts int64, rows []IfaceStatRow) error {
 
 	for _, r := range rows {
 		if _, err := stmt.Exec(ts, r.Iface, r.RxBytes, r.TxBytes, r.RxPkts, r.TxPkts, r.RxErrs, r.TxErrs,
-			r.RxBps, r.TxBps, r.RxPps, r.TxPps, r.OperState); err != nil {
+			r.RxBytesPS, r.TxBytesPS, r.RxPps, r.TxPps, r.OperState); err != nil {
 			return err
 		}
 	}
@@ -122,7 +123,7 @@ func IfaceHistory(db *sql.DB, cutoff, bucket int64, ifaceFilter string) map[stri
 		var p types.IfaceHistoryPoint
 		var iface string
 		if rows.Scan(&p.TS, &iface, &p.RxBytes, &p.TxBytes, &p.RxPkts, &p.TxPkts,
-			&p.RxErrs, &p.TxErrs, &p.RxBps, &p.TxBps, &p.RxPps, &p.TxPps, &p.OperState) == nil {
+			&p.RxErrs, &p.TxErrs, &p.RxBytesPS, &p.TxBytesPS, &p.RxPps, &p.TxPps, &p.OperState) == nil {
 			out[iface] = append(out[iface], p)
 		}
 	}
@@ -130,19 +131,31 @@ func IfaceHistory(db *sql.DB, cutoff, bucket int64, ifaceFilter string) map[stri
 	return out
 }
 
-func IfaceTotals(db *sql.DB, cutoff, bucket int64) []types.IfaceTotalPoint {
+func IfaceTotals(db *sql.DB, cutoff, bucket int64, include map[string]bool) []types.IfaceTotalPoint {
 	var out []types.IfaceTotalPoint
 	if bucket < 1 {
 		bucket = 1
 	}
 
+	where := "WHERE ts >= ?"
+	args := []any{cutoff}
+	if len(include) > 0 {
+		placeholders := make([]string, 0, len(include))
+		for name := range include {
+			placeholders = append(placeholders, "?")
+			args = append(args, name)
+		}
+
+		where += " AND iface IN (" + strings.Join(placeholders, ",") + ")"
+	}
+
 	q := fmt.Sprintf(
 		`SELECT MAX(ts) AS ts, AVG(rx), AVG(tx), AVG(rxp), AVG(txp) FROM (
 		   SELECT ts, SUM(rx_bps) rx, SUM(tx_bps) tx, SUM(rx_pps) rxp, SUM(tx_pps) txp
-		   FROM iface_stats WHERE ts >= ? GROUP BY ts
-		 ) GROUP BY ts/%d ORDER BY ts ASC`, bucket)
+		   FROM iface_stats %s GROUP BY ts
+		 ) GROUP BY ts/%d ORDER BY ts ASC`, where, bucket)
 
-	rows, err := db.Query(q, cutoff)
+	rows, err := db.Query(q, args...)
 	if err != nil {
 		return out
 	}
@@ -151,7 +164,7 @@ func IfaceTotals(db *sql.DB, cutoff, bucket int64) []types.IfaceTotalPoint {
 
 	for rows.Next() {
 		var p types.IfaceTotalPoint
-		if rows.Scan(&p.TS, &p.RxBps, &p.TxBps, &p.RxPps, &p.TxPps) == nil {
+		if rows.Scan(&p.TS, &p.RxBytesPS, &p.TxBytesPS, &p.RxPps, &p.TxPps) == nil {
 			out = append(out, p)
 		}
 	}

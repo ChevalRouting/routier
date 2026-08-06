@@ -2337,10 +2337,10 @@ components:
       properties:
         operstate:
           type: string
-        rx_bps:
-          type: number
         rx_bytes:
           type: integer
+        rx_bytes_ps:
+          type: number
         rx_errs:
           type: integer
         rx_pkts:
@@ -2349,10 +2349,10 @@ components:
           type: number
         ts:
           type: integer
-        tx_bps:
-          type: number
         tx_bytes:
           type: integer
+        tx_bytes_ps:
+          type: number
         tx_errs:
           type: integer
         tx_pkts:
@@ -2361,14 +2361,14 @@ components:
           type: number
       required:
       - operstate
-      - rx_bps
       - rx_bytes
+      - rx_bytes_ps
       - rx_errs
       - rx_pkts
       - rx_pps
       - ts
-      - tx_bps
       - tx_bytes
+      - tx_bytes_ps
       - tx_errs
       - tx_pkts
       - tx_pps
@@ -2400,21 +2400,21 @@ components:
       type: object
     types.IfaceTotalPoint:
       properties:
-        rx_bps:
+        rx_bytes_ps:
           type: number
         rx_pps:
           type: number
         ts:
           type: integer
-        tx_bps:
+        tx_bytes_ps:
           type: number
         tx_pps:
           type: number
       required:
-      - rx_bps
+      - rx_bytes_ps
       - rx_pps
       - ts
-      - tx_bps
+      - tx_bytes_ps
       - tx_pps
       type: object
     types.IfaceUsagePoint:

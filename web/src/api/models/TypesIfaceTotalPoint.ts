@@ -24,7 +24,7 @@ export interface TypesIfaceTotalPoint {
      * @type {number}
      * @memberof TypesIfaceTotalPoint
      */
-    rx_bps: number;
+    rx_bytes_ps: number;
     /**
      * 
      * @type {number}
@@ -42,7 +42,7 @@ export interface TypesIfaceTotalPoint {
      * @type {number}
      * @memberof TypesIfaceTotalPoint
      */
-    tx_bps: number;
+    tx_bytes_ps: number;
     /**
      * 
      * @type {number}
@@ -55,10 +55,10 @@ export interface TypesIfaceTotalPoint {
  * Check if a given object implements the TypesIfaceTotalPoint interface.
  */
 export function instanceOfTypesIfaceTotalPoint(value: object): value is TypesIfaceTotalPoint {
-    if (!('rx_bps' in value) || value['rx_bps'] === undefined) return false;
+    if (!('rx_bytes_ps' in value) || value['rx_bytes_ps'] === undefined) return false;
     if (!('rx_pps' in value) || value['rx_pps'] === undefined) return false;
     if (!('ts' in value) || value['ts'] === undefined) return false;
-    if (!('tx_bps' in value) || value['tx_bps'] === undefined) return false;
+    if (!('tx_bytes_ps' in value) || value['tx_bytes_ps'] === undefined) return false;
     if (!('tx_pps' in value) || value['tx_pps'] === undefined) return false;
     return true;
 }
@@ -73,10 +73,10 @@ export function TypesIfaceTotalPointFromJSONTyped(json: any, ignoreDiscriminator
     }
     return {
         
-        'rx_bps': json['rx_bps'],
+        'rx_bytes_ps': json['rx_bytes_ps'],
         'rx_pps': json['rx_pps'],
         'ts': json['ts'],
-        'tx_bps': json['tx_bps'],
+        'tx_bytes_ps': json['tx_bytes_ps'],
         'tx_pps': json['tx_pps'],
     };
 }
@@ -92,10 +92,10 @@ export function TypesIfaceTotalPointToJSONTyped(value?: TypesIfaceTotalPoint | n
 
     return {
         
-        'rx_bps': value['rx_bps'],
+        'rx_bytes_ps': value['rx_bytes_ps'],
         'rx_pps': value['rx_pps'],
         'ts': value['ts'],
-        'tx_bps': value['tx_bps'],
+        'tx_bytes_ps': value['tx_bytes_ps'],
         'tx_pps': value['tx_pps'],
     };
 }

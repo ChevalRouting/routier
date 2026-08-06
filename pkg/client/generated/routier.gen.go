@@ -1273,14 +1273,14 @@ type TypesHAStatusResponse struct {
 // TypesIfaceHistoryPoint defines model for types.IfaceHistoryPoint.
 type TypesIfaceHistoryPoint struct {
 	Operstate string  `json:"operstate"`
-	RxBps     float32 `json:"rx_bps"`
 	RxBytes   int     `json:"rx_bytes"`
+	RxBytesPs float32 `json:"rx_bytes_ps"`
 	RxErrs    int     `json:"rx_errs"`
 	RxPkts    int     `json:"rx_pkts"`
 	RxPps     float32 `json:"rx_pps"`
 	Ts        int     `json:"ts"`
-	TxBps     float32 `json:"tx_bps"`
 	TxBytes   int     `json:"tx_bytes"`
+	TxBytesPs float32 `json:"tx_bytes_ps"`
 	TxErrs    int     `json:"tx_errs"`
 	TxPkts    int     `json:"tx_pkts"`
 	TxPps     float32 `json:"tx_pps"`
@@ -1299,11 +1299,11 @@ type TypesIfaceStats struct {
 
 // TypesIfaceTotalPoint defines model for types.IfaceTotalPoint.
 type TypesIfaceTotalPoint struct {
-	RxBps float32 `json:"rx_bps"`
-	RxPps float32 `json:"rx_pps"`
-	Ts    int     `json:"ts"`
-	TxBps float32 `json:"tx_bps"`
-	TxPps float32 `json:"tx_pps"`
+	RxBytesPs float32 `json:"rx_bytes_ps"`
+	RxPps     float32 `json:"rx_pps"`
+	Ts        int     `json:"ts"`
+	TxBytesPs float32 `json:"tx_bytes_ps"`
+	TxPps     float32 `json:"tx_pps"`
 }
 
 // TypesIfaceUsagePoint defines model for types.IfaceUsagePoint.

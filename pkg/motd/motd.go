@@ -11,6 +11,7 @@ import (
 
 	webdb "github.com/ChevalRouting/routier/pkg/db"
 	"github.com/ChevalRouting/routier/pkg/iproute"
+	"github.com/ChevalRouting/routier/pkg/stats"
 	vnl "github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 )
@@ -31,8 +32,8 @@ type RouteSummary struct {
 }
 
 type Bandwidth struct {
-	RxBps float64
-	TxBps float64
+	RxBytesPS float64
+	TxBytesPS float64
 }
 
 func Write(user, pass string) {
@@ -60,7 +61,7 @@ func Render(version string, ifaces []string, routes RouteSummary, bw *Bandwidth,
 	}
 
 	if bw != nil {
-		fmt.Fprintf(&b, "  Traffic (5m avg):  rx %s   tx %s\n\n", humanBits(bw.RxBps), humanBits(bw.TxBps))
+		fmt.Fprintf(&b, "  Traffic (5m avg):  rx %s   tx %s\n\n", humanBits(bw.RxBytesPS), humanBits(bw.TxBytesPS))
 	}
 
 	if user != "" && pass != "" {
@@ -101,7 +102,7 @@ func bandwidth5m() *Bandwidth {
 
 	window := int64(5 * 60)
 	cutoff := time.Now().Unix() - window
-	points := webdb.IfaceTotals(db, cutoff, webdb.HistoryBucket(window, 60))
+	points := webdb.IfaceTotals(db, cutoff, webdb.HistoryBucket(window, 60), stats.PhysicalIfaces())
 	if len(points) == 0 {
 		return nil
 	}
@@ -109,12 +110,12 @@ func bandwidth5m() *Bandwidth {
 	var rx, tx float64
 	var n float64
 	for _, p := range points {
-		if p.RxBps != nil {
-			rx += *p.RxBps
+		if p.RxBytesPS != nil {
+			rx += *p.RxBytesPS
 		}
 
-		if p.TxBps != nil {
-			tx += *p.TxBps
+		if p.TxBytesPS != nil {
+			tx += *p.TxBytesPS
 		}
 
 		n++
@@ -124,7 +125,7 @@ func bandwidth5m() *Bandwidth {
 		return nil
 	}
 
-	return &Bandwidth{RxBps: rx / n, TxBps: tx / n}
+	return &Bandwidth{RxBytesPS: rx / n, TxBytesPS: tx / n}
 }
 
 func humanBits(bytesPerSec float64) string {

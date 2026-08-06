@@ -5,8 +5,8 @@ export function fmtBytes(b: number): string {
   return b + ' B'
 }
 
-export function fmtBitrate(Bps: number): string {
-  const bps = Bps * 8
+export function fmtBitrate(bytesPerSec: number): string {
+  const bps = bytesPerSec * 8
   if (bps >= 1e9) return (bps / 1e9).toFixed(2) + ' Gbps'
   if (bps >= 1e6) return (bps / 1e6).toFixed(1) + ' Mbps'
   if (bps >= 1e3) return (bps / 1e3).toFixed(1) + ' Kbps'

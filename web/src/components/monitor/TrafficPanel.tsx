@@ -46,7 +46,7 @@ export function TrafficPanel() {
   const ifaceData = useMemo(() => {
     if (!history) return []
     const rows = selectedIface === '__all__' ? (history.total ?? []) : (history.interfaces?.[selectedIface] ?? [])
-    return rows.map((p) => ({ ts: p.ts, rx_bps: p.rx_bps, tx_bps: p.tx_bps, rx_pps: p.rx_pps, tx_pps: p.tx_pps }))
+    return rows.map((p) => ({ ts: p.ts, rx_bytes_ps: p.rx_bytes_ps, tx_bytes_ps: p.tx_bytes_ps, rx_pps: p.rx_pps, tx_pps: p.tx_pps }))
   }, [history, selectedIface])
 
   return (
@@ -84,7 +84,7 @@ export function TrafficPanel() {
                   <span className="text-xs font-medium text-muted-foreground">Bandwidth</span>
                   <Legend items={[{ color: C.rx, label: 'RX' }, { color: C.tx, label: 'TX' }]} />
                 </div>
-                <TimeSeriesChart data={ifaceData} series={[{ dataKey: 'rx_bps', label: 'RX', color: C.rx }, { dataKey: 'tx_bps', label: 'TX', color: C.tx }]} yFormatter={fmtBitrate} height={200} />
+                <TimeSeriesChart data={ifaceData} series={[{ dataKey: 'rx_bytes_ps', label: 'RX', color: C.rx }, { dataKey: 'tx_bytes_ps', label: 'TX', color: C.tx }]} yFormatter={fmtBitrate} height={200} />
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
