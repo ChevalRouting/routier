@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { api } from '@/lib/client'
+import { selfApi } from '@/lib/client'
 import { setToken } from '@/lib/utils'
+import { switchInstance, SELF } from '@/lib/instance'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -22,8 +23,9 @@ export default function Login() {
     }
     setIsLoading(true)
     try {
-      const { token } = await api.apiAuthLoginPost({ TypesLoginRequest: { username, password } })
+      const { token } = await selfApi.apiAuthLoginPost({ TypesLoginRequest: { username, password } })
       setToken(token)
+      switchInstance(SELF)
       navigate('/')
     } catch (err: unknown) {
       const msg = (err as Error).message

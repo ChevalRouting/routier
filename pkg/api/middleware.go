@@ -144,7 +144,7 @@ func jwtMiddleware(next http.Handler) http.Handler {
 		if cfg, cfgErr := config.Load(app.ConfigPath); cfgErr == nil {
 			for _, f := range cfg.Friends {
 				if f.IsEnabled() && f.Token != "" && subtle.ConstantTimeCompare([]byte(f.Token), []byte(tokenStr)) == 1 {
-					if !friendTokenAllowed(r.Method, r.URL.Path) {
+					if !friendTokenAllowed(f, r.Method, r.URL.Path) {
 						types.Err(http.StatusForbidden, "friend token not permitted for this endpoint").Write(w)
 						return
 					}
@@ -160,7 +160,11 @@ func jwtMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func friendTokenAllowed(method, path string) bool {
+func friendTokenAllowed(f *config.Friend, method, path string) bool {
+	if f.Manage {
+		return strings.HasPrefix(path, "/api/")
+	}
+
 	switch {
 	case method == http.MethodGet && path == "/api/friends/hello":
 		return true

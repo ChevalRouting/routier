@@ -22,6 +22,7 @@ import {
   WireguardApi,
 } from '../api'
 import { getToken, clearToken } from './utils'
+import { activeBaseUrl } from './instance'
 
 type StagingListener = (pending: boolean) => void
 const stagingListeners = new Set<StagingListener>()
@@ -32,7 +33,9 @@ export function addStagingListener(fn: StagingListener): () => void {
 }
 
 const configuration = new Configuration({
-  basePath: '',
+  get basePath() {
+    return activeBaseUrl()
+  },
   apiKey: () => {
     const token = getToken()
     return token ? `Bearer ${token}` : ''
@@ -50,6 +53,14 @@ const configuration = new Configuration({
       },
     },
   ],
+})
+
+const selfConfiguration = new Configuration({
+  basePath: '',
+  apiKey: () => {
+    const token = getToken()
+    return token ? `Bearer ${token}` : ''
+  },
 })
 
 export class ApiError extends Error {
@@ -160,3 +171,11 @@ export const api = [
   new UiApi(configuration),
   new WireguardApi(configuration),
 ].reduce<Record<string, unknown>>((acc, inst) => Object.assign(acc, operations(inst)), {}) as Api
+
+type SelfApi = Unwrapped<Operations<AuthApi> & Operations<ConfigApi> & Operations<FriendsApi>>
+
+export const selfApi = [
+  new AuthApi(selfConfiguration),
+  new ConfigApi(selfConfiguration),
+  new FriendsApi(selfConfiguration),
+].reduce<Record<string, unknown>>((acc, inst) => Object.assign(acc, operations(inst)), {}) as SelfApi

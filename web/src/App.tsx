@@ -41,8 +41,9 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 }
 
 function RequireSetup({ children }: { children: React.ReactNode }) {
-  const { data, isLoading } = useFetch(() => api.apiSetupStatusGet())
+  const { data, isLoading, error } = useFetch(() => api.apiSetupStatusGet())
   if (isLoading) return <Spinner />
+  if (error && !isAuthenticated()) return <Spinner />
   if (data && (data.needs_password_change || !data.onboarding_complete)) {
     return <Navigate to="/onboarding" replace />
   }

@@ -26,4 +26,5 @@ func Routes(r chi.Router) {
 	r.Post("/api/friends/{name}/tunnel", DeriveTunnel)
 	r.Post("/api/friends/{name}/vrrp", ConfigureVRRP)
 	r.Post("/api/friends/{name}/conntrack", ConfigureConntrack)
+	r.HandleFunc("/api/friends/{name}/proxy/*", Proxy)
 }

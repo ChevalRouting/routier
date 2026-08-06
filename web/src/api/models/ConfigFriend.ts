@@ -67,6 +67,12 @@ export interface ConfigFriend {
     identity?: ConfigFriendIdentity;
     /**
      * 
+     * @type {boolean}
+     * @memberof ConfigFriend
+     */
+    manage?: boolean;
+    /**
+     * 
      * @type {string}
      * @memberof ConfigFriend
      */
@@ -121,6 +127,7 @@ export function ConfigFriendFromJSONTyped(json: any, ignoreDiscriminator: boolea
         'ha': json['ha'] == null ? undefined : ConfigFriendHAFromJSON(json['ha']),
         'hostname': json['hostname'] == null ? undefined : json['hostname'],
         'identity': json['identity'] == null ? undefined : ConfigFriendIdentityFromJSON(json['identity']),
+        'manage': json['manage'] == null ? undefined : json['manage'],
         'name': json['name'],
         'sync': json['sync'] == null ? undefined : ConfigFriendSyncFromJSON(json['sync']),
         'tls_skip_verify': json['tls_skip_verify'] == null ? undefined : json['tls_skip_verify'],
@@ -144,6 +151,7 @@ export function ConfigFriendToJSONTyped(value?: ConfigFriend | null, ignoreDiscr
         'ha': ConfigFriendHAToJSON(value['ha']),
         'hostname': value['hostname'],
         'identity': ConfigFriendIdentityToJSON(value['identity']),
+        'manage': value['manage'],
         'name': value['name'],
         'sync': ConfigFriendSyncToJSON(value['sync']),
         'tls_skip_verify': value['tls_skip_verify'],

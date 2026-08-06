@@ -610,6 +610,9 @@ const docTemplate = `{
                     "identity": {
                         "$ref": "#/components/schemas/config.FriendIdentity"
                     },
+                    "manage": {
+                        "type": "boolean"
+                    },
                     "name": {
                         "type": "string"
                     },
