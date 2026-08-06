@@ -25,11 +25,13 @@ friends:
     token: <shared secret>        # bearer used in both directions for this pair
     tls_skip_verify: true
     enabled: true
+    manage: true                  # let this friend configure THIS node from its UI
     identity:
       fingerprint: SHA256:AbCd...  # pinned at add time (TOFU)
 ```
 
 - `token` - one shared bearer token per pair, used in both directions.
+- `manage` - opt in to remote management (see below). Off by default.
 - `identity.fingerprint` - the pinned ed25519 fingerprint (TOFU).
 
 The ed25519 identity key is a host secret and is never in this YAML.
@@ -72,6 +74,30 @@ routier friends list
 API: `GET /api/friends` (list) and `GET /api/friends/status` (live snapshot).
 UI: friend cards with a status dot, latency, and an identity-verified badge;
 the dashboard shows a "Friends" card (`alive / total`).
+
+## Manage a friend from the UI
+
+The web UI can drive a friend node in place of the local one. The sidebar has an
+instance switcher ("This Instance" plus one entry per friend); pick a friend and
+every page (dashboard, interfaces, routing, firewall, monitoring) targets that
+node instead. A banner marks that you are configuring a remote node, and "Return
+to This Instance" switches back.
+
+Requests to a friend are proxied through this node: the browser calls
+`/api/friends/<name>/proxy/...` on the local node with your normal session, and
+the node forwards them to the friend over its own TLS-aware client. So a friend
+with a self-signed certificate (`tls_skip_verify`) needs no browser trust step,
+and the pair's shared token never leaves the server. Only an admin session may
+proxy; a friend token cannot.
+
+The friend still authorizes what the forwarded token may do. By default the
+shared token is scoped to the liveness and config-push endpoints, so a
+switched-in friend can only browse config. Set `manage: true` on a friend to
+grant its token the full admin API **on the node that sets it**: it is the node
+saying "I allow this friend to configure me". The flag is mutual and independent,
+so to manage each other both nodes set `manage: true` for the other. Without it,
+remote pages that need more than config reads return `friend token not
+permitted` and the UI shows that the friend has not granted management access.
 
 ## Derived WireGuard
 

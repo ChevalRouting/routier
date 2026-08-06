@@ -76,6 +76,7 @@ type Friend struct {
 	Token         string         `yaml:"token"                     json:"token"`
 	TLSSkipVerify bool           `yaml:"tls_skip_verify,omitempty" json:"tls_skip_verify,omitempty" validate:"optional"`
 	Enabled       *bool          `yaml:"enabled,omitempty"         json:"enabled,omitempty" validate:"optional"`
+	Manage        bool           `yaml:"manage,omitempty"          json:"manage,omitempty" validate:"optional"`
 	Identity      FriendIdentity `yaml:"identity,omitempty"        json:"identity,omitempty" validate:"optional"`
 	HA            *FriendHA      `yaml:"ha,omitempty"              json:"ha,omitempty" validate:"optional"`
 

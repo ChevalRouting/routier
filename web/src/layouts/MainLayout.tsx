@@ -13,6 +13,8 @@ import { SectionLabel } from '@/components/SectionLabel'
 import { useTheme } from '@/lib/useTheme'
 import { Spinner } from '@/components/Spinner'
 import { AnnouncementBanner } from '@/components/AnnouncementBanner'
+import { InstanceSwitcher, InstanceMenu, useActiveInstance } from '@/components/InstanceSwitcher'
+import { SELF, switchInstance } from '@/lib/instance'
 import {
   LayoutDashboard, Network, GitBranch, Route, Lock, Radio, Shield,
   Settings2, Users, Server, LogOut, Activity, Share2, Megaphone,
@@ -209,6 +211,12 @@ function MobileDrawer({ group, onClose, theme, onToggleTheme, onLogout }: Mobile
 
             {group.withExtras && (
               <div className="mt-2 pt-2 border-t border-border/50 space-y-0.5">
+                <div className="px-3 pb-1">
+                  <SectionLabel className="text-muted-foreground/60">Instance</SectionLabel>
+                </div>
+                <InstanceMenu tone="sheet" onDone={onClose} />
+
+                <div className="my-2 border-t border-border/50" />
                 <button
                   onClick={() => { onToggleTheme(); onClose() }}
                   className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-foreground/80 hover:bg-muted/60 hover:text-foreground w-full transition-colors"
@@ -255,6 +263,14 @@ export default function MainLayout() {
   )
   const [mobileDrawer, setMobileDrawer] = useState<MobileNavGroup | null>(null)
   const { bump } = useDataVersion()
+  const activeInstance = useActiveInstance()
+  const onFriend = activeInstance.id !== 'self'
+
+  const returnToSelf = () => {
+    switchInstance(SELF)
+    bump()
+    navigate('/')
+  }
 
   const activeMobileGroupKey = useMemo(
     () => groupKeyForPath(location.pathname),
@@ -362,6 +378,10 @@ export default function MainLayout() {
               Routier
             </span>
           )}
+        </div>
+
+        <div className={cn('border-b border-sidebar-border py-2', collapsed ? 'px-1' : 'px-2')}>
+          <InstanceSwitcher collapsed={collapsed} />
         </div>
 
         <div className="flex-1 overflow-y-auto overflow-x-hidden py-3">
@@ -496,6 +516,24 @@ export default function MainLayout() {
       </aside>
 
       <div className="flex-1 flex flex-col overflow-hidden bg-background">
+        {onFriend && (
+          <div className="flex items-center justify-between gap-3 px-4 py-2 bg-info/10 border-b border-info/30 text-info text-sm shrink-0">
+            <div className="flex items-center gap-2">
+              <Handshake className="h-3.5 w-3.5" />
+              <span className="text-xs font-medium">Configuring {activeInstance.label}</span>
+              <span className="text-xs text-info/70 hidden sm:inline">- changes apply to the remote node</span>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={returnToSelf}
+              className="h-6 gap-1.5 text-xs px-2.5 border-info/40 text-info hover:bg-info/15 hover:text-info"
+            >
+              <Server className="h-2.5 w-2.5" />
+              Return to This Instance
+            </Button>
+          </div>
+        )}
         <AnnouncementBanner />
         {pendingPoll > 0 && (
           <div className="px-4 pt-2 shrink-0 empty:hidden">
