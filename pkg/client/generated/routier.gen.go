@@ -1150,6 +1150,7 @@ type TypesFriendInfo struct {
 	Fingerprint *string `json:"fingerprint,omitempty"`
 	Ha          bool    `json:"ha"`
 	Hostname    *string `json:"hostname,omitempty"`
+	Manage      *bool   `json:"manage,omitempty"`
 	Name        string  `json:"name"`
 	Paired      *bool   `json:"paired,omitempty"`
 	Url         string  `json:"url"`
@@ -2000,6 +2001,7 @@ type TypesSystemStats struct {
 // TypesUpdateFriendRequest defines model for types.UpdateFriendRequest.
 type TypesUpdateFriendRequest struct {
 	Enabled       *bool   `json:"enabled,omitempty"`
+	Manage        *bool   `json:"manage,omitempty"`
 	TlsSkipVerify *bool   `json:"tls_skip_verify,omitempty"`
 	Token         *string `json:"token,omitempty"`
 	Url           *string `json:"url,omitempty"`

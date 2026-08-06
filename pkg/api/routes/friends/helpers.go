@@ -27,6 +27,7 @@ func friendInfo(f *cfgpkg.Friend) types.FriendInfo {
 		Enabled:     f.IsEnabled(),
 		Fingerprint: f.Identity.Fingerprint,
 		Paired:      f.Identity.X25519PublicKey != "",
+		Manage:      f.Manage,
 	}
 
 	if f.HA != nil {

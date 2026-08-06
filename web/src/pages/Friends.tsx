@@ -269,12 +269,13 @@ function EditFriendSheet({ info, onClose, onSaved }: { info: FriendInfo; onClose
   const [url, setUrl] = useState(info.url)
   const [token, setToken] = useState('')
   const [enabled, setEnabled] = useState(info.enabled)
+  const [manage, setManage] = useState(!!info.manage)
   const [busy, setBusy] = useState(false)
 
   const save = async () => {
     setBusy(true)
     try {
-      await api.apiFriendsNamePut({ name: info.name, TypesUpdateFriendRequest: { url, enabled, ...(token ? { token } : {}) } })
+      await api.apiFriendsNamePut({ name: info.name, TypesUpdateFriendRequest: { url, enabled, manage, ...(token ? { token } : {}) } })
       toast.success(`Updated ${info.name}`)
       onSaved()
       onClose()
@@ -293,6 +294,13 @@ function EditFriendSheet({ info, onClose, onSaved }: { info: FriendInfo; onClose
           <div className="flex items-center justify-between px-4 py-2.5">
             <span className="text-sm">Enabled</span>
             <Switch checked={enabled} onCheckedChange={setEnabled} />
+          </div>
+          <div className="flex items-center justify-between px-4 py-2.5">
+            <div className="flex flex-col">
+              <span className="text-sm">Allow this friend to manage this node</span>
+              <span className="text-xs text-muted-foreground">Grants its token full control of this node from its UI</span>
+            </div>
+            <Switch checked={manage} onCheckedChange={setManage} />
           </div>
         </PreferencesGroup>
         <div className="flex justify-end gap-2">

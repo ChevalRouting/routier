@@ -42,6 +42,7 @@ type FriendInfo struct {
 	Fingerprint string `json:"fingerprint,omitempty" validate:"optional"`
 	HA          bool   `json:"ha"`
 	Paired      bool   `json:"paired,omitempty" validate:"optional"`
+	Manage      bool   `json:"manage,omitempty" validate:"optional"`
 }
 
 type FriendPreview struct {
@@ -78,6 +79,7 @@ type UpdateFriendRequest struct {
 	Token         *string `json:"token,omitempty" validate:"optional"`
 	TLSSkipVerify *bool   `json:"tls_skip_verify,omitempty" validate:"optional"`
 	Enabled       *bool   `json:"enabled,omitempty" validate:"optional"`
+	Manage        *bool   `json:"manage,omitempty" validate:"optional"`
 }
 
 type FriendPairRequest struct {

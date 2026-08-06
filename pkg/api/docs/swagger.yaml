@@ -2087,6 +2087,8 @@ components:
           type: boolean
         hostname:
           type: string
+        manage:
+          type: boolean
         name:
           type: string
         paired:
@@ -3573,6 +3575,8 @@ components:
     types.UpdateFriendRequest:
       properties:
         enabled:
+          type: boolean
+        manage:
           type: boolean
         tls_skip_verify:
           type: boolean
