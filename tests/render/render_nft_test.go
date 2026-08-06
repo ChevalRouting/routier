@@ -155,24 +155,45 @@ func TestNftVRFDefines(t *testing.T) {
 	}
 	out := renderNft(t, cfg)
 
-	if !strings.Contains(out, `define vm_public_interfaces = "vm-public"`) {
+	if !strings.Contains(out, `define vrf_vm_public_interfaces = "vm-public"`) {
 		t.Fatalf("expected vrf master device define, got:\n%s", out)
 	}
 
-	if !strings.Contains(out, `define vm_public_members = { "eth0", "eth1" }`) {
+	if !strings.Contains(out, `define vrf_vm_public_members = { "eth0", "eth1" }`) {
 		t.Fatalf("expected vrf members define, got:\n%s", out)
 	}
 
-	if !strings.Contains(out, `define mgmt_interfaces = "mgmt"`) {
+	if !strings.Contains(out, `define vrf_mgmt_interfaces = "mgmt"`) {
 		t.Fatalf("expected second vrf interface define, got:\n%s", out)
 	}
 
-	if strings.Contains(out, "define mgmt_members") {
+	if strings.Contains(out, "define vrf_mgmt_members") {
 		t.Fatalf("vrf with no members should not emit a members define, got:\n%s", out)
 	}
 
 	if !strings.Contains(out, `define vrfs = { "mgmt", "vm-public" }`) {
 		t.Fatalf("expected vrfs aggregate define, got:\n%s", out)
+	}
+}
+
+func TestNftVRFNameCollision(t *testing.T) {
+	cfg := &config.Config{
+		Hostname:   "rtr",
+		VRFs:       map[string]*config.VRFConfig{"wan": {Table: 100}},
+		Interfaces: map[string]*config.Interface{"wan": {Device: "eth0", VRF: "wan"}},
+	}
+	out := renderNft(t, cfg)
+
+	if strings.Count(out, "define wan_interfaces = ") != 1 {
+		t.Fatalf("expected a single wan_interfaces define, got:\n%s", out)
+	}
+
+	if !strings.Contains(out, `define wan_interfaces = "eth0"`) {
+		t.Fatalf("expected the interface define, got:\n%s", out)
+	}
+
+	if !strings.Contains(out, `define vrf_wan_interfaces = "wan"`) {
+		t.Fatalf("expected the vrf define prefixed, got:\n%s", out)
 	}
 }
 

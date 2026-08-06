@@ -48,6 +48,9 @@ Routier emits `define`s you can reference with `$` in your rules:
 - `$me` / `$me6` - every IPv4 / IPv6 address on the router.
 - `$<iface>_address` / `$<iface>_network` (and `*6`) - per-interface host and
   network addresses.
+- `$vrf_<name>_interfaces` / `$vrf_<name>_members` - a VRF's master device and
+  its member devices. The `vrf_` prefix keeps these from clashing with an
+  interface of the same name.
 - interface-membership sets used by the auto-allow rules.
 
 `GET /api/config/nftables/vars` returns the rendered variable names and
