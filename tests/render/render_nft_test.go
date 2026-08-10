@@ -256,3 +256,44 @@ func TestNftContextAllows(t *testing.T) {
 		t.Fatalf("expected scoped ospf v4 allow, got:\n%s", out)
 	}
 }
+
+func TestNftAnycastInMe(t *testing.T) {
+	cfg := &config.Config{
+		Hostname: "rtr",
+		Interfaces: map[string]*config.Interface{
+			"wan": {Device: "eth0", Addresses: []string{"203.0.113.2/24", "2a0c:1::2/64"}},
+		},
+		Routing: &config.Routing{
+			Anycast: &config.AnycastConfig{
+				Services: []config.AnycastService{
+					{
+						Name:       "dns",
+						AnycastIPs: []string{"192.0.2.53/32", "2001:db8::53/128"},
+						Endpoints:  []config.AnycastEndpoint{{IP: "10.0.0.53"}},
+					},
+				},
+			},
+		},
+	}
+	out := renderNft(t, cfg)
+
+	if !strings.Contains(out, `define me = { 203.0.113.2, 192.0.2.53 }`) {
+		t.Fatalf("expected anycast v4 IP folded into me, got:\n%s", out)
+	}
+
+	if !strings.Contains(out, `define me6 = { 2a0c:1::2, 2001:db8::53 }`) {
+		t.Fatalf("expected anycast v6 IP folded into me6, got:\n%s", out)
+	}
+
+	if !strings.Contains(out, `define anycast_dns = 192.0.2.53`) {
+		t.Fatalf("expected per-service anycast v4 define, got:\n%s", out)
+	}
+
+	if !strings.Contains(out, `define anycast_dns6 = 2001:db8::53`) {
+		t.Fatalf("expected per-service anycast v6 define, got:\n%s", out)
+	}
+
+	if strings.Contains(out, "10.0.0.53") && strings.Contains(out, "define me = { 203.0.113.2, 192.0.2.53, 10.0.0.53") {
+		t.Fatalf("anycast endpoint IPs should not be part of me, got:\n%s", out)
+	}
+}

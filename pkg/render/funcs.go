@@ -70,6 +70,19 @@ func sanitizeNftName(s string) string {
 	return strings.NewReplacer(":", "_", ".", "_", "-", "_").Replace(s)
 }
 
+func parseHostIP(s string) net.IP {
+	s = strings.TrimSpace(s)
+	if p := net.ParseIP(s); p != nil {
+		return p
+	}
+
+	if h, _, err := net.ParseCIDR(s); err == nil {
+		return h
+	}
+
+	return nil
+}
+
 func templateFuncs(data TemplateData) template.FuncMap {
 	cfg := data.Config
 	return template.FuncMap{
@@ -532,6 +545,23 @@ func templateFuncs(data TemplateData) template.FuncMap {
 				fmt.Fprintf(&b, "define dns_nameservers = %s\n", nftSet(cfg.DNS.Nameservers))
 			}
 
+			if cfg.Routing != nil && cfg.Routing.Anycast != nil {
+				for _, svc := range cfg.Routing.Anycast.Services {
+					for _, ip := range svc.AnycastIPs {
+						p := parseHostIP(ip)
+						if p == nil {
+							continue
+						}
+
+						if p.To4() != nil {
+							meV4 = append(meV4, p.String())
+						} else {
+							meV6 = append(meV6, p.String())
+						}
+					}
+				}
+			}
+
 			if len(meV4) > 0 {
 				fmt.Fprintf(&b, "define me = %s\n", nftSet(meV4))
 			}
@@ -543,7 +573,7 @@ func templateFuncs(data TemplateData) template.FuncMap {
 			emitIPSet := func(prefix string, ips []string) {
 				var v4, v6 []string
 				for _, ip := range ips {
-					p := net.ParseIP(strings.TrimSpace(ip))
+					p := parseHostIP(ip)
 					if p == nil {
 						continue
 					}
