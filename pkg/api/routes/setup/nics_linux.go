@@ -3,7 +3,7 @@
 package setup
 
 import (
-	"github.com/ChevalRouting/routier/pkg/netlink"
+	"github.com/ChevalRouting/routier/pkg/net/netlink"
 	"github.com/ChevalRouting/routier/pkg/types"
 )
 

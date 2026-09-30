@@ -13,7 +13,7 @@ import (
 
 	"github.com/ChevalRouting/routier/pkg/api/cfgstore"
 	"github.com/ChevalRouting/routier/pkg/config"
-	"github.com/ChevalRouting/routier/pkg/iproute"
+	"github.com/ChevalRouting/routier/pkg/net/iproute"
 	"github.com/ChevalRouting/routier/pkg/lldp"
 	"github.com/ChevalRouting/routier/pkg/stats"
 	"github.com/ChevalRouting/routier/pkg/types"

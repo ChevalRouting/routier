@@ -11,8 +11,8 @@ import (
 	"time"
 
 	webdb "github.com/ChevalRouting/routier/pkg/db"
-	"github.com/ChevalRouting/routier/pkg/iproute"
-	"github.com/ChevalRouting/routier/pkg/netlink"
+	"github.com/ChevalRouting/routier/pkg/net/iproute"
+	"github.com/ChevalRouting/routier/pkg/net/netlink"
 	"github.com/ChevalRouting/routier/pkg/stats"
 )
 

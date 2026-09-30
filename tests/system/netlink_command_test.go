@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ChevalRouting/routier/pkg/netlink"
+	"github.com/ChevalRouting/routier/pkg/net/netlink"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )

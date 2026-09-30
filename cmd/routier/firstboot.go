@@ -8,7 +8,7 @@ import (
 
 	"github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/motd"
-	"github.com/ChevalRouting/routier/pkg/netlink"
+	"github.com/ChevalRouting/routier/pkg/net/netlink"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )

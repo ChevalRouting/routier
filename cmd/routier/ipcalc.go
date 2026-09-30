@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/ChevalRouting/routier/pkg/iptools"
+	"github.com/ChevalRouting/routier/pkg/net/ipcalc"
 	"github.com/spf13/cobra"
 )
 
@@ -28,7 +28,7 @@ func newIpcalcSubnetCommand() *cobra.Command {
 		Short: "show an ipcalc-style subnet breakdown",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			info, err := iptools.Subnet(args[0])
+			info, err := ipcalc.Subnet(args[0])
 			if err != nil {
 				return err
 			}
@@ -45,7 +45,7 @@ func newIpcalcReverseCommand() *cobra.Command {
 		Short: "show the reverse-DNS (PTR) name and delegation zone",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			out, err := iptools.Reverse(args[0])
+			out, err := ipcalc.Reverse(args[0])
 			if err != nil {
 				return err
 			}
@@ -66,7 +66,7 @@ func newIpcalcRangeCommand() *cobra.Command {
 		Short: "split an inclusive address range into CIDR blocks",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			out, err := iptools.Range(args[0], args[1])
+			out, err := ipcalc.Range(args[0], args[1])
 			if err != nil {
 				return err
 			}
@@ -80,14 +80,14 @@ func newIpcalcRangeCommand() *cobra.Command {
 	}
 }
 
-func printSubnet(cmd *cobra.Command, info *iptools.SubnetInfo) {
+func printSubnet(cmd *cobra.Command, info *ipcalc.SubnetInfo) {
 	is4 := info.Family == "v4"
 	bin := func(b string) string {
 		if b == "" {
 			return ""
 		}
 
-		return iptools.FormatBinary(b, info.Prefix, is4)
+		return ipcalc.FormatBinary(b, info.Prefix, is4)
 	}
 
 	row := func(label, value, binary string) {

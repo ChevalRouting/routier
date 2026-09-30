@@ -3054,7 +3054,7 @@ const docTemplate = `{
                 },
                 "type": "object"
             },
-            "iptools.RangeCIDRs": {
+            "ipcalc.RangeCIDRs": {
                 "properties": {
                     "cidrs": {
                         "items": {
@@ -3073,7 +3073,7 @@ const docTemplate = `{
                 ],
                 "type": "object"
             },
-            "iptools.ReverseDNS": {
+            "ipcalc.ReverseDNS": {
                 "properties": {
                     "family": {
                         "type": "string"
@@ -3091,7 +3091,7 @@ const docTemplate = `{
                 ],
                 "type": "object"
             },
-            "iptools.SubnetInfo": {
+            "ipcalc.SubnetInfo": {
                 "properties": {
                     "address": {
                         "type": "string"
@@ -5722,7 +5722,7 @@ const docTemplate = `{
                         "type": "string"
                     },
                     "result": {
-                        "$ref": "#/components/schemas/iptools.RangeCIDRs"
+                        "$ref": "#/components/schemas/ipcalc.RangeCIDRs"
                     },
                     "status": {
                         "type": "string"
@@ -5739,7 +5739,7 @@ const docTemplate = `{
                         "type": "string"
                     },
                     "result": {
-                        "$ref": "#/components/schemas/iptools.ReverseDNS"
+                        "$ref": "#/components/schemas/ipcalc.ReverseDNS"
                     },
                     "status": {
                         "type": "string"
@@ -5756,7 +5756,7 @@ const docTemplate = `{
                         "type": "string"
                     },
                     "result": {
-                        "$ref": "#/components/schemas/iptools.SubnetInfo"
+                        "$ref": "#/components/schemas/ipcalc.SubnetInfo"
                     },
                     "status": {
                         "type": "string"

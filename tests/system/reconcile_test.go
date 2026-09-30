@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/ChevalRouting/routier/pkg/dhcpcd"
-	"github.com/ChevalRouting/routier/pkg/netlink"
+	"github.com/ChevalRouting/routier/pkg/net/netlink"
 )
 
 func TestDHCPCDReconcileDryRun(t *testing.T) {
