@@ -27,10 +27,10 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     if [ -d vendor ]; then export GOFLAGS=-mod=vendor; else go mod download; fi && \
     cd web && npm run build && cd .. && \
     CGO_ENABLED=0 go build -tags prod \
-      -ldflags="-s -w -X main.VERSION=${VERSION} -X github.com/ChevalRouting/routier/pkg/api/app.Version=${VERSION}" \
+      -ldflags="-s -w -X main.VERSION=${VERSION} -X github.com/ChevalRouting/routier/pkg/server/api/app.Version=${VERSION}" \
       -o /out/routier ./cmd/routier && \
     CGO_ENABLED=0 go build -tags prod \
-      -ldflags="-s -w -X main.VERSION=${VERSION} -X github.com/ChevalRouting/routier/pkg/api/app.Version=${VERSION}" \
+      -ldflags="-s -w -X main.VERSION=${VERSION} -X github.com/ChevalRouting/routier/pkg/server/api/app.Version=${VERSION}" \
       -o /out/routier-ui ./cmd/routier-ui
 
 

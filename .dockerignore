@@ -4,7 +4,7 @@ web/dist
 website/node_modules
 website/build
 website/.docusaurus
-pkg/api/dist
+pkg/server/api/dist
 dist
 *.apk
 /routier
