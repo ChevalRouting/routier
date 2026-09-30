@@ -4,7 +4,7 @@ import (
 	"github.com/ChevalRouting/routier/tests/testkit"
 	"testing"
 
-	"github.com/ChevalRouting/routier/pkg/dhcpcd"
+	"github.com/ChevalRouting/routier/pkg/daemon/dhcpcd"
 	"github.com/ChevalRouting/routier/pkg/net/netlink"
 )
 

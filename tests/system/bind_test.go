@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ChevalRouting/routier/pkg/bind"
+	"github.com/ChevalRouting/routier/pkg/daemon/bind"
 )
 
 const statsDump = `+++ Statistics Dump +++ (1787178606)

@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/ChevalRouting/routier/pkg/types"
-	"github.com/ChevalRouting/routier/pkg/vtysh"
+	"github.com/ChevalRouting/routier/pkg/daemon/vtysh"
 )
 
 func ReadIfaceStats() map[string]*types.IfaceStats {

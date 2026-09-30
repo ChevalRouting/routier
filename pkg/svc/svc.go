@@ -10,12 +10,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ChevalRouting/routier/pkg/bind"
+	"github.com/ChevalRouting/routier/pkg/daemon/bind"
 	"github.com/ChevalRouting/routier/pkg/config"
-	"github.com/ChevalRouting/routier/pkg/kea"
+	"github.com/ChevalRouting/routier/pkg/daemon/kea"
 	"github.com/ChevalRouting/routier/pkg/net/netlink"
 	"github.com/ChevalRouting/routier/pkg/render"
-	"github.com/ChevalRouting/routier/pkg/vtysh"
+	"github.com/ChevalRouting/routier/pkg/daemon/vtysh"
 	"github.com/rs/zerolog/log"
 )
 

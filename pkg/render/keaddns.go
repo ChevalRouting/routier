@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/ChevalRouting/routier/pkg/config"
-	"github.com/ChevalRouting/routier/pkg/kea"
+	"github.com/ChevalRouting/routier/pkg/daemon/kea"
 )
 
 const (
