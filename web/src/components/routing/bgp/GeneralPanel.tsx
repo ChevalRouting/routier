@@ -1,8 +1,8 @@
-import { Input } from '@/components/ui/input'
-import { NumberInput } from '@/components/ui/number-input'
-import { Label } from '@/components/ui/label'
-import { Separator } from '@/components/ui/separator'
-import { Switch } from '@/components/ui/switch'
+import { Input } from 'cheval-ui'
+import { NumberInput } from 'cheval-ui'
+import { Label } from 'cheval-ui'
+import { Separator } from 'cheval-ui'
+import { Switch } from 'cheval-ui'
 import { ExtraDirectives } from '@/components/ExtraDirectives'
 import { BGPConfig } from '../types'
 
@@ -15,13 +15,14 @@ export function BGPGeneralPanel({
 }) {
   const upd = (patch: Partial<BGPConfig>) => { setBGP({ ...bgp, ...patch }); onDirty() }
   const boolOpts: {
-    key: 'no_ebgp_requires_policy' | 'no_default_ipv4_unicast' | 'no_import_check'
+    key: 'no_ebgp_requires_policy' | 'no_default_ipv4_unicast' | 'no_import_check' | 'no_rib'
     label: string
     desc: string
   }[] = [
     { key: 'no_ebgp_requires_policy', label: 'No eBGP requires policy', desc: 'Allow eBGP sessions without explicit route policies' },
     { key: 'no_default_ipv4_unicast', label: 'No default IPv4 unicast', desc: 'Disable IPv4 unicast as the default address family' },
     { key: 'no_import_check', label: 'No import check', desc: 'Do not check that the nexthop is reachable' },
+    { key: 'no_rib', label: 'No RIB (route reflector)', desc: 'Do not install BGP routes into zebra or the kernel FIB; run as a pure route reflector' },
   ]
   return (
     <div className="space-y-6 max-w-lg">

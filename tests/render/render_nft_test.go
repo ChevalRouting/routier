@@ -75,6 +75,10 @@ func TestNftRoutierOwnsChains(t *testing.T) {
 		t.Fatalf("expected managed rule, got:\n%s", out)
 	}
 
+	if strings.Index(out, `tcp dport 179 accept comment "bgp"`) > strings.Index(out, "tcp dport 443 accept") {
+		t.Fatalf("managed rules must render before hand-written rules, got:\n%s", out)
+	}
+
 	if !strings.Contains(out, "type nat hook postrouting priority srcnat; policy accept;") ||
 		!strings.Contains(out, `oifname "eth0" masquerade`) {
 		t.Fatalf("expected postrouting nat chain, got:\n%s", out)
@@ -222,13 +226,19 @@ func TestNftContextAllows(t *testing.T) {
 		Hostname: "rtr",
 		Interfaces: map[string]*config.Interface{
 			"wan": {Device: "eth0", Addresses: []string{"203.0.113.2/24"}},
-			"lan": {Device: "eth1", Addresses: []string{"10.0.0.1/24", "2a0c:1::1/64"}, VRRP: []*config.VRRPInstance{{ID: 10, VIPs: []string{"10.0.0.1/24"}, AllowInbound: true}}},
-			"dmz": {Device: "eth3", VRRP: []*config.VRRPInstance{{ID: 20, VIPs: []string{"10.0.1.1/24"}}}},
+			"lan": {Device: "eth1", Addresses: []string{"10.0.0.1/24", "2a0c:1::1/64"}},
+			"dmz": {Device: "eth3"},
 		},
-		Conntrackd: &config.Conntrackd{Interface: "eth2", Port: 3780, AllowInbound: true},
 		Routing: &config.Routing{
 			BGP:  &config.BGP{ASN: 65000, AllowInbound: []string{"lan"}},
 			OSPF: &config.OSPF{AllowInbound: []string{"lan"}},
+		},
+		HA: &config.HA{
+			Conntrackd: &config.Conntrackd{Interface: "eth2", Port: 3780, AllowInbound: true},
+			VRRP: []*config.VRRPInstance{
+				{ID: 10, Interface: "lan", VIPs: []string{"10.0.0.1/24"}, AllowInbound: true},
+				{ID: 20, Interface: "dmz", VIPs: []string{"10.0.1.1/24"}},
+			},
 		},
 	}
 	out := renderNft(t, cfg)
@@ -295,5 +305,143 @@ func TestNftAnycastInMe(t *testing.T) {
 
 	if strings.Contains(out, "10.0.0.53") && strings.Contains(out, "define me = { 203.0.113.2, 192.0.2.53, 10.0.0.53") {
 		t.Fatalf("anycast endpoint IPs should not be part of me, got:\n%s", out)
+	}
+}
+
+func TestNftDNSAutoAllow(t *testing.T) {
+	cfg := &config.Config{
+		Hostname: "rtr",
+		Interfaces: map[string]*config.Interface{
+			"lan": {Device: "eth1", Addresses: []string{"10.0.0.1/24"}},
+			"wan": {Device: "eth0", Addresses: []string{"203.0.113.2/24"}},
+		},
+		DNS: &config.DNS{
+			Server: &config.DNSServer{
+				Enabled:      true,
+				Listen:       []string{"iface(lan)"},
+				AllowFrom:    []string{"10.0.0.0/24", "2a0c:1::/64"},
+				AllowInbound: []string{"lan"},
+				Upstreams:    []string{"1.1.1.1"},
+			},
+		},
+	}
+	out := renderNft(t, cfg)
+
+	for _, want := range []string{
+		"define dns_allow_from = 10.0.0.0/24",
+		"define dns_allow_from6 = 2a0c:1::/64",
+		"define dns_listen = 10.0.0.1",
+		`iifname $lan_interfaces ip saddr $dns_allow_from meta l4proto { tcp, udp } th dport 53 accept comment "routier: dns"`,
+		`iifname $lan_interfaces ip6 saddr $dns_allow_from6 meta l4proto { tcp, udp } th dport 53 accept comment "routier: dns"`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("missing %q in:\n%s", want, out)
+		}
+	}
+
+	if strings.Contains(out, "$wan_interfaces ip saddr $dns_allow_from") {
+		t.Fatalf("dns must only be allowed on allow_inbound interfaces, got:\n%s", out)
+	}
+}
+
+func TestNftDNSAutoAllowOptIn(t *testing.T) {
+	cfg := &config.Config{
+		Hostname:   "rtr",
+		Interfaces: map[string]*config.Interface{"lan": {Device: "eth1", Addresses: []string{"10.0.0.1/24"}}},
+		DNS: &config.DNS{
+			Server: &config.DNSServer{
+				Enabled:   true,
+				Listen:    []string{"iface(lan)"},
+				AllowFrom: []string{"10.0.0.0/24"},
+				Upstreams: []string{"1.1.1.1"},
+			},
+		},
+	}
+
+	if out := renderNft(t, cfg); strings.Contains(out, "routier: dns") {
+		t.Fatalf("no allow_inbound must emit no dns rule, got:\n%s", out)
+	}
+}
+
+func TestNftDNSAutoAllowHonoursPort(t *testing.T) {
+	cfg := &config.Config{
+		Hostname:   "rtr",
+		Interfaces: map[string]*config.Interface{"lan": {Device: "eth1", Addresses: []string{"10.0.0.1/24"}}},
+		DNS: &config.DNS{
+			Server: &config.DNSServer{
+				Enabled:      true,
+				Port:         5353,
+				Listen:       []string{"iface(lan)"},
+				AllowFrom:    []string{"10.0.0.0/24"},
+				AllowInbound: []string{"lan"},
+				Upstreams:    []string{"1.1.1.1"},
+			},
+		},
+	}
+
+	out := renderNft(t, cfg)
+	if !strings.Contains(out, "th dport 5353 accept") {
+		t.Fatalf("expected the configured port in the dns allow, got:\n%s", out)
+	}
+
+	if strings.Contains(out, "th dport 53 accept") {
+		t.Fatalf("must not hardcode port 53, got:\n%s", out)
+	}
+}
+
+func TestNftScopedAllowResolvesVLANAndWireguard(t *testing.T) {
+	cfg := &config.Config{
+		Hostname: "rtr",
+		Interfaces: map[string]*config.Interface{
+			"lan": {
+				Device:    "eth1",
+				Addresses: []string{"10.0.0.1/24"},
+			},
+			"servers": {
+				Type:      "vlan",
+				Select:    "lan",
+				Device:    "servers",
+				Addresses: []string{"10.0.100.1/24"},
+				VLAN:      &config.VLAN{ID: 100},
+			},
+		},
+		Wireguard: map[string]*config.Wireguard{
+			"tun0": {Addresses: []string{"172.31.0.1/29"}, PrivateKey: "dGVzdA=="},
+		},
+		Routing: &config.Routing{
+			BGP:  &config.BGP{ASN: 65000, RouterID: "10.0.0.1", AllowInbound: []string{"tun0"}},
+			OSPF: &config.OSPF{RouterID: "10.0.0.1", AllowInbound: []string{"servers"}},
+		},
+	}
+	out := renderNft(t, cfg)
+
+	if !strings.Contains(out, `iifname $tun0_interfaces ip saddr $tun0_network tcp dport 179 accept comment "routier: bgp"`) {
+		t.Fatalf("bgp allow_inbound on a wireguard interface must emit a rule, got:\n%s", out)
+	}
+
+	if !strings.Contains(out, `iifname $servers_interfaces ip saddr $servers_network meta l4proto 89 accept comment "routier: ospf"`) {
+		t.Fatalf("ospf allow_inbound on a vlan must emit a rule, got:\n%s", out)
+	}
+}
+
+func TestNftVRRPAllowResolvesTransportDevice(t *testing.T) {
+	cfg := &config.Config{
+		Hostname: "rtr",
+		Interfaces: map[string]*config.Interface{
+			"lan":  {Device: "eth1", Addresses: []string{"10.0.0.2/24"}},
+			"sync": {Device: "eth2", Addresses: []string{"10.255.255.1/30"}},
+		},
+		HA: &config.HA{
+			VRRP: []*config.VRRPInstance{{ID: 1, Interface: "lan", Transport: "sync", VIPs: []string{"10.0.0.1/32"}, AllowInbound: true}},
+		},
+	}
+
+	out := renderNft(t, cfg)
+	if !strings.Contains(out, `iifname "eth2" meta l4proto 112 accept comment "routier: vrrp"`) {
+		t.Fatalf("vrrp allow must use the resolved transport device, got:\n%s", out)
+	}
+
+	if strings.Contains(out, `iifname "sync"`) {
+		t.Fatalf("vrrp allow must not use the logical name, got:\n%s", out)
 	}
 }

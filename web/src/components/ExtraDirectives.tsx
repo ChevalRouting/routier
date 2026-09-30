@@ -1,5 +1,5 @@
-import TagInput from '@/components/TagInput'
-import { Label } from '@/components/ui/label'
+import { TagInput } from 'cheval-ui'
+import { Label } from 'cheval-ui'
 
 export function ExtraDirectives({ label = 'Additional directives', values, onChange, placeholder }: {
   label?: string
@@ -8,7 +8,7 @@ export function ExtraDirectives({ label = 'Additional directives', values, onCha
   placeholder?: string
 }) {
   return (
-    <div className="space-y-1">
+    <div className="space-y-1.5">
       <Label className="text-xs text-muted-foreground">{label}</Label>
       <TagInput
         values={values ?? []}

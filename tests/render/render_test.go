@@ -1,7 +1,7 @@
 package rendertest
 
 import (
-	"github.com/ChevalRouting/routier/tests/harness"
+	"github.com/ChevalRouting/routier/tests/testkit"
 	"strings"
 	"testing"
 
@@ -11,7 +11,7 @@ import (
 
 func TestRenderProducesNftablesTable(t *testing.T) {
 	dir := t.TempDir()
-	path := harness.WriteConfig(t, dir, `version: v3.0.0
+	path := testkit.WriteConfig(t, dir, `version: v3.0.0
 hostname: rtr
 interfaces:
   lan:
@@ -56,7 +56,7 @@ nftables:
 
 func TestRenderNftVarsExposesInterfaceAddresses(t *testing.T) {
 	dir := t.TempDir()
-	path := harness.WriteConfig(t, dir, `version: v3.0.0
+	path := testkit.WriteConfig(t, dir, `version: v3.0.0
 hostname: rtr
 interfaces:
   lan:

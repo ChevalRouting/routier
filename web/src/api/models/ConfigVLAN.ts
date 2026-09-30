@@ -21,22 +21,10 @@ import { mapValues } from '../runtime';
 export interface ConfigVLAN {
     /**
      * 
-     * @type {Array<string>}
-     * @memberof ConfigVLAN
-     */
-    addresses?: Array<string>;
-    /**
-     * 
      * @type {number}
      * @memberof ConfigVLAN
      */
     id: number;
-    /**
-     * 
-     * @type {number}
-     * @memberof ConfigVLAN
-     */
-    mtu?: number;
 }
 
 /**
@@ -57,9 +45,7 @@ export function ConfigVLANFromJSONTyped(json: any, ignoreDiscriminator: boolean)
     }
     return {
         
-        'addresses': json['addresses'] == null ? undefined : json['addresses'],
         'id': json['id'],
-        'mtu': json['mtu'] == null ? undefined : json['mtu'],
     };
 }
 
@@ -74,9 +60,7 @@ export function ConfigVLANToJSONTyped(value?: ConfigVLAN | null, ignoreDiscrimin
 
     return {
         
-        'addresses': value['addresses'],
         'id': value['id'],
-        'mtu': value['mtu'],
     };
 }
 

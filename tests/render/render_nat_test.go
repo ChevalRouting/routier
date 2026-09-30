@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/ChevalRouting/routier/pkg/config"
-	"github.com/ChevalRouting/routier/pkg/nat"
+	"github.com/ChevalRouting/routier/pkg/nftables/nat"
 )
 
 func TestNatRulesRenderIntoChains(t *testing.T) {

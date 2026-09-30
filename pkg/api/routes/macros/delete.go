@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	appctx "github.com/ChevalRouting/routier/pkg/api/app"
+	"github.com/ChevalRouting/routier/pkg/api/requests"
 	webdb "github.com/ChevalRouting/routier/pkg/db"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/go-chi/chi/v5"
@@ -23,7 +24,7 @@ import (
 func Delete(w http.ResponseWriter, r *http.Request) {
 	app := appctx.FromContext(r.Context())
 	id := chi.URLParam(r, "id")
-	if err := webdb.DeleteMacro(app.DB, id); err != nil {
+	if err := webdb.DeleteMacro(requests.DurableContext(r), app.DB, id); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			types.Err(http.StatusNotFound, "macro not found").Write(w)
 			return

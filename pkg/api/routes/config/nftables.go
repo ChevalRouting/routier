@@ -141,12 +141,13 @@ func buildNftRefs(ruleset string, draft cfgpkg.NftablesConfig) []nftRef {
 
 	chain := ""
 	inUser, sawAuto, afterPolicy := false, false, false
-	userIdx := 0
+	userIdx, managedCount := 0, 0
 	for i := tableAt; i < len(lines); i++ {
 		line := strings.TrimSpace(lines[i])
 
 		if m := nftChainOpen.FindStringSubmatch(line); m != nil {
 			chain, inUser, sawAuto, afterPolicy, userIdx = m[1], false, false, false, 0
+			managedCount = draftManagedCount(draft, chain)
 			continue
 		}
 
@@ -170,12 +171,30 @@ func buildNftRefs(ruleset string, draft cfgpkg.NftablesConfig) []nftRef {
 
 			if inUser {
 				userIdx++
-				refs[i+1] = nftRef{section: chain, line: userIdx}
+				if userIdx > managedCount {
+					refs[i+1] = nftRef{section: chain, line: userIdx - managedCount}
+				}
 			}
 		}
 	}
 
 	return refs
+}
+
+func draftManagedCount(draft cfgpkg.NftablesConfig, chain string) int {
+	ch := draft.Chains[chain]
+	if ch == nil {
+		return 0
+	}
+
+	n := 0
+	for _, r := range ch.Managed {
+		if !r.Disabled {
+			n++
+		}
+	}
+
+	return n
 }
 
 func mapUserBlock(refs []nftRef, region []string, section, block string) {

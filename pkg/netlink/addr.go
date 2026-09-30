@@ -26,9 +26,6 @@ func reconcileAddrs(cfg *config.Config, dryRun bool) error {
 
 	for _, iface := range cfg.Interfaces {
 		addWant(iface.Device, iface.Addresses)
-		for _, vlan := range iface.VLANs {
-			addWant(vlan.Device, vlan.Addresses)
-		}
 	}
 
 	for name, t := range cfg.Tunnels {
@@ -100,7 +97,7 @@ func syncAddrs(dev string, wantCIDRs []string, dryRun bool) error {
 
 		log.Info().Str("dev", dev).Str("addr", cidr).Msg("remove addr")
 		ac := a
-		if err := vnl.AddrDel(link, &ac); err != nil {
+		if err := addrDel(link, &ac); err != nil {
 			log.Warn().Err(err).Str("dev", dev).Str("addr", cidr).Msg("remove addr")
 		}
 	}
@@ -116,7 +113,7 @@ func syncAddrs(dev string, wantCIDRs []string, dryRun bool) error {
 		}
 
 		log.Info().Str("dev", dev).Str("addr", cidr).Msg("add addr")
-		if err := vnl.AddrAdd(link, a); err != nil {
+		if err := addrAdd(link, a); err != nil {
 			log.Warn().Err(err).Str("dev", dev).Str("addr", cidr).Msg("add addr")
 		}
 	}

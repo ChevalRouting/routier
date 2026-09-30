@@ -37,7 +37,7 @@ func serveCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "serve",
 		Short: "start the web UI server",
-		RunE: func(_ *cobra.Command, _ []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			lvl, err := zerolog.ParseLevel(logLevel)
 			if err != nil {
 				return fmt.Errorf("invalid log level %q", logLevel)
@@ -49,7 +49,7 @@ func serveCmd() *cobra.Command {
 				return fmt.Errorf("jwt secret: %w", err)
 			}
 
-			srv, err := api.New(configPath, dbPath, jwtSecret, debug)
+			srv, err := api.New(cmd.Context(), configPath, dbPath, jwtSecret, debug)
 			if err != nil {
 				return fmt.Errorf("create server: %w", err)
 			}

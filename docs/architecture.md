@@ -19,9 +19,9 @@ config.yml ─▶ load + validate ─▶ resolve ─▶ render ─▶ apply ─�
    friend-published variables are interpolated into the config.
 3. **Render** (`pkg/render`). The config becomes concrete artifacts: FRR
    configuration, an nftables ruleset, wg-quick files, Kea DHCP server
-   configs, keepalived, radvd, conntrackd, sshd, sysctl and more. Rendering is
-   pure: no system state is touched, which is what makes `routier plan` safe
-   to run anywhere.
+   configs, the BIND configuration and its zone files, keepalived, radvd,
+   lldpd, conntrackd, sshd, sysctl and more. Rendering is pure: no system state is
+   touched, which is what makes `routier plan` safe to run anywhere.
 4. **Apply** (`pkg/apply`, `pkg/managers`, `pkg/svc`). Artifacts are written
    and services reloaded under a global apply lock (an in-process mutex plus a
    file lock, so the CLI and the daemon cannot race each other).
@@ -33,7 +33,7 @@ config.yml ─▶ load + validate ─▶ resolve ─▶ render ─▶ apply ─�
 
 `managers.ApplyConfig` performs the steps below. The ordering is deliberate:
 
-1. Hostname, users and DNS are applied first.
+1. Hostname, users and `/etc/resolv.conf` are applied first.
 2. Every artifact whose content changed is written; before the first write, a
    **snapshot** of the previous file contents (plus the last-applied config)
    is saved under `/var/lib/routier/snapshots/`.
@@ -45,13 +45,21 @@ config.yml ─▶ load + validate ─▶ resolve ─▶ render ─▶ apply ─�
    The ruleset is validated with `nft -c` before it is loaded.
 5. **FRR** is validated (`vtysh -C`), then reloaded in place when possible,
    and restarted when the daemon set changed.
-6. keepalived, radvd, conntrackd, sshd and WireGuard interfaces follow.
+6. keepalived, radvd, lldpd, conntrackd, sshd and WireGuard interfaces follow.
    Managed WireGuard interfaces that left the config are torn down with
    `wg-quick down` so their PostDown hooks run.
-7. **Kea DHCP** goes last, via `config-reload` on its control socket so active
-   leases survive; a failed reload falls back to a restart. Validation
-   failures abort the apply like any other service.
-8. Services that are no longer needed are stopped and removed from the boot
+7. **BIND** comes next, over its rndc control channel: a per-zone reload when
+   only zone data changed, `rndc reconfig` when the configuration changed, and
+   a service reload or restart only as a fallback. Zone files are validated
+   with `named-checkzone` before they are written and the rendered `named.conf`
+   with `named-checkconf` after, since it references the zone files by absolute
+   path. See [dns.md](dns.md).
+8. **Kea DHCP** is the last service reloaded, via `config-reload` on its
+   control socket so active leases survive; a failed reload falls back to a
+   restart. Validation failures abort the apply like any other service. It runs
+   after BIND so the resolver is answering before DHCP starts handing out
+   its address to clients.
+9. Services that are no longer needed are stopped and removed from the boot
    runlevel; newly needed ones are started and enabled.
 
 Any fatal error rolls the snapshot back: previous
@@ -103,6 +111,7 @@ keepalived raises the tunnels on the MASTER transition instead.
 | `pkg/api` | HTTP APIs (web/UI and REST v1), embedded web app |
 | `pkg/friends` | Peer router protocol (poll, pairing, variables) |
 | `pkg/kea` | Kea DHCP control-socket client |
-| `pkg/db` | SQLite storage (stats history, sessions, settings) |
+| `pkg/bind` | BIND rndc client and runtime inspection |
+| `pkg/db` | SQLite storage, embedded migrations and the sqlc-backed persistence facade |
 | `web/` | React/TypeScript frontend |
 | `tests/` | Integration tests with a mocked service runner |

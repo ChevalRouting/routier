@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { api } from '@/lib/client'
+import { api, configLayerRequest } from '@/lib/client'
 import type { TypesSystemNic as SystemNic } from '@/api'
 import { useFetch } from '@/lib/useFetch'
-import { Button } from '@/components/ui/button'
-import { PreferencesGroup, EntryRow, Row } from '@/components/Preferences'
+import { Badge, Button, EntryRow, LoginScreen, PreferencesGroup, Row, Segmented, TagInput } from 'cheval-ui'
 import { checkCIDR, checkIP } from '@/lib/validate'
-import { cn } from '@/lib/utils'
+import type { Internet, Network } from '@/components/simple/types'
+import { cn } from 'cheval-ui'
 import Logo from '@/components/Logo'
 import { WatchdogConfirmBar } from '@/components/WatchdogConfirmBar'
 
@@ -20,8 +20,9 @@ const STEPS: { key: Step; label: string }[] = [
   { key: 'confirm',    label: 'Confirm' },
 ]
 
-type IfaceMode = 'dhcp' | 'static'
-interface IfaceSetting { mode: IfaceMode; cidr: string }
+type IfaceRole = 'internet' | 'local' | 'none'
+type AddrMode = 'dhcp' | 'static'
+interface IfaceSetting { role: IfaceRole; cidr: string; mode: AddrMode; gateway: string; dns: string[] }
 
 export default function Onboarding() {
   const navigate = useNavigate()
@@ -37,7 +38,6 @@ export default function Onboarding() {
 
   const [hostname, setHostname]           = useState('routier')
   const [ifaceSettings, setIfaceSettings] = useState<Record<string, IfaceSetting>>({})
-  const [gateway, setGateway]             = useState('')
 
   const nicList: SystemNic[] = nics ?? []
   const stepIdx = STEPS.findIndex((s) => s.key === step)
@@ -48,7 +48,6 @@ export default function Onboarding() {
       if (saved.step)          setStepRaw(saved.step as Step)
       if (saved.hostname)      setHostname(saved.hostname as string)
       if (saved.ifaceSettings) setIfaceSettings(saved.ifaceSettings as Record<string, IfaceSetting>)
-      if (saved.gateway)       setGateway(saved.gateway as string)
       setStateLoaded(true)
     }).catch(() => setStateLoaded(true))
   }, [])
@@ -58,10 +57,10 @@ export default function Onboarding() {
     if (!stateLoaded) return
     if (saveTimer.current) clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(() => {
-      api.apiSetupOnboardingPut({ body: { step, hostname, ifaceSettings, gateway } }).catch(() => {})
+      api.apiSetupOnboardingPut({ body: { step, hostname, ifaceSettings } }).catch(() => {})
     }, 400)
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current) }
-  }, [step, hostname, ifaceSettings, gateway, stateLoaded])
+  }, [step, hostname, ifaceSettings, stateLoaded])
 
   const setStep = (s: Step) => setStepRaw(s)
 
@@ -70,11 +69,9 @@ export default function Onboarding() {
     setIfaceSettings(prev => {
       const next = { ...prev }
       for (const nic of nics) {
-        if (next[nic.name]) continue
+        if (next[nic.name]?.role) continue
         const firstAddr = nic.addrs?.[0]
-        next[nic.name] = firstAddr
-          ? { mode: 'static', cidr: firstAddr }
-          : { mode: 'dhcp', cidr: '' }
+        next[nic.name] = { role: 'none', cidr: firstAddr ?? '', mode: 'dhcp', gateway: '', dns: [] }
       }
       return next
     })
@@ -82,6 +79,21 @@ export default function Onboarding() {
 
   const setSetting = (name: string, patch: Partial<IfaceSetting>) =>
     setIfaceSettings(prev => ({ ...prev, [name]: { ...prev[name], ...patch } }))
+
+  const setRole = (name: string, role: IfaceRole) => {
+    setIfaceSettings((previous) => {
+      const next = { ...previous }
+      if (role === 'internet') {
+        for (const nicName of Object.keys(next)) {
+          if (nicName !== name && next[nicName]?.role === 'internet') {
+            next[nicName] = { ...next[nicName], role: 'none' }
+          }
+        }
+      }
+      next[name] = { ...next[name], role }
+      return next
+    })
+  }
 
   const savePassword = async () => {
     if (newPw.length < 8) return toast.error('Password must be at least 8 characters')
@@ -100,25 +112,43 @@ export default function Onboarding() {
   const apply = async () => {
     setBusy(true)
     try {
-      const ifaces: Record<string, unknown> = {}
-      for (const nic of nicList) {
-        const s = ifaceSettings[nic.name] ?? { mode: 'dhcp', cidr: '' }
-        ifaces[nic.name] = {
-          select: nic.name,
-          addresses: s.mode === 'dhcp' ? ['dhcp'] : [s.cidr],
-        }
-      }
-      await api.apiConfigSectionPut({ section: 'hostname', body: hostname as unknown as object })
-      await api.apiConfigSectionPut({ section: 'interfaces', body: ifaces })
-      if (gateway) {
-        await api.apiConfigSectionPut({
-          section: 'routing',
-          body: { static: [{ destination: '0.0.0.0/0', via: gateway }] },
-        })
-      }
+      const uplinkNIC = nicList.find((nic) => ifaceSettings[nic.name]?.role === 'internet')
+      const uplink = uplinkNIC ? ifaceSettings[uplinkNIC.name] : undefined
+      const internet: Internet | null = uplinkNIC ? (uplink?.mode === 'static' ? {
+        interface: 'wan',
+        select: selectorFor(uplinkNIC),
+        mode: 'static',
+        ipv6: 'slaac',
+        addresses: [uplink.cidr],
+        gateway: uplink.gateway,
+        dns: uplink.dns,
+      } : {
+        interface: 'wan',
+        select: selectorFor(uplinkNIC),
+        mode: 'dhcp',
+        ipv6: 'slaac',
+        addresses: [],
+      }) : null
+      const networks: Network[] = nicList.flatMap((nic) => {
+        const setting = ifaceSettings[nic.name]
+        if (setting?.role !== 'local') return []
+        return [{
+          id: nic.name,
+          name: nic.name,
+          select: selectorFor(nic),
+          addresses: [setting.cidr],
+          manage_dhcp: false,
+          masquerade: internet !== null,
+          editable: true,
+        }]
+      })
+
+      await configLayerRequest('/api/config/hostname', { method: 'PUT', body: JSON.stringify(hostname) }, 'simple')
+      await configLayerRequest('/api/config/internet', { method: 'PUT', body: JSON.stringify(internet) }, 'simple')
+      await configLayerRequest('/api/config/networks', { method: 'PUT', body: JSON.stringify(networks) }, 'simple')
       let applied = false
       try {
-        const result = await api.apiConfigApplyPost()
+        const result = await configLayerRequest<{ warning?: string }>('/api/config/apply', { method: 'POST' }, 'simple')
         if (result.warning) toast.warning(result.warning)
         applied = true
       } catch {
@@ -150,23 +180,17 @@ export default function Onboarding() {
 
   const ifacesValid = nicList.every(nic => {
     const s = ifaceSettings[nic.name]
-    if (!s || s.mode === 'dhcp') return true
-    return !checkCIDR(s.cidr)
+    if (!s) return true
+    if (s.role === 'local') return !!s.cidr && !checkCIDR(s.cidr)
+    if (s.role === 'internet' && s.mode === 'static') {
+      return !!s.cidr && !checkCIDR(s.cidr) && !!s.gateway && !checkIP(s.gateway) && (s.dns ?? []).every((entry) => !checkIP(entry))
+    }
+    return true
   })
-  const gatewayValid = !gateway || !checkIP(gateway)
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
-      <div className="w-full max-w-lg space-y-6">
-
-        <div className="flex flex-col items-center gap-3">
-          <Logo className="h-14 w-14" />
-          <div className="text-center">
-            <h1 className="text-2xl font-bold tracking-tight">Welcome to Routier</h1>
-            <p className="text-sm text-muted-foreground">Let's get your router set up.</p>
-          </div>
-        </div>
-
+    <LoginScreen title="Welcome to Routier" subtitle="Let's get your router set up." logo={Logo}>
+      <div className="space-y-6">
         <div className="flex items-center justify-center gap-2">
           {STEPS.map((s, i) => (
             <div key={s.key} className="flex items-center gap-2">
@@ -214,34 +238,43 @@ export default function Onboarding() {
 
         {step === 'interfaces' && (
           <>
-            <PreferencesGroup title="Network interfaces" description="Configure each interface. Static mode requires a CIDR address (e.g. 192.168.1.1/24).">
+            <PreferencesGroup title="Network interfaces" description="Choose what each physical port connects to. You can leave ports unused.">
               {nicList.length === 0 && (
                 <p className="px-4 py-3 text-sm text-muted-foreground">No physical interfaces detected.</p>
               )}
               {nicList.map(nic => {
-                const s = ifaceSettings[nic.name] ?? { mode: 'dhcp' as IfaceMode, cidr: '' }
-                const cidrErr = s.mode === 'static' ? checkCIDR(s.cidr) : null
-                const isOk = s.mode === 'dhcp' ? true : (!cidrErr && !!s.cidr)
+                const s = ifaceSettings[nic.name] ?? { role: 'none' as IfaceRole, cidr: '', mode: 'dhcp' as AddrMode, gateway: '', dns: [] }
+                const staticUplink = s.role === 'internet' && s.mode === 'static'
+                const cidrErr = (s.role === 'local' || staticUplink) ? checkCIDR(s.cidr) : null
+                const gatewayErr = staticUplink ? checkIP(s.gateway) : null
+                const isOk = (s.role === 'internet' && s.mode === 'dhcp')
+                  || (staticUplink && !cidrErr && !!s.cidr && !gatewayErr && !!s.gateway)
+                  || (s.role === 'local' && !cidrErr && !!s.cidr)
                 return (
-                  <div key={nic.name} className="px-4 py-3 space-y-3 border-b last:border-b-0">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-medium text-sm">{nic.name}</span>
-                        {isOk && (
-                          <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                            OK
-                          </span>
-                        )}
-                        {nic.operstate && (
-                          <span className={cn('text-xs', nic.operstate === 'up' ? 'text-green-600' : 'text-muted-foreground')}>
-                            {nic.operstate}
-                          </span>
-                        )}
-                      </div>
-                      <ModeToggle value={s.mode} onChange={(m) => setSetting(nic.name, { mode: m })} />
-                    </div>
+                  <div key={nic.name} className="space-y-2">
+                    <Row
+                      title={<span className="font-mono">{nic.name}</span>}
+                      subtitle={s.role === 'internet'
+                        ? 'Connect this port to your modem or upstream network.'
+                        : s.role === 'local'
+                          ? 'Connect computers and other devices to this local network.'
+                          : 'Do not configure this port yet.'}
+                    >
+                      {isOk && <Badge variant="success">Ready</Badge>}
+                      {nic.operstate && <Badge variant={nic.operstate === 'up' ? 'success' : 'neutral'}>{nic.operstate}</Badge>}
+                      <Segmented
+                        value={s.role}
+                        onChange={(role) => setRole(nic.name, role)}
+                        options={[
+                          { value: 'internet', label: 'Internet' },
+                          { value: 'local', label: 'Local' },
+                          { value: 'none', label: 'Unused' },
+                        ]}
+                        className="w-full sm:w-auto"
+                      />
+                    </Row>
 
-                    {s.mode === 'static' ? (
+                    {s.role === 'local' ? (
                       <div>
                         <EntryRow
                           title="Address (CIDR)"
@@ -252,34 +285,67 @@ export default function Onboarding() {
                           error={cidrErr}
                         />
                       </div>
-                    ) : (
-                      <p className="text-xs text-muted-foreground">
-                        Address will be assigned automatically via DHCP.
-                        {nic.addrs && nic.addrs.length > 0 && (
-                          <> Current: <span className="font-mono">{nic.addrs.join('  ')}</span></>
+                    ) : s.role === 'internet' ? (
+                      <div className="space-y-2">
+                        <Row title="Addressing" subtitle="How this port gets its IP address from the upstream network.">
+                          <Segmented
+                            value={s.mode}
+                            onChange={(mode) => setSetting(nic.name, { mode: mode as AddrMode })}
+                            options={[
+                              { value: 'dhcp', label: 'Automatic (DHCP)' },
+                              { value: 'static', label: 'Static' },
+                            ]}
+                            className="w-full sm:w-auto"
+                          />
+                        </Row>
+                        {s.mode === 'static' ? (
+                          <>
+                            <EntryRow
+                              title="Address (CIDR)"
+                              value={s.cidr}
+                              onChange={(e) => setSetting(nic.name, { cidr: e.target.value })}
+                              placeholder="203.0.113.2/24"
+                              className="font-mono"
+                              error={cidrErr}
+                            />
+                            <EntryRow
+                              title="Gateway"
+                              value={s.gateway}
+                              onChange={(e) => setSetting(nic.name, { gateway: e.target.value })}
+                              placeholder="203.0.113.1"
+                              className="font-mono"
+                              error={gatewayErr}
+                            />
+                            <div className="space-y-1.5 px-1">
+                              <p className="text-sm font-medium">DNS servers</p>
+                              <TagInput
+                                values={s.dns}
+                                onChange={(dns) => setSetting(nic.name, { dns })}
+                                placeholder="1.1.1.1"
+                                mono
+                                validate={checkIP}
+                              />
+                            </div>
+                          </>
+                        ) : (
+                          <p className="px-4 pb-3 text-xs text-muted-foreground">
+                            The uplink uses automatic IPv4 (DHCP) and IPv6 (SLAAC).
+                            {nic.addrs && nic.addrs.length > 0 && (
+                              <> Current: <span className="font-mono">{nic.addrs.join('  ')}</span></>
+                            )}
+                          </p>
                         )}
-                      </p>
-                    )}
+                      </div>
+                    ) : null}
                   </div>
                 )
               })}
             </PreferencesGroup>
 
-            <PreferencesGroup title="Default gateway" description="Required when any interface uses a static address.">
-              <EntryRow
-                title="Gateway"
-                value={gateway}
-                onChange={(e) => setGateway(e.target.value)}
-                placeholder="192.168.1.254  (leave blank for DHCP)"
-                className="font-mono"
-                error={gateway ? checkIP(gateway) : null}
-              />
-            </PreferencesGroup>
-
             <StepNav
               onBack={() => setStep('hostname')}
               onNext={() => setStep('review')}
-              nextDisabled={nicList.length === 0 || !ifacesValid || !gatewayValid}
+              nextDisabled={nicList.length === 0 || !ifacesValid}
             />
           </>
         )}
@@ -289,14 +355,16 @@ export default function Onboarding() {
             <PreferencesGroup title="Review">
               <Row title="Hostname">{hostname}</Row>
               {nicList.map(nic => {
-                const s = ifaceSettings[nic.name] ?? { mode: 'dhcp' as IfaceMode, cidr: '' }
+                const s = ifaceSettings[nic.name] ?? { role: 'none' as IfaceRole, cidr: '', mode: 'dhcp' as AddrMode, gateway: '', dns: [] }
+                const summary = s.role === 'internet'
+                  ? (s.mode === 'static' ? `Internet uplink · static ${s.cidr}` : 'Internet uplink · DHCP')
+                  : s.role === 'local' ? `Local · ${s.cidr}` : 'Unused'
                 return (
                   <Row key={nic.name} title={nic.name}>
-                    <span className="font-mono">{s.mode === 'dhcp' ? 'DHCP' : s.cidr}</span>
+                    <span className="font-mono">{summary}</span>
                   </Row>
                 )
               })}
-              {gateway && <Row title="Gateway"><span className="font-mono">{gateway}</span></Row>}
             </PreferencesGroup>
             <p className="px-1 text-xs text-muted-foreground">
               Applying writes the config and brings the interfaces up. You'll have 60 s to confirm connectivity before the changes roll back.
@@ -314,28 +382,7 @@ export default function Onboarding() {
           </div>
         )}
       </div>
-    </div>
-  )
-}
-
-function ModeToggle({ value, onChange }: { value: IfaceMode; onChange: (m: IfaceMode) => void }) {
-  return (
-    <div className="flex rounded-md border text-xs overflow-hidden">
-      {(['dhcp', 'static'] as IfaceMode[]).map(m => (
-        <button
-          key={m}
-          onClick={() => onChange(m)}
-          className={cn(
-            'px-3 py-1 capitalize transition-colors',
-            value === m
-              ? 'bg-primary text-primary-foreground font-medium'
-              : 'bg-background text-muted-foreground hover:text-foreground',
-          )}
-        >
-          {m}
-        </button>
-      ))}
-    </div>
+    </LoginScreen>
   )
 }
 
@@ -351,4 +398,8 @@ function StepNav({ onBack, onNext, nextLabel = 'Next', nextDisabled }: {
       <Button onClick={onNext} disabled={nextDisabled}>{nextLabel}</Button>
     </div>
   )
+}
+
+function selectorFor(nic: SystemNic): string {
+  return nic.mac ? `mac(${nic.mac})` : `name=${nic.name}`
 }

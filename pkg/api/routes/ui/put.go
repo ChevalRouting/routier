@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	appctx "github.com/ChevalRouting/routier/pkg/api/app"
+	"github.com/ChevalRouting/routier/pkg/api/requests"
 	webdb "github.com/ChevalRouting/routier/pkg/db"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/rs/zerolog/log"
@@ -26,7 +27,7 @@ func PutLayout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := webdb.SetUILayout(app.DB, "routing_topology", string(body)); err != nil {
+	if err := webdb.SetUILayout(requests.DurableContext(r), app.DB, "routing_topology", string(body)); err != nil {
 		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "failed to save layout"))
 		return
 	}

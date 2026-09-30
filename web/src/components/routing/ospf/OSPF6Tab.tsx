@@ -1,17 +1,19 @@
 import { useState, useEffect, useRef } from 'react'
-import { useTabState } from '@/lib/useTabState'
-import { SectionNav } from '@/components/ui/section-nav'
+import { useTabState } from 'cheval-ui'
+import { SectionNav } from 'cheval-ui'
 import { checkCIDR } from '@/lib/validate'
-import { Input } from '@/components/ui/input'
-import { NumberInput } from '@/components/ui/number-input'
-import { Label } from '@/components/ui/label'
-import { Separator } from '@/components/ui/separator'
-import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/switch'
-import { Badge } from '@/components/ui/badge'
-import TagInput from '@/components/TagInput'
-import { Plus, Trash2, ChevronDown, ChevronRight } from 'lucide-react'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Input } from 'cheval-ui'
+import { NumberInput } from 'cheval-ui'
+import { Label } from 'cheval-ui'
+import { Separator } from 'cheval-ui'
+import { Button } from 'cheval-ui'
+import { Switch } from 'cheval-ui'
+import { Badge } from 'cheval-ui'
+import { TagInput } from 'cheval-ui'
+import { Card } from 'cheval-ui'
+import { Sheet } from 'cheval-ui'
+import { Plus, Trash2 } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from 'cheval-ui'
 import { ExtraDirectives } from '@/components/ExtraDirectives'
 import { OSPF6Area, OSPF6InterfaceConfig, OSPF6Config, OSPF_NETWORK_TYPES, OSPF6SubTab } from '../types'
 import { newId } from '../shared'
@@ -65,14 +67,15 @@ export function OSPF6AreasPanel({ areas, onChange, onDirty }: {
   areas: OSPF6Area[]; onChange: (v: OSPF6Area[]) => void; onDirty: () => void
 }) {
   const [rows, setRows] = useState<OSPF6AreaRow[]>(() => areas.map((a) => ({ ...a, _rowId: newId() })))
+  const [openRowId, setOpenRowId] = useState<number | null>(null)
   const firstRun = useRef(true)
   useEffect(() => {
     if (firstRun.current) { firstRun.current = false; return }
     onChange(rows.map(({ _rowId: _, ...rest }) => rest as OSPF6Area))
     onDirty()
   }, [rows])
-  const add = () => setRows((p) => [...p, { _rowId: newId(), id: '', ranges: [], type: '' }])
-  const remove = (id: number) => setRows((p) => p.filter((r) => r._rowId !== id))
+  const add = () => { const id = newId(); setRows((p) => [...p, { _rowId: id, id: '', ranges: [], type: '' }]); setOpenRowId(id) }
+  const remove = (id: number) => { setRows((p) => p.filter((r) => r._rowId !== id)); if (openRowId === id) setOpenRowId(null) }
   const upd = (id: number, patch: Partial<OSPF6AreaRow>) =>
     setRows((p) => p.map((r) => (r._rowId === id ? { ...r, ...patch } : r)))
   return (
@@ -85,15 +88,22 @@ export function OSPF6AreasPanel({ areas, onChange, onDirty }: {
       </div>
       {rows.length === 0 && <p className="text-sm text-muted-foreground italic">No areas configured.</p>}
       {rows.length > 0 && (
-        <div className="rounded-xl border border-border overflow-hidden divide-y">
-          <div className="grid grid-cols-[110px_110px_1fr_36px] bg-muted/50 px-3 py-2 text-xs font-medium text-muted-foreground gap-3">
-            <span>Area ID</span><span>Type</span><span>Ranges (IPv6 CIDRs)</span><span />
-          </div>
+        <div className="grid gap-3 md:grid-cols-2">
           {rows.map((row) => (
-            <div key={row._rowId} className="px-3 py-2 space-y-2">
-              <div className="grid grid-cols-[110px_110px_1fr_36px] items-start gap-3">
+            <div key={row._rowId}>
+              <Card className="flex cursor-pointer items-center gap-2 p-4 transition-colors hover:bg-accent/50" onClick={() => setOpenRowId(row._rowId)}>
+                <span className="flex-1 truncate font-mono text-sm font-semibold">{row.id || 'New area'}</span>
+                <Badge variant="secondary">{row.type || 'normal'}</Badge>
+                <Badge variant="outline">{row.ranges?.length ?? 0} ranges</Badge>
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={(event) => { event.stopPropagation(); remove(row._rowId) }}><Trash2 className="h-3.5 w-3.5" /></Button>
+              </Card>
+              <Sheet open={openRowId === row._rowId} onClose={() => setOpenRowId(null)} title={row.id || 'OSPFv3 area'} className="max-w-2xl">
+                <div className="space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Area ID</Label>
                 <Input value={row.id} onChange={(e) => upd(row._rowId, { id: e.target.value })} placeholder="0.0.0.0"
-                  className="font-mono text-xs h-8 border-0 shadow-none focus-visible:ring-1" />
+                  className="font-mono" /></div>
+                    <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Type</Label>
                 <Select value={row.type || 'normal'} onValueChange={(v) => upd(row._rowId, { type: v === 'normal' ? '' : v })}>
                   <SelectTrigger className="h-8 text-xs font-mono"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -101,14 +111,13 @@ export function OSPF6AreasPanel({ areas, onChange, onDirty }: {
                     <SelectItem value="stub">stub</SelectItem>
                     <SelectItem value="nssa">nssa</SelectItem>
                   </SelectContent>
-                </Select>
-                <TagInput values={row.ranges} onChange={(v) => upd(row._rowId, { ranges: v })} placeholder="2001:db8::/32" mono validate={checkCIDR} />
-                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive mt-0.5" onClick={() => remove(row._rowId)}>
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-              <div className="grid grid-cols-[130px_1fr] items-center gap-3 pl-1">
-                <div className="space-y-1">
+                </Select></div>
+                  </div>
+                  <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Ranges (IPv6 CIDRs)</Label>
+                <TagInput values={row.ranges ?? []} onChange={(v) => upd(row._rowId, { ranges: v })} placeholder="2001:db8::/32" mono validate={checkCIDR} />
+                  </div>
+              <div className="grid grid-cols-[130px_1fr] items-center gap-3">
+                <div className="space-y-1.5">
                   <Label className="text-[10px] text-muted-foreground">Default cost</Label>
                   <NumberInput value={row.default_cost || undefined} onChange={(v) => upd(row._rowId, { default_cost: v })} placeholder="none" className="font-mono h-8 text-xs" />
                 </div>
@@ -120,6 +129,8 @@ export function OSPF6AreasPanel({ areas, onChange, onDirty }: {
                 )}
               </div>
               <ExtraDirectives label="Additional area directives" values={row.extra} onChange={(v) => upd(row._rowId, { extra: v })} placeholder="area 0.0.0.0 range 2001:db8::/32 advertise" />
+                </div>
+              </Sheet>
             </div>
           ))}
         </div>
@@ -136,7 +147,7 @@ export function OSPF6InterfacesPanel({ interfaces, onChange, ifaceNames, areaIds
   const [rows, setRows] = useState<OSPF6IfaceRow[]>(() =>
     Object.entries(interfaces).map(([name, cfg]) => ({ ...cfg, name, _rowId: newId() }))
   )
-  const [expanded, setExpanded] = useState<Set<number>>(new Set())
+  const [openRowId, setOpenRowId] = useState<number | null>(null)
   const firstRun = useRef(true)
   useEffect(() => {
     if (firstRun.current) { firstRun.current = false; return }
@@ -144,9 +155,8 @@ export function OSPF6InterfacesPanel({ interfaces, onChange, ifaceNames, areaIds
     for (const { _rowId: _, name, ...cfg } of rows) { if (name) result[name] = cfg }
     onChange(result); onDirty()
   }, [rows])
-  const add = () => { const id = newId(); setRows((p) => [...p, { _rowId: id, name: '' }]); setExpanded((p) => new Set([...p, id])) }
-  const remove = (id: number) => setRows((p) => p.filter((r) => r._rowId !== id))
-  const toggle = (id: number) => setExpanded((p) => { const n = new Set(p); if (n.has(id)) { n.delete(id) } else { n.add(id) } return n })
+  const add = () => { const id = newId(); setRows((p) => [...p, { _rowId: id, name: '' }]); setOpenRowId(id) }
+  const remove = (id: number) => { setRows((p) => p.filter((r) => r._rowId !== id)); if (openRowId === id) setOpenRowId(null) }
   const upd = (id: number, patch: Partial<OSPF6IfaceRow>) => setRows((p) => p.map((r) => (r._rowId === id ? { ...r, ...patch } : r)))
   return (
     <div className="space-y-3">
@@ -157,31 +167,26 @@ export function OSPF6InterfacesPanel({ interfaces, onChange, ifaceNames, areaIds
       {rows.length === 0 && <p className="text-sm text-muted-foreground italic">No per-interface OSPFv3 settings.</p>}
       <div className="space-y-2">
         {rows.map((row) => {
-          const open = expanded.has(row._rowId)
           return (
-            <div key={row._rowId} className="border rounded-md overflow-hidden">
-              <div className="flex items-center gap-2 px-3 py-2 bg-muted/30">
-                <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => toggle(row._rowId)}>
-                  {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                </button>
-                <Select value={row.name || '__none__'} onValueChange={(v) => upd(row._rowId, { name: v === '__none__' ? '' : v })}>
-                  <SelectTrigger className="h-8 text-xs font-mono w-36 border-0 shadow-none focus-visible:ring-1">
-                    <SelectValue placeholder="Interface…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">- select -</SelectItem>
-                    {ifaceNames.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+            <div key={row._rowId}>
+              <Card className="flex cursor-pointer items-center gap-2 p-4 transition-colors hover:bg-accent/50" onClick={() => setOpenRowId(row._rowId)}>
+                <span className="w-36 truncate font-mono text-sm font-semibold">{row.name || 'New interface'}</span>
                 {row.area && <Badge variant="secondary" className="text-xs font-mono">area {row.area}</Badge>}
                 {row.cost != null && row.cost > 0 && <Badge variant="secondary" className="text-xs">cost {row.cost}</Badge>}
                 <div className="flex-1" />
-                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => remove(row._rowId)}>
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={(event) => { event.stopPropagation(); remove(row._rowId) }}>
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
-              </div>
-              {open && (
-                <div className="px-4 pb-4 pt-3 space-y-4 border-t">
+              </Card>
+              <Sheet open={openRowId === row._rowId} onClose={() => setOpenRowId(null)} title={row.name || 'OSPFv3 interface'} className="max-w-2xl">
+                <div className="space-y-4">
+                  <div className="space-y-1.5 max-w-xs">
+                    <Label className="text-xs text-muted-foreground">Interface</Label>
+                    <Select value={row.name || '__none__'} onValueChange={(v) => upd(row._rowId, { name: v === '__none__' ? '' : v })}>
+                      <SelectTrigger className="font-mono"><SelectValue placeholder="Interface…" /></SelectTrigger>
+                      <SelectContent><SelectItem value="__none__">- select -</SelectItem>{ifaceNames.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
                   <div className="space-y-1.5 max-w-xs">
                     <Label className="text-xs text-muted-foreground">Area</Label>
                     <Select value={row.area || '__none__'} onValueChange={(v) => upd(row._rowId, { area: v === '__none__' ? '' : v })}>
@@ -236,7 +241,7 @@ export function OSPF6InterfacesPanel({ interfaces, onChange, ifaceNames, areaIds
                   </div>
                   <ExtraDirectives label="Additional ipv6 ospf6 directives" values={row.extra} onChange={(v) => upd(row._rowId, { extra: v })} placeholder="ipv6 ospf6 instance-id 1" />
                 </div>
-              )}
+              </Sheet>
             </div>
           )
         })}
@@ -288,4 +293,3 @@ export function OSPF6Tab({ ospf6, setOSPF6, enabled, setEnabled, onDirty, ifaceN
     </div>
   )
 }
-

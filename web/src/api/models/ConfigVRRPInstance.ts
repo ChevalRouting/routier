@@ -42,7 +42,7 @@ export interface ConfigVRRPInstance {
      * @type {string}
      * @memberof ConfigVRRPInstance
      */
-    interface?: string;
+    interface: string;
     /**
      * 
      * @type {string}
@@ -75,6 +75,12 @@ export interface ConfigVRRPInstance {
     track_interfaces?: Array<string>;
     /**
      * 
+     * @type {string}
+     * @memberof ConfigVRRPInstance
+     */
+    transport?: string;
+    /**
+     * 
      * @type {Array<string>}
      * @memberof ConfigVRRPInstance
      */
@@ -92,6 +98,7 @@ export interface ConfigVRRPInstance {
  */
 export function instanceOfConfigVRRPInstance(value: object): value is ConfigVRRPInstance {
     if (!('id' in value) || value['id'] === undefined) return false;
+    if (!('interface' in value) || value['interface'] === undefined) return false;
     return true;
 }
 
@@ -108,12 +115,13 @@ export function ConfigVRRPInstanceFromJSONTyped(json: any, ignoreDiscriminator: 
         'allow_inbound': json['allow_inbound'] == null ? undefined : json['allow_inbound'],
         'friend': json['friend'] == null ? undefined : json['friend'],
         'id': json['id'],
-        'interface': json['interface'] == null ? undefined : json['interface'],
+        'interface': json['interface'],
         'name': json['name'] == null ? undefined : json['name'],
         'password': json['password'] == null ? undefined : json['password'],
         'priority': json['priority'] == null ? undefined : json['priority'],
         'switchover': json['switchover'] == null ? undefined : json['switchover'],
         'track_interfaces': json['track_interfaces'] == null ? undefined : json['track_interfaces'],
+        'transport': json['transport'] == null ? undefined : json['transport'],
         'vips': json['vips'] == null ? undefined : json['vips'],
         'virtual_routes': json['virtual_routes'] == null ? undefined : json['virtual_routes'],
     };
@@ -139,6 +147,7 @@ export function ConfigVRRPInstanceToJSONTyped(value?: ConfigVRRPInstance | null,
         'priority': value['priority'],
         'switchover': value['switchover'],
         'track_interfaces': value['track_interfaces'],
+        'transport': value['transport'],
         'vips': value['vips'],
         'virtual_routes': value['virtual_routes'],
     };

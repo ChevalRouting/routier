@@ -13,6 +13,14 @@
  */
 
 import { mapValues } from '../runtime';
+import type { ConfigDNSServer } from './ConfigDNSServer';
+import {
+    ConfigDNSServerFromJSON,
+    ConfigDNSServerFromJSONTyped,
+    ConfigDNSServerToJSON,
+    ConfigDNSServerToJSONTyped,
+} from './ConfigDNSServer';
+
 /**
  * 
  * @export
@@ -31,6 +39,12 @@ export interface ConfigDNS {
      * @memberof ConfigDNS
      */
     search?: Array<string>;
+    /**
+     * 
+     * @type {ConfigDNSServer}
+     * @memberof ConfigDNS
+     */
+    server?: ConfigDNSServer;
 }
 
 /**
@@ -52,6 +66,7 @@ export function ConfigDNSFromJSONTyped(json: any, ignoreDiscriminator: boolean):
         
         'nameservers': json['nameservers'] == null ? undefined : json['nameservers'],
         'search': json['search'] == null ? undefined : json['search'],
+        'server': json['server'] == null ? undefined : ConfigDNSServerFromJSON(json['server']),
     };
 }
 
@@ -68,6 +83,7 @@ export function ConfigDNSToJSONTyped(value?: ConfigDNS | null, ignoreDiscriminat
         
         'nameservers': value['nameservers'],
         'search': value['search'],
+        'server': ConfigDNSServerToJSON(value['server']),
     };
 }
 

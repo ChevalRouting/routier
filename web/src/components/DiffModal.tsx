@@ -1,49 +1,15 @@
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/client'
 import type { TypesDiffLine as DiffLine, TypesFileDiff as FileDiff } from '@/api'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Dialog } from '@/components/ui/dialog'
-import { DiffView, withContext } from '@/components/DiffView'
-import { RefreshCw, ChevronDown, ChevronRight } from 'lucide-react'
+import { Button } from 'cheval-ui'
+import { DiffCard } from 'cheval-ui'
+import { Dialog } from 'cheval-ui'
+import { RefreshCw } from 'lucide-react'
 
 interface DiffModalProps {
   onApply: () => void
   onClose: () => void
   applying: boolean
-}
-
-const statusVariant: Record<FileDiff['status'], 'default' | 'destructive' | 'secondary'> = {
-  added: 'default',
-  removed: 'destructive',
-  modified: 'secondary',
-}
-
-function DiffCard({ file, status, lines, defaultOpen }: {
-  file: string
-  status: FileDiff['status']
-  lines: DiffLine[]
-  defaultOpen?: boolean
-}) {
-  const [open, setOpen] = useState(!!defaultOpen)
-  return (
-    <div className="rounded border border-border">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-muted/40"
-      >
-        {open ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}
-        <span className="font-mono">{file}</span>
-        <Badge variant={statusVariant[status]} className="ml-auto text-[10px]">{status}</Badge>
-      </button>
-      {open && (
-        <div className="max-h-[40vh] overflow-auto border-t border-border bg-muted/30 p-3">
-          <DiffView lines={withContext(lines)} />
-        </div>
-      )}
-    </div>
-  )
 }
 
 export default function DiffModal({ onApply, onClose, applying }: DiffModalProps) {

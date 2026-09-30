@@ -45,7 +45,11 @@ func ConfigureConntrack(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cfg.Conntrackd = &cfgpkg.Conntrackd{
+	if cfg.HA == nil {
+		cfg.HA = &cfgpkg.HA{}
+	}
+
+	cfg.HA.Conntrackd = &cfgpkg.Conntrackd{
 		Interface:    req.LocalInterface,
 		Address:      req.LocalAddress,
 		PeerIPs:      []string{req.FriendAddress},
@@ -61,7 +65,7 @@ func ConfigureConntrack(w http.ResponseWriter, r *http.Request) {
 		AllowInbound: req.AllowInbound,
 	}
 
-	payload := managers.PushPayload{Config: &cfgpkg.Config{Version: cfg.Version, Conntrackd: friendConntrackd}}
+	payload := managers.PushPayload{Config: &cfgpkg.Config{Version: cfg.Version, HA: &cfgpkg.HA{Conntrackd: friendConntrackd}}}
 
 	cfgpkg.ResolveInterfaces(cfg)
 	persist := func() error { return cfgstore.WriteLive(app.ConfigPath, cfg) }

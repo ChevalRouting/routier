@@ -16,6 +16,10 @@ dns:
   search: ["example.com"]
 ```
 
+These keys configure `/etc/resolv.conf` only - what the router itself resolves
+against. They are unrelated to the DNS server Routier can run for the network,
+which lives under `dns.server` and is documented in [dns.md](dns.md).
+
 ## SSH
 
 ```yaml

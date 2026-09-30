@@ -15,12 +15,15 @@
 
 import * as runtime from '../runtime';
 import type {
+  TypesResponseTypesLLDPStatsResponse,
   TypesResponseTypesNeighborStatsResponse,
   TypesResponseTypesProcessesResponse,
   TypesResponseTypesStatsHistoryResponse,
   TypesResponseTypesStatsResponse,
 } from '../models/index';
 import {
+    TypesResponseTypesLLDPStatsResponseFromJSON,
+    TypesResponseTypesLLDPStatsResponseToJSON,
     TypesResponseTypesNeighborStatsResponseFromJSON,
     TypesResponseTypesNeighborStatsResponseToJSON,
     TypesResponseTypesProcessesResponseFromJSON,
@@ -111,6 +114,36 @@ export class StatsApi extends runtime.BaseAPI {
      */
     async apiStatsHistoryGet(requestParameters: ApiStatsHistoryGetRequest = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<TypesResponseTypesStatsHistoryResponse> {
         const response = await this.apiStatsHistoryGetRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Latest stored LLDP/CDP neighbors
+     */
+    async apiStatsLldpGetRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<TypesResponseTypesLLDPStatsResponse>> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["Authorization"] = await this.configuration.apiKey("Authorization"); // BearerAuth authentication
+        }
+
+        const response = await this.request({
+            path: `/api/stats/lldp`,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => TypesResponseTypesLLDPStatsResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Latest stored LLDP/CDP neighbors
+     */
+    async apiStatsLldpGet(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<TypesResponseTypesLLDPStatsResponse> {
+        const response = await this.apiStatsLldpGetRaw(initOverrides);
         return await response.value();
     }
 

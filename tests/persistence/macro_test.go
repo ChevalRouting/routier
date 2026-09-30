@@ -1,8 +1,7 @@
 package persistencetest
 
 import (
-	"database/sql"
-	"github.com/ChevalRouting/routier/tests/harness"
+	"github.com/ChevalRouting/routier/tests/testkit"
 	"path/filepath"
 	"testing"
 	"time"
@@ -12,10 +11,10 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-func macroDB(t *testing.T) *sql.DB {
+func macroDB(t *testing.T) *webdb.DB {
 	t.Helper()
 
-	db, err := webdb.InitDB(filepath.Join(t.TempDir(), "macros.db"))
+	db, err := webdb.InitDB(t.Context(), filepath.Join(t.TempDir(), "macros.db"))
 	if err != nil {
 		t.Fatalf("init db: %v", err)
 	}
@@ -40,8 +39,8 @@ dns:
 func TestMacroLifecycle(t *testing.T) {
 	db := macroDB(t)
 
-	base := harness.LoadCfg(t, macroBase)
-	mod := harness.LoadCfg(t, macroMod)
+	base := testkit.LoadCfg(t, macroBase)
+	mod := testkit.LoadCfg(t, macroMod)
 
 	sections := macro.ComputeSections(base, mod)
 	if len(sections) != 1 || sections[0] != "dns" {
@@ -57,16 +56,16 @@ func TestMacroLifecycle(t *testing.T) {
 		CreatedAt: time.Now(),
 		CreatedBy: "tester",
 	}
-	if err := webdb.InsertMacro(db, m); err != nil {
+	if err := webdb.InsertMacro(t.Context(), db, m); err != nil {
 		t.Fatalf("insert: %v", err)
 	}
 
-	list, err := webdb.ListMacros(db)
+	list, err := webdb.ListMacros(t.Context(), db)
 	if err != nil || len(list) != 1 || list[0].Name != "switch-dns" {
 		t.Fatalf("list = %+v, err %v", list, err)
 	}
 
-	loaded, err := webdb.LoadMacro(db, m.ID)
+	loaded, err := webdb.LoadMacro(t.Context(), db, m.ID)
 	if err != nil || loaded.Name != "switch-dns" {
 		t.Fatalf("load = %+v, err %v", loaded, err)
 	}
@@ -76,19 +75,19 @@ func TestMacroLifecycle(t *testing.T) {
 		t.Fatalf("apply delta did not switch dns: %+v", result.DNS)
 	}
 
-	if err := webdb.MarkMacroApplied(db, m.ID); err != nil {
+	if err := webdb.MarkMacroApplied(t.Context(), db, m.ID); err != nil {
 		t.Fatalf("mark applied: %v", err)
 	}
 
-	if again, _ := webdb.LoadMacro(db, m.ID); again.ApplyCount != 1 {
+	if again, _ := webdb.LoadMacro(t.Context(), db, m.ID); again.ApplyCount != 1 {
 		t.Fatalf("apply count = %d, want 1", again.ApplyCount)
 	}
 
-	if err := webdb.DeleteMacro(db, m.ID); err != nil {
+	if err := webdb.DeleteMacro(t.Context(), db, m.ID); err != nil {
 		t.Fatalf("delete: %v", err)
 	}
 
-	if list, _ := webdb.ListMacros(db); len(list) != 0 {
+	if list, _ := webdb.ListMacros(t.Context(), db); len(list) != 0 {
 		t.Fatalf("macro not deleted: %+v", list)
 	}
 }

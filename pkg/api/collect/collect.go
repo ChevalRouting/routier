@@ -2,7 +2,6 @@ package collect
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"net"
 	"os"
@@ -15,12 +14,13 @@ import (
 	"github.com/ChevalRouting/routier/pkg/api/cfgstore"
 	"github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/iproute"
+	"github.com/ChevalRouting/routier/pkg/lldp"
 	"github.com/ChevalRouting/routier/pkg/stats"
 	"github.com/ChevalRouting/routier/pkg/types"
 )
 
-func Run(dbPath, configPath string) error {
-	db, err := webdb.InitDB(dbPath)
+func Run(ctx context.Context, dbPath, configPath string) error {
+	db, err := webdb.InitDB(ctx, dbPath)
 	if err != nil {
 		return fmt.Errorf("open db: %w", err)
 	}
@@ -34,7 +34,7 @@ func Run(dbPath, configPath string) error {
 		}
 	}
 
-	return collectAndStore(db, intervals)
+	return collectAndStore(ctx, db, intervals)
 }
 
 func intervalOrDefault(v, def int) int64 {
@@ -45,44 +45,69 @@ func intervalOrDefault(v, def int) int64 {
 	return int64(def)
 }
 
-func shouldCollect(db *sql.DB, table string, intervalSec int64, now int64) bool {
-	return now-webdb.LastTS(db, table) >= intervalSec
+func shouldCollect(ctx context.Context, db *webdb.DB, table string, intervalSec int64, now int64) bool {
+	return now-webdb.LastTS(ctx, db, table) >= intervalSec
 }
 
-func collectAndStore(db *sql.DB, iv config.CollectionIntervals) error {
+func collectAndStore(ctx context.Context, db *webdb.DB, iv config.CollectionIntervals) error {
 	now := time.Now().Unix()
 
-	if shouldCollect(db, "iface_stats", intervalOrDefault(iv.Iface, 60), now) {
-		if err := storeIfaceStats(db, now); err != nil {
+	if shouldCollect(ctx, db, "iface_stats", intervalOrDefault(iv.Iface, 60), now) {
+		if err := storeIfaceStats(ctx, db, now); err != nil {
 			return fmt.Errorf("iface stats: %w", err)
 		}
 	}
 
-	if shouldCollect(db, "bgp_peer_stats", intervalOrDefault(iv.BGP, 60), now) {
-		if err := storeBGPStats(db, now); err != nil {
+	if shouldCollect(ctx, db, "bgp_peer_stats", intervalOrDefault(iv.BGP, 60), now) {
+		if err := storeBGPStats(ctx, db, now); err != nil {
 			return fmt.Errorf("bgp stats: %w", err)
 		}
 	}
 
-	if shouldCollect(db, "proto_stats", intervalOrDefault(iv.Proto, 60), now) {
-		if err := storeProtoStats(db, now); err != nil {
+	if shouldCollect(ctx, db, "proto_stats", intervalOrDefault(iv.Proto, 60), now) {
+		if err := storeProtoStats(ctx, db, now); err != nil {
 			return fmt.Errorf("proto stats: %w", err)
 		}
 	}
 
-	if shouldCollect(db, "system_stats", intervalOrDefault(iv.System, 60), now) {
-		if err := storeSystemStats(db, now); err != nil {
+	if shouldCollect(ctx, db, "system_stats", intervalOrDefault(iv.System, 60), now) {
+		if err := storeSystemStats(ctx, db, now); err != nil {
 			return fmt.Errorf("system stats: %w", err)
 		}
 	}
 
-	if shouldCollect(db, "neighbor_stats", intervalOrDefault(iv.Neighbors, 60), now) {
-		if err := storeNeighborStats(db, now); err != nil {
+	if shouldCollect(ctx, db, "neighbor_stats", intervalOrDefault(iv.Neighbors, 60), now) {
+		if err := storeNeighborStats(ctx, db, now); err != nil {
 			return fmt.Errorf("neighbor stats: %w", err)
 		}
 	}
 
+	if shouldCollect(ctx, db, "lldp_neighbors", intervalOrDefault(iv.LLDP, 300), now) {
+		if err := storeLLDPNeighbors(ctx, db, now); err != nil {
+			return fmt.Errorf("lldp neighbors: %w", err)
+		}
+	}
+
 	return nil
+}
+
+func storeLLDPNeighbors(ctx context.Context, db *webdb.DB, now int64) error {
+	raw := lldp.ShowNeighbors()
+	if len(raw) == 0 {
+		return nil
+	}
+
+	rows := make([]webdb.LLDPNeighborRow, 0, len(raw))
+	for _, n := range raw {
+		rows = append(rows, webdb.LLDPNeighborRow{
+			LocalIface: n.LocalIface, Protocol: n.Protocol,
+			ChassisID: n.ChassisID, ChassisName: n.ChassisName, SysDescr: n.SysDescr,
+			MgmtIP: n.MgmtIP, PortID: n.PortID, PortDescr: n.PortDescr,
+			Capabilities: n.Capabilities, VLAN: n.VLAN, Age: n.Age,
+		})
+	}
+
+	return webdb.InsertLLDPNeighbors(ctx, db, now, rows)
 }
 
 type dnsResult struct {
@@ -90,7 +115,7 @@ type dnsResult struct {
 	hostname string
 }
 
-func storeNeighborStats(db *sql.DB, now int64) error {
+func storeNeighborStats(ctx context.Context, db *webdb.DB, now int64) error {
 	raw := iproute.ShowNeighbors()
 	if len(raw) == 0 {
 		return nil
@@ -100,9 +125,9 @@ func storeNeighborStats(db *sql.DB, now int64) error {
 	for _, n := range raw {
 		go func(n iproute.Neighbor) {
 			hostname := ""
-			ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+			lookupCtx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
 			defer cancel()
-			if names, err := net.DefaultResolver.LookupAddr(ctx, n.Dst); err == nil && len(names) > 0 {
+			if names, err := net.DefaultResolver.LookupAddr(lookupCtx, n.Dst); err == nil && len(names) > 0 {
 				hostname = strings.TrimSuffix(names[0], ".")
 			}
 
@@ -119,16 +144,16 @@ func storeNeighborStats(db *sql.DB, now int64) error {
 		})
 	}
 
-	return webdb.InsertNeighborStats(db, now, rows)
+	return webdb.InsertNeighborStats(ctx, db, now, rows)
 }
 
-func storeIfaceStats(db *sql.DB, now int64) error {
+func storeIfaceStats(ctx context.Context, db *webdb.DB, now int64) error {
 	current := stats.ReadIfaceStats()
 	if len(current) == 0 {
 		return nil
 	}
 
-	prevByIface := webdb.LastIfaceCounters(db)
+	prevByIface := webdb.LastIfaceCounters(ctx, db)
 
 	rows := make([]webdb.IfaceStatRow, 0, len(current))
 	for name, st := range current {
@@ -165,34 +190,34 @@ func storeIfaceStats(db *sql.DB, now int64) error {
 		})
 	}
 
-	return webdb.InsertIfaceStats(db, now, rows)
+	return webdb.InsertIfaceStats(ctx, db, now, rows)
 }
 
-func storeSystemStats(db *sql.DB, now int64) error {
+func storeSystemStats(ctx context.Context, db *webdb.DB, now int64) error {
 	sys := stats.ReadSystemStats()
 	if sys == nil {
 		return nil
 	}
 
-	return webdb.InsertSystemStats(db, now, sys)
+	return webdb.InsertSystemStats(ctx, db, now, sys)
 }
 
-func storeBGPStats(db *sql.DB, now int64) error {
+func storeBGPStats(ctx context.Context, db *webdb.DB, now int64) error {
 	bgp := stats.ReadBGPStats()
 	if bgp == nil {
 		return nil
 	}
 
-	return webdb.InsertBGPStats(db, now, bgp)
+	return webdb.InsertBGPStats(ctx, db, now, bgp)
 }
 
-func storeProtoStats(db *sql.DB, now int64) error {
+func storeProtoStats(ctx context.Context, db *webdb.DB, now int64) error {
 	ps := readProtoStats()
 	if ps == nil {
 		return nil
 	}
 
-	return webdb.InsertProtoStats(db, now, ps)
+	return webdb.InsertProtoStats(ctx, db, now, ps)
 }
 
 func readProtoStats() *types.ProtoStats {

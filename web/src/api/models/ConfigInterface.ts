@@ -20,13 +20,6 @@ import {
     ConfigBridgeToJSON,
     ConfigBridgeToJSONTyped,
 } from './ConfigBridge';
-import type { ConfigVRRPInstance } from './ConfigVRRPInstance';
-import {
-    ConfigVRRPInstanceFromJSON,
-    ConfigVRRPInstanceFromJSONTyped,
-    ConfigVRRPInstanceToJSON,
-    ConfigVRRPInstanceToJSONTyped,
-} from './ConfigVRRPInstance';
 import type { ConfigVLAN } from './ConfigVLAN';
 import {
     ConfigVLANFromJSON,
@@ -34,6 +27,20 @@ import {
     ConfigVLANToJSON,
     ConfigVLANToJSONTyped,
 } from './ConfigVLAN';
+import type { ConfigBond } from './ConfigBond';
+import {
+    ConfigBondFromJSON,
+    ConfigBondFromJSONTyped,
+    ConfigBondToJSON,
+    ConfigBondToJSONTyped,
+} from './ConfigBond';
+import type { ConfigVXLAN } from './ConfigVXLAN';
+import {
+    ConfigVXLANFromJSON,
+    ConfigVXLANFromJSONTyped,
+    ConfigVXLANToJSON,
+    ConfigVXLANToJSONTyped,
+} from './ConfigVXLAN';
 
 /**
  * 
@@ -47,6 +54,12 @@ export interface ConfigInterface {
      * @memberof ConfigInterface
      */
     addresses?: Array<string>;
+    /**
+     * 
+     * @type {ConfigBond}
+     * @memberof ConfigInterface
+     */
+    bond?: ConfigBond;
     /**
      * 
      * @type {ConfigBridge}
@@ -70,7 +83,7 @@ export interface ConfigInterface {
      * @type {string}
      * @memberof ConfigInterface
      */
-    select: string;
+    select?: string;
     /**
      * 
      * @type {string}
@@ -79,10 +92,10 @@ export interface ConfigInterface {
     type?: string;
     /**
      * 
-     * @type {{ [key: string]: ConfigVLAN; }}
+     * @type {ConfigVLAN}
      * @memberof ConfigInterface
      */
-    vlans?: { [key: string]: ConfigVLAN; };
+    vlan?: ConfigVLAN;
     /**
      * 
      * @type {string}
@@ -91,17 +104,16 @@ export interface ConfigInterface {
     vrf?: string;
     /**
      * 
-     * @type {Array<ConfigVRRPInstance>}
+     * @type {ConfigVXLAN}
      * @memberof ConfigInterface
      */
-    vrrp?: Array<ConfigVRRPInstance>;
+    vxlan?: ConfigVXLAN;
 }
 
 /**
  * Check if a given object implements the ConfigInterface interface.
  */
 export function instanceOfConfigInterface(value: object): value is ConfigInterface {
-    if (!('select' in value) || value['select'] === undefined) return false;
     return true;
 }
 
@@ -116,14 +128,15 @@ export function ConfigInterfaceFromJSONTyped(json: any, ignoreDiscriminator: boo
     return {
         
         'addresses': json['addresses'] == null ? undefined : json['addresses'],
+        'bond': json['bond'] == null ? undefined : ConfigBondFromJSON(json['bond']),
         'bridge': json['bridge'] == null ? undefined : ConfigBridgeFromJSON(json['bridge']),
         'dhcp_options': json['dhcp_options'] == null ? undefined : json['dhcp_options'],
         'mtu': json['mtu'] == null ? undefined : json['mtu'],
-        'select': json['select'],
+        'select': json['select'] == null ? undefined : json['select'],
         'type': json['type'] == null ? undefined : json['type'],
-        'vlans': json['vlans'] == null ? undefined : (mapValues(json['vlans'], ConfigVLANFromJSON)),
+        'vlan': json['vlan'] == null ? undefined : ConfigVLANFromJSON(json['vlan']),
         'vrf': json['vrf'] == null ? undefined : json['vrf'],
-        'vrrp': json['vrrp'] == null ? undefined : ((json['vrrp'] as Array<any>).map(ConfigVRRPInstanceFromJSON)),
+        'vxlan': json['vxlan'] == null ? undefined : ConfigVXLANFromJSON(json['vxlan']),
     };
 }
 
@@ -139,14 +152,15 @@ export function ConfigInterfaceToJSONTyped(value?: ConfigInterface | null, ignor
     return {
         
         'addresses': value['addresses'],
+        'bond': ConfigBondToJSON(value['bond']),
         'bridge': ConfigBridgeToJSON(value['bridge']),
         'dhcp_options': value['dhcp_options'],
         'mtu': value['mtu'],
         'select': value['select'],
         'type': value['type'],
-        'vlans': value['vlans'] == null ? undefined : (mapValues(value['vlans'], ConfigVLANToJSON)),
+        'vlan': ConfigVLANToJSON(value['vlan']),
         'vrf': value['vrf'],
-        'vrrp': value['vrrp'] == null ? undefined : ((value['vrrp'] as Array<any>).map(ConfigVRRPInstanceToJSON)),
+        'vxlan': ConfigVXLANToJSON(value['vxlan']),
     };
 }
 

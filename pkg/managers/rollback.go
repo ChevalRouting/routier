@@ -3,6 +3,7 @@ package managers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"time"
 
@@ -10,7 +11,6 @@ import (
 	"github.com/ChevalRouting/routier/pkg/applylog"
 	"github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/svc"
-	"github.com/rs/zerolog/log"
 )
 
 func Rollback(id string) (string, error) {
@@ -57,17 +57,34 @@ func RollbackSource(id, source string) (resolvedID string, err error) {
 		return "", err
 	}
 
-	_ = os.Remove(pendingFile)
-
 	var restoredCfg *config.Config
-	if c, lerr := config.Load(LastAppliedPath); lerr == nil {
+	if c, lerr := loadRollbackConfig(LastAppliedPath); lerr == nil {
 		restoredCfg = c
-	} else if c, lerr := config.Load("/etc/routier/config.yml"); lerr == nil {
+	} else if c, lerr := loadRollbackConfig("/etc/routier/config.yml"); lerr == nil {
 		restoredCfg = c
 	} else {
-		log.Warn().Err(lerr).Msg("rollback: could not load restored config for netlink reconcile")
+		return id, fmt.Errorf("rollback: could not load restored config for netlink reconcile: %w", lerr)
 	}
 
-	err = svc.ReloadFromOutputs(names, restoredCfg, false, false)
-	return id, err
+	if err = svc.ReloadFromOutputs(names, restoredCfg, false, false); err != nil {
+		return id, err
+	}
+	_ = os.Remove(pendingFile)
+	return id, nil
+}
+
+// Resolved devices and bridge/bond members are runtime-only fields, omitted
+// from snapshots. Rebuild them before reconciling the restored network.
+func loadRollbackConfig(path string) (*config.Config, error) {
+	cfg, err := config.Load(path)
+	if err != nil {
+		return nil, err
+	}
+	config.ResolveInterfaces(cfg)
+	for name, iface := range cfg.Interfaces {
+		if iface.Device == "" {
+			return nil, fmt.Errorf("interface %s: device could not be resolved", name)
+		}
+	}
+	return cfg, nil
 }

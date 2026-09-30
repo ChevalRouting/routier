@@ -1,13 +1,15 @@
+import { BreakdownRow } from 'cheval-ui'
+export { BreakdownRow } from 'cheval-ui'
 import { useState, useEffect, useCallback } from 'react'
 import { api } from '@/lib/client'
 import type { TypesHAStatusResponse as HAStatusResponse, TypesVRRPInstanceStatus as VRRPInstanceStatus } from '@/api'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { StateChip } from '@/components/ui/status-chip'
-import { SectionLabel } from '@/components/SectionLabel'
-import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from 'cheval-ui'
+import { StateChip } from 'cheval-ui'
+import { SectionLabel } from 'cheval-ui'
+import { Button } from 'cheval-ui'
 import { RefreshCw } from 'lucide-react'
-import { Spinner } from '@/components/Spinner'
-import { EmptyState } from '@/components/EmptyState'
+import { Spinner } from 'cheval-ui'
+import { EmptyState } from 'cheval-ui'
 
 export const PROTO_COLORS: Record<string, string> = { tcp: 'bg-blue-500', udp: 'bg-amber-500', icmp: 'bg-green-500', icmpv6: 'bg-emerald-500' }
 export const STATE_COLORS: Record<string, string> = { ESTABLISHED: 'bg-green-500', TIME_WAIT: 'bg-amber-400', CLOSE_WAIT: 'bg-orange-400', FIN_WAIT: 'bg-orange-500', SYN_SENT: 'bg-blue-400', SYN_RECV: 'bg-blue-500', LAST_ACK: 'bg-amber-500', CLOSE: 'bg-red-500' }
@@ -39,7 +41,7 @@ export function VRRPInstanceCard({ inst }: { inst: VRRPInstanceStatus }) {
           <p className="text-xs text-muted-foreground"><span className="font-medium text-foreground">Master</span>{' '}<span className="font-mono">{inst.master_ip}</span></p>
         )}
         {(inst.peers ?? []).length > 0 && (
-          <div className="pt-2 border-t border-border/50">
+          <div className="rounded-md bg-muted/30 p-3">
             <p className="text-xs font-medium text-muted-foreground mb-1.5">Active peers in group</p>
             <ul className="space-y-0.5">
               {inst.peers!.map((peer) => (
@@ -53,19 +55,6 @@ export function VRRPInstanceCard({ inst }: { inst: VRRPInstanceStatus }) {
         )}
       </CardContent>
     </Card>
-  )
-}
-
-export function BreakdownRow({ label, count, total, colorClass }: { label: string; count: number; total: number; colorClass: string }) {
-  const pct = total > 0 ? (count / total) * 100 : 0
-  return (
-    <div className="grid grid-cols-[110px_1fr_110px] items-center gap-3">
-      <span className="font-mono text-xs text-right truncate">{label}</span>
-      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-        <div className={`h-full rounded-full transition-all ${colorClass}`} style={{ width: `${pct}%` }} />
-      </div>
-      <span className="text-xs text-muted-foreground text-right font-mono">{count.toLocaleString()} <span className="text-muted-foreground/60">({pct.toFixed(1)}%)</span></span>
-    </div>
   )
 }
 
@@ -138,4 +127,3 @@ export function HAStatusPanel() {
     </div>
   )
 }
-

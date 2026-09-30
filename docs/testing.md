@@ -21,21 +21,35 @@ go test ./tests/... -coverpkg=./pkg/...
 
 | Package | Area |
 |---------|------|
-| `tests/harness` | shared helpers (importable, not a test pkg): temp config, in-process API node, JWT minting, CLI build, `MinimalConfig`/`FullConfig` |
-| `tests/config` | load/validate/save round-trip, version rejection, migrations, schema + validation-delta |
-| `tests/render` | nftables ownership/defines/files/auto-allows, full-config FRR/keepalived/conntrackd/sysctl/sshd/wireguard |
-| `tests/api` | auth (401), config get/section, staging diff/discard, wireguard keygen, nft vars, snapshots |
+| `tests/testkit` | shared helpers (importable, not a test pkg): temp config, in-process API node, JWT minting, CLI build, `MinimalConfig`/`FullConfig` |
+| `tests/config` | load/validate/save round-trip, version rejection, migrations, schema + validation-delta, DNS server/zone/mode/view validation |
+| `tests/render` | nftables ownership/defines/files/auto-allows, full-config FRR/keepalived/conntrackd/sysctl/sshd/wireguard, BIND `named.conf`/zone files (validated with the real `named-checkconf` when installed) |
+| `tests/api` | auth (401), config get/section, staging diff/discard, wireguard keygen, nft vars, snapshots, DNS overview/stats/zones and the `dns_server` sub-section |
 | `tests/friends` | two-node protocol (hello challenge, preview, add+TOFU, pair, interfaces, delete cascade), unit logic, WireGuard derivation, HA-sync payload, CLI parity |
-| `tests/lifecycle` | render -> `ApplyConfig` dry-run, FRR reload-vs-restart decision, pending-apply/rollback, service-reload mock |
-| `tests/system` | conntrack/ip/vtysh parsing (mocked executors), keepalived parsing, dhcpcd/netlink dry-run, MOTD |
-| `tests/persistence` | apply-log lifecycle, backup round-trip, kernel-route DB queries, macros |
+| `tests/lifecycle` | render -> `ApplyConfig` dry-run, FRR reload-vs-restart decision, named zone-reload-vs-reconfig-vs-restart decision, pre-write zone validation, pending-apply/rollback, service-reload mock |
+| `tests/system` | conntrack/ip/vtysh parsing (mocked executors), keepalived parsing, rndc/named-stats/dig parsing, dhcpcd/netlink dry-run, MOTD |
+| `tests/persistence` | apply-log lifecycle, backup round-trip, database migrations and queries, macros |
 | `tests/identity` | ed25519 persist, sign/verify, fingerprint |
-| `tests/cli` | builds the `routier` binary and runs `version`/`validate`/`migrate` |
+| `tests/cli` | builds the `routier` binary and runs `version`/`validate`/`migrate`, and checks the `dns` subcommands exist |
 
 Every `pkg/...` package is exercised. The suite is **hermetic**: no root, no
 host state. Each API node uses a temp config, a temp SQLite DB, and its own
 generated identity key; apply runs in dry-run; the binary is built into a
 temp dir.
+
+## Validating against the real tools
+
+A few tests hand rendered artifacts to the actual validator instead of
+string-matching them: `named-checkconf` for `named.conf` and `named-checkzone`
+for zone files. They stage into a temp directory, rewrite absolute paths to
+point at it, and assert the tool exits zero. Both **skip** when the binary is
+absent, so the suite still runs on a machine without `bind-tools`, but on CI,
+where it is installed, they catch whole classes of error that a `strings.Contains`
+assertion cannot: a directive that may not be repeated, a statement that
+contradicts an inherited one, a missing glue record.
+
+Both gates key off the **exit code**, never the presence of output: both tools
+emit warnings on healthy input, and a warning must not fail a test or an apply.
 
 ## CLI / API parity
 

@@ -1,0 +1,12 @@
+.git
+web/node_modules
+web/dist
+website/node_modules
+website/build
+website/.docusaurus
+pkg/api/dist
+dist
+*.apk
+/routier
+/routier-ui
+.docker-image-*

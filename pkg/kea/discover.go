@@ -3,8 +3,9 @@ package kea
 import "encoding/base64"
 
 const (
-	LocalSock4 = "/run/kea/kea-dhcp4-ctrl.sock"
-	LocalSock6 = "/run/kea/kea-dhcp6-ctrl.sock"
+	LocalSock4  = "/run/kea/kea-dhcp4-ctrl.sock"
+	LocalSock6  = "/run/kea/kea-dhcp6-ctrl.sock"
+	LocalSockD2 = "/run/kea/kea-ddns-ctrl.sock"
 )
 
 func basicAuth(user, password string) string {

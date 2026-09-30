@@ -1,14 +1,39 @@
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { api } from '@/lib/client'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Separator } from '@/components/ui/separator'
-import { Dialog } from '@/components/ui/dialog'
+import { useFetch } from '@/lib/useFetch'
+import { Button } from 'cheval-ui'
+import { Input } from 'cheval-ui'
+import { Label } from 'cheval-ui'
+import { Separator } from 'cheval-ui'
+import { Dialog } from 'cheval-ui'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from 'cheval-ui'
 import { Shuffle, Download } from 'lucide-react'
-import { CopyButton } from '@/components/CopyButton'
+import { CopyButton } from 'cheval-ui'
 import { WgPeer, KeyField } from './shared'
+
+const dhcpTokens = ['dhcp', 'dhcp4', 'dhcp6', 'slaac']
+
+interface ExportIface {
+  addresses?: string[]
+}
+
+interface ExportHA {
+  vrrp?: { vips?: string[] }[]
+}
+
+function serverIPs(ifaces: Record<string, ExportIface> | null, ha: ExportHA | null): string[] {
+  const raw = [
+    ...Object.values(ifaces ?? {}).flatMap((i) => i.addresses ?? []),
+    ...(ha?.vrrp ?? []).flatMap((v) => v.vips ?? []),
+  ]
+
+  const ips = raw
+    .map((a) => a.split('/')[0])
+    .filter((ip) => ip && !dhcpTokens.includes(ip))
+
+  return Array.from(new Set(ips))
+}
 
 export interface ExportModalProps {
   peer: WgPeer
@@ -28,6 +53,20 @@ export function ExportModal({ peer, serverPubKey, serverPort, serverAddresses: _
   const [endpoint, setEndpoint] = useState(() => serverPort ? `:${serverPort}` : ':51820')
   const [generating, setGenerating] = useState(false)
   const [keysChanged, setKeysChanged] = useState(false)
+
+  const { data: ifaces } = useFetch<Record<string, ExportIface>>(
+    () => api.apiConfigSectionGet({ section: 'interfaces' }) as Promise<Record<string, ExportIface>>,
+  )
+  const { data: ha } = useFetch<ExportHA>(
+    () => api.apiConfigSectionGet({ section: 'ha' }) as Promise<ExportHA>,
+  )
+  const hostIPs = serverIPs(ifaces, ha)
+
+  const selectHost = (ip: string) => {
+    const port = endpoint.match(/:(\d+)$/)?.[1] ?? String(serverPort || 51820)
+    const host = ip.includes(':') ? `[${ip}]` : ip
+    setEndpoint(`${host}:${port}`)
+  }
 
   useEffect(() => {
     if (!clientPrivKey || clientPrivKey.length < 40) return
@@ -62,7 +101,7 @@ export function ExportModal({ peer, serverPubKey, serverPort, serverAddresses: _
     lines.push(`PublicKey = ${serverPubKey || '<server public key>'}`)
     if (peer.preshared_key) lines.push(`PresharedKey = ${peer.preshared_key}`)
     lines.push(`Endpoint = ${endpoint}`)
-    lines.push(`AllowedIPs = ${peer.allowed_ips.length ? peer.allowed_ips.join(', ') : '0.0.0.0/0, ::/0'}`)
+    lines.push(`AllowedIPs = ${(peer.allowed_ips ?? []).length ? peer.allowed_ips.join(', ') : '0.0.0.0/0, ::/0'}`)
     if (peer.keepalive) lines.push(`PersistentKeepalive = ${peer.keepalive}`)
     return lines.join('\n')
   }
@@ -118,7 +157,7 @@ export function ExportModal({ peer, serverPubKey, serverPort, serverAddresses: _
                 onChange={setClientPrivKey}
                 placeholder="Leave blank if managing keys yourself"
               />
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Client public key (stored on server as this peer's key)</Label>
                 <div className="flex items-center gap-2">
                   <Input
@@ -165,6 +204,18 @@ export function ExportModal({ peer, serverPubKey, serverPort, serverAddresses: _
                 <Label className="text-xs">Server endpoint</Label>
                 <Input value={endpoint} onChange={(e) => setEndpoint(e.target.value)}
                   placeholder="vpn.example.com:51820" className="font-mono text-sm" />
+                {hostIPs.length > 0 && (
+                  <Select value="" onValueChange={selectHost}>
+                    <SelectTrigger className="h-8 w-full text-xs">
+                      <SelectValue placeholder="Use an interface or VRRP address" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {hostIPs.map((ip) => (
+                        <SelectItem key={ip} value={ip} className="font-mono text-xs">{ip}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
                 <p className="text-[11px] text-muted-foreground">hostname:port, add your hostname before the colon</p>
               </div>
               <div className="space-y-1.5">
@@ -178,7 +229,7 @@ export function ExportModal({ peer, serverPubKey, serverPort, serverAddresses: _
             <div className="space-y-1.5">
               <Label className="text-xs">Allowed IPs (routes sent through tunnel)</Label>
               <Input
-                value={peer.allowed_ips.length ? peer.allowed_ips.join(', ') : '0.0.0.0/0, ::/0'}
+                value={(peer.allowed_ips ?? []).length ? peer.allowed_ips.join(', ') : '0.0.0.0/0, ::/0'}
                 readOnly className="font-mono text-xs bg-muted"
               />
               <p className="text-[11px] text-muted-foreground">Inherited from peer's AllowedIPs. Edit on the peer to change.</p>

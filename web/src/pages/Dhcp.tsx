@@ -1,17 +1,13 @@
-import { useState } from 'react'
-import { PageHeader } from '@/components/PageHeader'
+import { FeaturePage } from 'cheval-ui'
+import { DhcpPanel } from '@/components/monitor/DhcpPanel'
 import { DhcpConfig } from '@/pages/DhcpConfig'
 
 export default function DhcpPage() {
-  const [action, setAction] = useState<React.ReactNode>(null)
-
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="DHCP"
-        action={action}
-      />
-      <DhcpConfig onActionChange={setAction} />
-    </div>
+    <FeaturePage
+      title="DHCP"
+      renderStatus={<DhcpPanel />}
+      renderConfig={(setAction) => <DhcpConfig onActionChange={setAction} />}
+    />
   )
 }

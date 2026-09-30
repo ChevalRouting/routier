@@ -34,13 +34,6 @@ import {
     ConfigDHCPToJSON,
     ConfigDHCPToJSONTyped,
 } from './ConfigDHCP';
-import type { ConfigConntrackd } from './ConfigConntrackd';
-import {
-    ConfigConntrackdFromJSON,
-    ConfigConntrackdFromJSONTyped,
-    ConfigConntrackdToJSON,
-    ConfigConntrackdToJSONTyped,
-} from './ConfigConntrackd';
 import type { ConfigUser } from './ConfigUser';
 import {
     ConfigUserFromJSON,
@@ -118,6 +111,13 @@ import {
     ConfigMonitoringConfigToJSON,
     ConfigMonitoringConfigToJSONTyped,
 } from './ConfigMonitoringConfig';
+import type { ConfigHA } from './ConfigHA';
+import {
+    ConfigHAFromJSON,
+    ConfigHAFromJSONTyped,
+    ConfigHAToJSON,
+    ConfigHAToJSONTyped,
+} from './ConfigHA';
 import type { ConfigLogging } from './ConfigLogging';
 import {
     ConfigLoggingFromJSON,
@@ -138,12 +138,6 @@ export interface ConfigConfig {
      * @memberof ConfigConfig
      */
     boot_modules?: Array<string>;
-    /**
-     * 
-     * @type {ConfigConntrackd}
-     * @memberof ConfigConfig
-     */
-    conntrackd?: ConfigConntrackd;
     /**
      * 
      * @type {ConfigDHCP}
@@ -168,6 +162,12 @@ export interface ConfigConfig {
      * @memberof ConfigConfig
      */
     gai?: ConfigGAIConfig;
+    /**
+     * 
+     * @type {ConfigHA}
+     * @memberof ConfigConfig
+     */
+    ha?: ConfigHA;
     /**
      * 
      * @type {string}
@@ -274,11 +274,11 @@ export function ConfigConfigFromJSONTyped(json: any, ignoreDiscriminator: boolea
     return {
         
         'boot_modules': json['boot_modules'] == null ? undefined : json['boot_modules'],
-        'conntrackd': json['conntrackd'] == null ? undefined : ConfigConntrackdFromJSON(json['conntrackd']),
         'dhcp': json['dhcp'] == null ? undefined : ConfigDHCPFromJSON(json['dhcp']),
         'dns': json['dns'] == null ? undefined : ConfigDNSFromJSON(json['dns']),
         'friends': json['friends'] == null ? undefined : ((json['friends'] as Array<any>).map(ConfigFriendFromJSON)),
         'gai': json['gai'] == null ? undefined : ConfigGAIConfigFromJSON(json['gai']),
+        'ha': json['ha'] == null ? undefined : ConfigHAFromJSON(json['ha']),
         'hostname': json['hostname'],
         'interfaces': json['interfaces'] == null ? undefined : (mapValues(json['interfaces'], ConfigInterfaceFromJSON)),
         'logging': json['logging'] == null ? undefined : ConfigLoggingFromJSON(json['logging']),
@@ -308,11 +308,11 @@ export function ConfigConfigToJSONTyped(value?: ConfigConfig | null, ignoreDiscr
     return {
         
         'boot_modules': value['boot_modules'],
-        'conntrackd': ConfigConntrackdToJSON(value['conntrackd']),
         'dhcp': ConfigDHCPToJSON(value['dhcp']),
         'dns': ConfigDNSToJSON(value['dns']),
         'friends': value['friends'] == null ? undefined : ((value['friends'] as Array<any>).map(ConfigFriendToJSON)),
         'gai': ConfigGAIConfigToJSON(value['gai']),
+        'ha': ConfigHAToJSON(value['ha']),
         'hostname': value['hostname'],
         'interfaces': value['interfaces'] == null ? undefined : (mapValues(value['interfaces'], ConfigInterfaceToJSON)),
         'logging': ConfigLoggingToJSON(value['logging']),

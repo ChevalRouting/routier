@@ -9,6 +9,7 @@ func Routes(r chi.Router) {
 	r.Get("/api/dhcp/subnets", Subnets)
 	r.Get("/api/dhcp/leases", Leases)
 	r.Get("/api/dhcp/free-ip", FreeIP)
+	r.Post("/api/dhcp/restart", Restart)
 	r.Post("/api/dhcp/leases/clear", ClearLease)
 	r.Post("/api/dhcp/reservations/from-lease", ReserveFromLease)
 

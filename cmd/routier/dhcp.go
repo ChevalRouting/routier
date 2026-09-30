@@ -10,8 +10,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func keaClient() (*kea.Client, error) {
-	cfg, err := config.Load(cli.ConfigFile)
+func keaClient(configPath string) (*kea.Client, error) {
+	cfg, err := config.Load(configPath)
 	if err != nil {
 		cfg = &config.Config{}
 	}
@@ -26,22 +26,25 @@ func keaClient() (*kea.Client, error) {
 }
 
 func newDHCPCommand() *cobra.Command {
+	var configPath string
+
 	cmd := &cobra.Command{
 		Use:   "dhcp",
 		Short: "manage the Kea DHCP server (leases and reservations)",
 	}
 
-	cmd.AddCommand(newDHCPLeasesCommand(), newDHCPReservationsCommand())
+	cmd.PersistentFlags().StringVar(&configPath, "config", defaultConfigPath, "path to config file")
+	cmd.AddCommand(newDHCPLeasesCommand(&configPath), newDHCPReservationsCommand(&configPath))
 	return cmd
 }
 
-func newDHCPLeasesCommand() *cobra.Command {
+func newDHCPLeasesCommand(configPath *string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "leases",
 		Short: "list active DHCP leases",
 		Args:  cobra.NoArgs,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			client, err := keaClient()
+			client, err := keaClient(*configPath)
 			if err != nil {
 				return err
 			}
@@ -75,17 +78,17 @@ func newDHCPLeasesCommand() *cobra.Command {
 		},
 	}
 
-	cmd.AddCommand(newDHCPClearCommand())
+	cmd.AddCommand(newDHCPClearCommand(configPath))
 	return cmd
 }
 
-func newDHCPClearCommand() *cobra.Command {
+func newDHCPClearCommand(configPath *string) *cobra.Command {
 	return &cobra.Command{
 		Use:   "clear <ip>",
 		Short: "delete an active lease",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			client, err := keaClient()
+			client, err := keaClient(*configPath)
 			if err != nil {
 				return err
 			}
@@ -100,14 +103,14 @@ func newDHCPClearCommand() *cobra.Command {
 	}
 }
 
-func newDHCPReservationsCommand() *cobra.Command {
+func newDHCPReservationsCommand(configPath *string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "reservations",
 		Aliases: []string{"reservation", "res"},
 		Short:   "list host reservations",
 		Args:    cobra.NoArgs,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			client, err := keaClient()
+			client, err := keaClient(*configPath)
 			if err != nil {
 				return err
 			}
@@ -146,17 +149,17 @@ func newDHCPReservationsCommand() *cobra.Command {
 		},
 	}
 
-	cmd.AddCommand(newDHCPAddCommand(), newDHCPDelCommand(), newDHCPPersistCommand())
+	cmd.AddCommand(newDHCPAddCommand(configPath), newDHCPDelCommand(configPath), newDHCPPersistCommand(configPath))
 	return cmd
 }
 
-func newDHCPAddCommand() *cobra.Command {
+func newDHCPAddCommand(configPath *string) *cobra.Command {
 	return &cobra.Command{
 		Use:   "add <hostname> <mac-or-duid> <ip-or-cidr>",
 		Short: "reserve an address (an IP is auto-picked when only a cidr is given)",
 		Args:  cobra.ExactArgs(3),
 		RunE: func(_ *cobra.Command, args []string) error {
-			client, err := keaClient()
+			client, err := keaClient(*configPath)
 			if err != nil {
 				return err
 			}
@@ -172,13 +175,13 @@ func newDHCPAddCommand() *cobra.Command {
 	}
 }
 
-func newDHCPDelCommand() *cobra.Command {
+func newDHCPDelCommand(configPath *string) *cobra.Command {
 	return &cobra.Command{
 		Use:   "del <ip>",
 		Short: "delete a reservation",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			client, err := keaClient()
+			client, err := keaClient(*configPath)
 			if err != nil {
 				return err
 			}
@@ -193,13 +196,13 @@ func newDHCPDelCommand() *cobra.Command {
 	}
 }
 
-func newDHCPPersistCommand() *cobra.Command {
+func newDHCPPersistCommand(configPath *string) *cobra.Command {
 	return &cobra.Command{
 		Use:   "persist <ip>",
 		Short: "promote an active lease to a reservation",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			client, err := keaClient()
+			client, err := keaClient(*configPath)
 			if err != nil {
 				return err
 			}

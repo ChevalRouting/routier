@@ -73,6 +73,12 @@ export interface ConfigRADVDInterface {
     adv_other_config_flag?: boolean;
     /**
      * 
+     * @type {Array<string>}
+     * @memberof ConfigRADVDInterface
+     */
+    adv_ra_src_address?: Array<string>;
+    /**
+     * 
      * @type {boolean}
      * @memberof ConfigRADVDInterface
      */
@@ -131,6 +137,7 @@ export function ConfigRADVDInterfaceFromJSONTyped(json: any, ignoreDiscriminator
         'adv_link_mtu': json['adv_link_mtu'] == null ? undefined : json['adv_link_mtu'],
         'adv_managed_flag': json['adv_managed_flag'] == null ? undefined : json['adv_managed_flag'],
         'adv_other_config_flag': json['adv_other_config_flag'] == null ? undefined : json['adv_other_config_flag'],
+        'adv_ra_src_address': json['adv_ra_src_address'] == null ? undefined : json['adv_ra_src_address'],
         'adv_send_advert': json['adv_send_advert'] == null ? undefined : json['adv_send_advert'],
         'max_rtr_adv_interval': json['max_rtr_adv_interval'] == null ? undefined : json['max_rtr_adv_interval'],
         'min_rtr_adv_interval': json['min_rtr_adv_interval'] == null ? undefined : json['min_rtr_adv_interval'],
@@ -156,6 +163,7 @@ export function ConfigRADVDInterfaceToJSONTyped(value?: ConfigRADVDInterface | n
         'adv_link_mtu': value['adv_link_mtu'],
         'adv_managed_flag': value['adv_managed_flag'],
         'adv_other_config_flag': value['adv_other_config_flag'],
+        'adv_ra_src_address': value['adv_ra_src_address'],
         'adv_send_advert': value['adv_send_advert'],
         'max_rtr_adv_interval': value['max_rtr_adv_interval'],
         'min_rtr_adv_interval': value['min_rtr_adv_interval'],

@@ -8,6 +8,282 @@ const docTemplate = `{
     "schemes": {{ marshal .Schemes }},
     "components": {
         "schemas": {
+            "bind.Answer": {
+                "properties": {
+                    "class": {
+                        "type": "string"
+                    },
+                    "data": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "ttl": {
+                        "type": "integer"
+                    },
+                    "type": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "class",
+                    "data",
+                    "name",
+                    "ttl",
+                    "type"
+                ],
+                "type": "object"
+            },
+            "bind.Overview": {
+                "properties": {
+                    "listen": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "running": {
+                        "type": "boolean"
+                    },
+                    "stats": {
+                        "items": {
+                            "$ref": "#/components/schemas/bind.Stat"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/bind.Status"
+                    },
+                    "zones": {
+                        "items": {
+                            "$ref": "#/components/schemas/bind.ZoneView"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    }
+                },
+                "required": [
+                    "running"
+                ],
+                "type": "object"
+            },
+            "bind.QueryResult": {
+                "properties": {
+                    "answers": {
+                        "items": {
+                            "$ref": "#/components/schemas/bind.Answer"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "flags": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "query_ms": {
+                        "type": "integer"
+                    },
+                    "rcode": {
+                        "type": "string"
+                    },
+                    "server": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "name",
+                    "query_ms",
+                    "rcode",
+                    "type"
+                ],
+                "type": "object"
+            },
+            "bind.Stat": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "section": {
+                        "type": "string"
+                    },
+                    "value": {
+                        "type": "number"
+                    }
+                },
+                "required": [
+                    "name",
+                    "value"
+                ],
+                "type": "object"
+            },
+            "bind.Status": {
+                "properties": {
+                    "boot_time": {
+                        "type": "string"
+                    },
+                    "config_time": {
+                        "type": "string"
+                    },
+                    "recursive_high_water": {
+                        "type": "integer"
+                    },
+                    "running": {
+                        "type": "boolean"
+                    },
+                    "version": {
+                        "type": "string"
+                    },
+                    "zones": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "recursive_high_water",
+                    "running",
+                    "zones"
+                ],
+                "type": "object"
+            },
+            "bind.ZoneRecord": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "priority": {
+                        "type": "integer"
+                    },
+                    "ttl": {
+                        "type": "integer"
+                    },
+                    "type": {
+                        "type": "string"
+                    },
+                    "value": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "name",
+                    "type",
+                    "value"
+                ],
+                "type": "object"
+            },
+            "bind.ZoneView": {
+                "properties": {
+                    "answered": {
+                        "type": "boolean"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "records": {
+                        "items": {
+                            "$ref": "#/components/schemas/bind.ZoneRecord"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "serial": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "answered",
+                    "name",
+                    "serial"
+                ],
+                "type": "object"
+            },
+            "bondstat.Slave": {
+                "properties": {
+                    "actor_churn": {
+                        "type": "string"
+                    },
+                    "aggregator_id": {
+                        "type": "integer"
+                    },
+                    "duplex": {
+                        "type": "string"
+                    },
+                    "link_failures": {
+                        "type": "integer"
+                    },
+                    "mii_status": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "partner_churn": {
+                        "type": "string"
+                    },
+                    "speed": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "link_failures",
+                    "mii_status",
+                    "name"
+                ],
+                "type": "object"
+            },
+            "bondstat.Status": {
+                "properties": {
+                    "active_aggregator": {
+                        "type": "integer"
+                    },
+                    "healthy": {
+                        "type": "boolean"
+                    },
+                    "lacp": {
+                        "type": "boolean"
+                    },
+                    "lacp_rate": {
+                        "type": "string"
+                    },
+                    "mii_status": {
+                        "type": "string"
+                    },
+                    "mode": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "slaves": {
+                        "items": {
+                            "$ref": "#/components/schemas/bondstat.Slave"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "xmit_hash_policy": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "healthy",
+                    "lacp",
+                    "mii_status",
+                    "mode",
+                    "name"
+                ],
+                "type": "object"
+            },
             "config.AnycastConfig": {
                 "properties": {
                     "services": {
@@ -206,6 +482,9 @@ const docTemplate = `{
                     "no_import_check": {
                         "type": "boolean"
                     },
+                    "no_rib": {
+                        "type": "boolean"
+                    },
                     "prefix_lists": {
                         "additionalProperties": {
                             "items": {
@@ -235,7 +514,26 @@ const docTemplate = `{
             },
             "config.BGPAddressFamily": {
                 "properties": {
+                    "advertise": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "advertise_all_vni": {
+                        "type": "boolean"
+                    },
+                    "advertise_default_gateway": {
+                        "type": "boolean"
+                    },
+                    "advertise_svi_ip": {
+                        "type": "boolean"
+                    },
                     "default_originate": {
+                        "type": "boolean"
+                    },
+                    "export_vpn": {
                         "type": "boolean"
                     },
                     "extra": {
@@ -245,12 +543,18 @@ const docTemplate = `{
                         "type": "array",
                         "uniqueItems": false
                     },
+                    "import_vpn": {
+                        "type": "boolean"
+                    },
                     "import_vrf": {
                         "items": {
                             "type": "string"
                         },
                         "type": "array",
                         "uniqueItems": false
+                    },
+                    "label_vpn_export_auto": {
+                        "type": "boolean"
                     },
                     "maximum_paths": {
                         "type": "integer"
@@ -261,6 +565,9 @@ const docTemplate = `{
                         },
                         "type": "array",
                         "uniqueItems": false
+                    },
+                    "rd": {
+                        "type": "string"
                     },
                     "redistribute": {
                         "items": {
@@ -274,6 +581,40 @@ const docTemplate = `{
                     },
                     "route_map_out": {
                         "type": "string"
+                    },
+                    "route_map_vpn_export": {
+                        "type": "string"
+                    },
+                    "route_map_vpn_import": {
+                        "type": "string"
+                    },
+                    "route_target_export": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "route_target_import": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "rt_vpn_export": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "rt_vpn_import": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
                     }
                 },
                 "type": "object"
@@ -381,6 +722,42 @@ const docTemplate = `{
                 },
                 "type": "object"
             },
+            "config.Bond": {
+                "properties": {
+                    "downdelay": {
+                        "type": "integer"
+                    },
+                    "lacp_rate": {
+                        "type": "string"
+                    },
+                    "members": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "miimon": {
+                        "type": "integer"
+                    },
+                    "min_links": {
+                        "type": "integer"
+                    },
+                    "mode": {
+                        "type": "string"
+                    },
+                    "primary": {
+                        "type": "string"
+                    },
+                    "updelay": {
+                        "type": "integer"
+                    },
+                    "xmit_hash_policy": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
             "config.Bridge": {
                 "properties": {
                     "members": {
@@ -402,6 +779,9 @@ const docTemplate = `{
                         "type": "integer"
                     },
                     "iface": {
+                        "type": "integer"
+                    },
+                    "lldp": {
                         "type": "integer"
                     },
                     "neighbors": {
@@ -428,9 +808,6 @@ const docTemplate = `{
                         "type": "array",
                         "uniqueItems": false
                     },
-                    "conntrackd": {
-                        "$ref": "#/components/schemas/config.Conntrackd"
-                    },
                     "dhcp": {
                         "$ref": "#/components/schemas/config.DHCP"
                     },
@@ -446,6 +823,9 @@ const docTemplate = `{
                     },
                     "gai": {
                         "$ref": "#/components/schemas/config.GAIConfig"
+                    },
+                    "ha": {
+                        "$ref": "#/components/schemas/config.HA"
                     },
                     "hostname": {
                         "type": "string"
@@ -550,6 +930,9 @@ const docTemplate = `{
                     "control_agent": {
                         "$ref": "#/components/schemas/config.KeaControlAgent"
                     },
+                    "ddns": {
+                        "$ref": "#/components/schemas/config.DHCPDDNS"
+                    },
                     "enabled": {
                         "type": "boolean"
                     },
@@ -577,6 +960,44 @@ const docTemplate = `{
                 },
                 "type": "object"
             },
+            "config.DHCPDDNS": {
+                "properties": {
+                    "algorithm": {
+                        "type": "string"
+                    },
+                    "domain": {
+                        "type": "string"
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "generated_prefix": {
+                        "type": "string"
+                    },
+                    "hostname_char_set": {
+                        "type": "string"
+                    },
+                    "key": {
+                        "type": "string"
+                    },
+                    "override_client_update": {
+                        "type": "boolean"
+                    },
+                    "override_no_update": {
+                        "type": "boolean"
+                    },
+                    "replace_client_name": {
+                        "type": "string"
+                    },
+                    "reverse": {
+                        "type": "boolean"
+                    },
+                    "ttl": {
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
             "config.DNS": {
                 "properties": {
                     "nameservers": {
@@ -592,8 +1013,300 @@ const docTemplate = `{
                         },
                         "type": "array",
                         "uniqueItems": false
+                    },
+                    "server": {
+                        "$ref": "#/components/schemas/config.DNSServer"
                     }
                 },
+                "type": "object"
+            },
+            "config.DNSCache": {
+                "properties": {
+                    "disabled": {
+                        "type": "boolean"
+                    },
+                    "max_negative_ttl": {
+                        "type": "integer"
+                    },
+                    "max_ttl": {
+                        "type": "integer"
+                    },
+                    "min_ttl": {
+                        "type": "integer"
+                    },
+                    "prefetch": {
+                        "type": "boolean"
+                    },
+                    "rrset_size": {
+                        "type": "string"
+                    },
+                    "serve_expired": {
+                        "type": "boolean"
+                    },
+                    "size": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "config.DNSForward": {
+                "properties": {
+                    "dnssec": {
+                        "type": "boolean"
+                    },
+                    "domain": {
+                        "type": "string"
+                    },
+                    "first_try": {
+                        "type": "boolean"
+                    },
+                    "servers": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "tls_upstream": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "domain"
+                ],
+                "type": "object"
+            },
+            "config.DNSRecord": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "priority": {
+                        "type": "integer"
+                    },
+                    "ttl": {
+                        "type": "integer"
+                    },
+                    "type": {
+                        "type": "string"
+                    },
+                    "value": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "name",
+                    "type",
+                    "value"
+                ],
+                "type": "object"
+            },
+            "config.DNSSOA": {
+                "properties": {
+                    "email": {
+                        "type": "string"
+                    },
+                    "expire": {
+                        "type": "integer"
+                    },
+                    "minimum": {
+                        "type": "integer"
+                    },
+                    "primary": {
+                        "type": "string"
+                    },
+                    "refresh": {
+                        "type": "integer"
+                    },
+                    "retry": {
+                        "type": "integer"
+                    },
+                    "serial": {
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
+            "config.DNSServer": {
+                "properties": {
+                    "allow_from": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "allow_inbound": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "cache": {
+                        "$ref": "#/components/schemas/config.DNSCache"
+                    },
+                    "dnssec": {
+                        "type": "boolean"
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "extra": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "forward": {
+                        "items": {
+                            "$ref": "#/components/schemas/config.DNSForward"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "listen": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "log_queries": {
+                        "type": "boolean"
+                    },
+                    "mode": {
+                        "type": "string"
+                    },
+                    "port": {
+                        "type": "integer"
+                    },
+                    "threads": {
+                        "type": "integer"
+                    },
+                    "upstreams": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "views": {
+                        "items": {
+                            "$ref": "#/components/schemas/config.DNSView"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "zones": {
+                        "items": {
+                            "$ref": "#/components/schemas/config.DNSZone"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    }
+                },
+                "type": "object"
+            },
+            "config.DNSView": {
+                "properties": {
+                    "extra": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "forward": {
+                        "items": {
+                            "$ref": "#/components/schemas/config.DNSForward"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "match_from": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "recursion": {
+                        "type": "boolean"
+                    },
+                    "upstreams": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "zones": {
+                        "items": {
+                            "$ref": "#/components/schemas/config.DNSZone"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    }
+                },
+                "required": [
+                    "name"
+                ],
+                "type": "object"
+            },
+            "config.DNSZone": {
+                "properties": {
+                    "dnssec": {
+                        "type": "boolean"
+                    },
+                    "extra": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "for_upstream": {
+                        "type": "boolean"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "nameservers": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "primaries": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "records": {
+                        "items": {
+                            "$ref": "#/components/schemas/config.DNSRecord"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "soa": {
+                        "$ref": "#/components/schemas/config.DNSSOA"
+                    },
+                    "ttl": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "name"
+                ],
                 "type": "object"
             },
             "config.Friend": {
@@ -734,6 +1447,21 @@ const docTemplate = `{
                 ],
                 "type": "object"
             },
+            "config.HA": {
+                "properties": {
+                    "conntrackd": {
+                        "$ref": "#/components/schemas/config.Conntrackd"
+                    },
+                    "vrrp": {
+                        "items": {
+                            "$ref": "#/components/schemas/config.VRRPInstance"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    }
+                },
+                "type": "object"
+            },
             "config.Interface": {
                 "properties": {
                     "addresses": {
@@ -742,6 +1470,9 @@ const docTemplate = `{
                         },
                         "type": "array",
                         "uniqueItems": false
+                    },
+                    "bond": {
+                        "$ref": "#/components/schemas/config.Bond"
                     },
                     "bridge": {
                         "$ref": "#/components/schemas/config.Bridge"
@@ -762,26 +1493,16 @@ const docTemplate = `{
                     "type": {
                         "type": "string"
                     },
-                    "vlans": {
-                        "additionalProperties": {
-                            "$ref": "#/components/schemas/config.VLAN"
-                        },
-                        "type": "object"
+                    "vlan": {
+                        "$ref": "#/components/schemas/config.VLAN"
                     },
                     "vrf": {
                         "type": "string"
                     },
-                    "vrrp": {
-                        "items": {
-                            "$ref": "#/components/schemas/config.VRRPInstance"
-                        },
-                        "type": "array",
-                        "uniqueItems": false
+                    "vxlan": {
+                        "$ref": "#/components/schemas/config.VXLAN"
                     }
                 },
-                "required": [
-                    "select"
-                ],
                 "type": "object"
             },
             "config.KeaControlAgent": {
@@ -817,6 +1538,12 @@ const docTemplate = `{
             },
             "config.KeaSubnet": {
                 "properties": {
+                    "ddns": {
+                        "type": "boolean"
+                    },
+                    "ddns_domain": {
+                        "type": "string"
+                    },
                     "dns": {
                         "items": {
                             "type": "string"
@@ -863,6 +1590,27 @@ const docTemplate = `{
                 ],
                 "type": "object"
             },
+            "config.LLDPConfig": {
+                "properties": {
+                    "cdp": {
+                        "type": "boolean"
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "interfaces": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "transmit": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
             "config.Logging": {
                 "properties": {
                     "file": {
@@ -907,6 +1655,16 @@ const docTemplate = `{
                 "properties": {
                     "collection": {
                         "$ref": "#/components/schemas/config.CollectionIntervals"
+                    },
+                    "lldp": {
+                        "$ref": "#/components/schemas/config.LLDPConfig"
+                    },
+                    "probes": {
+                        "items": {
+                            "$ref": "#/components/schemas/config.PingProbe"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
                     }
                 },
                 "type": "object"
@@ -1319,6 +2077,27 @@ const docTemplate = `{
                 },
                 "type": "object"
             },
+            "config.PingProbe": {
+                "properties": {
+                    "interval": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "target": {
+                        "type": "string"
+                    },
+                    "timeout": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "name",
+                    "target"
+                ],
+                "type": "object"
+            },
             "config.PrefixEntry": {
                 "properties": {
                     "action": {
@@ -1371,6 +2150,13 @@ const docTemplate = `{
                     },
                     "adv_other_config_flag": {
                         "type": "boolean"
+                    },
+                    "adv_ra_src_address": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
                     },
                     "adv_send_advert": {
                         "type": "boolean"
@@ -1746,17 +2532,7 @@ const docTemplate = `{
             },
             "config.VLAN": {
                 "properties": {
-                    "addresses": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "uniqueItems": false
-                    },
                     "id": {
-                        "type": "integer"
-                    },
-                    "mtu": {
                         "type": "integer"
                     }
                 },
@@ -1830,6 +2606,9 @@ const docTemplate = `{
                         "type": "array",
                         "uniqueItems": false
                     },
+                    "transport": {
+                        "type": "string"
+                    },
                     "vips": {
                         "items": {
                             "type": "string"
@@ -1846,8 +2625,41 @@ const docTemplate = `{
                     }
                 },
                 "required": [
-                    "id"
+                    "id",
+                    "interface"
                 ],
+                "type": "object"
+            },
+            "config.VXLAN": {
+                "properties": {
+                    "external": {
+                        "type": "boolean"
+                    },
+                    "group": {
+                        "type": "string"
+                    },
+                    "learning": {
+                        "type": "boolean"
+                    },
+                    "local": {
+                        "type": "string"
+                    },
+                    "port": {
+                        "type": "integer"
+                    },
+                    "remote": {
+                        "type": "string"
+                    },
+                    "vni": {
+                        "type": "integer"
+                    },
+                    "vnifilter": {
+                        "type": "boolean"
+                    },
+                    "vtep": {
+                        "type": "string"
+                    }
+                },
                 "type": "object"
             },
             "config.WGPeer": {
@@ -2015,6 +2827,12 @@ const docTemplate = `{
             },
             "dhcp.reserveFromLeaseRequest": {
                 "properties": {
+                    "dns_name": {
+                        "type": "string"
+                    },
+                    "dns_zone": {
+                        "type": "string"
+                    },
                     "hostname": {
                         "type": "string"
                     },
@@ -2082,6 +2900,140 @@ const docTemplate = `{
                 "required": [
                     "target"
                 ],
+                "type": "object"
+            },
+            "dns.ddnsDeleteRequest": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string"
+                    },
+                    "value": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "name",
+                    "type"
+                ],
+                "type": "object"
+            },
+            "dns.ddnsZoneView": {
+                "properties": {
+                    "error": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "records": {
+                        "items": {
+                            "$ref": "#/components/schemas/bind.ZoneRecord"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    }
+                },
+                "required": [
+                    "name"
+                ],
+                "type": "object"
+            },
+            "dns.flushRequest": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "dns.overviewResponse": {
+                "properties": {
+                    "allow_from": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "mode": {
+                        "type": "string"
+                    },
+                    "overview": {
+                        "$ref": "#/components/schemas/bind.Overview"
+                    },
+                    "port": {
+                        "type": "integer"
+                    },
+                    "recurses": {
+                        "type": "boolean"
+                    },
+                    "upstreams": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    }
+                },
+                "required": [
+                    "mode",
+                    "port",
+                    "recurses"
+                ],
+                "type": "object"
+            },
+            "dns.queryRequest": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "name"
+                ],
+                "type": "object"
+            },
+            "dns.serviceState": {
+                "properties": {
+                    "running": {
+                        "type": "boolean"
+                    },
+                    "service": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "running",
+                    "service"
+                ],
+                "type": "object"
+            },
+            "dns.statsResponse": {
+                "properties": {
+                    "services": {
+                        "items": {
+                            "$ref": "#/components/schemas/dns.serviceState"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "stats": {
+                        "items": {
+                            "$ref": "#/components/schemas/bind.Stat"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/bind.Status"
+                    }
+                },
                 "type": "object"
             },
             "friendcache.CachedState": {
@@ -2430,6 +3382,55 @@ const docTemplate = `{
                 "required": [
                     "name",
                     "value"
+                ],
+                "type": "object"
+            },
+            "system.interfaceStatus": {
+                "properties": {
+                    "addr": {
+                        "type": "string"
+                    },
+                    "bond": {
+                        "$ref": "#/components/schemas/bondstat.Status"
+                    },
+                    "link": {
+                        "additionalProperties": {},
+                        "type": "object"
+                    }
+                },
+                "required": [
+                    "link"
+                ],
+                "type": "object"
+            },
+            "types.APIKey": {
+                "properties": {
+                    "created_at": {
+                        "type": "integer"
+                    },
+                    "created_by": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "prefix": {
+                        "type": "string"
+                    },
+                    "revoked_at": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "created_at",
+                    "created_by",
+                    "id",
+                    "name",
+                    "prefix",
+                    "revoked_at"
                 ],
                 "type": "object"
             },
@@ -2853,6 +3854,34 @@ const docTemplate = `{
                 "required": [
                     "entries",
                     "running"
+                ],
+                "type": "object"
+            },
+            "types.CreateAPIKeyRequest": {
+                "properties": {
+                    "name": {
+                        "maxLength": 128,
+                        "minLength": 1,
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "name"
+                ],
+                "type": "object"
+            },
+            "types.CreateAPIKeyResponse": {
+                "properties": {
+                    "api_key": {
+                        "$ref": "#/components/schemas/types.APIKey"
+                    },
+                    "token": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "api_key",
+                    "token"
                 ],
                 "type": "object"
             },
@@ -3621,6 +4650,78 @@ const docTemplate = `{
                 ],
                 "type": "object"
             },
+            "types.LLDPNeighbor": {
+                "properties": {
+                    "age": {
+                        "type": "string"
+                    },
+                    "capabilities": {
+                        "type": "string"
+                    },
+                    "chassis_id": {
+                        "type": "string"
+                    },
+                    "chassis_name": {
+                        "type": "string"
+                    },
+                    "local_iface": {
+                        "type": "string"
+                    },
+                    "mgmt_ip": {
+                        "type": "string"
+                    },
+                    "port_descr": {
+                        "type": "string"
+                    },
+                    "port_id": {
+                        "type": "string"
+                    },
+                    "protocol": {
+                        "type": "string"
+                    },
+                    "sys_descr": {
+                        "type": "string"
+                    },
+                    "vlan": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "local_iface",
+                    "protocol"
+                ],
+                "type": "object"
+            },
+            "types.LLDPNeighborsResponse": {
+                "properties": {
+                    "neighbors": {
+                        "items": {
+                            "$ref": "#/components/schemas/types.LLDPNeighbor"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    }
+                },
+                "type": "object"
+            },
+            "types.LLDPStatsResponse": {
+                "properties": {
+                    "neighbors": {
+                        "items": {
+                            "$ref": "#/components/schemas/types.LLDPNeighbor"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "ts": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "ts"
+                ],
+                "type": "object"
+            },
             "types.LearnedRoute": {
                 "properties": {
                     "distance": {
@@ -3910,6 +5011,55 @@ const docTemplate = `{
                 ],
                 "type": "object"
             },
+            "types.PasswordHashRequest": {
+                "properties": {
+                    "password": {
+                        "minLength": 1,
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "password"
+                ],
+                "type": "object"
+            },
+            "types.PasswordHashResponse": {
+                "properties": {
+                    "hash": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "hash"
+                ],
+                "type": "object"
+            },
+            "types.ProbeHistoryPoint": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "reachable": {
+                        "type": "boolean"
+                    },
+                    "rtt_avg_ms": {
+                        "type": "number"
+                    },
+                    "target": {
+                        "type": "string"
+                    },
+                    "ts": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "name",
+                    "reachable",
+                    "target",
+                    "ts"
+                ],
+                "type": "object"
+            },
             "types.ProcessInfo": {
                 "properties": {
                     "cmd": {
@@ -4045,6 +5195,48 @@ const docTemplate = `{
                 },
                 "type": "object"
             },
+            "types.Response-array_bind_ZoneView": {
+                "properties": {
+                    "code": {
+                        "type": "integer"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "items": {
+                            "$ref": "#/components/schemas/bind.ZoneView"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "types.Response-array_bondstat_Status": {
+                "properties": {
+                    "code": {
+                        "type": "integer"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "items": {
+                            "$ref": "#/components/schemas/bondstat.Status"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
             "types.Response-array_dhcp_leaseView": {
                 "properties": {
                     "code": {
@@ -4056,6 +5248,27 @@ const docTemplate = `{
                     "result": {
                         "items": {
                             "$ref": "#/components/schemas/dhcp.leaseView"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "types.Response-array_dns_ddnsZoneView": {
+                "properties": {
+                    "code": {
+                        "type": "integer"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "items": {
+                            "$ref": "#/components/schemas/dns.ddnsZoneView"
                         },
                         "type": "array",
                         "uniqueItems": false
@@ -4161,6 +5374,27 @@ const docTemplate = `{
                     "result": {
                         "items": {
                             "$ref": "#/components/schemas/render.NftVar"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "types.Response-array_types_APIKey": {
+                "properties": {
+                    "code": {
+                        "type": "integer"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "items": {
+                            "$ref": "#/components/schemas/types.APIKey"
                         },
                         "type": "array",
                         "uniqueItems": false
@@ -4360,6 +5594,40 @@ const docTemplate = `{
                 },
                 "type": "object"
             },
+            "types.Response-bind_QueryResult": {
+                "properties": {
+                    "code": {
+                        "type": "integer"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "$ref": "#/components/schemas/bind.QueryResult"
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "types.Response-bind_ZoneView": {
+                "properties": {
+                    "code": {
+                        "type": "integer"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "$ref": "#/components/schemas/bind.ZoneView"
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
             "types.Response-config_Config": {
                 "properties": {
                     "code": {
@@ -4387,6 +5655,40 @@ const docTemplate = `{
                     },
                     "result": {
                         "$ref": "#/components/schemas/dhcp.statsResponse"
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "types.Response-dns_overviewResponse": {
+                "properties": {
+                    "code": {
+                        "type": "integer"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "$ref": "#/components/schemas/dns.overviewResponse"
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "types.Response-dns_statsResponse": {
+                "properties": {
+                    "code": {
+                        "type": "integer"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "$ref": "#/components/schemas/dns.statsResponse"
                     },
                     "status": {
                         "type": "string"
@@ -4455,6 +5757,40 @@ const docTemplate = `{
                     },
                     "result": {
                         "$ref": "#/components/schemas/iptools.SubnetInfo"
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "types.Response-string": {
+                "properties": {
+                    "code": {
+                        "type": "integer"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "types.Response-system_interfaceStatus": {
+                "properties": {
+                    "code": {
+                        "type": "integer"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "$ref": "#/components/schemas/system.interfaceStatus"
                     },
                     "status": {
                         "type": "string"
@@ -4574,6 +5910,23 @@ const docTemplate = `{
                     },
                     "result": {
                         "$ref": "#/components/schemas/types.ConfigureVRRPResult"
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "types.Response-types_CreateAPIKeyResponse": {
+                "properties": {
+                    "code": {
+                        "type": "integer"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "$ref": "#/components/schemas/types.CreateAPIKeyResponse"
                     },
                     "status": {
                         "type": "string"
@@ -4802,6 +6155,40 @@ const docTemplate = `{
                 },
                 "type": "object"
             },
+            "types.Response-types_LLDPNeighborsResponse": {
+                "properties": {
+                    "code": {
+                        "type": "integer"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "$ref": "#/components/schemas/types.LLDPNeighborsResponse"
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "types.Response-types_LLDPStatsResponse": {
+                "properties": {
+                    "code": {
+                        "type": "integer"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "$ref": "#/components/schemas/types.LLDPStatsResponse"
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
             "types.Response-types_LearnedRoutesResponse": {
                 "properties": {
                     "code": {
@@ -4897,6 +6284,23 @@ const docTemplate = `{
                     },
                     "result": {
                         "$ref": "#/components/schemas/types.NftValidateResult"
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "types.Response-types_PasswordHashResponse": {
+                "properties": {
+                    "code": {
+                        "type": "integer"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "$ref": "#/components/schemas/types.PasswordHashResponse"
                     },
                     "status": {
                         "type": "string"
@@ -5131,6 +6535,15 @@ const docTemplate = `{
                         },
                         "type": "object"
                     },
+                    "probes": {
+                        "additionalProperties": {
+                            "items": {
+                                "$ref": "#/components/schemas/types.ProbeHistoryPoint"
+                            },
+                            "type": "array"
+                        },
+                        "type": "object"
+                    },
                     "proto": {
                         "items": {
                             "$ref": "#/components/schemas/types.ProtoHistoryPoint"
@@ -5225,6 +6638,15 @@ const docTemplate = `{
                         "type": "array",
                         "uniqueItems": false
                     },
+                    "carrier": {
+                        "type": "boolean"
+                    },
+                    "driver": {
+                        "type": "string"
+                    },
+                    "duplex": {
+                        "type": "string"
+                    },
                     "mac": {
                         "type": "string"
                     },
@@ -5233,6 +6655,18 @@ const docTemplate = `{
                     },
                     "operstate": {
                         "type": "string"
+                    },
+                    "pci_device": {
+                        "type": "string"
+                    },
+                    "pci_vendor": {
+                        "type": "string"
+                    },
+                    "physical": {
+                        "type": "boolean"
+                    },
+                    "speed": {
+                        "type": "integer"
                     }
                 },
                 "required": [
@@ -5718,6 +7152,103 @@ const docTemplate = `{
                 ]
             }
         },
+        "/api/auth/api-keys": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-array_types_APIKey"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "List application API keys",
+                "tags": [
+                    "auth"
+                ]
+            },
+            "post": {
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/types.CreateAPIKeyRequest",
+                                "summary": "body",
+                                "description": "API key name"
+                            }
+                        }
+                    },
+                    "description": "API key name",
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-types_CreateAPIKeyResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Create an application API key",
+                "tags": [
+                    "auth"
+                ]
+            }
+        },
+        "/api/auth/api-keys/{id}": {
+            "delete": {
+                "parameters": [
+                    {
+                        "description": "API key id",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-types_StatusResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Revoke an application API key",
+                "tags": [
+                    "auth"
+                ]
+            }
+        },
         "/api/auth/login": {
             "post": {
                 "requestBody": {
@@ -5789,6 +7320,44 @@ const docTemplate = `{
                 ]
             }
         },
+        "/api/auth/password-hash": {
+            "post": {
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/types.PasswordHashRequest",
+                                "summary": "body",
+                                "description": "password"
+                            }
+                        }
+                    },
+                    "description": "password",
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-types_PasswordHashResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Hash a plaintext password for a config user (sha512-crypt)",
+                "tags": [
+                    "auth"
+                ]
+            }
+        },
         "/api/backup/export": {
             "get": {
                 "responses": {
@@ -5841,6 +7410,20 @@ const docTemplate = `{
         },
         "/api/config": {
             "get": {
+                "parameters": [
+                    {
+                        "description": "configuration layer",
+                        "in": "query",
+                        "name": "layer",
+                        "schema": {
+                            "enum": [
+                                "advanced",
+                                "simple"
+                            ],
+                            "type": "string"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "content": {
@@ -5866,6 +7449,20 @@ const docTemplate = `{
         },
         "/api/config/apply": {
             "post": {
+                "parameters": [
+                    {
+                        "description": "configuration layer",
+                        "in": "query",
+                        "name": "layer",
+                        "schema": {
+                            "enum": [
+                                "advanced",
+                                "simple"
+                            ],
+                            "type": "string"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "content": {
@@ -6070,8 +7667,72 @@ const docTemplate = `{
                 ]
             }
         },
+        "/api/config/schema": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Get the JSON Schema for the canonical configuration",
+                "tags": [
+                    "config"
+                ]
+            }
+        },
+        "/api/config/schema/version": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Get the version of the canonical configuration schema",
+                "tags": [
+                    "config"
+                ]
+            }
+        },
         "/api/config/staging": {
             "delete": {
+                "parameters": [
+                    {
+                        "description": "configuration layer",
+                        "in": "query",
+                        "name": "layer",
+                        "schema": {
+                            "enum": [
+                                "advanced",
+                                "simple"
+                            ],
+                            "type": "string"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "content": {
@@ -6106,6 +7767,18 @@ const docTemplate = `{
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    {
+                        "description": "configuration layer",
+                        "in": "query",
+                        "name": "layer",
+                        "schema": {
+                            "enum": [
+                                "advanced",
+                                "simple"
+                            ],
+                            "type": "string"
+                        }
                     }
                 ],
                 "responses": {
@@ -6138,6 +7811,18 @@ const docTemplate = `{
                         "name": "section",
                         "required": true,
                         "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "configuration layer",
+                        "in": "query",
+                        "name": "layer",
+                        "schema": {
+                            "enum": [
+                                "advanced",
+                                "simple"
+                            ],
                             "type": "string"
                         }
                     }
@@ -6310,6 +7995,21 @@ const docTemplate = `{
         },
         "/api/dhcp/leases/stream": {
             "get": {
+                "parameters": [
+                    {
+                        "description": "Kea daemon (omitted streams DHCPv4 and DHCPv6)",
+                        "in": "query",
+                        "name": "source",
+                        "schema": {
+                            "enum": [
+                                "kea-dhcp4",
+                                "kea-dhcp6",
+                                "kea-dhcp-ddns"
+                            ],
+                            "type": "string"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "content": {
@@ -6327,7 +8027,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "summary": "Tail Kea DHCP lease events (SSE)",
+                "summary": "Tail Kea DHCP daemon logs (SSE)",
                 "tags": [
                     "dhcp"
                 ]
@@ -6485,6 +8185,31 @@ const docTemplate = `{
                 ]
             }
         },
+        "/api/dhcp/restart": {
+            "post": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-string"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Restart the running DHCP servers (Kea)",
+                "tags": [
+                    "dhcp"
+                ]
+            }
+        },
         "/api/dhcp/stats": {
             "get": {
                 "responses": {
@@ -6532,6 +8257,373 @@ const docTemplate = `{
                 "summary": "List configured DHCP subnets",
                 "tags": [
                     "dhcp"
+                ]
+            }
+        },
+        "/api/dns": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-dns_overviewResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Resolver state, listen addresses, forward zones and authoritative zones",
+                "tags": [
+                    "dns"
+                ]
+            }
+        },
+        "/api/dns/cache/flush": {
+            "post": {
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "oneOf": [
+                                    {
+                                        "type": "object"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/dns.flushRequest",
+                                        "summary": "request",
+                                        "description": "name to flush; the whole cache when empty"
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "description": "name to flush; the whole cache when empty"
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-string"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Flush the resolver cache, or one name within it",
+                "tags": [
+                    "dns"
+                ]
+            }
+        },
+        "/api/dns/ddns": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-array_dns_ddnsZoneView"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Live DDNS-managed zones and the dynamic records they currently hold",
+                "tags": [
+                    "dns"
+                ]
+            }
+        },
+        "/api/dns/ddns/{zone}/records": {
+            "delete": {
+                "parameters": [
+                    {
+                        "description": "zone name",
+                        "in": "path",
+                        "name": "zone",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "oneOf": [
+                                    {
+                                        "type": "object"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/dns.ddnsDeleteRequest",
+                                        "summary": "request",
+                                        "description": "record to delete"
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "description": "record to delete",
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-string"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Clear a single dynamic record from a DDNS-managed zone",
+                "tags": [
+                    "dns"
+                ]
+            }
+        },
+        "/api/dns/queries/stream": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "text/event-stream": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Tail the named query log events (SSE)",
+                "tags": [
+                    "dns"
+                ]
+            }
+        },
+        "/api/dns/query": {
+            "post": {
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "oneOf": [
+                                    {
+                                        "type": "object"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/dns.queryRequest",
+                                        "summary": "request",
+                                        "description": "name and record type to resolve"
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "description": "name and record type to resolve",
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-bind_QueryResult"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Resolve a name through the local resolver",
+                "tags": [
+                    "dns"
+                ]
+            }
+        },
+        "/api/dns/restart": {
+            "post": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-string"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Restart the DNS server (named)",
+                "tags": [
+                    "dns"
+                ]
+            }
+        },
+        "/api/dns/stats": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-dns_statsResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Resolver state and BIND statistics",
+                "tags": [
+                    "dns"
+                ]
+            }
+        },
+        "/api/dns/zones": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-array_bind_ZoneView"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Authoritative zones with their declared records and live serial",
+                "tags": [
+                    "dns"
+                ]
+            }
+        },
+        "/api/dns/zones/{name}": {
+            "get": {
+                "parameters": [
+                    {
+                        "description": "zone name",
+                        "in": "path",
+                        "name": "name",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-bind_ZoneView"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "A single authoritative zone",
+                "tags": [
+                    "dns"
+                ]
+            }
+        },
+        "/api/dns/zones/{name}/reload": {
+            "post": {
+                "parameters": [
+                    {
+                        "description": "zone name",
+                        "in": "path",
+                        "name": "name",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-string"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Reload one authoritative zone from its rendered file",
+                "tags": [
+                    "dns"
                 ]
             }
         },
@@ -7941,6 +10033,41 @@ const docTemplate = `{
                 ]
             }
         },
+        "/api/routing/lldp": {
+            "get": {
+                "parameters": [
+                    {
+                        "description": "text filter",
+                        "in": "query",
+                        "name": "q",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-types_LLDPNeighborsResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "LLDP/CDP link-layer neighbors",
+                "tags": [
+                    "routing"
+                ]
+            }
+        },
         "/api/routing/neighbors": {
             "get": {
                 "parameters": [
@@ -8272,7 +10399,7 @@ const docTemplate = `{
                         }
                     },
                     {
-                        "description": "comma-separated series to include (interfaces,bgp,proto,system,total,usage); default all",
+                        "description": "comma-separated series to include (interfaces,bgp,proto,system,total,usage,probes); default all",
                         "in": "query",
                         "name": "series",
                         "schema": {
@@ -8298,6 +10425,31 @@ const docTemplate = `{
                     }
                 ],
                 "summary": "Historical stats",
+                "tags": [
+                    "stats"
+                ]
+            }
+        },
+        "/api/stats/lldp": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-types_LLDPStatsResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Latest stored LLDP/CDP neighbors",
                 "tags": [
                     "stats"
                 ]
@@ -8353,6 +10505,67 @@ const docTemplate = `{
                 ]
             }
         },
+        "/api/system/bonds": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-array_bondstat_Status"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Live bond link and LACP state",
+                "tags": [
+                    "system"
+                ]
+            }
+        },
+        "/api/system/interfaces/{name}": {
+            "get": {
+                "parameters": [
+                    {
+                        "description": "Kernel interface name",
+                        "in": "path",
+                        "name": "name",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-system_interfaceStatus"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Detailed live kernel interface and bonding state",
+                "tags": [
+                    "system"
+                ]
+            }
+        },
         "/api/system/nics": {
             "get": {
                 "responses": {
@@ -8372,9 +10585,167 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "summary": "List physical system NICs",
+                "summary": "List candidate system NICs",
                 "tags": [
                     "setup"
+                ]
+            }
+        },
+        "/api/system/reboot": {
+            "post": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-types_StatusResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Reboot the appliance",
+                "tags": [
+                    "system"
+                ]
+            }
+        },
+        "/api/system/shutdown": {
+            "post": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-types_StatusResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Power off the appliance",
+                "tags": [
+                    "system"
+                ]
+            }
+        },
+        "/api/system/updates": {
+            "get": {
+                "parameters": [
+                    {
+                        "description": "force a fresh apk index refresh",
+                        "in": "query",
+                        "name": "refresh",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "List available package upgrades",
+                "tags": [
+                    "system"
+                ]
+            }
+        },
+        "/api/system/upgrade": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Current upgrade job status",
+                "tags": [
+                    "system"
+                ]
+            },
+            "post": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-types_StatusResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Start a whole-system upgrade",
+                "tags": [
+                    "system"
+                ]
+            }
+        },
+        "/api/system/version": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Current software and kernel version",
+                "tags": [
+                    "system"
                 ]
             }
         },
@@ -8579,6 +10950,31 @@ const docTemplate = `{
                 "summary": "Save a UI layout",
                 "tags": [
                     "ui"
+                ]
+            }
+        },
+        "/api/v1/config": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Get the committed canonical configuration as YAML",
+                "tags": [
+                    "v1-config"
                 ]
             }
         },
@@ -8824,7 +11220,7 @@ const docTemplate = `{
                 ]
             }
         },
-        "/api/v1/sessions/{sessionID}/conntrackd": {
+        "/api/v1/sessions/{sessionID}/config": {
             "get": {
                 "parameters": [
                     {
@@ -8854,7 +11250,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "summary": "Get session conntrackd",
+                "summary": "Get a session's canonical configuration as YAML",
                 "tags": [
                     "v1-config"
                 ]
@@ -8873,9 +11269,9 @@ const docTemplate = `{
                 ],
                 "requestBody": {
                     "content": {
-                        "application/json": {
+                        "text/plain": {
                             "schema": {
-                                "type": "object"
+                                "type": "string"
                             }
                         }
                     }
@@ -8897,7 +11293,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "summary": "Replace session conntrackd",
+                "summary": "Replace a session's canonical configuration with YAML",
                 "tags": [
                     "v1-config"
                 ]
@@ -9092,6 +11488,85 @@ const docTemplate = `{
                     }
                 ],
                 "summary": "Replace session gai",
+                "tags": [
+                    "v1-config"
+                ]
+            }
+        },
+        "/api/v1/sessions/{sessionID}/ha": {
+            "get": {
+                "parameters": [
+                    {
+                        "description": "session id",
+                        "in": "path",
+                        "name": "sessionID",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Get session HA config (vrrp, conntrackd)",
+                "tags": [
+                    "v1-config"
+                ]
+            },
+            "put": {
+                "parameters": [
+                    {
+                        "description": "session id",
+                        "in": "path",
+                        "name": "sessionID",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Replace session HA config (vrrp, conntrackd)",
                 "tags": [
                     "v1-config"
                 ]

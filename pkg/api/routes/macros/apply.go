@@ -10,6 +10,7 @@ import (
 	appctx "github.com/ChevalRouting/routier/pkg/api/app"
 	"github.com/ChevalRouting/routier/pkg/api/cfgstore"
 	"github.com/ChevalRouting/routier/pkg/api/friendcache"
+	"github.com/ChevalRouting/routier/pkg/api/requests"
 	"github.com/ChevalRouting/routier/pkg/config"
 	webdb "github.com/ChevalRouting/routier/pkg/db"
 	"github.com/ChevalRouting/routier/pkg/macro"
@@ -32,11 +33,21 @@ import (
 func Apply(w http.ResponseWriter, r *http.Request) {
 	app := appctx.FromContext(r.Context())
 	id := chi.URLParam(r, "id")
+	username := appctx.UsernameFromContext(r.Context())
+	owner, staged, err := cfgstore.StagingLayer(app.ConfigPath, username)
+	if err != nil {
+		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "read staging owner"))
+		return
+	}
+	if staged {
+		types.Err(http.StatusConflict, "configuration changes belong to the "+owner+" layer").Write(w)
+		return
+	}
 
 	var req types.MacroApplyRequest
 	_ = json.NewDecoder(r.Body).Decode(&req)
 
-	m, err := webdb.LoadMacro(app.DB, id)
+	m, err := webdb.LoadMacro(r.Context(), app.DB, id)
 	if err != nil {
 		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "failed to load macro"))
 		return
@@ -129,7 +140,7 @@ func Apply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_ = webdb.MarkMacroApplied(app.DB, id)
+	_ = webdb.MarkMacroApplied(requests.DurableContext(r), app.DB, id)
 
 	types.OK(w, types.ApplyResult{Status: "applied", SnapID: res.SnapID, Warning: res.Warning})
 }

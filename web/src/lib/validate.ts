@@ -29,6 +29,14 @@ export function isIP(s: string): boolean {
   return isIPv4(s) || isIPv6(s)
 }
 
+export function isMulticastIP(s: string): boolean {
+  if (isIPv4(s)) {
+    const first = Number(s.split('.')[0])
+    return first >= 224 && first <= 239
+  }
+  return isIPv6(s) && /^ff/i.test(s)
+}
+
 export function isCIDR(s: string): boolean {
   const slash = s.lastIndexOf('/')
   if (slash === -1) return false
@@ -73,7 +81,13 @@ export function isHostname(s: string): boolean {
 const opt = (s: string, ok: boolean, msg: string): string | null => (s.trim() === '' || ok ? null : msg)
 
 export const checkIP = (s: string): string | null => opt(s, isIP(s), 'Enter a valid IP address')
+export const checkMulticastIP = (s: string): string | null => opt(s, isMulticastIP(s), 'Enter a valid multicast IP address')
 export const checkCIDR = (s: string): string | null => opt(s, isCIDR(s), 'Enter a valid CIDR (e.g. 10.0.0.0/24)')
+export const checkInterfaceAddress = (s: string): string | null => {
+  const v = s.trim().toLowerCase()
+  if (v === 'dhcp' || v === 'slaac') return null
+  return opt(s, isCIDR(s), 'Enter a CIDR (e.g. 10.0.0.0/24), dhcp or slaac')
+}
 export const checkIPOrCIDR = (s: string): string | null => opt(s, isIPOrCIDR(s), 'Enter a valid IP or CIDR')
 export const checkMAC = (s: string): string | null => opt(s, isMAC(s), 'Enter a valid MAC address')
 export const checkHostname = (s: string): string | null => opt(s, isHostname(s), 'Enter a valid hostname')

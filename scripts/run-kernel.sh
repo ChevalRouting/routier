@@ -3,9 +3,10 @@ set -eu
 
 HERE=$(cd "$(dirname "$0")/.." && pwd)
 ARCH=$(uname -m)
+FLAVOR="${FLAVOR:-lts}"
 DISK_IMG="$HERE/dist/disk.img"
-KERNEL="$HERE/dist/boot/vmlinuz-virt"
-INITRD="$HERE/dist/boot/initramfs-virt"
+KERNEL="$HERE/dist/boot/vmlinuz-$FLAVOR"
+INITRD="$HERE/dist/boot/initramfs-$FLAVOR"
 
 case "$ARCH" in
 	aarch64) CONSOLE="ttyAMA0" ;;
@@ -13,9 +14,9 @@ case "$ARCH" in
 esac
 APPEND="root=/dev/routier/root rootfstype=ext4 console=${CONSOLE},115200 quiet"
 
-[ -f "$KERNEL" ]   || { echo "no kernel at $KERNEL, run make iso first" >&2; exit 1; }
-[ -f "$INITRD" ]   || { echo "no initramfs at $INITRD, run make iso first" >&2; exit 1; }
-[ -f "$DISK_IMG" ] || { echo "no disk at $DISK_IMG, run make run-iso to install first" >&2; exit 1; }
+[ -f "$KERNEL" ]   || { echo "no kernel at $KERNEL, run task iso first" >&2; exit 1; }
+[ -f "$INITRD" ]   || { echo "no initramfs at $INITRD, run task iso first" >&2; exit 1; }
+[ -f "$DISK_IMG" ] || { echo "no disk at $DISK_IMG, run task run-iso to install first" >&2; exit 1; }
 
 case "$ARCH" in
 	aarch64)

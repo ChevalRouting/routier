@@ -7,7 +7,7 @@ import (
 
 	appctx "github.com/ChevalRouting/routier/pkg/api/app"
 	"github.com/ChevalRouting/routier/pkg/api/cfgstore"
-	natpkg "github.com/ChevalRouting/routier/pkg/nat"
+	natpkg "github.com/ChevalRouting/routier/pkg/nftables/nat"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/rs/zerolog/log"
 )
@@ -75,7 +75,7 @@ func Replace(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := cfgstore.WriteStaging(app.ConfigPath, username, cfg); err != nil {
-		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "failed to write staging config"))
+		types.Error(log.Logger, w, cfgstore.StagingError(err, "failed to write staging config"))
 		return
 	}
 

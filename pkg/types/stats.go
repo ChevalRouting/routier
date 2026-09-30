@@ -154,6 +154,15 @@ type StatsHistoryResponse struct {
 	System     []SystemHistoryPoint           `json:"system,omitempty" validate:"optional"`
 	Total      []IfaceTotalPoint              `json:"total,omitempty" validate:"optional"`
 	Usage      *UsageSummary                  `json:"usage,omitempty" validate:"optional"`
+	Probes     map[string][]ProbeHistoryPoint `json:"probes,omitempty" validate:"optional"`
+}
+
+type ProbeHistoryPoint struct {
+	TS        int64    `json:"ts"`
+	Name      string   `json:"name"`
+	Target    string   `json:"target"`
+	Reachable bool     `json:"reachable"`
+	RTTAvgMS  *float64 `json:"rtt_avg_ms,omitempty" validate:"optional"`
 }
 
 type NeighborStat struct {
@@ -167,6 +176,11 @@ type NeighborStat struct {
 
 type NeighborStatsResponse struct {
 	Neighbors []NeighborStat `json:"neighbors,omitempty" validate:"optional"`
+	TS        int64          `json:"ts"`
+}
+
+type LLDPStatsResponse struct {
+	Neighbors []LLDPNeighbor `json:"neighbors,omitempty" validate:"optional"`
 	TS        int64          `json:"ts"`
 }
 

@@ -1,4 +1,4 @@
-_routier_host="$(hostname -f 2>/dev/null || hostname)"
+_routier_host="$(hostname 2>/dev/null)"
 
 _routier_ver() {
 	[ -r /etc/routier/version ] || return 0

@@ -17,12 +17,19 @@ import (
 // @Summary  Get the staged config
 // @Tags config
 // @Produce json
+// @Param layer query string false "configuration layer" Enums(advanced, simple)
 // @Success 200 {object} types.Response[config.Config]
 // @Security BearerAuth
 // @Router /api/config [get]
 func GetConfig(w http.ResponseWriter, r *http.Request) {
 	app := appctx.FromContext(r.Context())
-	cfg, err := cfgstore.Read(app.ConfigPath, appctx.UsernameFromContext(r.Context()))
+	layer, appErr := requestLayer(r)
+	if appErr != nil {
+		types.Error(log.Logger, w, appErr)
+		return
+	}
+
+	cfg, err := cfgstore.ReadLayer(app.ConfigPath, appctx.UsernameFromContext(r.Context()), layer.Name())
 	if err != nil {
 		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "failed to read config"))
 		return
@@ -46,7 +53,18 @@ func GetConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	types.OK(w, cfg)
+	projected, err := layer.Project(cfg)
+	if err != nil {
+		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "failed to project config"))
+		return
+	}
+
+	if layer.Name() == "advanced" {
+		types.OK(w, cfg)
+		return
+	}
+
+	types.OK(w, projected)
 }
 
 func sealForFriend(app *appctx.App, cfg *cfgpkg.Config, friendName string, payload any) ([]byte, error) {

@@ -21,10 +21,40 @@ import { mapValues } from '../runtime';
 export interface ConfigBGPAddressFamily {
     /**
      * 
+     * @type {Array<string>}
+     * @memberof ConfigBGPAddressFamily
+     */
+    advertise?: Array<string>;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof ConfigBGPAddressFamily
+     */
+    advertise_all_vni?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof ConfigBGPAddressFamily
+     */
+    advertise_default_gateway?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof ConfigBGPAddressFamily
+     */
+    advertise_svi_ip?: boolean;
+    /**
+     * 
      * @type {boolean}
      * @memberof ConfigBGPAddressFamily
      */
     default_originate?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof ConfigBGPAddressFamily
+     */
+    export_vpn?: boolean;
     /**
      * 
      * @type {Array<string>}
@@ -33,10 +63,22 @@ export interface ConfigBGPAddressFamily {
     extra?: Array<string>;
     /**
      * 
+     * @type {boolean}
+     * @memberof ConfigBGPAddressFamily
+     */
+    import_vpn?: boolean;
+    /**
+     * 
      * @type {Array<string>}
      * @memberof ConfigBGPAddressFamily
      */
     import_vrf?: Array<string>;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof ConfigBGPAddressFamily
+     */
+    label_vpn_export_auto?: boolean;
     /**
      * 
      * @type {number}
@@ -49,6 +91,12 @@ export interface ConfigBGPAddressFamily {
      * @memberof ConfigBGPAddressFamily
      */
     networks?: Array<string>;
+    /**
+     * 
+     * @type {string}
+     * @memberof ConfigBGPAddressFamily
+     */
+    rd?: string;
     /**
      * 
      * @type {Array<string>}
@@ -67,6 +115,42 @@ export interface ConfigBGPAddressFamily {
      * @memberof ConfigBGPAddressFamily
      */
     route_map_out?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ConfigBGPAddressFamily
+     */
+    route_map_vpn_export?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ConfigBGPAddressFamily
+     */
+    route_map_vpn_import?: string;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof ConfigBGPAddressFamily
+     */
+    route_target_export?: Array<string>;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof ConfigBGPAddressFamily
+     */
+    route_target_import?: Array<string>;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof ConfigBGPAddressFamily
+     */
+    rt_vpn_export?: Array<string>;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof ConfigBGPAddressFamily
+     */
+    rt_vpn_import?: Array<string>;
 }
 
 /**
@@ -86,14 +170,28 @@ export function ConfigBGPAddressFamilyFromJSONTyped(json: any, ignoreDiscriminat
     }
     return {
         
+        'advertise': json['advertise'] == null ? undefined : json['advertise'],
+        'advertise_all_vni': json['advertise_all_vni'] == null ? undefined : json['advertise_all_vni'],
+        'advertise_default_gateway': json['advertise_default_gateway'] == null ? undefined : json['advertise_default_gateway'],
+        'advertise_svi_ip': json['advertise_svi_ip'] == null ? undefined : json['advertise_svi_ip'],
         'default_originate': json['default_originate'] == null ? undefined : json['default_originate'],
+        'export_vpn': json['export_vpn'] == null ? undefined : json['export_vpn'],
         'extra': json['extra'] == null ? undefined : json['extra'],
+        'import_vpn': json['import_vpn'] == null ? undefined : json['import_vpn'],
         'import_vrf': json['import_vrf'] == null ? undefined : json['import_vrf'],
+        'label_vpn_export_auto': json['label_vpn_export_auto'] == null ? undefined : json['label_vpn_export_auto'],
         'maximum_paths': json['maximum_paths'] == null ? undefined : json['maximum_paths'],
         'networks': json['networks'] == null ? undefined : json['networks'],
+        'rd': json['rd'] == null ? undefined : json['rd'],
         'redistribute': json['redistribute'] == null ? undefined : json['redistribute'],
         'route_map_in': json['route_map_in'] == null ? undefined : json['route_map_in'],
         'route_map_out': json['route_map_out'] == null ? undefined : json['route_map_out'],
+        'route_map_vpn_export': json['route_map_vpn_export'] == null ? undefined : json['route_map_vpn_export'],
+        'route_map_vpn_import': json['route_map_vpn_import'] == null ? undefined : json['route_map_vpn_import'],
+        'route_target_export': json['route_target_export'] == null ? undefined : json['route_target_export'],
+        'route_target_import': json['route_target_import'] == null ? undefined : json['route_target_import'],
+        'rt_vpn_export': json['rt_vpn_export'] == null ? undefined : json['rt_vpn_export'],
+        'rt_vpn_import': json['rt_vpn_import'] == null ? undefined : json['rt_vpn_import'],
     };
 }
 
@@ -108,14 +206,28 @@ export function ConfigBGPAddressFamilyToJSONTyped(value?: ConfigBGPAddressFamily
 
     return {
         
+        'advertise': value['advertise'],
+        'advertise_all_vni': value['advertise_all_vni'],
+        'advertise_default_gateway': value['advertise_default_gateway'],
+        'advertise_svi_ip': value['advertise_svi_ip'],
         'default_originate': value['default_originate'],
+        'export_vpn': value['export_vpn'],
         'extra': value['extra'],
+        'import_vpn': value['import_vpn'],
         'import_vrf': value['import_vrf'],
+        'label_vpn_export_auto': value['label_vpn_export_auto'],
         'maximum_paths': value['maximum_paths'],
         'networks': value['networks'],
+        'rd': value['rd'],
         'redistribute': value['redistribute'],
         'route_map_in': value['route_map_in'],
         'route_map_out': value['route_map_out'],
+        'route_map_vpn_export': value['route_map_vpn_export'],
+        'route_map_vpn_import': value['route_map_vpn_import'],
+        'route_target_export': value['route_target_export'],
+        'route_target_import': value['route_target_import'],
+        'rt_vpn_export': value['rt_vpn_export'],
+        'rt_vpn_import': value['rt_vpn_import'],
     };
 }
 

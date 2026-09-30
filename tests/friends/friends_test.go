@@ -2,7 +2,7 @@ package friendstest
 
 import (
 	"encoding/base64"
-	"github.com/ChevalRouting/routier/tests/harness"
+	"github.com/ChevalRouting/routier/tests/testkit"
 	"net/http"
 	"testing"
 
@@ -34,14 +34,14 @@ friends:
 }
 
 func TestFriendsHelloChallenge(t *testing.T) {
-	a := harness.NewNode(t, nodeAConfig)
+	a := testkit.NewNode(t, nodeAConfig)
 
 	status, raw := a.Do(t, http.MethodGet, "/api/friends/hello?challenge=nonce-123", nil)
 	if status != http.StatusOK {
 		t.Fatalf("hello status %d: %s", status, raw)
 	}
 
-	hello := harness.DecodeData[types.FriendsHello](t, raw)
+	hello := testkit.DecodeData[types.FriendsHello](t, raw)
 	if hello.IdentityFingerprint == "" || hello.Signature == "" {
 		t.Fatalf("hello missing identity/signature: %+v", hello)
 	}
@@ -68,11 +68,11 @@ func TestFriendsHelloChallenge(t *testing.T) {
 func TestFriendsPreviewAddPair(t *testing.T) {
 	const token = "shared-secret-token"
 
-	a := harness.NewNode(t, nodeAConfig)
-	b := harness.NewNode(t, nodeBConfig(token))
+	a := testkit.NewNode(t, nodeAConfig)
+	b := testkit.NewNode(t, nodeBConfig(token))
 
 	_, helloRaw := a.Do(t, http.MethodGet, "/api/friends/hello", nil)
-	aFingerprint := harness.DecodeData[types.FriendsHello](t, helloRaw).IdentityFingerprint
+	aFingerprint := testkit.DecodeData[types.FriendsHello](t, helloRaw).IdentityFingerprint
 
 	status, raw := a.Do(t, http.MethodPost, "/api/friends/preview", types.FriendPreviewRequest{
 		URL: b.URL, Token: token, TLSSkipVerify: true,
@@ -81,7 +81,7 @@ func TestFriendsPreviewAddPair(t *testing.T) {
 		t.Fatalf("preview status %d: %s", status, raw)
 	}
 
-	preview := harness.DecodeData[types.FriendPreview](t, raw)
+	preview := testkit.DecodeData[types.FriendPreview](t, raw)
 	if !preview.Reachable || preview.Hostname != "node-b" || preview.IdentityFingerprint == "" {
 		t.Fatalf("unexpected preview: %+v", preview)
 	}
@@ -97,7 +97,7 @@ func TestFriendsPreviewAddPair(t *testing.T) {
 		t.Fatalf("add status %d: %s", status, raw)
 	}
 
-	info := harness.DecodeData[types.FriendInfo](t, raw)
+	info := testkit.DecodeData[types.FriendInfo](t, raw)
 	if info.Fingerprint != preview.IdentityFingerprint {
 		t.Fatalf("added friend fingerprint mismatch: %+v", info)
 	}
@@ -113,18 +113,18 @@ func TestFriendsPreviewAddPair(t *testing.T) {
 		t.Fatalf("pair status %d: %s", status, raw)
 	}
 
-	if !harness.DecodeData[types.FriendInfo](t, raw).Paired {
+	if !testkit.DecodeData[types.FriendInfo](t, raw).Paired {
 		t.Fatal("expected friend to be paired after verification")
 	}
 
 	_, raw = a.Do(t, http.MethodGet, "/api/friends", nil)
-	aFriends := harness.DecodeData[[]types.FriendInfo](t, raw)
+	aFriends := testkit.DecodeData[[]types.FriendInfo](t, raw)
 	if len(aFriends) != 1 || aFriends[0].Name != "node-b" || aFriends[0].Fingerprint == "" {
 		t.Fatalf("A friends list wrong: %+v", aFriends)
 	}
 
 	_, raw = b.Do(t, http.MethodGet, "/api/friends", nil)
-	bFriends := harness.DecodeData[[]types.FriendInfo](t, raw)
+	bFriends := testkit.DecodeData[[]types.FriendInfo](t, raw)
 	if len(bFriends) != 1 || bFriends[0].Name != "node-a" {
 		t.Fatalf("B friends list wrong: %+v", bFriends)
 	}
@@ -142,7 +142,7 @@ func TestFriendsPreviewAddPair(t *testing.T) {
 		t.Fatalf("B could not fetch A's config after pairing: %d %s", status, raw)
 	}
 
-	remoteCfg := harness.DecodeData[map[string]any](t, raw)
+	remoteCfg := testkit.DecodeData[map[string]any](t, raw)
 	if remoteCfg["hostname"] != "node-a" {
 		t.Fatalf("unexpected remote config from A: %+v", remoteCfg)
 	}
@@ -152,7 +152,7 @@ func TestFriendsPreviewAddPair(t *testing.T) {
 		t.Fatalf("remote interfaces status %d: %s", status, raw)
 	}
 
-	ifaces := harness.DecodeData[[]types.FriendInterface](t, raw)
+	ifaces := testkit.DecodeData[[]types.FriendInterface](t, raw)
 	found := false
 	for _, i := range ifaces {
 		if i.Name == "lan" {
@@ -166,7 +166,7 @@ func TestFriendsPreviewAddPair(t *testing.T) {
 }
 
 func TestFriendDeleteCascade(t *testing.T) {
-	c := harness.NewNode(t, `version: v3.0.0
+	c := testkit.NewNode(t, `version: v3.0.0
 hostname: node-c
 friends:
   - name: peer
@@ -190,7 +190,7 @@ wireguard:
 		t.Fatalf("delete preview status %d: %s", status, raw)
 	}
 
-	preview := harness.DecodeData[types.FriendDeleteResult](t, raw)
+	preview := testkit.DecodeData[types.FriendDeleteResult](t, raw)
 	if preview.Deleted {
 		t.Fatal("expected preview not to delete")
 	}
@@ -204,17 +204,17 @@ wireguard:
 		t.Fatalf("delete confirm status %d: %s", status, raw)
 	}
 
-	if !harness.DecodeData[types.FriendDeleteResult](t, raw).Deleted {
+	if !testkit.DecodeData[types.FriendDeleteResult](t, raw).Deleted {
 		t.Fatal("expected confirmed delete")
 	}
 
 	_, raw = c.Do(t, http.MethodGet, "/api/friends", nil)
-	if friends := harness.DecodeData[[]types.FriendInfo](t, raw); len(friends) != 0 {
+	if friends := testkit.DecodeData[[]types.FriendInfo](t, raw); len(friends) != 0 {
 		t.Fatalf("friend not removed: %+v", friends)
 	}
 
 	_, raw = c.Do(t, http.MethodGet, "/api/config/wireguard", nil)
-	if wg := harness.DecodeData[map[string]any](t, raw); len(wg) != 0 {
+	if wg := testkit.DecodeData[map[string]any](t, raw); len(wg) != 0 {
 		t.Fatalf("tagged wireguard not removed: %+v", wg)
 	}
 }

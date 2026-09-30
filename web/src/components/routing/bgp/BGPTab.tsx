@@ -1,8 +1,8 @@
-import { useTabState } from '@/lib/useTabState'
-import { SectionNav } from '@/components/ui/section-nav'
-import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
-import { BGPConfig, BGPSubTab } from '../types'
+import { useTabState } from 'cheval-ui'
+import { SectionNav } from 'cheval-ui'
+import { Label } from 'cheval-ui'
+import { Switch } from 'cheval-ui'
+import { BGPConfig, BGPSubTab, PrefixEntry, RouteMapEntry } from '../types'
 import { BGPGeneralPanel } from './GeneralPanel'
 import { BGPNeighborsPanel } from './Neighbors'
 import { BGPAddressFamiliesPanel } from './AddressFamilies'
@@ -11,6 +11,7 @@ import { BGPRouteMapsPanel } from './RouteMaps'
 
 export function BGPTab({
   bgp, setBGP, enabled, setEnabled, vrfNames, bfdProfileNames, onDirty,
+  prefixLists, setPrefixLists, routeMaps, setRouteMaps,
 }: {
   bgp: BGPConfig
   setBGP: (v: BGPConfig) => void
@@ -19,11 +20,15 @@ export function BGPTab({
   vrfNames: string[]
   bfdProfileNames: string[]
   onDirty: () => void
+  prefixLists: Record<string, PrefixEntry[]>
+  setPrefixLists: (v: Record<string, PrefixEntry[]>) => void
+  routeMaps: Record<string, RouteMapEntry[]>
+  setRouteMaps: (v: Record<string, RouteMapEntry[]>) => void
 }) {
   const [subTab, setSubTab] = useTabState<BGPSubTab>('routing.bgp', 'general')
 
-  const prefixListNames = Object.keys(bgp.prefix_lists ?? {})
-  const routeMapNames = Object.keys(bgp.route_maps ?? {})
+  const prefixListNames = Object.keys(prefixLists)
+  const routeMapNames = Object.keys(routeMaps)
 
   const subTabs: { key: BGPSubTab; label: string }[] = [
     { key: 'general', label: 'General' },
@@ -72,15 +77,15 @@ export function BGPTab({
           )}
           {subTab === 'prefix-lists' && (
             <BGPPrefixListsPanel
-              prefixLists={bgp.prefix_lists ?? {}}
-              onChange={(prefix_lists) => setBGP({ ...bgp, prefix_lists })}
+              prefixLists={prefixLists}
+              onChange={setPrefixLists}
               onDirty={onDirty}
             />
           )}
           {subTab === 'route-maps' && (
             <BGPRouteMapsPanel
-              routeMaps={bgp.route_maps ?? {}}
-              onChange={(route_maps) => setBGP({ ...bgp, route_maps })}
+              routeMaps={routeMaps}
+              onChange={setRouteMaps}
               prefixListNames={prefixListNames}
               onDirty={onDirty}
             />

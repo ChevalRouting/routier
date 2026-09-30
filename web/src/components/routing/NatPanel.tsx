@@ -4,15 +4,16 @@ import { api } from '@/lib/client'
 import type { NatSpec, NatKind } from '@/api'
 import { useFetch } from '@/lib/useFetch'
 import { useDataRefresh } from '@/lib/dataVersion'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
-import { Spinner } from '@/components/Spinner'
-import { EmptyState } from '@/components/EmptyState'
+import { Button } from 'cheval-ui'
+import { Input } from 'cheval-ui'
+import { Label } from 'cheval-ui'
+import { Badge } from 'cheval-ui'
+import { Spinner } from 'cheval-ui'
+import { Card } from 'cheval-ui'
+import { EmptyState } from 'cheval-ui'
 import { VarPickerInput } from '@/components/VarPickerInput'
 import { Plus, Trash2 } from 'lucide-react'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from 'cheval-ui'
 
 const KIND_LABEL: Record<NatKind, string> = {
   masquerade: 'Masquerade',
@@ -25,6 +26,98 @@ export interface NatSaveState {
   saving: boolean
   save: () => void
   cancel: () => void
+}
+
+function NatSummary({ spec }: { spec: NatSpec }) {
+  const detail =
+    spec.kind === 'dnat'
+      ? `${spec.in || 'any'} ${spec.proto || 'tcp'}/${spec.dport || '?'} → ${spec.to || '?'}`
+      : spec.kind === 'snat'
+        ? `${spec.source || 'any'} → ${spec.to || '?'}${spec.out ? ` out ${spec.out}` : ''}`
+        : `out ${spec.out || 'any'}${spec.source ? ` from ${spec.source}` : ''}`
+  return (
+    <div className="flex min-w-0 flex-1 items-center gap-3">
+      <Badge variant="secondary" className="shrink-0 text-[11px]">{KIND_LABEL[spec.kind]}</Badge>
+      <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">{detail}</span>
+      {spec.comment && <span className="hidden shrink-0 truncate text-xs text-muted-foreground sm:block">{spec.comment}</span>}
+    </div>
+  )
+}
+
+function NatBody({ spec, ifaceVars, addrVars, onChange }: {
+  spec: NatSpec
+  ifaceVars: string[]
+  addrVars: string[]
+  onChange: (patch: Partial<NatSpec>) => void
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      {(spec.kind === 'masquerade' || spec.kind === 'snat') && (
+        <div className="space-y-1.5">
+          <Label className="text-[11px]">Out interface</Label>
+          <VarPickerInput value={spec.out ?? ''} onChange={(v) => onChange({ out: v })} vars={ifaceVars} placeholder="$wan_interfaces" mono />
+        </div>
+      )}
+      {spec.kind === 'snat' && (
+        <div className="space-y-1.5">
+          <Label className="text-[11px]">SNAT to</Label>
+          <Input value={spec.to ?? ''} onChange={(e) => onChange({ to: e.target.value })} placeholder="203.0.113.5" className="font-mono text-sm h-8" />
+        </div>
+      )}
+      {(spec.kind === 'masquerade' || spec.kind === 'snat') && (
+        <>
+          <div className="space-y-1.5">
+            <Label className="text-[11px]">Source (optional)</Label>
+            <VarPickerInput value={spec.source ?? ''} onChange={(v) => onChange({ source: v })} vars={addrVars} placeholder="$lan_network" mono />
+          </div>
+          {spec.source ? (
+            <div className="space-y-1.5">
+              <Label className="text-[11px]">Source family</Label>
+              <Select value={spec.family || 'ip'} onValueChange={(v) => onChange({ family: v })}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ip">ip</SelectItem>
+                  <SelectItem value="ip6">ip6</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
+        </>
+      )}
+
+      {spec.kind === 'dnat' && (
+        <>
+          <div className="space-y-1.5">
+            <Label className="text-[11px]">In interface</Label>
+            <VarPickerInput value={spec.in ?? ''} onChange={(v) => onChange({ in: v })} vars={ifaceVars} placeholder="$wan_interfaces" mono />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-[11px]">Protocol</Label>
+            <Select value={spec.proto || 'tcp'} onValueChange={(v) => onChange({ proto: v })}>
+              <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="tcp">tcp</SelectItem>
+                <SelectItem value="udp">udp</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-[11px]">Dest port</Label>
+            <Input value={spec.dport ?? ''} onChange={(e) => onChange({ dport: e.target.value })} placeholder="443" className="font-mono text-sm h-8" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-[11px]">Forward to</Label>
+            <Input value={spec.to ?? ''} onChange={(e) => onChange({ to: e.target.value })} placeholder="10.0.0.5:8443" className="font-mono text-sm h-8" />
+          </div>
+        </>
+      )}
+
+      <div className="space-y-1.5">
+        <Label className="text-[11px]">Comment</Label>
+        <Input value={spec.comment ?? ''} onChange={(e) => onChange({ comment: e.target.value })} placeholder="optional" className="text-sm h-8" />
+      </div>
+    </div>
+  )
 }
 
 export default function NatPanel({ onStateChange }: { onStateChange?: (s: NatSaveState) => void }) {
@@ -98,95 +191,26 @@ export default function NatPanel({ onStateChange }: { onStateChange?: (s: NatSav
         port-forwards in prerouting). They show up on the Firewall page and can be edited or removed there too.
       </p>
 
+      {addButtons}
       {specs.length === 0 ? (
         <EmptyState
           title="No NAT rules"
           message="Masquerade, SNAT and port-forward shortcuts write tagged rules into the firewall chains."
-          action={addButtons}
         />
       ) : (
-        <>
-        {addButtons}
-        <div className="space-y-2">
-          {specs.map((s, i) => (
-            <div key={i} className="border rounded-md p-3 space-y-3">
-              <div className="flex items-center justify-between">
-                <Badge variant="secondary" className="text-[11px]">{KIND_LABEL[s.kind]}</Badge>
-                <Button variant="ghost" size="icon" className="h-6 w-6 hover:text-destructive" onClick={() => remove(i)}>
+        <div className="grid gap-3">
+          {specs.map((spec, index) => (
+            <Card key={index} className="space-y-4 p-4">
+              <div className="flex items-center gap-3">
+                <NatSummary spec={spec} />
+                <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => remove(index)}>
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </div>
-
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {(s.kind === 'masquerade' || s.kind === 'snat') && (
-                  <div className="space-y-1">
-                    <Label className="text-[11px]">Out interface</Label>
-                    <VarPickerInput value={s.out ?? ''} onChange={(v) => setSpec(i, { out: v })} vars={ifaceVars} placeholder="$wan_interfaces" mono />
-                  </div>
-                )}
-                {s.kind === 'snat' && (
-                  <div className="space-y-1">
-                    <Label className="text-[11px]">SNAT to</Label>
-                    <Input value={s.to ?? ''} onChange={(e) => setSpec(i, { to: e.target.value })} placeholder="203.0.113.5" className="font-mono text-sm h-8" />
-                  </div>
-                )}
-                {(s.kind === 'masquerade' || s.kind === 'snat') && (
-                  <>
-                    <div className="space-y-1">
-                      <Label className="text-[11px]">Source (optional)</Label>
-                      <VarPickerInput value={s.source ?? ''} onChange={(v) => setSpec(i, { source: v })} vars={addrVars} placeholder="$lan_network" mono />
-                    </div>
-                    {s.source ? (
-                      <div className="space-y-1">
-                        <Label className="text-[11px]">Source family</Label>
-                        <Select value={s.family || 'ip'} onValueChange={(v) => setSpec(i, { family: v })}>
-                          <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="ip">ip</SelectItem>
-                            <SelectItem value="ip6">ip6</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    ) : null}
-                  </>
-                )}
-
-                {s.kind === 'dnat' && (
-                  <>
-                    <div className="space-y-1">
-                      <Label className="text-[11px]">In interface</Label>
-                      <VarPickerInput value={s.in ?? ''} onChange={(v) => setSpec(i, { in: v })} vars={ifaceVars} placeholder="$wan_interfaces" mono />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-[11px]">Protocol</Label>
-                      <Select value={s.proto || 'tcp'} onValueChange={(v) => setSpec(i, { proto: v })}>
-                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="tcp">tcp</SelectItem>
-                          <SelectItem value="udp">udp</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-[11px]">Dest port</Label>
-                      <Input value={s.dport ?? ''} onChange={(e) => setSpec(i, { dport: e.target.value })} placeholder="443" className="font-mono text-sm h-8" />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-[11px]">Forward to</Label>
-                      <Input value={s.to ?? ''} onChange={(e) => setSpec(i, { to: e.target.value })} placeholder="10.0.0.5:8443" className="font-mono text-sm h-8" />
-                    </div>
-                  </>
-                )}
-
-                <div className="space-y-1">
-                  <Label className="text-[11px]">Comment</Label>
-                  <Input value={s.comment ?? ''} onChange={(e) => setSpec(i, { comment: e.target.value })} placeholder="optional" className="text-sm h-8" />
-                </div>
-              </div>
-            </div>
+              <NatBody spec={spec} ifaceVars={ifaceVars} addrVars={addrVars} onChange={(patch) => setSpec(index, patch)} />
+            </Card>
           ))}
         </div>
-        </>
       )}
     </div>
   )

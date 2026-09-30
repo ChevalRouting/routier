@@ -14,6 +14,7 @@ import (
 	appctx "github.com/ChevalRouting/routier/pkg/api/app"
 	"github.com/ChevalRouting/routier/pkg/api/cfgstore"
 	"github.com/ChevalRouting/routier/pkg/api/friendcache"
+	"github.com/ChevalRouting/routier/pkg/api/requests"
 	"github.com/ChevalRouting/routier/pkg/config"
 	webdb "github.com/ChevalRouting/routier/pkg/db"
 	"github.com/ChevalRouting/routier/pkg/diffutil"
@@ -59,7 +60,7 @@ func v1SessionMiddleware(next http.Handler) http.Handler {
 		id := chi.URLParam(r, "sessionID")
 		username := appctx.UsernameFromContext(r.Context())
 
-		sess, err := webdb.LoadSession(app.DB, id)
+		sess, err := webdb.LoadSession(r.Context(), app.DB, id)
 		if err != nil {
 			types.Err(http.StatusInternalServerError, "failed to load session").Write(w)
 			return
@@ -100,7 +101,7 @@ func handleV1CreateSession(w http.ResponseWriter, r *http.Request) {
 
 	id := v1NewID()
 	createdAt := time.Now().UTC()
-	if err := webdb.InsertSession(app.DB, id, username, createdAt, cfg.BaseDir, cfg); err != nil {
+	if err := webdb.InsertSession(requests.DurableContext(r), app.DB, id, username, createdAt, cfg.BaseDir, cfg); err != nil {
 		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "failed to create session"))
 		return
 	}
@@ -118,7 +119,7 @@ func handleV1CreateSession(w http.ResponseWriter, r *http.Request) {
 func handleV1ListSessions(w http.ResponseWriter, r *http.Request) {
 	app := appctx.FromContext(r.Context())
 	username := appctx.UsernameFromContext(r.Context())
-	list, err := webdb.ListUserSessions(app.DB, username)
+	list, err := webdb.ListUserSessions(r.Context(), app.DB, username)
 	if err != nil {
 		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "failed to list sessions"))
 		return
@@ -152,7 +153,7 @@ func handleV1DeleteSession(w http.ResponseWriter, r *http.Request) {
 	app := appctx.FromContext(r.Context())
 	sess := v1SessionFromCtx(r.Context())
 	if err := v1WithLock(sess.ID, func() error {
-		return webdb.DeleteSession(app.DB, sess.ID)
+		return webdb.DeleteSession(requests.DurableContext(r), app.DB, sess.ID)
 	}); err != nil {
 		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "failed to delete session"))
 		return
@@ -224,7 +225,7 @@ func handleV1SessionApply(w http.ResponseWriter, r *http.Request) {
 
 	var result types.ApplyResult
 	if err := v1WithLock(sess.ID, func() error {
-		current, err := webdb.LoadSession(app.DB, sess.ID)
+		current, err := webdb.LoadSession(r.Context(), app.DB, sess.ID)
 		if err != nil || current == nil {
 			return types.NewError(http.StatusNotFound, "session not found or expired")
 		}
@@ -279,7 +280,7 @@ func handleV1SessionApply(w http.ResponseWriter, r *http.Request) {
 			return types.Wrap(http.StatusInternalServerError, err, "apply failed (rolled back)")
 		}
 
-		_ = webdb.DeleteSession(app.DB, sess.ID)
+		_ = webdb.DeleteSession(requests.DurableContext(r), app.DB, sess.ID)
 
 		result.Status = "applied"
 		result.SnapID = res.SnapID

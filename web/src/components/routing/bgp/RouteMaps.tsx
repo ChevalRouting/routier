@@ -1,14 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
-import { Input } from '@/components/ui/input'
-import { NumberInput } from '@/components/ui/number-input'
-import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
-import { EmptyState } from '@/components/EmptyState'
-import { Sheet } from '@/components/ui/sheet'
+import { Input } from 'cheval-ui'
+import { NumberInput } from 'cheval-ui'
+import { Label } from 'cheval-ui'
+import { Button } from 'cheval-ui'
+import { EmptyState } from 'cheval-ui'
+import { Sheet } from 'cheval-ui'
 import { Plus, Trash2 } from 'lucide-react'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { PreferencesGroup, PreferencesColumns, Row } from '@/components/Preferences'
-import { Segmented } from '@/components/ui/segmented'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from 'cheval-ui'
+import { PreferencesGroup, PreferencesColumns, Row } from 'cheval-ui'
+import { Segmented } from 'cheval-ui'
 import { RouteMapEntry } from '../types'
 import { KVPair, toRecord, fromRecord, newId } from '../shared'
 import { ClauseEditor, MATCH_OPS, SET_OPS } from '../ClauseEditor'
@@ -40,7 +40,7 @@ export function RouteMapEntryCard({
   return (
     <PreferencesGroup>
       <div className="flex items-end gap-4 px-4 py-3">
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <Label className="text-xs text-muted-foreground">Seq</Label>
           <NumberInput
             value={row.seq || undefined}
@@ -48,7 +48,7 @@ export function RouteMapEntryCard({
             className="font-mono h-8 text-xs w-24"
           />
         </div>
-        <div className="space-y-1 mr-4">
+        <div className="space-y-1.5 mr-4">
           <Label className="text-xs text-muted-foreground">Action</Label>
           <Segmented
             value={row.action}
@@ -79,7 +79,7 @@ export function RouteMapEntryCard({
       <div className="px-4 py-3 space-y-3">
         <Label className="text-xs font-semibold text-muted-foreground">Flow control</Label>
         <div className="flex flex-wrap items-end gap-4">
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Call route-map</Label>
             <Select value={row.call || '_none'} onValueChange={(v) => onChange({ call: v === '_none' ? '' : v })}>
               <SelectTrigger className="h-8 text-xs font-mono w-44"><SelectValue /></SelectTrigger>
@@ -89,7 +89,7 @@ export function RouteMapEntryCard({
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1 mr-4">
+          <div className="space-y-1.5 mr-4">
             <Label className="text-xs text-muted-foreground">On match</Label>
             <Segmented
               value={onMatchMode}
@@ -98,7 +98,7 @@ export function RouteMapEntryCard({
             />
           </div>
           {onMatchMode === 'goto' && (
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Goto seq</Label>
               <NumberInput
                 value={gotoSeq || undefined}
@@ -107,7 +107,7 @@ export function RouteMapEntryCard({
               />
             </div>
           )}
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Continue seq</Label>
             <NumberInput
               value={row.continue || undefined}

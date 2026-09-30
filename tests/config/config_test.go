@@ -1,7 +1,7 @@
 package configtest
 
 import (
-	"github.com/ChevalRouting/routier/tests/harness"
+	"github.com/ChevalRouting/routier/tests/testkit"
 	"strings"
 	"testing"
 
@@ -10,7 +10,7 @@ import (
 
 func TestConfigLoadValidateSave(t *testing.T) {
 	dir := t.TempDir()
-	path := harness.WriteConfig(t, dir, harness.MinimalConfig)
+	path := testkit.WriteConfig(t, dir, testkit.MinimalConfig)
 
 	cfg, err := config.LoadAndValidate(path, false)
 	if err != nil {
@@ -25,7 +25,7 @@ func TestConfigLoadValidateSave(t *testing.T) {
 		t.Fatalf("version = %q, want %q", cfg.Version, config.CurrentVersion)
 	}
 
-	out := harness.WriteConfig(t, dir, "")
+	out := testkit.WriteConfig(t, dir, "")
 	if err := config.Save(out, cfg); err != nil {
 		t.Fatalf("save: %v", err)
 	}
@@ -43,11 +43,11 @@ func TestConfigLoadValidateSave(t *testing.T) {
 func TestConfigRejectsVersionlessAndBadVersion(t *testing.T) {
 	dir := t.TempDir()
 
-	if _, err := config.Load(harness.WriteConfig(t, dir, "hostname: x\n")); err == nil {
+	if _, err := config.Load(testkit.WriteConfig(t, dir, "hostname: x\n")); err == nil {
 		t.Fatal("expected error for missing version")
 	}
 
-	if _, err := config.Load(harness.WriteConfig(t, dir, "version: v0.0.0\nhostname: x\n")); err == nil {
+	if _, err := config.Load(testkit.WriteConfig(t, dir, "version: v0.0.0\nhostname: x\n")); err == nil {
 		t.Fatal("expected error for incompatible major version")
 	}
 }
@@ -89,7 +89,7 @@ nftables:
 	}
 
 	dir := t.TempDir()
-	cfg, err := config.Load(harness.WriteConfig(t, dir, s))
+	cfg, err := config.Load(testkit.WriteConfig(t, dir, s))
 	if err != nil {
 		t.Fatalf("load migrated: %v", err)
 	}

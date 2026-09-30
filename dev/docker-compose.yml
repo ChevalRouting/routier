@@ -1,0 +1,77 @@
+name: routier-lab
+
+x-node: &node
+  build:
+    context: ..
+    dockerfile: dev/Dockerfile
+    args:
+      VERSION: dev
+  image: routier-dev:latest
+  privileged: true
+  environment:
+    container: docker
+  tmpfs:
+    - /run
+    - /tmp
+  restart: unless-stopped
+
+services:
+  tools:
+    profiles: ["tools"]
+    build:
+      context: ..
+      dockerfile: dev/toolchain.Dockerfile
+    environment:
+      ROUTIER_HOST_UID: ${ROUTIER_HOST_UID:-1000}
+      ROUTIER_HOST_GID: ${ROUTIER_HOST_GID:-1000}
+      GOCACHE: /go/build-cache
+      GOMODCACHE: /go/pkg/mod
+      npm_config_cache: /npm-cache
+    volumes:
+      - ..:/workspace
+      - go-mod-cache:/go/pkg/mod
+      - go-build-cache:/go/build-cache
+      - npm-cache:/npm-cache
+    working_dir: /workspace
+
+  routier-a:
+    <<: *node
+    hostname: routier-a
+    volumes:
+      - ./config/routier-a.yml:/etc/routier/config.yml
+    ports:
+      - "8443:8080"
+    networks:
+      mgmt: {}
+      lab:
+        ipv4_address: 10.80.0.11
+        mac_address: "02:42:0a:50:00:11"
+
+  routier-b:
+    <<: *node
+    hostname: routier-b
+    volumes:
+      - ./config/routier-b.yml:/etc/routier/config.yml
+    ports:
+      - "8444:8080"
+    networks:
+      mgmt: {}
+      lab:
+        ipv4_address: 10.80.0.12
+        mac_address: "02:42:0a:50:00:12"
+
+networks:
+  mgmt:
+    driver: bridge
+  lab:
+    driver: macvlan
+    driver_opts:
+      parent: ${LAB_PARENT:-eth0}
+    ipam:
+      config:
+        - subnet: 10.80.0.0/24
+
+volumes:
+  go-mod-cache:
+  go-build-cache:
+  npm-cache:

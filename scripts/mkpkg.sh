@@ -5,7 +5,6 @@ cd /app
 
 OUTDIR="dist/$(apk --print-arch)"
 
-rm -rf "$OUTDIR"
 mkdir -p "$OUTDIR"
 
 mkdir -p /work
@@ -52,15 +51,25 @@ fi
 
 cp /home/builder/.abuild/*.pub /etc/apk/keys/
 
+mkdir -p /app/dist/cache/npm
+chmod -R a+rwX /app/dist/cache
+
 rm -rf /home/builder/packages
-su builder -c "cd /work && abuild checksum && abuild -F"
+su builder -c "cd /work && export npm_config_cache=/app/dist/cache/npm && abuild checksum && abuild -F"
 
 find /home/builder/packages -name '*.apk' -exec cp {} "$OUTDIR/" \;
 cp /home/builder/.abuild/*.pub "$OUTDIR/" || true
 
 chown -R builder:builder "$OUTDIR"
 su builder -c "cd /app/$OUTDIR && apk index --rewrite-arch \$(apk --print-arch) -o APKINDEX.tar.gz *.apk" 2>&1 \
-    | grep -v 'WARNING: No provider\|WARNING: Total of.*unsatisfiable\|Your repository may be broken' || true
+    | awk '
+        /^WARNING: No provider/ { skip = 1; next }
+        skip && /^[[:space:]]/  { next }
+        { skip = 0 }
+        /^WARNING: Total of .*unsatisfiable/ { next }
+        /Your repository may be broken/ { next }
+        { print }
+      ' || true
 su builder -c "cd /app/$OUTDIR && abuild-sign APKINDEX.tar.gz"
 
 chown -R 0:0 "/app/dist"

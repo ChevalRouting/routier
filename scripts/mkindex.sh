@@ -5,7 +5,7 @@ cd /app
 OUTDIR="dist/$(apk --print-arch)"
 
 if [ ! -d "$OUTDIR" ] || [ -z "$(ls "$OUTDIR"/*.apk 2>/dev/null)" ]; then
-	echo "no packages in $OUTDIR - run 'make apk' first" >&2
+	echo "no packages in $OUTDIR - run 'task apk' first" >&2
 	exit 1
 fi
 
@@ -32,7 +32,14 @@ if ! su builder -c "cd /app/$OUTDIR && apk index --rewrite-arch \$(apk --print-a
 	echo "apk index failed" >&2
 	exit 1
 fi
-grep -v 'WARNING: No provider\|WARNING: Total of.*unsatisfiable\|Your repository may be broken' /tmp/idx.err >&2 || true
+awk '
+	/^WARNING: No provider/ { skip = 1; next }
+	skip && /^[[:space:]]/  { next }
+	{ skip = 0 }
+	/^WARNING: Total of .*unsatisfiable/ { next }
+	/Your repository may be broken/ { next }
+	{ print }
+' /tmp/idx.err >&2 || true
 
 want=$(set -- "$OUTDIR"/*.apk; echo $#)
 got=$(tar -Oxzf "$OUTDIR/APKINDEX.tar.gz.new" APKINDEX | grep -c "^P:")

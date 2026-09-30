@@ -73,7 +73,7 @@ func newRestoreCommand() *cobra.Command {
 				log.Warn().Msg(res.Warning)
 			}
 
-			if res.SnapID != "" && !noArm {
+			if res.Armed {
 				log.Info().Int("timeout", timeout).Msg("confirm pending: routier confirm")
 			}
 

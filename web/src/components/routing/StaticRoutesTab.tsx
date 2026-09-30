@@ -1,9 +1,9 @@
 import React, {} from 'react'
 import { checkIP, checkCIDR } from '@/lib/validate'
-import { Input } from '@/components/ui/input'
-import { NumberInput } from '@/components/ui/number-input'
-import { Button } from '@/components/ui/button'
-import { EmptyState } from '@/components/EmptyState'
+import { Input } from 'cheval-ui'
+import { NumberInput } from 'cheval-ui'
+import { Button } from 'cheval-ui'
+import { EmptyState } from 'cheval-ui'
 import { Plus, Trash2, RouteOff } from 'lucide-react'
 import { StaticRoute } from './types'
 import { newId } from './shared'
@@ -40,7 +40,7 @@ export function StaticRoutesTab({
           action={<Button variant="outline" size="sm" onClick={add} className="gap-2"><Plus className="h-4 w-4" />Add route</Button>}
         />
       ) : (
-        <div className="rounded-xl border border-border overflow-x-auto">
+        <div className="rounded-xl bg-card shadow-[var(--card-shadow)] overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
@@ -80,4 +80,3 @@ export function StaticRoutesTab({
     </div>
   )
 }
-

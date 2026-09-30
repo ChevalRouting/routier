@@ -34,6 +34,49 @@ dhcp:
 - Reservations are declarative: they are part of the config, versioned and
   applied like everything else.
 
+## Dynamic DNS (leases become DNS records)
+
+When `dhcp.ddns` is enabled, Kea's DDNS daemon (`kea-dhcp-ddns`, "D2") turns
+leases into DNS records: as clients get and release addresses, forward
+(`A`/`AAAA`) and reverse (`PTR`) records appear and disappear in the local BIND.
+
+```yaml
+dhcp:
+  enabled: true
+  subnets4:
+    - subnet: 192.168.10.0/24
+      interface: lan
+      pools:
+        - 192.168.10.100-192.168.10.200
+  ddns:
+    enabled: true
+    domain: lan.example.com     # forward zone and qualifying suffix
+    ttl: 3600
+    reverse: true               # PTR updates (default true)
+
+dns:
+  server:
+    enabled: true               # DDNS requires the local BIND
+```
+
+- `dhcp.ddns.enabled` requires `dns.server.enabled: true`: D2 sends the updates
+  to the BIND that Routier runs.
+- The **forward zone** (`domain`) and the **reverse zones** derived from each
+  subnet CIDR (`in-addr.arpa` / `ip6.arpa`) are created and owned automatically
+  as dynamic primaries. Do not declare them under `dns.server.zones`; Routier
+  writes a minimal `SOA`+`NS` bootstrap file once and lets D2 own the records
+  from then on.
+- Reverse zones are derived only for octet-aligned IPv4 prefixes (`/8`, `/16`,
+  `/24`) and nibble-aligned IPv6 prefixes (a multiple of 4). Other prefixes are
+  skipped for PTR, and forward records still work.
+- Kea and BIND authenticate updates with a shared **TSIG key**. Routier
+  generates it on first apply and writes it back into the config as
+  `dhcp.ddns.key`, so both `kea-dhcp-ddns.conf` and `named.conf` render the same
+  secret. If your config lives in a directory of split files, set `dhcp.ddns.key`
+  explicitly (the auto-persist writes to a single config file).
+- Per subnet you can override with `ddns: false` (opt a subnet out) or
+  `ddns_domain:` (a different qualifying suffix).
+
 ## How Routier talks to Kea
 
 Kea 3.0 deprecated the standalone Control Agent, so each local DHCP server

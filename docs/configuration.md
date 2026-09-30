@@ -12,14 +12,15 @@ artifacts, and applies them; there is no other source of truth.
 | `version` | config schema version (`vX.Y.Z`), required |
 | `hostname` | system hostname |
 | `vrfs` | VRF definitions |
-| `interfaces` | physical/virtual interfaces, addresses, VLANs, bridges, VRRP |
+| `interfaces` | physical/virtual interfaces, addresses, VLANs, bridges |
 | `tunnels` | IP tunnels |
 | `routing` | static routes, BGP, OSPF, BFD, PBR |
+| `ha` | high availability: VRRP and conntrackd |
 | `wireguard` | WireGuard interfaces (incl. friend-derived) |
 | `nftables` | firewall rules in the routier-owned table |
 | `sysctl` | kernel sysctl keys |
 | `users` | local users |
-| `dns` | resolver configuration |
+| `dns` | resolver configuration and the local DNS server |
 | `services` | managed services and their config templates |
 | `logging` | logging configuration |
 | `friends` | mutually-authenticated peer routers |

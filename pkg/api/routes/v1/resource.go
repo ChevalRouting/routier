@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	appctx "github.com/ChevalRouting/routier/pkg/api/app"
+	"github.com/ChevalRouting/routier/pkg/api/requests"
 	"github.com/ChevalRouting/routier/pkg/config"
 	webdb "github.com/ChevalRouting/routier/pkg/db"
 	"github.com/ChevalRouting/routier/pkg/types"
@@ -25,7 +26,7 @@ func v1Mutate(r *http.Request, fn func(c *config.Config) error) error {
 	app := appctx.FromContext(r.Context())
 	sess := v1SessionFromCtx(r.Context())
 	return v1WithLock(sess.ID, func() error {
-		s, err := webdb.LoadSession(app.DB, sess.ID)
+		s, err := webdb.LoadSession(r.Context(), app.DB, sess.ID)
 		if err != nil || s == nil {
 			return types.NewError(http.StatusNotFound, "session not found")
 		}
@@ -39,7 +40,7 @@ func v1Mutate(r *http.Request, fn func(c *config.Config) error) error {
 			return appErr
 		}
 
-		if err := webdb.UpdateSession(app.DB, sess.ID, s.Config); err != nil {
+		if err := webdb.UpdateSession(requests.DurableContext(r), app.DB, sess.ID, s.Config); err != nil {
 			return types.Wrap(http.StatusInternalServerError, err, "failed to save session")
 		}
 

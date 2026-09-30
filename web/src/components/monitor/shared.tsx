@@ -14,16 +14,4 @@ export const PERIODS = [
 ]
 export const C = { rx: '#3584e4', tx: '#26a269' }
 
-export function Legend({ items }: { items: { color: string; label: string }[] }) {
-  return (
-    <div className="flex items-center gap-3 text-xs text-muted-foreground">
-      {items.map((i) => (
-        <span key={i.label} className="flex items-center gap-1">
-          <span className="h-2 w-2 rounded-full shrink-0" style={{ background: i.color }} />
-          {i.label}
-        </span>
-      ))}
-    </div>
-  )
-}
-
+export { ChartLegend as Legend } from 'cheval-ui'

@@ -24,7 +24,11 @@ func Hostname(hostname string, dryRun bool) error {
 		kernelOK = strings.TrimRight(string(out), "\n") == hostname
 	}
 
-	if fileOK && kernelOK {
+	hostsData, _ := os.ReadFile("/etc/hosts")
+	wantHosts := desiredHosts(hostname, hostsData)
+	hostsOK := string(hostsData) == wantHosts
+
+	if fileOK && kernelOK && hostsOK {
 		return nil
 	}
 
@@ -46,6 +50,33 @@ func Hostname(hostname string, dryRun bool) error {
 		}
 	}
 
+	if !hostsOK {
+		if err := os.WriteFile("/etc/hosts", []byte(wantHosts), 0644); err != nil {
+			return fmt.Errorf("write /etc/hosts: %w", err)
+		}
+	}
+
 	log.Info().Str("hostname", hostname).Msg("set hostname")
 	return nil
+}
+
+func desiredHosts(hostname string, current []byte) string {
+	v4 := "127.0.0.1\tlocalhost localhost.localdomain " + hostname
+	v6 := "::1\tlocalhost localhost.localdomain " + hostname
+
+	var kept []string
+	for _, line := range strings.Split(string(current), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) >= 1 && (fields[0] == "127.0.0.1" || fields[0] == "127.0.1.1" || fields[0] == "::1") {
+			continue
+		}
+
+		kept = append(kept, line)
+	}
+
+	for len(kept) > 0 && strings.TrimSpace(kept[len(kept)-1]) == "" {
+		kept = kept[:len(kept)-1]
+	}
+
+	return strings.Join(append([]string{v4, v6}, kept...), "\n") + "\n"
 }

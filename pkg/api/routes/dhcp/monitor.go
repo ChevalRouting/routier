@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/ChevalRouting/routier/pkg/kea"
-	"github.com/ChevalRouting/routier/pkg/render"
 	"github.com/ChevalRouting/routier/pkg/svc"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/rs/zerolog/log"
@@ -37,6 +36,7 @@ func Stats(w http.ResponseWriter, r *http.Request) {
 		Services: []serviceState{
 			{Service: "kea-dhcp4", Running: svc.ServiceRunning("kea-dhcp4")},
 			{Service: "kea-dhcp6", Running: svc.ServiceRunning("kea-dhcp6")},
+			{Service: "kea-dhcp-ddns", Running: svc.ServiceRunning("kea-dhcp-ddns")},
 		},
 	}
 
@@ -54,14 +54,19 @@ func Stats(w http.ResponseWriter, r *http.Request) {
 }
 
 // LeaseStream godoc
-// @Summary  Tail Kea DHCP lease events (SSE)
+// @Summary  Tail Kea DHCP daemon logs (SSE)
 // @Tags dhcp
 // @Produce text/event-stream
 // @Success 200 {string} string
 // @Security BearerAuth
+// @Param source query string false "Kea daemon (omitted streams DHCPv4 and DHCPv6)" Enums(kea-dhcp4, kea-dhcp6, kea-dhcp-ddns)
 // @Router /api/dhcp/leases/stream [get]
 func LeaseStream(w http.ResponseWriter, r *http.Request) {
-	files := []string{render.KeaLog4, render.KeaLog6}
+	files, ok := leaseLogFiles(r.URL.Query().Get("source"))
+	if !ok {
+		types.Err(http.StatusBadRequest, "invalid DHCP log source").Write(w)
+		return
+	}
 
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -90,7 +95,15 @@ func LeaseStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	defer func() { _ = cmd.Wait() }()
+	defer func() {
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+	}()
+	// Establish the stream even when this daemon has not written any logs yet.
+	if hasFlusher {
+		fmt.Fprint(w, ": connected\n\n")
+		flusher.Flush()
+	}
 
 	scanner := bufio.NewScanner(stdout)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)

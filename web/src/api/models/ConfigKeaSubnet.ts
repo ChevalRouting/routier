@@ -29,6 +29,18 @@ import {
 export interface ConfigKeaSubnet {
     /**
      * 
+     * @type {boolean}
+     * @memberof ConfigKeaSubnet
+     */
+    ddns?: boolean;
+    /**
+     * 
+     * @type {string}
+     * @memberof ConfigKeaSubnet
+     */
+    ddns_domain?: string;
+    /**
+     * 
      * @type {Array<string>}
      * @memberof ConfigKeaSubnet
      */
@@ -95,6 +107,8 @@ export function ConfigKeaSubnetFromJSONTyped(json: any, ignoreDiscriminator: boo
     }
     return {
         
+        'ddns': json['ddns'] == null ? undefined : json['ddns'],
+        'ddns_domain': json['ddns_domain'] == null ? undefined : json['ddns_domain'],
         'dns': json['dns'] == null ? undefined : json['dns'],
         'exclusions': json['exclusions'] == null ? undefined : json['exclusions'],
         'gateway': json['gateway'] == null ? undefined : json['gateway'],
@@ -117,6 +131,8 @@ export function ConfigKeaSubnetToJSONTyped(value?: ConfigKeaSubnet | null, ignor
 
     return {
         
+        'ddns': value['ddns'],
+        'ddns_domain': value['ddns_domain'],
         'dns': value['dns'],
         'exclusions': value['exclusions'],
         'gateway': value['gateway'],

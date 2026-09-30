@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/ChevalRouting/routier/pkg/config"
-	"github.com/ChevalRouting/routier/pkg/nat"
+	"github.com/ChevalRouting/routier/pkg/nftables/nat"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )

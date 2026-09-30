@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/ChevalRouting/routier/pkg/boot"
 	"github.com/spf13/cobra"
 )
 
@@ -36,11 +37,17 @@ func newRootCommand() *cobra.Command {
 	root.AddCommand(
 		newVersionCommand(),
 		newWriteMOTDCommand(),
+		newIssueCommand(),
 		newFirstbootCommand(),
+		newBootHookCommand(),
+		newOnboardingCommand(),
+		newUpdateCommand(),
+		newUpgradeCommand(),
 		newTakeoverCommand(),
 		newValidateCommand(),
 		newMigrateCommand(),
 		newPlanCommand(),
+		newDiffCommand(),
 		newApplyCommand(),
 		newEditCommand(),
 		newBootCommand(),
@@ -49,6 +56,7 @@ func newRootCommand() *cobra.Command {
 		newInitCommand(),
 		newWatchdogCommand(),
 		newCollectStatsCommand(),
+		newCollectProbesCommand(),
 		newPruneStatsCommand(),
 		newAnycastCommand(),
 		newSwitchoverCommand(),
@@ -62,9 +70,10 @@ func newRootCommand() *cobra.Command {
 		newFriendsCommand(),
 		newNatCommand(),
 		newDHCPCommand(),
+		newDNSCommand(),
 		newIpcalcCommand(),
 	)
-	if isLiveISO() {
+	if boot.IsLive() {
 		root.AddCommand(newSetupCommand())
 	}
 

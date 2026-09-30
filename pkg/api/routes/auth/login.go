@@ -6,10 +6,12 @@ import (
 	"time"
 
 	appctx "github.com/ChevalRouting/routier/pkg/api/app"
-	webdb "github.com/ChevalRouting/routier/pkg/db"
+	"github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/types"
+	"github.com/ChevalRouting/routier/pkg/unixauth"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/rs/zerolog/log"
+	"slices"
 )
 
 type loginLimiterState struct {
@@ -61,31 +63,49 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	app := appctx.FromContext(r.Context())
 	var req types.LoginRequest
 	if ve := app.DecodeAndValidate(r, &req); ve != nil {
+		log.Warn().Msg("login request validation failed")
 		ve.Write(w)
 		return
 	}
 
+	log.Info().Str("user", req.Username).Msg("login attempt")
 	if !checkLoginAllowed(req.Username) {
+		log.Warn().Str("user", req.Username).Msg("login rejected by rate limiter")
 		types.Err(http.StatusTooManyRequests, "too many failed attempts, try again later").Write(w)
 		return
 	}
 
-	user, err := webdb.UserByUsername(app.DB, req.Username)
+	cfg, err := config.Load(app.ConfigPath)
 	if err != nil {
-		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "database error"))
+		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "failed to read config"))
 		return
 	}
 
-	if user == nil || !webdb.CheckPassword(user.PasswordHash, req.Password) {
+	if !isUIAdmin(cfg, req.Username) {
 		recordLoginFailure(req.Username)
+		log.Warn().Str("user", req.Username).Msg("login rejected because user is not a UI administrator")
+		types.Err(http.StatusUnauthorized, "invalid credentials").Write(w)
+		return
+	}
+
+	ok, err := unixauth.Verify(req.Username, req.Password)
+	if err != nil {
+		log.Error().Err(err).Str("user", req.Username).Msg("login password verification failed")
+		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "failed to verify password"))
+		return
+	}
+	if !ok {
+		recordLoginFailure(req.Username)
+		log.Warn().Str("user", req.Username).Msg("login rejected because password did not verify")
 		types.Err(http.StatusUnauthorized, "invalid credentials").Write(w)
 		return
 	}
 
 	recordLoginSuccess(req.Username)
+	log.Info().Str("user", req.Username).Msg("login authenticated")
 
 	claims := jwt.MapClaims{
-		"sub": user.Username,
+		"sub": req.Username,
 		"iat": time.Now().Unix(),
 		"exp": time.Now().Add(24 * time.Hour).Unix(),
 	}
@@ -97,4 +117,19 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	types.OK(w, types.LoginResponse{Token: signed})
+}
+
+const builtinAdmin = "routier"
+
+func isUIAdmin(cfg *config.Config, username string) bool {
+	if username == "" || username == "root" {
+		return false
+	}
+
+	if username == builtinAdmin {
+		return true
+	}
+
+	u := cfg.Users[username]
+	return u != nil && slices.Contains(u.Groups, "wheel")
 }

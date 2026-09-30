@@ -1,18 +1,18 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/switch'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Sheet } from '@/components/ui/sheet'
-import { Badge } from '@/components/ui/badge'
-import TagInput from '@/components/TagInput'
+import { Button } from 'cheval-ui'
+import { Switch } from 'cheval-ui'
+import { Input } from 'cheval-ui'
+import { Label } from 'cheval-ui'
+import { Sheet } from 'cheval-ui'
+import { Badge } from 'cheval-ui'
+import { TagInput } from 'cheval-ui'
 import { Plus, Trash2, Radio } from 'lucide-react'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { PreferencesGroup, PreferencesColumns, EntryRow, ComboRow, SwitchRow } from '@/components/Preferences'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from 'cheval-ui'
+import { PreferencesGroup, PreferencesColumns, EntryRow, ComboRow, SwitchRow } from 'cheval-ui'
 import { VarPickerInput } from '@/components/VarPickerInput'
 import { checkIP } from '@/lib/validate'
-import { EmptyState } from '@/components/EmptyState'
+import { EmptyState } from 'cheval-ui'
 
 export interface RADVDPrefix {
   prefix: string
@@ -43,6 +43,7 @@ export interface RADVDInterface {
   adv_default_lifetime?: number
   adv_default_preference?: string
   adv_link_mtu?: number
+  adv_ra_src_address?: string[]
   prefixes?: RADVDPrefix[]
   rdnss?: RADVDRDNSS
   routes?: RADVDRoute[]
@@ -72,7 +73,7 @@ function PrefixRow({
     onChange({ ...prefix, [k]: v })
 
   return (
-    <div className="border rounded-md p-3 space-y-3 bg-background">
+    <div className="rounded-md bg-card p-3 space-y-3 shadow-[var(--card-shadow)]">
       <div className="flex items-center gap-2">
         <Input
           value={prefix.prefix}
@@ -101,7 +102,7 @@ function PrefixRow({
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <Label className="text-[11px]">Valid lifetime</Label>
           <Input
             value={prefix.adv_valid_lifetime ?? ''}
@@ -110,7 +111,7 @@ function PrefixRow({
             className="font-mono text-xs h-8"
           />
         </div>
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <Label className="text-[11px]">Preferred lifetime</Label>
           <Input
             value={prefix.adv_preferred_lifetime ?? ''}
@@ -255,6 +256,17 @@ function InterfaceSheet({
           </Select>
         </ComboRow>
         <EntryRow title="Link MTU" value={iface.adv_link_mtu ?? ''} onChange={(e) => set('adv_link_mtu', numOrUndef(e.target.value))} placeholder="1500" className="font-mono" />
+        <div className="px-4 py-3 space-y-1.5">
+          <Label>RA source address</Label>
+          <p className="text-xs text-muted-foreground">Link-local addresses radvd sends advertisements from, in order of preference. Use a VRRP virtual link-local address so the RA source fails over with the router.</p>
+          <TagInput
+            values={iface.adv_ra_src_address ?? []}
+            onChange={(v) => set('adv_ra_src_address', v.length ? v : undefined)}
+            placeholder="fe80::1"
+            validate={checkIP}
+            mono
+          />
+        </div>
         <SwitchRow
           title="Stateful DHCPv6"
           subtitle="Advertise Managed + Other flags and mark prefixes non-autonomous so hosts get addresses from the DHCPv6 server."
@@ -380,6 +392,20 @@ export default function RadvdTab({
 
   const handleCloseSheet = () => { setOpenIface(null); setDraftIface(null) }
 
+  const renameIface = (oldName: string, newName: string) => {
+    setPendingName(newName)
+    const trimmed = newName.trim()
+    if (!trimmed || trimmed === oldName || (trimmed in ifaces)) return
+
+    const next: Record<string, RADVDInterface> = {}
+    for (const [k, v] of Object.entries(ifaces)) {
+      next[k === oldName ? trimmed : k] = v
+    }
+
+    updateAll(next)
+    setOpenIface(trimmed)
+  }
+
   const openIfaceData = openIface === NEW_KEY ? draftIface : (openIface ? ifaces[openIface] : null)
   const sheetTitle = openIface === NEW_KEY ? 'Add Interface' : (pendingName || openIface || 'Interface')
 
@@ -453,7 +479,7 @@ export default function RadvdTab({
             name={pendingName}
             iface={openIfaceData!}
             ifaceNames={ifaceNames}
-            onChangeName={setPendingName}
+            onChangeName={openIface === NEW_KEY ? setPendingName : (n) => renameIface(openIface!, n)}
             onChange={openIface === NEW_KEY ? setDraftIface : (u) => updateAll({ ...ifaces, [openIface!]: u })}
             onClose={handleCloseSheet}
             onAdd={openIface === NEW_KEY ? handleCommitNew : undefined}

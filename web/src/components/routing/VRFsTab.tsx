@@ -1,12 +1,24 @@
 import React, {} from 'react'
-import { Input } from '@/components/ui/input'
-import { NumberInput } from '@/components/ui/number-input'
-import { Button } from '@/components/ui/button'
-import { EmptyState } from '@/components/EmptyState'
+import { Input } from 'cheval-ui'
+import { NumberInput } from 'cheval-ui'
+import { Button } from 'cheval-ui'
+import { EmptyState } from 'cheval-ui'
+import { Card } from 'cheval-ui'
+import { Label } from 'cheval-ui'
 import { Plus, Trash2 } from 'lucide-react'
 import { newId } from './shared'
 
 export interface VRFRow { _id: number; name: string; table: number }
+
+const TABLE_OFFSET = 40000
+
+function nextTable(rows: VRFRow[]): number {
+  let max = TABLE_OFFSET - 1
+  for (const r of rows) {
+    if (r.table > max) max = r.table
+  }
+  return max + 1
+}
 
 export function VRFsTab({
   rows, setRows, onDirty,
@@ -15,7 +27,7 @@ export function VRFsTab({
   setRows: React.Dispatch<React.SetStateAction<VRFRow[]>>
   onDirty: () => void
 }) {
-  const add = () => { setRows((p) => [...p, { _id: newId(), name: '', table: 0 }]); onDirty() }
+  const add = () => { setRows((p) => [...p, { _id: newId(), name: '', table: nextTable(p) }]); onDirty() }
   const remove = (id: number) => { setRows((p) => p.filter((r) => r._id !== id)); onDirty() }
   const upd = (id: number, patch: Partial<VRFRow>) => { setRows((p) => p.map((r) => (r._id === id ? { ...r, ...patch } : r))); onDirty() }
 
@@ -23,7 +35,8 @@ export function VRFsTab({
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
         VRFs (Virtual Routing and Forwarding) keep separate routing tables on one device, isolating route
-        domains so overlapping networks can coexist.
+        domains so overlapping networks can coexist. New VRFs get the next free table ID from 40000; edit
+        it if you need a specific one.
       </p>
       <div className="flex justify-end">
         <Button variant="outline" size="sm" onClick={add} className="gap-1.5">
@@ -37,46 +50,39 @@ export function VRFsTab({
           action={<Button variant="outline" size="sm" onClick={add} className="gap-2"><Plus className="h-4 w-4" />Add VRF</Button>}
         />
       ) : (
-        <div className="rounded-xl border border-border overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50">
-              <tr>
-                <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Name</th>
-                <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground w-36">Table ID</th>
-                <th className="w-10" />
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {rows.map((row) => (
-                <tr key={row._id}>
-                  <td className="px-3 py-1.5">
+        <div className="grid gap-3 md:grid-cols-2">
+          {rows.map((row) => (
+            <Card key={row._id} className="space-y-4 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-mono text-sm font-semibold">{row.name || 'New VRF'}</span>
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => remove(row._id)}>
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Name</Label>
                     <Input
                       value={row.name}
                       onChange={(e) => upd(row._id, { name: e.target.value })}
                       placeholder="red"
-                      className="font-mono text-xs h-8 border-0 shadow-none focus-visible:ring-1"
+                      className="font-mono text-sm"
                     />
-                  </td>
-                  <td className="px-3 py-1.5">
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Table ID</Label>
                     <NumberInput
                       value={row.table || undefined}
                       onChange={(v) => upd(row._id, { table: v ?? 0 })}
-                      placeholder="100"
-                      className="font-mono text-xs h-8 border-0 shadow-none focus-visible:ring-1 w-28"
+                      placeholder="40000"
+                      className="font-mono text-sm"
                     />
-                  </td>
-                  <td className="px-2">
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => remove(row._id)}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                </div>
+              </div>
+            </Card>
+          ))}
         </div>
       )}
     </div>
   )
 }
-

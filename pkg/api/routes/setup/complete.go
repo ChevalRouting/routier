@@ -5,6 +5,7 @@ import (
 	"os"
 
 	appctx "github.com/ChevalRouting/routier/pkg/api/app"
+	"github.com/ChevalRouting/routier/pkg/api/requests"
 	"github.com/ChevalRouting/routier/pkg/config"
 	webdb "github.com/ChevalRouting/routier/pkg/db"
 	"github.com/ChevalRouting/routier/pkg/types"
@@ -26,7 +27,7 @@ func Complete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := webdb.SetSetting(app.DB, webdb.SettingOnboardingComplete, "true"); err != nil {
+	if err := webdb.SetSetting(requests.DurableContext(r), app.DB, webdb.SettingOnboardingComplete, "true"); err != nil {
 		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "failed to save setting"))
 		return
 	}

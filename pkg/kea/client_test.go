@@ -297,3 +297,31 @@ func TestBasicAuthHeader(t *testing.T) {
 		t.Fatalf("Authorization = %q, want %q", got, want)
 	}
 }
+
+func TestLeaseQueryEmptyResults(t *testing.T) {
+	for _, command := range []string{"lease4-get-all", "lease6-get-all", "lease4-get", "lease6-get"} {
+		t.Run(command, func(t *testing.T) {
+			raw, err := parseResponse(command, []byte(`{"result":3,"text":"No matching leases."}`))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if command == "lease4-get-all" || command == "lease6-get-all" {
+				var result leaseList
+				if err := json.Unmarshal(raw, &result); err != nil || len(result.Leases) != 0 {
+					t.Fatalf("expected empty lease list: %s, %v", raw, err)
+				}
+			} else {
+				var lease Lease
+				if err := json.Unmarshal(raw, &lease); err != nil || lease.IPAddress != "" {
+					t.Fatalf("expected empty lease: %s, %v", raw, err)
+				}
+			}
+		})
+	}
+	if _, err := parseResponse("lease4-get-all", []byte(`{"result":1,"text":"lease commands hook unavailable"}`)); err == nil {
+		t.Fatal("lease query failures must remain errors")
+	}
+	if _, err := parseResponse("lease4-del", []byte(`{"result":3,"text":"No lease deleted"}`)); err == nil {
+		t.Fatal("empty mutation results must remain errors")
+	}
+}

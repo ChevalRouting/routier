@@ -2,12 +2,14 @@ package announcements
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
 
 	appctx "github.com/ChevalRouting/routier/pkg/api/app"
+	"github.com/ChevalRouting/routier/pkg/api/requests"
 	webdb "github.com/ChevalRouting/routier/pkg/db"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/go-chi/chi/v5"
@@ -27,7 +29,7 @@ var validLevels = map[string]bool{"info": true, "warning": true, "danger": true}
 // @Router /api/announcements [get]
 func List(w http.ResponseWriter, r *http.Request) {
 	app := appctx.FromContext(r.Context())
-	items, err := webdb.ListAnnouncements(app.DB)
+	items, err := webdb.ListAnnouncements(r.Context(), app.DB)
 	if err != nil {
 		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "list announcements"))
 		return
@@ -45,7 +47,7 @@ func List(w http.ResponseWriter, r *http.Request) {
 // @Router /api/announcements/active [get]
 func Active(w http.ResponseWriter, r *http.Request) {
 	app := appctx.FromContext(r.Context())
-	items, err := webdb.EnabledAnnouncements(app.DB)
+	items, err := webdb.EnabledAnnouncements(r.Context(), app.DB)
 	if err != nil {
 		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "list announcements"))
 		return
@@ -71,7 +73,7 @@ func Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, err := webdb.CreateAnnouncement(app.DB, a)
+	id, err := webdb.CreateAnnouncement(requests.DurableContext(r), app.DB, a)
 	if err != nil {
 		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "create announcement"))
 		return
@@ -106,7 +108,12 @@ func Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a.ID = id
-	if err := webdb.UpdateAnnouncement(app.DB, a); err != nil {
+	if err := webdb.UpdateAnnouncement(requests.DurableContext(r), app.DB, a); err != nil {
+		if errors.Is(err, webdb.ErrAnnouncementNotFound) {
+			types.Err(http.StatusNotFound, "announcement not found").Write(w)
+			return
+		}
+
 		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "update announcement"))
 		return
 	}
@@ -131,7 +138,12 @@ func Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := webdb.DeleteAnnouncement(app.DB, id); err != nil {
+	if err := webdb.DeleteAnnouncement(requests.DurableContext(r), app.DB, id); err != nil {
+		if errors.Is(err, webdb.ErrAnnouncementNotFound) {
+			types.Err(http.StatusNotFound, "announcement not found").Write(w)
+			return
+		}
+
 		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "delete announcement"))
 		return
 	}

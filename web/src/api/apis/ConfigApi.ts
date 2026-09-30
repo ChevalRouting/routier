@@ -43,6 +43,14 @@ import {
     TypesResponseTypesStatusResponseToJSON,
 } from '../models/index';
 
+export interface ApiConfigApplyPostRequest {
+    layer?: ApiConfigApplyPostLayerEnum;
+}
+
+export interface ApiConfigGetRequest {
+    layer?: ApiConfigGetLayerEnum;
+}
+
 export interface ApiConfigImportPutRequest {
     body?: object;
 }
@@ -57,11 +65,17 @@ export interface ApiConfigRawPutRequest {
 
 export interface ApiConfigSectionGetRequest {
     section: string;
+    layer?: ApiConfigSectionGetLayerEnum;
 }
 
 export interface ApiConfigSectionPutRequest {
     section: string;
+    layer?: ApiConfigSectionPutLayerEnum;
     body?: object;
+}
+
+export interface ApiConfigStagingDeleteRequest {
+    layer?: ApiConfigStagingDeleteLayerEnum;
 }
 
 /**
@@ -72,8 +86,12 @@ export class ConfigApi extends runtime.BaseAPI {
     /**
      * Apply the staged config
      */
-    async apiConfigApplyPostRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<TypesResponseTypesApplyResult>> {
+    async apiConfigApplyPostRaw(requestParameters: ApiConfigApplyPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<TypesResponseTypesApplyResult>> {
         const queryParameters: any = {};
+
+        if (requestParameters['layer'] != null) {
+            queryParameters['layer'] = requestParameters['layer'];
+        }
 
         const headerParameters: runtime.HTTPHeaders = {};
 
@@ -94,8 +112,8 @@ export class ConfigApi extends runtime.BaseAPI {
     /**
      * Apply the staged config
      */
-    async apiConfigApplyPost(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<TypesResponseTypesApplyResult> {
-        const response = await this.apiConfigApplyPostRaw(initOverrides);
+    async apiConfigApplyPost(requestParameters: ApiConfigApplyPostRequest = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<TypesResponseTypesApplyResult> {
+        const response = await this.apiConfigApplyPostRaw(requestParameters, initOverrides);
         return await response.value();
     }
 
@@ -132,8 +150,12 @@ export class ConfigApi extends runtime.BaseAPI {
     /**
      * Get the staged config
      */
-    async apiConfigGetRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<TypesResponseConfigConfig>> {
+    async apiConfigGetRaw(requestParameters: ApiConfigGetRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<TypesResponseConfigConfig>> {
         const queryParameters: any = {};
+
+        if (requestParameters['layer'] != null) {
+            queryParameters['layer'] = requestParameters['layer'];
+        }
 
         const headerParameters: runtime.HTTPHeaders = {};
 
@@ -154,8 +176,8 @@ export class ConfigApi extends runtime.BaseAPI {
     /**
      * Get the staged config
      */
-    async apiConfigGet(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<TypesResponseConfigConfig> {
-        const response = await this.apiConfigGetRaw(initOverrides);
+    async apiConfigGet(requestParameters: ApiConfigGetRequest = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<TypesResponseConfigConfig> {
+        const response = await this.apiConfigGetRaw(requestParameters, initOverrides);
         return await response.value();
     }
 
@@ -326,6 +348,66 @@ export class ConfigApi extends runtime.BaseAPI {
     }
 
     /**
+     * Get the JSON Schema for the canonical configuration
+     */
+    async apiConfigSchemaGetRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["Authorization"] = await this.configuration.apiKey("Authorization"); // BearerAuth authentication
+        }
+
+        const response = await this.request({
+            path: `/api/config/schema`,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse<any>(response);
+    }
+
+    /**
+     * Get the JSON Schema for the canonical configuration
+     */
+    async apiConfigSchemaGet(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
+        const response = await this.apiConfigSchemaGetRaw(initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Get the version of the canonical configuration schema
+     */
+    async apiConfigSchemaVersionGetRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["Authorization"] = await this.configuration.apiKey("Authorization"); // BearerAuth authentication
+        }
+
+        const response = await this.request({
+            path: `/api/config/schema/version`,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse<any>(response);
+    }
+
+    /**
+     * Get the version of the canonical configuration schema
+     */
+    async apiConfigSchemaVersionGet(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
+        const response = await this.apiConfigSchemaVersionGetRaw(initOverrides);
+        return await response.value();
+    }
+
+    /**
      * Get one config section
      */
     async apiConfigSectionGetRaw(requestParameters: ApiConfigSectionGetRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
@@ -337,6 +419,10 @@ export class ConfigApi extends runtime.BaseAPI {
         }
 
         const queryParameters: any = {};
+
+        if (requestParameters['layer'] != null) {
+            queryParameters['layer'] = requestParameters['layer'];
+        }
 
         const headerParameters: runtime.HTTPHeaders = {};
 
@@ -375,6 +461,10 @@ export class ConfigApi extends runtime.BaseAPI {
 
         const queryParameters: any = {};
 
+        if (requestParameters['layer'] != null) {
+            queryParameters['layer'] = requestParameters['layer'];
+        }
+
         const headerParameters: runtime.HTTPHeaders = {};
 
         headerParameters['Content-Type'] = 'application/json';
@@ -405,8 +495,12 @@ export class ConfigApi extends runtime.BaseAPI {
     /**
      * Discard staged changes
      */
-    async apiConfigStagingDeleteRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<TypesResponseTypesStatusResponse>> {
+    async apiConfigStagingDeleteRaw(requestParameters: ApiConfigStagingDeleteRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<TypesResponseTypesStatusResponse>> {
         const queryParameters: any = {};
+
+        if (requestParameters['layer'] != null) {
+            queryParameters['layer'] = requestParameters['layer'];
+        }
 
         const headerParameters: runtime.HTTPHeaders = {};
 
@@ -427,9 +521,50 @@ export class ConfigApi extends runtime.BaseAPI {
     /**
      * Discard staged changes
      */
-    async apiConfigStagingDelete(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<TypesResponseTypesStatusResponse> {
-        const response = await this.apiConfigStagingDeleteRaw(initOverrides);
+    async apiConfigStagingDelete(requestParameters: ApiConfigStagingDeleteRequest = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<TypesResponseTypesStatusResponse> {
+        const response = await this.apiConfigStagingDeleteRaw(requestParameters, initOverrides);
         return await response.value();
     }
 
 }
+
+/**
+ * @export
+ */
+export const ApiConfigApplyPostLayerEnum = {
+    Advanced: 'advanced',
+    Simple: 'simple'
+} as const;
+export type ApiConfigApplyPostLayerEnum = typeof ApiConfigApplyPostLayerEnum[keyof typeof ApiConfigApplyPostLayerEnum];
+/**
+ * @export
+ */
+export const ApiConfigGetLayerEnum = {
+    Advanced: 'advanced',
+    Simple: 'simple'
+} as const;
+export type ApiConfigGetLayerEnum = typeof ApiConfigGetLayerEnum[keyof typeof ApiConfigGetLayerEnum];
+/**
+ * @export
+ */
+export const ApiConfigSectionGetLayerEnum = {
+    Advanced: 'advanced',
+    Simple: 'simple'
+} as const;
+export type ApiConfigSectionGetLayerEnum = typeof ApiConfigSectionGetLayerEnum[keyof typeof ApiConfigSectionGetLayerEnum];
+/**
+ * @export
+ */
+export const ApiConfigSectionPutLayerEnum = {
+    Advanced: 'advanced',
+    Simple: 'simple'
+} as const;
+export type ApiConfigSectionPutLayerEnum = typeof ApiConfigSectionPutLayerEnum[keyof typeof ApiConfigSectionPutLayerEnum];
+/**
+ * @export
+ */
+export const ApiConfigStagingDeleteLayerEnum = {
+    Advanced: 'advanced',
+    Simple: 'simple'
+} as const;
+export type ApiConfigStagingDeleteLayerEnum = typeof ApiConfigStagingDeleteLayerEnum[keyof typeof ApiConfigStagingDeleteLayerEnum];

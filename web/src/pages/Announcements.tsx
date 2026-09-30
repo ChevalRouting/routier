@@ -3,16 +3,16 @@ import { toast } from 'sonner'
 import { api } from '@/lib/client'
 import type { TypesAnnouncement as Announcement, TypesAnnouncementLevelEnum as AnnouncementLevel } from '@/api'
 import { useFetch } from '@/lib/useFetch'
-import { PageHeader } from '@/components/PageHeader'
-import { Spinner } from '@/components/Spinner'
-import { EmptyState } from '@/components/EmptyState'
-import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/switch'
-import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
+import { PageHeader } from 'cheval-ui'
+import { Spinner } from 'cheval-ui'
+import { EmptyState } from 'cheval-ui'
+import { Button } from 'cheval-ui'
+import { Switch } from 'cheval-ui'
+import { Label } from 'cheval-ui'
+import { Badge } from 'cheval-ui'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select'
+} from 'cheval-ui'
 import { Plus, Trash2, Megaphone } from 'lucide-react'
 
 const LEVELS: AnnouncementLevel[] = ['info', 'warning', 'danger']
@@ -42,7 +42,7 @@ function AnnouncementForm({ initial, submitLabel, onSubmit, onCancel }: {
   }
 
   return (
-    <div className="space-y-3 border rounded-md p-3">
+    <div className="space-y-3 rounded-md bg-card p-3 shadow-[var(--card-shadow)]">
       <textarea
         value={message}
         onChange={(e) => setMessage(e.target.value)}

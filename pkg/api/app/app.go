@@ -1,14 +1,13 @@
 package app
 
 import (
-	"database/sql"
-
+	webdb "github.com/ChevalRouting/routier/pkg/db"
 	"github.com/ChevalRouting/routier/pkg/identity"
 	"github.com/go-playground/validator/v10"
 )
 
 type App struct {
-	DB         *sql.DB
+	DB         *webdb.DB
 	ConfigPath string
 	JWTSecret  []byte
 	Identity   *identity.Identity

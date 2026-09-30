@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import { api } from '@/lib/client'
 import type { TypesStatsResponse as StatsResponse, TypesBGPPeerSummary as BGPPeerSummary } from '@/api'
-import { StateChip } from '@/components/ui/status-chip'
-import { Button } from '@/components/ui/button'
+import { StateChip } from 'cheval-ui'
+import { Button } from 'cheval-ui'
 import { RefreshCw } from 'lucide-react'
-import { Spinner } from '@/components/Spinner'
-import { EmptyState } from '@/components/EmptyState'
+import { Spinner } from 'cheval-ui'
+import { EmptyState } from 'cheval-ui'
 import { OnActionChange } from './shared'
 
 export function BGPPanel({ onActionChange }: { onActionChange: OnActionChange }) {
@@ -69,7 +69,7 @@ export function BGPPanel({ onActionChange }: { onActionChange: OnActionChange })
         </div>
       </div>
 
-      <div className="rounded-xl border border-border overflow-x-auto">
+      <div className="rounded-xl bg-card shadow-[var(--card-shadow)] overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border text-xs text-muted-foreground">
@@ -105,4 +105,3 @@ export function BGPPanel({ onActionChange }: { onActionChange: OnActionChange })
     </div>
   )
 }
-

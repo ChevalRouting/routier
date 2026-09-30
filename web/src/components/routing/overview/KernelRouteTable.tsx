@@ -3,8 +3,8 @@ import { useState, useEffect } from 'react'
 import { api } from '@/lib/client'
 import type { TypesKernelRoute as KernelRoute } from '@/api'
 import { protoColor } from '@/lib/palette'
-import { cn } from '@/lib/utils'
-import { Pagination } from '@/components/Pagination'
+import { cn } from 'cheval-ui'
+import { Pagination } from 'cheval-ui'
 import '@xyflow/react/dist/style.css'
 
 export const ROUTE_PAGE_SIZE = 100
@@ -35,7 +35,7 @@ export function KernelRouteTable({ proto }: { proto: string }) {
 
   return (
     <div className="space-y-2">
-      <div className="max-h-96 overflow-auto rounded-xl border border-border">
+      <div className="max-h-96 overflow-auto rounded-xl bg-card shadow-[var(--card-shadow)]">
         <table className="w-full text-xs font-mono">
           <thead className="sticky top-0 z-10 bg-card">
             <tr className="border-b border-border text-muted-foreground">
@@ -70,4 +70,3 @@ export function KernelRouteTable({ proto }: { proto: string }) {
     </div>
   )
 }
-

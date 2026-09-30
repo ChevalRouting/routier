@@ -3,6 +3,7 @@
 package motd
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -11,9 +12,8 @@ import (
 
 	webdb "github.com/ChevalRouting/routier/pkg/db"
 	"github.com/ChevalRouting/routier/pkg/iproute"
+	"github.com/ChevalRouting/routier/pkg/netlink"
 	"github.com/ChevalRouting/routier/pkg/stats"
-	vnl "github.com/vishvananda/netlink"
-	"golang.org/x/sys/unix"
 )
 
 const dbPath = "/var/lib/routier/web.db"
@@ -36,9 +36,21 @@ type Bandwidth struct {
 	TxBytesPS float64
 }
 
-func Write(user, pass string) {
-	content := Render(routierVersion(), ifaceAddrs(), routeSummary(), bandwidth5m(), user, pass)
+func Write(ctx context.Context, user, pass string) {
+	content := Render(routierVersion(), ifaceAddrs(), routeSummary(), bandwidth5m(ctx), user, pass)
 	_ = os.WriteFile("/etc/motd", []byte(content), 0644)
+}
+
+func WriteIssue(version string) {
+	_ = os.WriteFile("/etc/issue", []byte(RenderIssue(version)), 0644)
+}
+
+func RenderIssue(version string) string {
+	if version == "" || version == "dev" {
+		version = routierVersion()
+	}
+
+	return fmt.Sprintf("\n%s  %s\n\n", banner, version)
 }
 
 func Render(version string, ifaces []string, routes RouteSummary, bw *Bandwidth, user, pass string) string {
@@ -92,8 +104,8 @@ func routeSummary() RouteSummary {
 	return s
 }
 
-func bandwidth5m() *Bandwidth {
-	db, err := webdb.InitDB(dbPath)
+func bandwidth5m(ctx context.Context) *Bandwidth {
+	db, err := webdb.InitDB(ctx, dbPath)
 	if err != nil {
 		return nil
 	}
@@ -102,7 +114,7 @@ func bandwidth5m() *Bandwidth {
 
 	window := int64(5 * 60)
 	cutoff := time.Now().Unix() - window
-	points := webdb.IfaceTotals(db, cutoff, webdb.HistoryBucket(window, 60), stats.PhysicalIfaces())
+	points := webdb.IfaceTotals(ctx, db, cutoff, webdb.HistoryBucket(window, 60), stats.PhysicalIfaces())
 	if len(points) == 0 {
 		return nil
 	}
@@ -164,37 +176,17 @@ func routierVersion() string {
 }
 
 func ifaceAddrs() []string {
-	links, err := vnl.LinkList()
+	nics, err := netlink.SystemNics()
 	if err != nil {
 		return nil
 	}
 
 	var lines []string
-	for _, link := range links {
-		name := link.Attrs().Name
-		if name == "lo" || link.Attrs().Flags&unix.IFF_LOOPBACK != 0 {
-			continue
-		}
-
-		switch link.Type() {
-		case "veth", "bridge", "tun", "wireguard":
-			continue
-		}
-
-		addrs, _ := vnl.AddrList(link, vnl.FAMILY_ALL)
-		var cidrs []string
-		for _, a := range addrs {
-			if a.IP.IsLinkLocalUnicast() {
-				continue
-			}
-
-			cidrs = append(cidrs, a.IPNet.String())
-		}
-
-		if len(cidrs) > 0 {
-			lines = append(lines, fmt.Sprintf("%-12s  %s", name, strings.Join(cidrs, "  ")))
+	for _, n := range nics {
+		if len(n.Addrs) > 0 {
+			lines = append(lines, fmt.Sprintf("%-12s  %s", n.Name, strings.Join(n.Addrs, "  ")))
 		} else {
-			lines = append(lines, fmt.Sprintf("%-12s  (no address)", name))
+			lines = append(lines, fmt.Sprintf("%-12s  (no address)", n.Name))
 		}
 	}
 

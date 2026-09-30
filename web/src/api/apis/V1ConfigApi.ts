@@ -24,13 +24,13 @@ export interface ApiV1SessionsSessionIDBootModulesPutRequest {
     body?: object;
 }
 
-export interface ApiV1SessionsSessionIDConntrackdGetRequest {
+export interface ApiV1SessionsSessionIDConfigGetRequest {
     sessionID: string;
 }
 
-export interface ApiV1SessionsSessionIDConntrackdPutRequest {
+export interface ApiV1SessionsSessionIDConfigPutRequest {
     sessionID: string;
-    body?: object;
+    body?: string;
 }
 
 export interface ApiV1SessionsSessionIDDnsGetRequest {
@@ -47,6 +47,15 @@ export interface ApiV1SessionsSessionIDGaiGetRequest {
 }
 
 export interface ApiV1SessionsSessionIDGaiPutRequest {
+    sessionID: string;
+    body?: object;
+}
+
+export interface ApiV1SessionsSessionIDHaGetRequest {
+    sessionID: string;
+}
+
+export interface ApiV1SessionsSessionIDHaPutRequest {
     sessionID: string;
     body?: object;
 }
@@ -280,6 +289,36 @@ export interface ApiV1SessionsSessionIDWireguardPutRequest {
 export class V1ConfigApi extends runtime.BaseAPI {
 
     /**
+     * Get the committed canonical configuration as YAML
+     */
+    async apiV1ConfigGetRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["Authorization"] = await this.configuration.apiKey("Authorization"); // BearerAuth authentication
+        }
+
+        const response = await this.request({
+            path: `/api/v1/config`,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse<any>(response);
+    }
+
+    /**
+     * Get the committed canonical configuration as YAML
+     */
+    async apiV1ConfigGet(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
+        const response = await this.apiV1ConfigGetRaw(initOverrides);
+        return await response.value();
+    }
+
+    /**
      * Get session boot modules
      */
     async apiV1SessionsSessionIDBootModulesGetRaw(requestParameters: ApiV1SessionsSessionIDBootModulesGetRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Array<object>>> {
@@ -357,13 +396,13 @@ export class V1ConfigApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get session conntrackd
+     * Get a session\'s canonical configuration as YAML
      */
-    async apiV1SessionsSessionIDConntrackdGetRaw(requestParameters: ApiV1SessionsSessionIDConntrackdGetRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
+    async apiV1SessionsSessionIDConfigGetRaw(requestParameters: ApiV1SessionsSessionIDConfigGetRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters['sessionID'] == null) {
             throw new runtime.RequiredError(
                 'sessionID',
-                'Required parameter "sessionID" was null or undefined when calling apiV1SessionsSessionIDConntrackdGet().'
+                'Required parameter "sessionID" was null or undefined when calling apiV1SessionsSessionIDConfigGet().'
             );
         }
 
@@ -376,7 +415,7 @@ export class V1ConfigApi extends runtime.BaseAPI {
         }
 
         const response = await this.request({
-            path: `/api/v1/sessions/{sessionID}/conntrackd`.replace(`{${"sessionID"}}`, encodeURIComponent(String(requestParameters['sessionID']))),
+            path: `/api/v1/sessions/{sessionID}/config`.replace(`{${"sessionID"}}`, encodeURIComponent(String(requestParameters['sessionID']))),
             method: 'GET',
             headers: headerParameters,
             query: queryParameters,
@@ -386,21 +425,21 @@ export class V1ConfigApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get session conntrackd
+     * Get a session\'s canonical configuration as YAML
      */
-    async apiV1SessionsSessionIDConntrackdGet(requestParameters: ApiV1SessionsSessionIDConntrackdGetRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
-        const response = await this.apiV1SessionsSessionIDConntrackdGetRaw(requestParameters, initOverrides);
+    async apiV1SessionsSessionIDConfigGet(requestParameters: ApiV1SessionsSessionIDConfigGetRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
+        const response = await this.apiV1SessionsSessionIDConfigGetRaw(requestParameters, initOverrides);
         return await response.value();
     }
 
     /**
-     * Replace session conntrackd
+     * Replace a session\'s canonical configuration with YAML
      */
-    async apiV1SessionsSessionIDConntrackdPutRaw(requestParameters: ApiV1SessionsSessionIDConntrackdPutRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
+    async apiV1SessionsSessionIDConfigPutRaw(requestParameters: ApiV1SessionsSessionIDConfigPutRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters['sessionID'] == null) {
             throw new runtime.RequiredError(
                 'sessionID',
-                'Required parameter "sessionID" was null or undefined when calling apiV1SessionsSessionIDConntrackdPut().'
+                'Required parameter "sessionID" was null or undefined when calling apiV1SessionsSessionIDConfigPut().'
             );
         }
 
@@ -408,14 +447,14 @@ export class V1ConfigApi extends runtime.BaseAPI {
 
         const headerParameters: runtime.HTTPHeaders = {};
 
-        headerParameters['Content-Type'] = 'application/json';
+        headerParameters['Content-Type'] = 'text/plain';
 
         if (this.configuration && this.configuration.apiKey) {
             headerParameters["Authorization"] = await this.configuration.apiKey("Authorization"); // BearerAuth authentication
         }
 
         const response = await this.request({
-            path: `/api/v1/sessions/{sessionID}/conntrackd`.replace(`{${"sessionID"}}`, encodeURIComponent(String(requestParameters['sessionID']))),
+            path: `/api/v1/sessions/{sessionID}/config`.replace(`{${"sessionID"}}`, encodeURIComponent(String(requestParameters['sessionID']))),
             method: 'PUT',
             headers: headerParameters,
             query: queryParameters,
@@ -426,10 +465,10 @@ export class V1ConfigApi extends runtime.BaseAPI {
     }
 
     /**
-     * Replace session conntrackd
+     * Replace a session\'s canonical configuration with YAML
      */
-    async apiV1SessionsSessionIDConntrackdPut(requestParameters: ApiV1SessionsSessionIDConntrackdPutRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
-        const response = await this.apiV1SessionsSessionIDConntrackdPutRaw(requestParameters, initOverrides);
+    async apiV1SessionsSessionIDConfigPut(requestParameters: ApiV1SessionsSessionIDConfigPutRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
+        const response = await this.apiV1SessionsSessionIDConfigPutRaw(requestParameters, initOverrides);
         return await response.value();
     }
 
@@ -584,6 +623,83 @@ export class V1ConfigApi extends runtime.BaseAPI {
      */
     async apiV1SessionsSessionIDGaiPut(requestParameters: ApiV1SessionsSessionIDGaiPutRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.apiV1SessionsSessionIDGaiPutRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Get session HA config (vrrp, conntrackd)
+     */
+    async apiV1SessionsSessionIDHaGetRaw(requestParameters: ApiV1SessionsSessionIDHaGetRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
+        if (requestParameters['sessionID'] == null) {
+            throw new runtime.RequiredError(
+                'sessionID',
+                'Required parameter "sessionID" was null or undefined when calling apiV1SessionsSessionIDHaGet().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["Authorization"] = await this.configuration.apiKey("Authorization"); // BearerAuth authentication
+        }
+
+        const response = await this.request({
+            path: `/api/v1/sessions/{sessionID}/ha`.replace(`{${"sessionID"}}`, encodeURIComponent(String(requestParameters['sessionID']))),
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse<any>(response);
+    }
+
+    /**
+     * Get session HA config (vrrp, conntrackd)
+     */
+    async apiV1SessionsSessionIDHaGet(requestParameters: ApiV1SessionsSessionIDHaGetRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
+        const response = await this.apiV1SessionsSessionIDHaGetRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Replace session HA config (vrrp, conntrackd)
+     */
+    async apiV1SessionsSessionIDHaPutRaw(requestParameters: ApiV1SessionsSessionIDHaPutRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
+        if (requestParameters['sessionID'] == null) {
+            throw new runtime.RequiredError(
+                'sessionID',
+                'Required parameter "sessionID" was null or undefined when calling apiV1SessionsSessionIDHaPut().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["Authorization"] = await this.configuration.apiKey("Authorization"); // BearerAuth authentication
+        }
+
+        const response = await this.request({
+            path: `/api/v1/sessions/{sessionID}/ha`.replace(`{${"sessionID"}}`, encodeURIComponent(String(requestParameters['sessionID']))),
+            method: 'PUT',
+            headers: headerParameters,
+            query: queryParameters,
+            body: requestParameters['body'] as any,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse<any>(response);
+    }
+
+    /**
+     * Replace session HA config (vrrp, conntrackd)
+     */
+    async apiV1SessionsSessionIDHaPut(requestParameters: ApiV1SessionsSessionIDHaPutRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
+        const response = await this.apiV1SessionsSessionIDHaPutRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

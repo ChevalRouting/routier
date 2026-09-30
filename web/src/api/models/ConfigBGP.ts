@@ -98,6 +98,12 @@ export interface ConfigBGP {
     no_import_check?: boolean;
     /**
      * 
+     * @type {boolean}
+     * @memberof ConfigBGP
+     */
+    no_rib?: boolean;
+    /**
+     * 
      * @type {{ [key: string]: Array<ConfigPrefixEntry>; }}
      * @memberof ConfigBGP
      */
@@ -142,6 +148,7 @@ export function ConfigBGPFromJSONTyped(json: any, ignoreDiscriminator: boolean):
         'no_default_ipv4_unicast': json['no_default_ipv4_unicast'] == null ? undefined : json['no_default_ipv4_unicast'],
         'no_ebgp_requires_policy': json['no_ebgp_requires_policy'] == null ? undefined : json['no_ebgp_requires_policy'],
         'no_import_check': json['no_import_check'] == null ? undefined : json['no_import_check'],
+        'no_rib': json['no_rib'] == null ? undefined : json['no_rib'],
         'prefix_lists': json['prefix_lists'] == null ? undefined : json['prefix_lists'],
         'route_maps': json['route_maps'] == null ? undefined : json['route_maps'],
         'router_id': json['router_id'] == null ? undefined : json['router_id'],
@@ -167,6 +174,7 @@ export function ConfigBGPToJSONTyped(value?: ConfigBGP | null, ignoreDiscriminat
         'no_default_ipv4_unicast': value['no_default_ipv4_unicast'],
         'no_ebgp_requires_policy': value['no_ebgp_requires_policy'],
         'no_import_check': value['no_import_check'],
+        'no_rib': value['no_rib'],
         'prefix_lists': value['prefix_lists'],
         'route_maps': value['route_maps'],
         'router_id': value['router_id'],

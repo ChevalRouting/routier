@@ -3,27 +3,34 @@ import { Suspense, useEffect, useState, useMemo } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { useDataVersion } from '@/lib/dataVersion'
 import { toast } from 'sonner'
-import { clearToken, cn } from '@/lib/utils'
+import { cn } from 'cheval-ui'
+import { clearToken } from '@/lib/utils'
 import { addStagingListener, api } from '@/lib/client'
 import { DiffView, withContext, type ViewLine } from '@/components/DiffView'
 import DiffModal from '@/components/DiffModal'
 import { WatchdogConfirmBar } from '@/components/WatchdogConfirmBar'
 import Logo from '@/components/Logo'
-import { SectionLabel } from '@/components/SectionLabel'
-import { useTheme } from '@/lib/useTheme'
-import { Spinner } from '@/components/Spinner'
+import { SectionLabel } from 'cheval-ui'
+import { useTheme } from 'cheval-ui'
+import { Spinner } from 'cheval-ui'
+import { MobileNav, type MobileTab } from 'cheval-ui'
 import { AnnouncementBanner } from '@/components/AnnouncementBanner'
 import { InstanceSwitcher, InstanceMenu, useActiveInstance } from '@/components/InstanceSwitcher'
 import { SELF, switchInstance } from '@/lib/instance'
 import {
-  LayoutDashboard, Network, GitBranch, Route, Lock, Radio, Shield,
-  Settings2, Users, Server, LogOut, Activity, Share2, Megaphone,
+  LayoutDashboard, Network, Route, Lock, Radio, Shield,
+  Settings2, Users, Server, LogOut, Activity, HeartPulse, Megaphone,
   BookOpen, KeyRound, Workflow, Play, Terminal, Boxes, Handshake,
-  ChevronLeft, ChevronRight, Sun, Moon, MoreHorizontal, X, RefreshCw, Cable,
-  Calculator,
+  ChevronLeft, ChevronRight, Sun, Moon, MoreHorizontal, RefreshCw, Cable,
+  Calculator, Globe, ArrowRightLeft,
 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Button } from 'cheval-ui'
+import { Input } from 'cheval-ui'
+import {
+  getConfigLayer,
+  subscribeConfigLayer,
+  type ConfigLayer,
+} from '@/lib/configLayer'
 
 interface NavItem {
   to: string
@@ -48,11 +55,12 @@ const navGroups: NavGroup[] = [
     label: 'Network',
     items: [
       { to: '/interfaces', label: 'Interfaces', icon: Network },
-      { to: '/tunnels', label: 'Tunnels', icon: GitBranch },
       { to: '/routing', label: 'Routing', icon: Route },
-      { to: '/wireguard', label: 'WireGuard', icon: Lock },
+      { to: '/vpn', label: 'VPN', icon: Lock },
       { to: '/anycast', label: 'Anycast', icon: Radio },
       { to: '/dhcp', label: 'DHCP', icon: Cable },
+      { to: '/dns', label: 'DNS', icon: Globe },
+      { to: '/ha', label: 'HA', icon: HeartPulse },
       { to: '/firewall', label: 'Firewall', icon: Shield },
     ],
   },
@@ -62,7 +70,6 @@ const navGroups: NavGroup[] = [
       { to: '/system', label: 'General', icon: Settings2 },
       { to: '/users', label: 'Users', icon: Users },
       { to: '/services', label: 'Services', icon: Server },
-      { to: '/conntrackd', label: 'Conntrackd', icon: Share2 },
       { to: '/friends', label: 'Friends', icon: Handshake },
     ],
   },
@@ -85,55 +92,44 @@ const navGroups: NavGroup[] = [
   },
 ]
 
-interface MobileNavGroup {
-  key: string
-  label: string
-  icon: React.ComponentType<{ className?: string }>
-  items: NavItem[]
-  withExtras?: boolean
-}
-
-const mobileNavGroups: MobileNavGroup[] = [
+const simpleNavGroups: NavGroup[] = [
   {
-    key: 'dashboard',
-    label: 'Home',
-    icon: LayoutDashboard,
-    items: navGroups[0].items,
-  },
-  {
-    key: 'network',
-    label: 'Network',
-    icon: Network,
-    items: navGroups[1].items,
-  },
-  {
-    key: 'system',
-    label: 'System',
-    icon: Settings2,
-    items: navGroups[2].items,
-  },
-  {
-    key: 'monitor',
-    label: 'Monitor',
-    icon: Activity,
-    items: navGroups[3].items,
-  },
-  {
-    key: 'more',
-    label: 'More',
-    icon: MoreHorizontal,
+    label: '',
     items: [
-      ...navGroups[4].items,
-      { to: '/settings', label: 'Settings', icon: KeyRound },
+      { to: '/simple', label: 'Overview', icon: LayoutDashboard, exact: true },
     ],
-    withExtras: true,
+  },
+  {
+    label: 'Configuration',
+    items: [
+      { to: '/simple/internet', label: 'Internet', icon: Globe },
+      { to: '/simple/networks', label: 'Local networks', icon: Network },
+      { to: '/simple/dns', label: 'DNS', icon: Globe },
+      { to: '/simple/port-forwards', label: 'Port forwards', icon: ArrowRightLeft },
+      { to: '/simple/system', label: 'System', icon: Settings2 },
+      { to: '/users', label: 'Users', icon: Users },
+    ],
+  },
+  {
+    label: 'Tools',
+    items: [
+      { to: '/ip-tools', label: 'IP Tools', icon: Calculator },
+      { to: '/announcements', label: 'Announcements', icon: Megaphone },
+      { to: '/config-browser', label: 'Config Browser', icon: BookOpen },
+    ],
   },
 ]
+
+const simpleSharedPaths = new Set(['/settings', '/ip-tools', '/announcements', '/config-browser', '/users'])
+
+function isSimpleSharedPath(pathname: string): boolean {
+  return simpleSharedPaths.has(pathname) || pathname.startsWith('/users/')
+}
 
 function groupKeyForPath(pathname: string): string {
   if (pathname === '/settings') return 'more'
   if (['/hostname', '/dns', '/ssh', '/sysctl'].includes(pathname)) return 'system'
-  if (['/traffic', '/logs', '/ha-status', '/neighbors', '/system'].some(p => pathname === p || pathname.startsWith(p + '/'))) return 'monitor'
+  if (['/traffic', '/logs', '/neighbors', '/system'].some(p => pathname === p || pathname.startsWith(p + '/'))) return 'monitor'
   for (const group of navGroups) {
     for (const item of group.items) {
       const match = item.exact
@@ -151,103 +147,12 @@ function groupKeyForPath(pathname: string): string {
   return 'dashboard'
 }
 
-interface MobileDrawerProps {
-  group: MobileNavGroup
-  onClose: () => void
-  theme: string
-  onToggleTheme: () => void
-  onLogout: () => void
-}
-
-function MobileDrawer({ group, onClose, theme, onToggleTheme, onLogout }: MobileDrawerProps) {
-  return (
-    <Dialog.Root open onOpenChange={(o) => { if (!o) onClose() }}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-40 bg-black/50 md:hidden" />
-        <Dialog.Content
-          aria-describedby={undefined}
-          className="fixed inset-x-0 bottom-0 z-50 flex flex-col bg-background border-t rounded-t-2xl shadow-2xl max-h-[75vh] md:hidden focus:outline-none"
-          onEscapeKeyDown={onClose}
-          onInteractOutside={onClose}
-        >
-          <div className="flex justify-center pt-2.5 pb-1 shrink-0">
-            <div className="h-1 w-10 rounded-full bg-muted-foreground/25" />
-          </div>
-
-          <div className="flex items-center justify-between px-5 py-3 border-b shrink-0">
-            <Dialog.Title className="text-base font-semibold">{group.label}</Dialog.Title>
-            <Dialog.Close asChild>
-              <button
-                type="button"
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </Dialog.Close>
-          </div>
-
-          <div className="overflow-y-auto py-2 px-3 pb-4">
-            <div className="space-y-0.5">
-              {group.items.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.exact}
-                  onClick={onClose}
-                  className={({ isActive }) =>
-                    cn(
-                      'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                      isActive
-                        ? 'bg-primary/10 text-primary'
-                        : 'text-foreground/80 hover:bg-muted/60 hover:text-foreground'
-                    )
-                  }
-                >
-                  <item.icon className="h-4 w-4 shrink-0 opacity-60" />
-                  {item.label}
-                </NavLink>
-              ))}
-            </div>
-
-            {group.withExtras && (
-              <div className="mt-2 pt-2 border-t border-border/50 space-y-0.5">
-                <div className="px-3 pb-1">
-                  <SectionLabel className="text-muted-foreground/60">Instance</SectionLabel>
-                </div>
-                <InstanceMenu tone="sheet" onDone={onClose} />
-
-                <div className="my-2 border-t border-border/50" />
-                <button
-                  onClick={() => { onToggleTheme(); onClose() }}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-foreground/80 hover:bg-muted/60 hover:text-foreground w-full transition-colors"
-                >
-                  {theme === 'dark'
-                    ? <Sun className="h-4 w-4 shrink-0 opacity-60" />
-                    : <Moon className="h-4 w-4 shrink-0 opacity-60" />
-                  }
-                  {theme === 'dark' ? 'Light mode' : 'Dark mode'}
-                </button>
-                <button
-                  onClick={() => { onLogout(); onClose() }}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 w-full transition-colors"
-                >
-                  <LogOut className="h-4 w-4 shrink-0" />
-                  Sign out
-                </button>
-              </div>
-            )}
-          </div>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
-  )
-}
-
 export default function MainLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const { theme, toggle: toggleTheme } = useTheme()
   const [staging, setStaging] = useState(false)
+  const [stagingLayer, setStagingLayer] = useState<string | null>(null)
   const [showDiff, setShowDiff] = useState(false)
   const [applying, setApplying] = useState(false)
   const [pendingPoll, setPendingPoll] = useState(0)
@@ -261,7 +166,8 @@ export default function MainLayout() {
   const [collapsed, setCollapsed] = useState(() =>
     localStorage.getItem('sidebar-collapsed') === 'true'
   )
-  const [mobileDrawer, setMobileDrawer] = useState<MobileNavGroup | null>(null)
+  const [hostname, setHostname] = useState('Routier')
+  const [configLayer, setConfigLayerState] = useState<ConfigLayer>(getConfigLayer())
   const { bump } = useDataVersion()
   const activeInstance = useActiveInstance()
   const onFriend = activeInstance.id !== 'self'
@@ -273,16 +179,29 @@ export default function MainLayout() {
   }
 
   const activeMobileGroupKey = useMemo(
-    () => groupKeyForPath(location.pathname),
-    [location.pathname]
+    () => configLayer === 'simple'
+      ? (simpleNavGroups[2].items.some((item) => item.to === location.pathname) ? 'simple-tools' : location.pathname === '/settings' ? 'settings' : 'simple')
+      : groupKeyForPath(location.pathname),
+    [configLayer, location.pathname]
   )
 
-  useEffect(() => addStagingListener(setStaging), [])
+  useEffect(() => addStagingListener((state) => {
+    setStaging(state.pending)
+    setStagingLayer(state.layer)
+  }), [])
+
+  useEffect(() => subscribeConfigLayer(setConfigLayerState), [])
+
+  useEffect(() => {
+    if (configLayer === 'simple' && !isSimpleSharedPath(location.pathname) && !location.pathname.startsWith('/simple')) navigate('/simple', { replace: true })
+    if (configLayer === 'advanced' && location.pathname.startsWith('/simple')) navigate('/', { replace: true })
+  }, [configLayer, location.pathname, navigate])
 
   useEffect(() => {
     api.apiConfigSectionGet({ section: 'hostname' }).then((h) => {
-      const hostname = typeof h === 'string' && h ? h : 'Routier'
-      document.title = hostname === 'Routier' ? 'Routier' : `${hostname} - Routier`
+      const name = typeof h === 'string' && h ? h : 'Routier'
+      setHostname(name)
+      document.title = name === 'Routier' ? 'Routier' : `${name} - Routier`
     }).catch(() => { document.title = 'Routier' })
   }, [])
 
@@ -290,6 +209,7 @@ export default function MainLayout() {
     try {
       await api.apiConfigStagingDelete()
       setStaging(false)
+      setStagingLayer(null)
       bump()
       toast.success('Pending changes discarded')
     } catch (err: unknown) {
@@ -349,16 +269,55 @@ export default function MainLayout() {
     })
   }
 
-  const handleMobileNavTap = (group: MobileNavGroup) => {
-    if (group.key === 'dashboard') {
-      navigate('/')
-      return
-    }
-    setMobileDrawer(group)
-  }
+  const moreExtras = (
+    <div className="mt-2 pt-2 border-t border-border/50 space-y-0.5">
+      <div className="px-3 pb-1">
+        <SectionLabel className="text-muted-foreground/60">Instance</SectionLabel>
+      </div>
+      <InstanceMenu tone="sheet" />
+      <div className="my-2 border-t border-border/50" />
+      <button
+        onClick={toggleTheme}
+        className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-foreground/80 hover:bg-muted/60 hover:text-foreground w-full transition-colors"
+      >
+        {theme === 'dark'
+          ? <Sun className="h-4 w-4 shrink-0 opacity-60" />
+          : <Moon className="h-4 w-4 shrink-0 opacity-60" />
+        }
+        {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+      </button>
+      <button
+        onClick={handleLogout}
+        className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 w-full transition-colors"
+      >
+        <LogOut className="h-4 w-4 shrink-0" />
+        Sign out
+      </button>
+    </div>
+  )
+
+  const mobileTabs: MobileTab[] = configLayer === 'simple'
+    ? [
+        { key: 'simple', label: 'Setup', icon: LayoutDashboard, items: simpleNavGroups.slice(0, 2).flatMap((group) => group.items) },
+        { key: 'simple-tools', label: 'Tools', icon: MoreHorizontal, items: simpleNavGroups[2].items },
+        { key: 'settings', label: 'Settings', icon: KeyRound, to: '/settings', exact: true },
+      ]
+    : [
+        { key: 'dashboard', label: 'Home', icon: LayoutDashboard, to: '/', exact: true },
+        { key: 'network', label: 'Network', icon: Network, items: navGroups[1].items },
+        { key: 'system', label: 'System', icon: Settings2, items: navGroups[2].items },
+        { key: 'monitor', label: 'Monitor', icon: Activity, items: navGroups[3].items },
+        {
+          key: 'more',
+          label: 'More',
+          icon: MoreHorizontal,
+          items: [...navGroups[4].items, { to: '/settings', label: 'Settings', icon: KeyRound }],
+          sheet: moreExtras,
+        },
+      ]
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="app-shell flex overflow-hidden">
       <aside
         className={cn(
           'hidden md:flex flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border shrink-0',
@@ -374,7 +333,7 @@ export default function MainLayout() {
         >
           <Logo className="h-7 w-7 shrink-0" />
           {!collapsed && (
-            <span className="text-[15px] font-semibold tracking-tight text-white truncate">
+            <span className="text-[15px] font-semibold tracking-tight text-sidebar-foreground truncate">
               Routier
             </span>
           )}
@@ -386,7 +345,7 @@ export default function MainLayout() {
 
         <div className="flex-1 overflow-y-auto overflow-x-hidden py-3">
           <nav className={cn('space-y-4', collapsed ? 'px-1' : 'px-2')}>
-            {navGroups.map((group) => (
+            {(configLayer === 'simple' ? simpleNavGroups : navGroups).map((group) => (
               <div key={group.label || '__home__'}>
                 {group.label && !collapsed && (
                   <div className="px-2 mb-1.5">
@@ -516,6 +475,25 @@ export default function MainLayout() {
       </aside>
 
       <div className="flex-1 flex flex-col overflow-hidden bg-background">
+        <header className="md:hidden shrink-0 safe-top border-b border-border bg-sidebar">
+          <div className="h-12 flex items-center gap-2 px-3">
+            {location.pathname !== '/' && location.pathname !== '/simple' ? (
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                aria-label="Back"
+                className="-ml-1 flex items-center justify-center h-9 w-9 rounded-md text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+            ) : (
+              <Logo className="h-7 w-7 shrink-0" />
+            )}
+            <span className="text-[15px] font-semibold tracking-tight truncate">
+              {onFriend ? activeInstance.label : hostname}
+            </span>
+          </div>
+        </header>
         {onFriend && (
           <div className="flex items-center justify-between gap-3 px-4 py-2 bg-info/10 border-b border-info/30 text-info text-sm shrink-0">
             <div className="flex items-center gap-2">
@@ -539,8 +517,8 @@ export default function MainLayout() {
           <div className="px-4 pt-2 shrink-0 empty:hidden">
             <WatchdogConfirmBar
               pollKey={pendingPoll}
-              onKept={bump}
-              onRolledBack={bump}
+              onKept={() => { setPendingPoll(0); bump() }}
+              onRolledBack={() => { setPendingPoll(0); bump() }}
             />
           </div>
         )}
@@ -548,19 +526,23 @@ export default function MainLayout() {
           <div className="flex items-center justify-between gap-3 px-4 py-2 bg-warning/8 border-b border-warning/20 text-warning text-sm shrink-0">
             <div className="flex items-center gap-2">
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-warning animate-pulse" />
-              <span className="text-xs font-medium text-warning/90">Pending changes</span>
-              <span className="text-xs text-muted-foreground hidden sm:inline">- apply to activate</span>
+              <span className="text-xs font-medium text-warning/90">
+                {stagingLayer && stagingLayer !== configLayer ? `Pending ${stagingLayer} changes` : 'Pending changes'}
+              </span>
+              <span className="text-xs text-muted-foreground hidden sm:inline">
+                {stagingLayer && stagingLayer !== configLayer ? '- switch views to edit or apply' : '- apply to activate'}
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <Button
                 size="sm"
                 onClick={() => setShowDiff(true)}
-                disabled={applying}
+                disabled={applying || (!!stagingLayer && stagingLayer !== configLayer)}
                 className="h-6 gap-1.5 bg-warning hover:bg-warning/85 text-warning-foreground border-0 text-xs px-2.5"
               >
                 <Play className="h-2.5 w-2.5" />Apply
               </Button>
-              <Button
+              {configLayer === 'advanced' && <Button
                 size="sm"
                 variant="outline"
                 onClick={() => {
@@ -586,10 +568,10 @@ export default function MainLayout() {
               >
                 <Boxes className="h-2.5 w-2.5" />
                 Save as Macro
-              </Button>
+              </Button>}
               <button
                 onClick={handleDiscard}
-                disabled={applying}
+                disabled={applying || (!!stagingLayer && stagingLayer !== configLayer)}
                 className="text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
                 Discard
@@ -599,48 +581,15 @@ export default function MainLayout() {
         )}
 
         <main className="flex-1 overflow-auto">
-          <div className="p-4 md:p-6">
+          <div className="p-4 pb-8 md:p-6" key={activeInstance.id}>
             <Suspense fallback={<Spinner />}>
               <Outlet />
             </Suspense>
           </div>
         </main>
 
-        <nav className="md:hidden shrink-0 h-14 bg-sidebar border-t border-sidebar-border flex items-stretch">
-          {mobileNavGroups.map((group) => {
-            const isActive = activeMobileGroupKey === group.key
-            return (
-              <button
-                key={group.key}
-                type="button"
-                onClick={() => handleMobileNavTap(group)}
-                className={cn(
-                  'relative flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors',
-                  isActive
-                    ? 'text-sidebar-primary'
-                    : 'text-sidebar-foreground/45 hover:text-sidebar-foreground',
-                )}
-              >
-                <group.icon className="h-5 w-5" />
-                <span className="text-[10px] font-medium leading-none">{group.label}</span>
-                {isActive && (
-                  <span className="absolute bottom-0 inset-x-1/4 h-0.5 rounded-t-full bg-sidebar-primary" />
-                )}
-              </button>
-            )
-          })}
-        </nav>
+        <MobileNav tabs={mobileTabs} activeKey={activeMobileGroupKey} />
       </div>
-
-      {mobileDrawer && (
-        <MobileDrawer
-          group={mobileDrawer}
-          onClose={() => setMobileDrawer(null)}
-          theme={theme}
-          onToggleTheme={toggleTheme}
-          onLogout={handleLogout}
-        />
-      )}
 
       {showDiff && (
         <DiffModal
@@ -654,8 +603,8 @@ export default function MainLayout() {
         <Dialog.Root open onOpenChange={(o) => { if (!o) setShowSaveMacro(false) }}>
           <Dialog.Portal>
             <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50" />
-            <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-2xl max-h-[85vh] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-card shadow-lg flex flex-col overflow-hidden">
-              <div className="p-6 pb-4 border-b border-border space-y-1 shrink-0">
+            <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-2xl max-h-[85vh] -translate-x-1/2 -translate-y-1/2 rounded-xl bg-card shadow-2xl flex flex-col overflow-hidden">
+              <div className="p-6 pb-4 space-y-1.5 shrink-0">
                 <Dialog.Title className="text-base font-semibold">Save as Macro</Dialog.Title>
                 <Dialog.Description className="text-sm text-muted-foreground">
                   Capture the pending changes as a named, reusable macro.
@@ -688,7 +637,7 @@ export default function MainLayout() {
                 <div className="space-y-2">
                   <p className="text-xs font-medium text-muted-foreground">Changes to capture</p>
                   {macroDiffLoading && (
-                    <div className="flex items-center justify-center h-20 rounded border border-border bg-muted/20">
+                    <div className="flex items-center justify-center h-20 rounded bg-muted/20">
                       <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />
                     </div>
                   )}
@@ -698,14 +647,14 @@ export default function MainLayout() {
                     </p>
                   )}
                   {!macroDiffLoading && macroDiffLines !== null && macroDiffLines.length > 0 && (
-                    <div className="overflow-auto max-h-64 rounded border border-border p-3 bg-muted/30">
+                    <div className="overflow-auto max-h-64 rounded bg-muted/30 p-3">
                       <DiffView lines={macroDiffLines} />
                     </div>
                   )}
                 </div>
               </div>
 
-              <div className="p-4 border-t border-border flex justify-end gap-2 shrink-0">
+              <div className="flex justify-end gap-2 px-4 pb-4 pt-2 shrink-0">
                 <Button variant="outline" onClick={() => setShowSaveMacro(false)} disabled={savingMacro}>Cancel</Button>
                 <Button onClick={handleSaveMacro} disabled={savingMacro || !macroName.trim()} className="gap-2">
                   {savingMacro && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}

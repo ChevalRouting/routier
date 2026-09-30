@@ -2,6 +2,8 @@
 
 package setup
 
-func nicAddrs(_ string) []string {
-	return nil
+import "github.com/ChevalRouting/routier/pkg/types"
+
+func systemNics() ([]types.SystemNic, error) {
+	return []types.SystemNic{}, nil
 }

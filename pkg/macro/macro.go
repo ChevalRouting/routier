@@ -15,7 +15,7 @@ type Conflict struct {
 var allSections = []string{
 	"hostname", "interfaces", "tunnels", "routing", "wireguard",
 	"nftables", "sysctl", "dns", "users", "services", "logging",
-	"conntrackd", "ssh", "vrfs", "gai",
+	"ha", "ssh", "vrfs", "gai",
 	"monitoring", "boot_modules", "friends", "dhcp",
 }
 
@@ -65,8 +65,8 @@ func sectionJSON(cfg *config.Config, section string) string {
 		v = cfg.Services
 	case "logging":
 		v = cfg.Logging
-	case "conntrackd":
-		v = cfg.Conntrackd
+	case "ha":
+		v = cfg.HA
 	case "ssh":
 		v = cfg.SSH
 	case "vrfs":

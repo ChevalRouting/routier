@@ -50,6 +50,37 @@ function expandIPv6(addr: string): number[] {
   return bytes
 }
 
+function isIPv4(addr: string): boolean {
+  const parts = addr.split('.')
+  if (parts.length !== 4) return false
+  return parts.every((p) => /^\d+$/.test(p) && Number(p) >= 0 && Number(p) <= 255)
+}
+
+export function reverseDnsName(ip: string): string | null {
+  const v = ip.trim()
+  if (!v) return null
+
+  if (isIPv4(v)) {
+    return v.split('.').reverse().join('.') + '.in-addr.arpa'
+  }
+
+  if (v.includes(':')) {
+    if (!v.includes('::') && v.split(':').length !== 8) return null
+
+    const bytes = expandIPv6(v)
+    if (bytes.length !== 16 || bytes.some((b) => Number.isNaN(b))) return null
+
+    const nibbles: string[] = []
+    for (const b of bytes) {
+      nibbles.push(((b >> 4) & 0xf).toString(16), (b & 0xf).toString(16))
+    }
+
+    return nibbles.reverse().join('.') + '.ip6.arpa'
+  }
+
+  return null
+}
+
 function parseCIDR(cidr: string, family: string): [number[], number] {
   const isDefault = cidr === 'default'
   const raw = isDefault ? (family === 'ipv4' ? '0.0.0.0' : '::') : (cidr.includes('/') ? cidr.split('/')[0] : cidr)

@@ -4,7 +4,7 @@ import { useFetch } from '@/lib/useFetch'
 
 interface IfaceCfg {
   select?: string
-  vlans?: Record<string, { id?: number }>
+  type?: string
 }
 interface CfgShape {
   interfaces?: Record<string, IfaceCfg>
@@ -16,12 +16,10 @@ const isLiteralDevice = (sel: string) =>
 export function buildIfaceLabelMap(cfg?: CfgShape | null): Record<string, string> {
   const map: Record<string, string> = {}
   for (const [name, iface] of Object.entries(cfg?.interfaces ?? {})) {
+    if (iface?.type && iface.type !== 'physical') continue
     const sel = iface?.select
     if (!sel || !isLiteralDevice(sel)) continue
     map[sel] = name
-    for (const [vname, vlan] of Object.entries(iface?.vlans ?? {})) {
-      if (vlan?.id != null) map[`${sel}.${vlan.id}`] = `${name}.${vname}`
-    }
   }
   return map
 }

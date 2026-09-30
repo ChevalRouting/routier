@@ -1,0 +1,12 @@
+#!/sbin/openrc-run
+
+name="routier-upgrade"
+description="One-shot system upgrade, decoupled from the web UI"
+command="/usr/bin/routier"
+command_args="upgrade --yes"
+command_background="yes"
+pidfile="/run/routier-upgrade.pid"
+
+depend() {
+	after net
+}

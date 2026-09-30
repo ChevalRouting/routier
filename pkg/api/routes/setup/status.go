@@ -2,12 +2,15 @@ package setup
 
 import (
 	"net/http"
+	"os"
 
 	appctx "github.com/ChevalRouting/routier/pkg/api/app"
 	"github.com/ChevalRouting/routier/pkg/config"
 	webdb "github.com/ChevalRouting/routier/pkg/db"
 	"github.com/ChevalRouting/routier/pkg/types"
 )
+
+const seedPasswordFile = "/var/lib/routier/ui-seed-password"
 
 // Status godoc
 // @Summary  Onboarding / setup status
@@ -24,9 +27,14 @@ func Status(w http.ResponseWriter, r *http.Request) {
 		hasIfaces = len(cfg.Interfaces) > 0
 	}
 
+	needsPasswordChange := false
+	if _, err := os.Stat(seedPasswordFile); err == nil {
+		needsPasswordChange = true
+	}
+
 	types.OK(w, types.SetupStatus{
-		NeedsPasswordChange: webdb.Setting(app.DB, webdb.SettingPasswordChanged, "true") != "true",
-		OnboardingComplete:  webdb.Setting(app.DB, webdb.SettingOnboardingComplete, "true") == "true",
+		NeedsPasswordChange: needsPasswordChange,
+		OnboardingComplete:  webdb.Setting(r.Context(), app.DB, webdb.SettingOnboardingComplete, "false") == "true",
 		HasInterfaces:       hasIfaces,
 	})
 }

@@ -3,24 +3,32 @@
 package setup
 
 import (
-	vnl "github.com/vishvananda/netlink"
+	"github.com/ChevalRouting/routier/pkg/netlink"
+	"github.com/ChevalRouting/routier/pkg/types"
 )
 
-func nicAddrs(name string) []string {
-	link, err := vnl.LinkByName(name)
+func systemNics() ([]types.SystemNic, error) {
+	nics, err := netlink.SystemNics()
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
-	addrs, _ := vnl.AddrList(link, vnl.FAMILY_ALL)
-	var out []string
-	for _, a := range addrs {
-		if a.IP.IsLinkLocalUnicast() || a.IP.IsLinkLocalMulticast() {
-			continue
-		}
-
-		out = append(out, a.IPNet.String())
+	out := make([]types.SystemNic, 0, len(nics))
+	for _, n := range nics {
+		out = append(out, types.SystemNic{
+			Name:      n.Name,
+			MAC:       n.MAC,
+			Operstate: n.Operstate,
+			Addrs:     n.Addrs,
+			Physical:  n.Physical,
+			Driver:    n.Driver,
+			Speed:     n.Speed,
+			Duplex:    n.Duplex,
+			Carrier:   n.Carrier,
+			PCIVendor: n.PCIVendor,
+			PCIDevice: n.PCIDevice,
+		})
 	}
 
-	return out
+	return out, nil
 }

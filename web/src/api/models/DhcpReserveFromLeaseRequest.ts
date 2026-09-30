@@ -24,6 +24,18 @@ export interface DhcpReserveFromLeaseRequest {
      * @type {string}
      * @memberof DhcpReserveFromLeaseRequest
      */
+    dns_name?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof DhcpReserveFromLeaseRequest
+     */
+    dns_zone?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof DhcpReserveFromLeaseRequest
+     */
     hostname: string;
     /**
      * 
@@ -59,6 +71,8 @@ export function DhcpReserveFromLeaseRequestFromJSONTyped(json: any, ignoreDiscri
     }
     return {
         
+        'dns_name': json['dns_name'] == null ? undefined : json['dns_name'],
+        'dns_zone': json['dns_zone'] == null ? undefined : json['dns_zone'],
         'hostname': json['hostname'],
         'ip': json['ip'],
         'lease_ip': json['lease_ip'],
@@ -76,6 +90,8 @@ export function DhcpReserveFromLeaseRequestToJSONTyped(value?: DhcpReserveFromLe
 
     return {
         
+        'dns_name': value['dns_name'],
+        'dns_zone': value['dns_zone'],
         'hostname': value['hostname'],
         'ip': value['ip'],
         'lease_ip': value['lease_ip'],

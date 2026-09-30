@@ -51,6 +51,10 @@ Routier emits `define`s you can reference with `$` in your rules:
 - `$vrf_<name>_interfaces` / `$vrf_<name>_members` - a VRF's master device and
   its member devices. The `vrf_` prefix keeps these from clashing with an
   interface of the same name.
+- `$dns_allow_from` / `$dns_allow_from6` - the resolver's client ACL
+  (`dns.server.allow_from`), split by family.
+- `$dns_listen` / `$dns_listen6` - the addresses the resolver listens on, with
+  `iface(...)` / `vips(...)` references already resolved.
 - interface-membership sets used by the auto-allow rules.
 
 `GET /api/config/nftables/vars` returns the rendered variable names and
@@ -64,7 +68,16 @@ needed:
 - WireGuard interfaces with `allow_inbound: true` (their listen port),
 - VRRP and conntrackd when configured,
 - BGP/OSPF/OSPF6 via their `allow_inbound` interface lists, scoped to those
-  interfaces and their subnets.
+  interfaces and their subnets,
+- DNS via `dns.server.allow_inbound`, on the configured `port` (53 by default).
+  Unlike the routing protocols, the DNS rule is scoped by the resolver's own
+  `allow_from` ACL rather than by the interface subnet, because a resolver's
+  clients are routed rather than on-link. Firewall and daemon therefore always
+  agree on who may query.
+
+`allow_inbound` lists accept an interface, VLAN, WireGuard or tunnel name. A
+name that matches none of those emits no rule and logs a warning rather than
+failing the render.
 
 ## Defaults and editing
 

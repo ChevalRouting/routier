@@ -1,19 +1,21 @@
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { api } from '@/lib/client'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
-import TagInput from '@/components/TagInput'
-import { Plus, ChevronDown, ChevronRight, Shuffle } from 'lucide-react'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { CopyButton } from '@/components/CopyButton'
+import { Button } from 'cheval-ui'
+import { Input } from 'cheval-ui'
+import { Label } from 'cheval-ui'
+import { TagInput } from 'cheval-ui'
+import { ChevronDown, ChevronRight, Shuffle } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from 'cheval-ui'
+import { CopyButton } from 'cheval-ui'
 import { checkCIDR, checkPort, checkMTU } from '@/lib/validate'
-import { PreferencesGroup, EntryRow, ComboRow, SwitchRow } from '@/components/Preferences'
-import { Segmented } from '@/components/ui/segmented'
+import { PreferencesGroup, EntryRow, ComboRow, SwitchRow } from 'cheval-ui'
+import { Segmented } from 'cheval-ui'
+import { AccordionList } from '@/components/ui/AccordionList'
 import { WgPeer, WgIface, emptyPeer, KeyField } from './shared'
-import { PeerRow } from './PeerRow'
+import { PeerSummary, PeerActions, PeerBody } from './PeerRow'
+
+interface WorkingPeer { uid: string; p: WgPeer }
 
 export interface WgFormProps {
   name: string
@@ -25,6 +27,7 @@ export interface WgFormProps {
 }
 
 export function WgForm({ name, iface, onChange, onNameChange, onAdd, onDone }: WgFormProps) {
+  const [peerItems, setPeerItems] = useState<WorkingPeer[]>(() => (iface.peers ?? []).map((p) => ({ uid: crypto.randomUUID(), p })))
   const [hooksOpen, setHooksOpen] = useState(false)
   const [keyMode, setKeyMode] = useState<'inline' | 'file'>(iface.private_key_file ? 'file' : 'inline')
   const [tableMode, setTableMode] = useState<'off' | 'auto' | 'custom'>(
@@ -71,12 +74,13 @@ export function WgForm({ name, iface, onChange, onNameChange, onAdd, onDone }: W
     else onChange({ ...iface, table: '' })
   }
 
-  const peers = iface.peers ?? []
-  const updatePeer = (idx: number, peer: WgPeer) => {
-    const next = [...peers]; next[idx] = peer; onChange({ ...iface, peers: next })
+  const commitPeers = (next: WorkingPeer[]) => {
+    setPeerItems(next)
+    onChange({ ...iface, peers: next.map((x) => x.p) })
   }
-  const deletePeer = (idx: number) => onChange({ ...iface, peers: peers.filter((_, i) => i !== idx) })
-  const addPeer = () => onChange({ ...iface, peers: [...peers, emptyPeer()] })
+  const updatePeer = (uid: string, peer: WgPeer) => commitPeers(peerItems.map((x) => (x.uid === uid ? { ...x, p: peer } : x)))
+  const deletePeer = (uid: string) => commitPeers(peerItems.filter((x) => x.uid !== uid))
+  const addPeer = () => commitPeers([...peerItems, { uid: crypto.randomUUID(), p: emptyPeer() }])
 
   return (
     <>
@@ -157,7 +161,7 @@ export function WgForm({ name, iface, onChange, onNameChange, onAdd, onDone }: W
         <TagInput values={iface.addresses} onChange={(v) => set('addresses', v)} placeholder="10.0.0.1/24" mono validate={checkCIDR} />
       </div>
 
-      <div className="border rounded-md px-3 py-2">
+      <div className="rounded-md bg-muted/30 px-3 py-2">
         <button type="button" onClick={() => setHooksOpen(!hooksOpen)}
           className="flex items-center gap-1 text-sm font-semibold text-foreground hover:text-primary w-full py-1">
           {hooksOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
@@ -178,34 +182,28 @@ export function WgForm({ name, iface, onChange, onNameChange, onAdd, onDone }: W
         )}
       </div>
 
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Label className="text-sm font-semibold">Peers</Label>
-            <Badge variant="secondary" className="text-xs">{peers.length}</Badge>
-          </div>
-          <Button type="button" variant="outline" size="sm" onClick={addPeer} className="gap-1 h-7 text-xs">
-            <Plus className="h-3 w-3" />Add peer
-          </Button>
-        </div>
-
-        {peers.length === 0 && (
-          <p className="text-sm text-muted-foreground italic">No peers configured.</p>
-        )}
-
-        {peers.map((peer, idx) => (
-          <PeerRow
-            key={idx}
-            peer={peer}
+      <AccordionList
+        items={peerItems}
+        getId={(x) => x.uid}
+        description={`Peers (${peerItems.length})`}
+        addLabel="Add peer"
+        onAdd={addPeer}
+        onRemove={(x) => deletePeer(x.uid)}
+        emptyTitle="No peers"
+        emptyMessage="Add a peer to connect a client or another node."
+        renderSummary={(x) => <PeerSummary peer={x.p} />}
+        renderActions={(x) => (
+          <PeerActions
+            peer={x.p}
             serverPubKey={serverPubKey}
             serverPort={iface.listen_port}
             serverAddresses={iface.addresses ?? []}
             ifaceName={name}
-            onChange={(updated) => updatePeer(idx, updated)}
-            onDelete={() => deletePeer(idx)}
+            onChange={(u) => updatePeer(x.uid, u)}
           />
-        ))}
-      </div>
+        )}
+        renderBody={(x) => <PeerBody peer={x.p} onChange={(u) => updatePeer(x.uid, u)} />}
+      />
 
       <div className="flex justify-end gap-2 pt-2">
         <Button variant="outline" onClick={onDone}>{onAdd ? 'Cancel' : 'Done'}</Button>
@@ -214,4 +212,3 @@ export function WgForm({ name, iface, onChange, onNameChange, onAdd, onDone }: W
     </>
   )
 }
-

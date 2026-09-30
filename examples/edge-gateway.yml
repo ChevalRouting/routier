@@ -10,16 +10,24 @@ interfaces:
     select: eth[1]
     addresses: [10.0.0.1/24]
     mtu: 9000
-    vlans:
-      servers:
-        id: 100
-        addresses: [10.0.100.1/24]
-      users:
-        id: 200
-        addresses: [10.0.200.1/24]
-      mgmt:
-        id: 999
-        addresses: [10.0.99.1/24]
+  servers:
+    type: vlan
+    select: lan
+    addresses: [10.0.100.1/24]
+    vlan:
+      id: 100
+  users:
+    type: vlan
+    select: lan
+    addresses: [10.0.200.1/24]
+    vlan:
+      id: 200
+  mgmt:
+    type: vlan
+    select: lan
+    addresses: [10.0.99.1/24]
+    vlan:
+      id: 999
 
 routing:
   static:

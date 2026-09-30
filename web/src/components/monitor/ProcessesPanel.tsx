@@ -1,14 +1,14 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { api } from '@/lib/client'
 import type { TypesProcessInfo as ProcessInfo } from '@/api'
-import { Card, CardContent } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Pagination, usePagination } from '@/components/Pagination'
-import { Button } from '@/components/ui/button'
+import { Card, CardContent } from 'cheval-ui'
+import { Input } from 'cheval-ui'
+import { Pagination, usePagination } from 'cheval-ui'
+import { Button } from 'cheval-ui'
 import { RefreshCw, Pause, Play, Search, ArrowUp, ArrowDown } from 'lucide-react'
-import { Spinner } from '@/components/Spinner'
-import { fmtBytes } from '@/lib/fmt'
-import { cn } from '@/lib/utils'
+import { Spinner } from 'cheval-ui'
+import { fmtBytes } from 'cheval-ui'
+import { cn } from 'cheval-ui'
 import { OnActionChange } from './shared'
 
 export function procStateLabel(s: string): string {
@@ -97,7 +97,7 @@ export function ProcessesPanel({ onActionChange }: { onActionChange: OnActionCha
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b text-left">
+                  <tr className="border-b border-border text-left">
                     <th className="px-4 py-2.5 font-medium text-muted-foreground w-16">PID</th>
                     <th className="px-4 py-2.5 font-medium text-muted-foreground">Name</th>
                     <th className="px-4 py-2.5 font-medium text-muted-foreground">Command</th>
@@ -116,7 +116,7 @@ export function ProcessesPanel({ onActionChange }: { onActionChange: OnActionCha
                 </thead>
                 <tbody>
                   {pageItems.map((p) => (
-                    <tr key={p.pid} className="border-b last:border-b-0 hover:bg-muted/30">
+                    <tr key={p.pid} className="border-b border-border last:border-b-0 hover:bg-muted/30">
                       <td className="px-4 py-2 font-mono text-xs text-muted-foreground">{p.pid}</td>
                       <td className="px-4 py-2 font-mono font-medium">{p.name}</td>
                       <td className="px-4 py-2 font-mono text-xs text-muted-foreground max-w-xs truncate">{p.cmd || '–'}</td>

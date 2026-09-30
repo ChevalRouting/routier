@@ -82,7 +82,35 @@ routing:
 UI: **Network > Routing**, with tabs for static, BGP, OSPF, PBR, and the rest.
 The dashboard BGP card deep-links to the BGP neighbors tab.
 
+## EVPN
+
+BGP supports the `l2vpn-evpn` address family globally and inside a VRF.
+Neighbors are activated through their existing `address_families` map. Typed
+family options cover VNI advertisement, default-gateway and SVI advertisement,
+IPv4/IPv6 unicast advertisement, and import/export route targets:
+
+```yaml
+routing:
+  bgp:
+    asn: 65001
+    router_id: 192.0.2.1
+    neighbors:
+      - address: 192.0.2.2
+        remote_asn: 65002
+        address_families:
+          l2vpn-evpn: {}
+    address_families:
+      l2vpn-evpn:
+        advertise_all_vni: true
+        advertise: [ipv4-unicast]
+        route_target_import: [65001:100]
+        route_target_export: [65001:100]
+```
+
 ## Anycast and RADVD
 
 - `routing.anycast` - advertise anycast prefixes (works with BGP).
 - `routing.radvd` - IPv6 router advertisements per interface.
+
+VRRP failover and conntrackd live under the `ha:` section (see
+[high availability](ha.md)).

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"io/fs"
 	"net/http"
 	"path/filepath"
@@ -23,6 +24,7 @@ import (
 
 	"github.com/ChevalRouting/routier/pkg/api/routes/announcements"
 	"github.com/ChevalRouting/routier/pkg/api/routes/dhcp"
+	dnsroutes "github.com/ChevalRouting/routier/pkg/api/routes/dns"
 	natroutes "github.com/ChevalRouting/routier/pkg/api/routes/nat"
 	"github.com/ChevalRouting/routier/pkg/api/routes/routing"
 
@@ -32,6 +34,7 @@ import (
 	"github.com/ChevalRouting/routier/pkg/api/routes/auth"
 
 	"github.com/ChevalRouting/routier/pkg/api/routes/snapshots"
+	"github.com/ChevalRouting/routier/pkg/api/routes/system"
 
 	failuresroutes "github.com/ChevalRouting/routier/pkg/api/routes/failures"
 
@@ -60,8 +63,8 @@ type Server struct {
 	app    *appctx.App
 }
 
-func New(configPath, dbPath string, jwtSecret []byte, debug bool) (*Server, error) {
-	db, err := webdb.InitDB(dbPath)
+func New(ctx context.Context, configPath, dbPath string, jwtSecret []byte, debug bool) (*Server, error) {
+	db, err := webdb.InitDB(ctx, dbPath)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +79,7 @@ func New(configPath, dbPath string, jwtSecret []byte, debug bool) (*Server, erro
 
 	friendcache.SetPath(filepath.Join(filepath.Dir(dbPath), "friends_cache.json"))
 	friendcache.Load()
-	workers.StartCleanup(db)
+	workers.StartCleanup(ctx, db)
 	workers.StartLiveStats()
 	workers.StartFriendPoll(configPath)
 	return &Server{router: buildRouter(app, nil), app: app}, nil
@@ -115,6 +118,7 @@ func buildRouter(app *appctx.App, staticFS fs.FS) *chi.Mux {
 		configroutes.Routes(r)
 		apply.Routes(r)
 		snapshots.Routes(r)
+		system.Routes(r)
 		failuresroutes.Routes(r)
 		backup.Routes(r)
 		ha.Routes(r)
@@ -128,6 +132,7 @@ func buildRouter(app *appctx.App, staticFS fs.FS) *chi.Mux {
 		announcements.Routes(r)
 		macros.Routes(r)
 		dhcp.Routes(r)
+		dnsroutes.Routes(r)
 		tools.Routes(r)
 	})
 
@@ -146,9 +151,19 @@ func buildRouter(app *appctx.App, staticFS fs.FS) *chi.Mux {
 			if path == "" {
 				path = "index.html"
 			}
+			if path == "index.html" {
+				w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+			} else if strings.HasPrefix(path, "assets/") {
+				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+			}
 
 			f, err := staticFS.Open(path)
 			if err != nil {
+				if strings.HasPrefix(path, "assets/") {
+					http.NotFound(w, req)
+					return
+				}
+
 				f2, err2 := staticFS.Open("index.html")
 				if err2 != nil {
 					http.NotFound(w, req)

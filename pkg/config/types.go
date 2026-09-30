@@ -16,7 +16,7 @@ type Config struct {
 	Services    map[string]*Service   `yaml:"services,omitempty"     json:"services,omitempty" validate:"optional"`
 	Logging     *Logging              `yaml:"logging,omitempty"      json:"logging,omitempty" validate:"optional"`
 	Friends     []*Friend             `yaml:"friends,omitempty"      json:"friends,omitempty" validate:"optional"`
-	Conntrackd  *Conntrackd           `yaml:"conntrackd,omitempty"   json:"conntrackd,omitempty" validate:"optional"`
+	HA          *HA                   `yaml:"ha,omitempty"           json:"ha,omitempty" validate:"optional"`
 	SSH         *SSH                  `yaml:"ssh,omitempty"          json:"ssh,omitempty" validate:"optional"`
 	BootModules []string              `yaml:"boot_modules,omitempty" json:"boot_modules,omitempty" validate:"optional"`
 	GAI         *GAIConfig            `yaml:"gai,omitempty"          json:"gai,omitempty" validate:"optional"`
@@ -30,6 +30,25 @@ type DHCP struct {
 	ControlAgent *KeaControlAgent `yaml:"control_agent,omitempty" json:"control_agent,omitempty" validate:"optional"`
 	Subnets4     []KeaSubnet      `yaml:"subnets4,omitempty"      json:"subnets4,omitempty" validate:"optional"`
 	Subnets6     []KeaSubnet      `yaml:"subnets6,omitempty"      json:"subnets6,omitempty" validate:"optional"`
+	DDNS         *DHCPDDNS        `yaml:"ddns,omitempty"          json:"ddns,omitempty" validate:"optional"`
+}
+
+type DHCPDDNS struct {
+	Enabled              bool   `yaml:"enabled,omitempty"                json:"enabled,omitempty" validate:"optional"`
+	Domain               string `yaml:"domain,omitempty"                 json:"domain,omitempty" validate:"optional"`
+	TTL                  int    `yaml:"ttl,omitempty"                    json:"ttl,omitempty" validate:"optional"`
+	Reverse              *bool  `yaml:"reverse,omitempty"                json:"reverse,omitempty" validate:"optional"`
+	OverrideClientUpdate bool   `yaml:"override_client_update,omitempty" json:"override_client_update,omitempty" validate:"optional"`
+	OverrideNoUpdate     bool   `yaml:"override_no_update,omitempty"     json:"override_no_update,omitempty" validate:"optional"`
+	ReplaceClientName    string `yaml:"replace_client_name,omitempty"    json:"replace_client_name,omitempty" validate:"optional"`
+	GeneratedPrefix      string `yaml:"generated_prefix,omitempty"       json:"generated_prefix,omitempty" validate:"optional"`
+	HostnameCharSet      string `yaml:"hostname_char_set,omitempty"      json:"hostname_char_set,omitempty" validate:"optional"`
+	Key                  string `yaml:"key,omitempty"                    json:"key,omitempty" validate:"optional"`
+	Algorithm            string `yaml:"algorithm,omitempty"              json:"algorithm,omitempty" validate:"optional"`
+}
+
+func (d *DHCPDDNS) UpdatesReverse() bool {
+	return d.Reverse == nil || *d.Reverse
 }
 
 type KeaControlAgent struct {
@@ -47,6 +66,8 @@ type KeaSubnet struct {
 	DNS           []string         `yaml:"dns,omitempty"            json:"dns,omitempty" validate:"optional"`
 	ValidLifetime int              `yaml:"valid_lifetime,omitempty" json:"valid_lifetime,omitempty" validate:"optional"`
 	Reservations  []KeaReservation `yaml:"reservations,omitempty"   json:"reservations,omitempty" validate:"optional"`
+	DDNS          *bool            `yaml:"ddns,omitempty"           json:"ddns,omitempty" validate:"optional"`
+	DDNSDomain    string           `yaml:"ddns_domain,omitempty"    json:"ddns_domain,omitempty" validate:"optional"`
 }
 
 type KeaReservation struct {
@@ -58,6 +79,22 @@ type KeaReservation struct {
 
 type MonitoringConfig struct {
 	Collection CollectionIntervals `yaml:"collection,omitempty" json:"collection,omitempty" validate:"optional"`
+	Probes     []PingProbe         `yaml:"probes,omitempty" json:"probes,omitempty" validate:"optional"`
+	LLDP       *LLDPConfig         `yaml:"lldp,omitempty" json:"lldp,omitempty" validate:"optional"`
+}
+
+type LLDPConfig struct {
+	Enabled    bool     `yaml:"enabled,omitempty" json:"enabled,omitempty" validate:"optional"`
+	CDP        bool     `yaml:"cdp,omitempty" json:"cdp,omitempty" validate:"optional"`
+	Transmit   bool     `yaml:"transmit,omitempty" json:"transmit,omitempty" validate:"optional"`
+	Interfaces []string `yaml:"interfaces,omitempty" json:"interfaces,omitempty" validate:"optional"`
+}
+
+type PingProbe struct {
+	Name     string `yaml:"name" json:"name"`
+	Target   string `yaml:"target" json:"target"`
+	Interval int    `yaml:"interval,omitempty" json:"interval,omitempty" validate:"optional"`
+	Timeout  int    `yaml:"timeout,omitempty" json:"timeout,omitempty" validate:"optional"`
 }
 
 type CollectionIntervals struct {
@@ -67,6 +104,7 @@ type CollectionIntervals struct {
 	Proto     int `yaml:"proto,omitempty"     json:"proto,omitempty" validate:"optional"`
 	Neighbors int `yaml:"neighbors,omitempty" json:"neighbors,omitempty" validate:"optional"`
 	Routes    int `yaml:"routes,omitempty"    json:"routes,omitempty" validate:"optional"`
+	LLDP      int `yaml:"lldp,omitempty"      json:"lldp,omitempty" validate:"optional"`
 }
 
 type Friend struct {
@@ -158,26 +196,28 @@ type RuleMatch struct {
 }
 
 type Interface struct {
-	Select      string           `yaml:"select"                json:"select"`
-	Type        string           `yaml:"type,omitempty"        json:"type,omitempty" validate:"optional"`
-	VRF         string           `yaml:"vrf,omitempty"         json:"vrf,omitempty" validate:"optional"`
-	Addresses   []string         `yaml:"addresses,omitempty"   json:"addresses,omitempty" validate:"optional"`
-	DHCPOptions []string         `yaml:"dhcp_options,omitempty" json:"dhcp_options,omitempty" validate:"optional"`
-	MTU         int              `yaml:"mtu,omitempty"         json:"mtu,omitempty" validate:"optional"`
-	VLANs       map[string]*VLAN `yaml:"vlans,omitempty"       json:"vlans,omitempty" validate:"optional"`
-	Bridge      *Bridge          `yaml:"bridge,omitempty"      json:"bridge,omitempty" validate:"optional"`
-	VRRP        []*VRRPInstance  `yaml:"vrrp,omitempty"        json:"vrrp,omitempty" validate:"optional"`
-	Device      string           `yaml:"-"                     json:"-"`
+	Select      string   `yaml:"select,omitempty"      json:"select,omitempty" validate:"optional"`
+	Type        string   `yaml:"type,omitempty"        json:"type,omitempty" validate:"optional"`
+	VRF         string   `yaml:"vrf,omitempty"         json:"vrf,omitempty" validate:"optional"`
+	Addresses   []string `yaml:"addresses,omitempty"   json:"addresses,omitempty" validate:"optional"`
+	DHCPOptions []string `yaml:"dhcp_options,omitempty" json:"dhcp_options,omitempty" validate:"optional"`
+	MTU         int      `yaml:"mtu,omitempty"         json:"mtu,omitempty" validate:"optional"`
+	VLAN        *VLAN    `yaml:"vlan,omitempty"       json:"vlan,omitempty" validate:"optional"`
+	Bridge      *Bridge  `yaml:"bridge,omitempty"      json:"bridge,omitempty" validate:"optional"`
+	Bond        *Bond    `yaml:"bond,omitempty"        json:"bond,omitempty" validate:"optional"`
+	VXLAN       *VXLAN   `yaml:"vxlan,omitempty"        json:"vxlan,omitempty" validate:"optional"`
+	Device      string   `yaml:"-"                     json:"-"`
 }
 
 type VRRPInstance struct {
 	Name            string   `yaml:"name,omitempty"             json:"name,omitempty" validate:"optional"`
 	Friend          string   `yaml:"friend,omitempty"           json:"friend,omitempty" validate:"optional"`
 	ID              int      `yaml:"id"                         json:"id"`
+	Interface       string   `yaml:"interface"                  json:"interface"`
+	Transport       string   `yaml:"transport,omitempty"        json:"transport,omitempty" validate:"optional"`
 	VIPs            []string `yaml:"vips"                       json:"vips,omitempty" validate:"optional"`
 	Priority        int      `yaml:"priority,omitempty"         json:"priority,omitempty" validate:"optional"`
 	Password        string   `yaml:"password,omitempty"         json:"password,omitempty" validate:"optional"`
-	Interface       string   `yaml:"interface,omitempty"        json:"interface,omitempty" validate:"optional"`
 	TrackInterfaces []string `yaml:"track_interfaces,omitempty" json:"track_interfaces,omitempty" validate:"optional"`
 	VirtualRoutes   []string `yaml:"virtual_routes,omitempty"   json:"virtual_routes,omitempty" validate:"optional"`
 	Switchover      bool     `yaml:"switchover,omitempty"       json:"switchover,omitempty" validate:"optional"`
@@ -190,11 +230,34 @@ type Bridge struct {
 	MemberDevices []string `yaml:"-"                 json:"-"`
 }
 
+type Bond struct {
+	Members        []string `yaml:"members,omitempty"          json:"members,omitempty" validate:"optional"`
+	Mode           string   `yaml:"mode,omitempty"             json:"mode,omitempty" validate:"optional"`
+	MIIMon         int      `yaml:"miimon,omitempty"           json:"miimon,omitempty" validate:"optional"`
+	XmitHashPolicy string   `yaml:"xmit_hash_policy,omitempty" json:"xmit_hash_policy,omitempty" validate:"optional"`
+	LACPRate       string   `yaml:"lacp_rate,omitempty"        json:"lacp_rate,omitempty" validate:"optional"`
+	UpDelay        int      `yaml:"updelay,omitempty"          json:"updelay,omitempty" validate:"optional"`
+	DownDelay      int      `yaml:"downdelay,omitempty"        json:"downdelay,omitempty" validate:"optional"`
+	MinLinks       int      `yaml:"min_links,omitempty"        json:"min_links,omitempty" validate:"optional"`
+	Primary        string   `yaml:"primary,omitempty"          json:"primary,omitempty" validate:"optional"`
+	MemberDevices  []string `yaml:"-"                          json:"-"`
+	PrimaryDevice  string   `yaml:"-"                          json:"-"`
+}
+
+type VXLAN struct {
+	VNI       int    `yaml:"vni,omitempty"       json:"vni,omitempty" validate:"optional"`
+	External  bool   `yaml:"external,omitempty"  json:"external,omitempty" validate:"optional"`
+	VNIFilter bool   `yaml:"vnifilter,omitempty" json:"vnifilter,omitempty" validate:"optional"`
+	Local     string `yaml:"local,omitempty"     json:"local,omitempty" validate:"optional"`
+	Remote    string `yaml:"remote,omitempty"    json:"remote,omitempty" validate:"optional"`
+	Group     string `yaml:"group,omitempty"     json:"group,omitempty" validate:"optional"`
+	VTEP      string `yaml:"vtep,omitempty"      json:"vtep,omitempty" validate:"optional"`
+	Port      int    `yaml:"port,omitempty"      json:"port,omitempty" validate:"optional"`
+	Learning  *bool  `yaml:"learning,omitempty"  json:"learning,omitempty" validate:"optional"`
+}
+
 type VLAN struct {
-	ID        int      `yaml:"id"                  json:"id"`
-	Addresses []string `yaml:"addresses,omitempty" json:"addresses,omitempty" validate:"optional"`
-	MTU       int      `yaml:"mtu,omitempty"       json:"mtu,omitempty" validate:"optional"`
-	Device    string   `yaml:"-"                   json:"-"`
+	ID int `yaml:"id"                  json:"id"`
 }
 
 type Routing struct {
@@ -207,6 +270,11 @@ type Routing struct {
 	PBR     *PBR                   `yaml:"pbr,omitempty"     json:"pbr,omitempty" validate:"optional"`
 	BFD     *BFD                   `yaml:"bfd,omitempty"     json:"bfd,omitempty" validate:"optional"`
 	VRFs    map[string]*VRFRouting `yaml:"vrfs,omitempty"    json:"vrfs,omitempty" validate:"optional"`
+}
+
+type HA struct {
+	VRRP       []*VRRPInstance `yaml:"vrrp,omitempty"       json:"vrrp,omitempty" validate:"optional"`
+	Conntrackd *Conntrackd     `yaml:"conntrackd,omitempty" json:"conntrackd,omitempty" validate:"optional"`
 }
 
 type BFD struct {
@@ -308,6 +376,7 @@ type RADVDInterface struct {
 	AdvDefaultLifetime   int           `yaml:"adv_default_lifetime,omitempty"   json:"adv_default_lifetime,omitempty" validate:"optional"`
 	AdvDefaultPreference string        `yaml:"adv_default_preference,omitempty" json:"adv_default_preference,omitempty" validate:"optional"`
 	AdvLinkMTU           int           `yaml:"adv_link_mtu,omitempty"           json:"adv_link_mtu,omitempty" validate:"optional"`
+	AdvRASrcAddress      []string      `yaml:"adv_ra_src_address,omitempty"     json:"adv_ra_src_address,omitempty" validate:"optional"`
 	Prefixes             []RADVDPrefix `yaml:"prefixes,omitempty"               json:"prefixes,omitempty" validate:"optional"`
 	RDNSS                *RADVDRDNSS   `yaml:"rdnss,omitempty"                  json:"rdnss,omitempty" validate:"optional"`
 	Routes               []RADVDRoute  `yaml:"routes,omitempty"                 json:"routes,omitempty" validate:"optional"`
@@ -392,6 +461,7 @@ type BGP struct {
 	NoEBGPRequiresPolicy bool                         `yaml:"no_ebgp_requires_policy,omitempty" json:"no_ebgp_requires_policy,omitempty" validate:"optional"`
 	NoDefaultIPv4Unicast bool                         `yaml:"no_default_ipv4_unicast,omitempty" json:"no_default_ipv4_unicast,omitempty" validate:"optional"`
 	NoImportCheck        bool                         `yaml:"no_import_check,omitempty"        json:"no_import_check,omitempty" validate:"optional"`
+	NoRIB                bool                         `yaml:"no_rib,omitempty"                json:"no_rib,omitempty" validate:"optional"`
 	AllowInbound         []string                     `yaml:"allow_inbound,omitempty"         json:"allow_inbound,omitempty" validate:"optional"`
 	Neighbors            []BGPNeighbor                `yaml:"neighbors,omitempty"             json:"neighbors,omitempty" validate:"optional"`
 	AddressFamilies      map[string]*BGPAddressFamily `yaml:"address_families,omitempty"      json:"address_families,omitempty" validate:"optional"`
@@ -401,14 +471,28 @@ type BGP struct {
 }
 
 type BGPAddressFamily struct {
-	Networks         []string `yaml:"networks,omitempty"          json:"networks,omitempty" validate:"optional"`
-	Redistribute     []string `yaml:"redistribute,omitempty"      json:"redistribute,omitempty" validate:"optional"`
-	ImportVRF        []string `yaml:"import_vrf,omitempty"        json:"import_vrf,omitempty" validate:"optional"`
-	RouteMapIn       string   `yaml:"route_map_in,omitempty"      json:"route_map_in,omitempty" validate:"optional"`
-	RouteMapOut      string   `yaml:"route_map_out,omitempty"     json:"route_map_out,omitempty" validate:"optional"`
-	DefaultOriginate bool     `yaml:"default_originate,omitempty" json:"default_originate,omitempty" validate:"optional"`
-	MaximumPaths     int      `yaml:"maximum_paths,omitempty"     json:"maximum_paths,omitempty" validate:"optional"`
-	Extra            []string `yaml:"extra,omitempty"             json:"extra,omitempty" validate:"optional"`
+	Networks                []string `yaml:"networks,omitempty"          json:"networks,omitempty" validate:"optional"`
+	Redistribute            []string `yaml:"redistribute,omitempty"      json:"redistribute,omitempty" validate:"optional"`
+	ImportVRF               []string `yaml:"import_vrf,omitempty"        json:"import_vrf,omitempty" validate:"optional"`
+	RouteMapIn              string   `yaml:"route_map_in,omitempty"      json:"route_map_in,omitempty" validate:"optional"`
+	RouteMapOut             string   `yaml:"route_map_out,omitempty"     json:"route_map_out,omitempty" validate:"optional"`
+	DefaultOriginate        bool     `yaml:"default_originate,omitempty" json:"default_originate,omitempty" validate:"optional"`
+	MaximumPaths            int      `yaml:"maximum_paths,omitempty"     json:"maximum_paths,omitempty" validate:"optional"`
+	AdvertiseAllVNI         bool     `yaml:"advertise_all_vni,omitempty" json:"advertise_all_vni,omitempty" validate:"optional"`
+	AdvertiseDefaultGateway bool     `yaml:"advertise_default_gateway,omitempty" json:"advertise_default_gateway,omitempty" validate:"optional"`
+	AdvertiseSVIIP          bool     `yaml:"advertise_svi_ip,omitempty" json:"advertise_svi_ip,omitempty" validate:"optional"`
+	Advertise               []string `yaml:"advertise,omitempty" json:"advertise,omitempty" validate:"optional"`
+	RouteTargetImport       []string `yaml:"route_target_import,omitempty" json:"route_target_import,omitempty" validate:"optional"`
+	RouteTargetExport       []string `yaml:"route_target_export,omitempty" json:"route_target_export,omitempty" validate:"optional"`
+	RD                      string   `yaml:"rd,omitempty"                json:"rd,omitempty" validate:"optional"`
+	RTVPNImport             []string `yaml:"rt_vpn_import,omitempty"      json:"rt_vpn_import,omitempty" validate:"optional"`
+	RTVPNExport             []string `yaml:"rt_vpn_export,omitempty"      json:"rt_vpn_export,omitempty" validate:"optional"`
+	LabelVPNExportAuto      bool     `yaml:"label_vpn_export_auto,omitempty" json:"label_vpn_export_auto,omitempty" validate:"optional"`
+	ImportVPN               bool     `yaml:"import_vpn,omitempty"        json:"import_vpn,omitempty" validate:"optional"`
+	ExportVPN               bool     `yaml:"export_vpn,omitempty"        json:"export_vpn,omitempty" validate:"optional"`
+	RouteMapVPNImport       string   `yaml:"route_map_vpn_import,omitempty" json:"route_map_vpn_import,omitempty" validate:"optional"`
+	RouteMapVPNExport       string   `yaml:"route_map_vpn_export,omitempty" json:"route_map_vpn_export,omitempty" validate:"optional"`
+	Extra                   []string `yaml:"extra,omitempty"             json:"extra,omitempty" validate:"optional"`
 }
 
 type BGPNeighbor struct {
@@ -547,8 +631,94 @@ type User struct {
 }
 
 type DNS struct {
-	Nameservers []string `yaml:"nameservers,omitempty" json:"nameservers,omitempty" validate:"optional"`
-	Search      []string `yaml:"search,omitempty"      json:"search,omitempty" validate:"optional"`
+	Nameservers []string   `yaml:"nameservers,omitempty" json:"nameservers,omitempty" validate:"optional"`
+	Search      []string   `yaml:"search,omitempty"      json:"search,omitempty" validate:"optional"`
+	Server      *DNSServer `yaml:"server,omitempty"      json:"server,omitempty" validate:"optional"`
+}
+
+type DNSServer struct {
+	Enabled      bool         `yaml:"enabled,omitempty"       json:"enabled,omitempty" validate:"optional"`
+	Mode         string       `yaml:"mode,omitempty"          json:"mode,omitempty" validate:"optional"`
+	Listen       []string     `yaml:"listen,omitempty"        json:"listen,omitempty" validate:"optional"`
+	Port         int          `yaml:"port,omitempty"          json:"port,omitempty" validate:"optional"`
+	AllowFrom    []string     `yaml:"allow_from,omitempty"    json:"allow_from,omitempty" validate:"optional"`
+	AllowInbound []string     `yaml:"allow_inbound,omitempty" json:"allow_inbound,omitempty" validate:"optional"`
+	Upstreams    []string     `yaml:"upstreams,omitempty"     json:"upstreams,omitempty" validate:"optional"`
+	Forward      []DNSForward `yaml:"forward,omitempty"       json:"forward,omitempty" validate:"optional"`
+	Cache        *DNSCache    `yaml:"cache,omitempty"         json:"cache,omitempty" validate:"optional"`
+	DNSSEC       bool         `yaml:"dnssec,omitempty"        json:"dnssec,omitempty" validate:"optional"`
+	Threads      int          `yaml:"threads,omitempty"       json:"threads,omitempty" validate:"optional"`
+	LogQueries   bool         `yaml:"log_queries,omitempty"   json:"log_queries,omitempty" validate:"optional"`
+	Zones        []DNSZone    `yaml:"zones,omitempty"         json:"zones,omitempty" validate:"optional"`
+	Views        []DNSView    `yaml:"views,omitempty"         json:"views,omitempty" validate:"optional"`
+	Extra        []string     `yaml:"extra,omitempty"         json:"extra,omitempty" validate:"optional"`
+}
+
+type DNSView struct {
+	Name      string       `yaml:"name"                 json:"name"`
+	MatchFrom []string     `yaml:"match_from,omitempty" json:"match_from,omitempty" validate:"optional"`
+	Recursion *bool        `yaml:"recursion,omitempty"  json:"recursion,omitempty" validate:"optional"`
+	Upstreams []string     `yaml:"upstreams,omitempty"  json:"upstreams,omitempty" validate:"optional"`
+	Forward   []DNSForward `yaml:"forward,omitempty"    json:"forward,omitempty" validate:"optional"`
+	Zones     []DNSZone    `yaml:"zones,omitempty"      json:"zones,omitempty" validate:"optional"`
+	Extra     []string     `yaml:"extra,omitempty"      json:"extra,omitempty" validate:"optional"`
+}
+
+func (v *DNSView) Recurses(def bool) bool {
+	if v.Recursion == nil {
+		return def
+	}
+
+	return *v.Recursion
+}
+
+type DNSForward struct {
+	Domain      string   `yaml:"domain"                 json:"domain"`
+	Servers     []string `yaml:"servers"                json:"servers,omitempty" validate:"optional"`
+	FirstTry    bool     `yaml:"first_try,omitempty"    json:"first_try,omitempty" validate:"optional"`
+	TLSUpstream bool     `yaml:"tls_upstream,omitempty" json:"tls_upstream,omitempty" validate:"optional"`
+	DNSSEC      bool     `yaml:"dnssec,omitempty"       json:"dnssec,omitempty" validate:"optional"`
+}
+
+type DNSCache struct {
+	Disabled       bool   `yaml:"disabled,omitempty"         json:"disabled,omitempty" validate:"optional"`
+	Size           string `yaml:"size,omitempty"             json:"size,omitempty" validate:"optional"`
+	RRSetSize      string `yaml:"rrset_size,omitempty"       json:"rrset_size,omitempty" validate:"optional"`
+	MinTTL         int    `yaml:"min_ttl,omitempty"          json:"min_ttl,omitempty" validate:"optional"`
+	MaxTTL         int    `yaml:"max_ttl,omitempty"          json:"max_ttl,omitempty" validate:"optional"`
+	MaxNegativeTTL int    `yaml:"max_negative_ttl,omitempty" json:"max_negative_ttl,omitempty" validate:"optional"`
+	Prefetch       bool   `yaml:"prefetch,omitempty"         json:"prefetch,omitempty" validate:"optional"`
+	ServeExpired   bool   `yaml:"serve_expired,omitempty"    json:"serve_expired,omitempty" validate:"optional"`
+}
+
+type DNSZone struct {
+	Name        string      `yaml:"name"                   json:"name"`
+	TTL         int         `yaml:"ttl,omitempty"          json:"ttl,omitempty" validate:"optional"`
+	Nameservers []string    `yaml:"nameservers,omitempty"  json:"nameservers,omitempty" validate:"optional"`
+	SOA         *DNSSOA     `yaml:"soa,omitempty"          json:"soa,omitempty" validate:"optional"`
+	Records     []DNSRecord `yaml:"records,omitempty"      json:"records,omitempty" validate:"optional"`
+	Primaries   []string    `yaml:"primaries,omitempty"    json:"primaries,omitempty" validate:"optional"`
+	ForUpstream bool        `yaml:"for_upstream,omitempty" json:"for_upstream,omitempty" validate:"optional"`
+	DNSSEC      bool        `yaml:"dnssec,omitempty"       json:"dnssec,omitempty" validate:"optional"`
+	Extra       []string    `yaml:"extra,omitempty"        json:"extra,omitempty" validate:"optional"`
+}
+
+type DNSSOA struct {
+	Primary string `yaml:"primary,omitempty" json:"primary,omitempty" validate:"optional"`
+	Email   string `yaml:"email,omitempty"   json:"email,omitempty" validate:"optional"`
+	Serial  int    `yaml:"serial,omitempty"  json:"serial,omitempty" validate:"optional"`
+	Refresh int    `yaml:"refresh,omitempty" json:"refresh,omitempty" validate:"optional"`
+	Retry   int    `yaml:"retry,omitempty"   json:"retry,omitempty" validate:"optional"`
+	Expire  int    `yaml:"expire,omitempty"  json:"expire,omitempty" validate:"optional"`
+	Minimum int    `yaml:"minimum,omitempty" json:"minimum,omitempty" validate:"optional"`
+}
+
+type DNSRecord struct {
+	Name     string `yaml:"name"               json:"name"`
+	Type     string `yaml:"type"               json:"type"`
+	Value    string `yaml:"value"              json:"value"`
+	TTL      int    `yaml:"ttl,omitempty"      json:"ttl,omitempty" validate:"optional"`
+	Priority int    `yaml:"priority,omitempty" json:"priority,omitempty" validate:"optional"`
 }
 
 type SSH struct {

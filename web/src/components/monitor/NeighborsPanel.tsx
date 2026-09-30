@@ -1,17 +1,18 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { api } from '@/lib/client'
-import type { TypesNeighbor as Neighbor } from '@/api'
-import { Input } from '@/components/ui/input'
-import { StateChip } from '@/components/ui/status-chip'
-import { SectionLabel } from '@/components/SectionLabel'
-import { Pagination, usePagination } from '@/components/Pagination'
-import { Button } from '@/components/ui/button'
+import type { TypesNeighbor as Neighbor, TypesLLDPNeighbor as LLDPNeighbor } from '@/api'
+import { Input } from 'cheval-ui'
+import { StateChip } from 'cheval-ui'
+import { SectionLabel } from 'cheval-ui'
+import { Pagination, usePagination } from 'cheval-ui'
+import { Button } from 'cheval-ui'
 import { RefreshCw, Search } from 'lucide-react'
-import { Spinner } from '@/components/Spinner'
-import { EmptyState } from '@/components/EmptyState'
+import { Spinner } from 'cheval-ui'
+import { EmptyState } from 'cheval-ui'
 
 export function NeighborsPanel() {
   const [neighbors, setNeighbors] = useState<Neighbor[] | null>(null)
+  const [lldp, setLldp] = useState<LLDPNeighbor[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
@@ -22,8 +23,11 @@ export function NeighborsPanel() {
 
   const refresh = useCallback(async () => {
     try {
-      const result = await api.apiRoutingNeighborsGet({ q: debouncedQuery || undefined })
-      setNeighbors(result.neighbors ?? []); setError(null); setLastUpdated(new Date())
+      const [result, lldpResult] = await Promise.all([
+        api.apiRoutingNeighborsGet({ q: debouncedQuery || undefined }),
+        api.apiRoutingLldpGet({ q: debouncedQuery || undefined }),
+      ])
+      setNeighbors(result.neighbors ?? []); setLldp(lldpResult.neighbors ?? []); setError(null); setLastUpdated(new Date())
     } catch (e) { setError((e as Error).message) }
     finally { setLoading(false) }
   }, [debouncedQuery])
@@ -56,8 +60,51 @@ export function NeighborsPanel() {
         <div className="space-y-5">
           <NeighborTable label={`IPv4 - ARP (${split.v4.length})`} rows={split.v4} />
           <NeighborTable label={`IPv6 - NDP (${split.v6.length})`} rows={split.v6} />
+          <LLDPTable label={`LLDP / CDP (${(lldp ?? []).length})`} rows={lldp ?? []} />
         </div>
       )}
+    </div>
+  )
+}
+
+export function LLDPTable({ label, rows }: { label: string; rows: LLDPNeighbor[] }) {
+  const { page, setPage, totalPages, pageItems, total, pageSize } = usePagination(rows, 25)
+  return (
+    <div className="space-y-2">
+      <SectionLabel>{label}</SectionLabel>
+      {rows.length === 0
+        ? <EmptyState className="py-8" title="No link-layer neighbors" message="Enable LLDP/CDP under General > Monitoring to discover directly connected switches and routers." />
+        : (
+          <>
+            <div className="rounded-xl bg-card shadow-[var(--card-shadow)] overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border/60">
+                    {['Interface', 'Protocol', 'Chassis', 'Remote port', 'Mgmt IP', 'VLAN'].map((h) => (
+                      <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageItems.map((n, i) => (
+                    <tr key={`${n.local_iface}-${n.chassis_id}-${i}`} className="border-b border-border/40 last:border-0 hover:bg-accent/20">
+                      <td className="px-4 py-2 font-mono text-xs">{n.local_iface}</td>
+                      <td className="px-4 py-2"><StateChip state={n.protocol} /></td>
+                      <td className="px-4 py-2 text-xs">
+                        <div className="font-medium">{n.chassis_name || n.chassis_id || '-'}</div>
+                        {n.sys_descr && <div className="text-muted-foreground truncate max-w-xs">{n.sys_descr}</div>}
+                      </td>
+                      <td className="px-4 py-2 font-mono text-xs text-muted-foreground">{n.port_id || n.port_descr || '-'}</td>
+                      <td className="px-4 py-2 font-mono text-xs text-muted-foreground">{n.mgmt_ip || '-'}</td>
+                      <td className="px-4 py-2 font-mono text-xs text-muted-foreground">{n.vlan || '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Pagination page={page} totalPages={totalPages} total={total} pageSize={pageSize} onPage={setPage} unit="entries" />
+          </>
+        )}
     </div>
   )
 }
@@ -71,7 +118,7 @@ export function NeighborTable({ label, rows }: { label: string; rows: Neighbor[]
         ? <EmptyState className="py-8" title="No neighbors" message="Discovered L2/L3 neighbors will show up here." />
         : (
           <>
-            <div className="rounded-xl border border-border overflow-x-auto">
+            <div className="rounded-xl bg-card shadow-[var(--card-shadow)] overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border/60">
@@ -98,4 +145,3 @@ export function NeighborTable({ label, rows }: { label: string; rows: Neighbor[]
     </div>
   )
 }
-

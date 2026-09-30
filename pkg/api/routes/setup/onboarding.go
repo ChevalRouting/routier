@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	appctx "github.com/ChevalRouting/routier/pkg/api/app"
+	"github.com/ChevalRouting/routier/pkg/api/requests"
 	webdb "github.com/ChevalRouting/routier/pkg/db"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/rs/zerolog/log"
@@ -19,7 +20,7 @@ import (
 // @Router /api/setup/onboarding [get]
 func GetOnboarding(w http.ResponseWriter, r *http.Request) {
 	app := appctx.FromContext(r.Context())
-	raw := webdb.Setting(app.DB, webdb.SettingOnboardingState, "")
+	raw := webdb.Setting(r.Context(), app.DB, webdb.SettingOnboardingState, "")
 	if raw == "" {
 		types.OK(w, map[string]any{})
 		return
@@ -56,7 +57,7 @@ func PutOnboarding(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := webdb.SetSetting(app.DB, webdb.SettingOnboardingState, string(data)); err != nil {
+	if err := webdb.SetSetting(requests.DurableContext(r), app.DB, webdb.SettingOnboardingState, string(data)); err != nil {
 		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "save state"))
 		return
 	}

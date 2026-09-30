@@ -3,27 +3,27 @@ import { api } from '@/lib/client'
 import { useFetch } from '@/lib/useFetch'
 import { usePageSave } from '@/lib/usePageSave'
 import { useDataRefresh } from '@/lib/dataVersion'
-import SaveButton from '@/components/SaveButton'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
-import { Sheet } from '@/components/ui/sheet'
-import TagInput from '@/components/TagInput'
+import { SaveButton } from 'cheval-ui'
+import { Button } from 'cheval-ui'
+import { Input } from 'cheval-ui'
+import { Label } from 'cheval-ui'
+import { Badge } from 'cheval-ui'
+import { Sheet } from 'cheval-ui'
+import { TagInput } from 'cheval-ui'
 import {
   Plus, Trash2, Radio, ChevronDown, ChevronRight,
 } from 'lucide-react'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select'
-import { PageHeader } from '@/components/PageHeader'
-import { EmptyState } from '@/components/EmptyState'
-import { Pagination, usePagination } from '@/components/Pagination'
-import { PreferencesGroup, PreferencesColumns, EntryRow, SwitchRow } from '@/components/Preferences'
-import { Segmented } from '@/components/ui/segmented'
-import { ReloadButton } from '@/components/ReloadButton'
+} from 'cheval-ui'
+import { PageHeader } from 'cheval-ui'
+import { EmptyState } from 'cheval-ui'
+import { Pagination, usePagination } from 'cheval-ui'
+import { PreferencesGroup, PreferencesColumns, EntryRow, SwitchRow } from 'cheval-ui'
+import { Segmented } from 'cheval-ui'
+import { ReloadButton } from 'cheval-ui'
 import { checkIPOrCIDR } from '@/lib/validate'
-import { Spinner } from '@/components/Spinner'
+import { Spinner } from 'cheval-ui'
 
 interface HTTPCheck {
   verb?: string
@@ -153,7 +153,7 @@ function EndpointEditor({ endpoint, onChange, onDelete }: EndpointEditorProps) {
     onChange({ ...endpoint, dns_check: { ...endpoint.dns_check, ...patch } })
 
   return (
-    <div className="border rounded-md overflow-hidden">
+    <div className="rounded-md bg-card overflow-hidden shadow-[var(--card-shadow)]">
       <div className="flex items-center gap-2 px-3 py-2 bg-muted/30">
         <button type="button" onClick={() => setExpanded(!expanded)} className="text-muted-foreground hover:text-foreground">
           {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
@@ -169,7 +169,7 @@ function EndpointEditor({ endpoint, onChange, onDelete }: EndpointEditorProps) {
       </div>
 
       {expanded && (
-        <div className="px-3 py-3 space-y-4 border-t bg-background">
+        <div className="m-2 mt-0 rounded-md bg-muted/30 px-3 py-3 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs">Endpoint IP</Label>

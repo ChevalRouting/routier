@@ -27,6 +27,9 @@ go.work.sum
 # env file
 .env
 
+.DS_Store
+.codex/
+
 # Editor/IDE
 # .idea/
 # .vscode/
@@ -37,6 +40,7 @@ go.work.sum
 # Built binaries
 /routier
 /routier-ui
+/routier-mcp
 
 # Packaging output
 /dist/
@@ -46,9 +50,17 @@ go.work.sum
 
 *.md
 !docs/**/*.md
+docs/internal/
 
 # Local scratch files
 /nft.yml
 /deploy.sh
 /deploy/
 !website/**/*.md
+vendor/
+!web/vendor/
+web/vendor/*
+!web/vendor/cheval-ui.tgz
+
+# Task runner cache
+/.task/

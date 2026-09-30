@@ -9,10 +9,12 @@ import (
 )
 
 const (
-	ToolNft   = "nft"
-	ToolVtysh = "vtysh"
-	ToolRadvd = "radvd"
-	ToolKea   = "kea"
+	ToolNft            = "nft"
+	ToolVtysh          = "vtysh"
+	ToolRadvd          = "radvd"
+	ToolKea            = "kea"
+	ToolNamed          = "named"
+	ToolNamedCheckzone = "named-checkzone"
 )
 
 var (
@@ -21,6 +23,8 @@ var (
 	radvdLine = regexp.MustCompile(`(?::| line )(\d+)`)
 	keaParen  = regexp.MustCompile(`\(([^()]*):(\d+):(\d+)\)`)
 	keaLead   = regexp.MustCompile(`:(\d+):(\d+):\s*(.*)`)
+	namedLine = regexp.MustCompile(`^(?:.*?):(\d+):\s*(?:error:\s*)?(.*)$`)
+	zoneLine  = regexp.MustCompile(`^(?:.*?):(\d+):\s*(.*)$`)
 )
 
 func Parse(tool, dest, out string) []types.ArtifactError {
@@ -34,6 +38,10 @@ func Parse(tool, dest, out string) []types.ArtifactError {
 		errs = parseRadvd(out)
 	case ToolKea:
 		errs = parseKea(out)
+	case ToolNamed:
+		errs = parseNamed(out)
+	case ToolNamedCheckzone:
+		errs = parseZone(out)
 	}
 
 	if len(errs) == 0 {
@@ -101,6 +109,56 @@ func parseRadvd(out string) []types.ArtifactError {
 		}
 
 		errs = append(errs, types.ArtifactError{Line: ln, Message: trimmed})
+	}
+
+	return errs
+}
+
+func isWarning(line string) bool {
+	lower := strings.ToLower(line)
+
+	return strings.Contains(lower, "warning:") || strings.Contains(lower, " warning ")
+}
+
+func parseNamed(out string) []types.ArtifactError {
+	var errs []types.ArtifactError
+	for _, line := range strings.Split(out, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || isWarning(trimmed) {
+			continue
+		}
+
+		if m := namedLine.FindStringSubmatch(trimmed); m != nil {
+			ln, _ := strconv.Atoi(m[1])
+			errs = append(errs, types.ArtifactError{Line: ln, Message: strings.TrimSpace(m[2])})
+			continue
+		}
+
+		if idx := strings.Index(trimmed, "fatal error:"); idx >= 0 {
+			errs = append(errs, types.ArtifactError{Message: strings.TrimSpace(trimmed[idx+len("fatal error:"):])})
+		}
+	}
+
+	return errs
+}
+
+func parseZone(out string) []types.ArtifactError {
+	var errs []types.ArtifactError
+	for _, line := range strings.Split(out, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || isWarning(trimmed) || strings.HasSuffix(trimmed, "OK") {
+			continue
+		}
+
+		if m := zoneLine.FindStringSubmatch(trimmed); m != nil {
+			ln, _ := strconv.Atoi(m[1])
+			errs = append(errs, types.ArtifactError{Line: ln, Message: strings.TrimSpace(m[2])})
+			continue
+		}
+
+		if strings.Contains(trimmed, "not loaded") || strings.Contains(strings.ToLower(trimmed), "error") {
+			errs = append(errs, types.ArtifactError{Message: trimmed})
+		}
 	}
 
 	return errs
