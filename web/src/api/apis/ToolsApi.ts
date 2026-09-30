@@ -16,19 +16,19 @@
 import * as runtime from '../runtime';
 import type {
   TypesResponseAny,
-  TypesResponseIptoolsRangeCIDRs,
-  TypesResponseIptoolsReverseDNS,
-  TypesResponseIptoolsSubnetInfo,
+  TypesResponseIpcalcRangeCIDRs,
+  TypesResponseIpcalcReverseDNS,
+  TypesResponseIpcalcSubnetInfo,
 } from '../models/index';
 import {
     TypesResponseAnyFromJSON,
     TypesResponseAnyToJSON,
-    TypesResponseIptoolsRangeCIDRsFromJSON,
-    TypesResponseIptoolsRangeCIDRsToJSON,
-    TypesResponseIptoolsReverseDNSFromJSON,
-    TypesResponseIptoolsReverseDNSToJSON,
-    TypesResponseIptoolsSubnetInfoFromJSON,
-    TypesResponseIptoolsSubnetInfoToJSON,
+    TypesResponseIpcalcRangeCIDRsFromJSON,
+    TypesResponseIpcalcRangeCIDRsToJSON,
+    TypesResponseIpcalcReverseDNSFromJSON,
+    TypesResponseIpcalcReverseDNSToJSON,
+    TypesResponseIpcalcSubnetInfoFromJSON,
+    TypesResponseIpcalcSubnetInfoToJSON,
 } from '../models/index';
 
 export interface ApiToolsRangeGetRequest {
@@ -52,7 +52,7 @@ export class ToolsApi extends runtime.BaseAPI {
     /**
      * Split an inclusive address range into the minimal set of CIDR blocks
      */
-    async apiToolsRangeGetRaw(requestParameters: ApiToolsRangeGetRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<TypesResponseIptoolsRangeCIDRs>> {
+    async apiToolsRangeGetRaw(requestParameters: ApiToolsRangeGetRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<TypesResponseIpcalcRangeCIDRs>> {
         if (requestParameters['start'] == null) {
             throw new runtime.RequiredError(
                 'start',
@@ -90,13 +90,13 @@ export class ToolsApi extends runtime.BaseAPI {
             query: queryParameters,
         }, initOverrides);
 
-        return new runtime.JSONApiResponse(response, (jsonValue) => TypesResponseIptoolsRangeCIDRsFromJSON(jsonValue));
+        return new runtime.JSONApiResponse(response, (jsonValue) => TypesResponseIpcalcRangeCIDRsFromJSON(jsonValue));
     }
 
     /**
      * Split an inclusive address range into the minimal set of CIDR blocks
      */
-    async apiToolsRangeGet(requestParameters: ApiToolsRangeGetRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<TypesResponseIptoolsRangeCIDRs> {
+    async apiToolsRangeGet(requestParameters: ApiToolsRangeGetRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<TypesResponseIpcalcRangeCIDRs> {
         const response = await this.apiToolsRangeGetRaw(requestParameters, initOverrides);
         return await response.value();
     }
@@ -104,7 +104,7 @@ export class ToolsApi extends runtime.BaseAPI {
     /**
      * Resolve the reverse-DNS (PTR) name for an address, plus the delegation zone for a CIDR
      */
-    async apiToolsReverseGetRaw(requestParameters: ApiToolsReverseGetRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<TypesResponseIptoolsReverseDNS>> {
+    async apiToolsReverseGetRaw(requestParameters: ApiToolsReverseGetRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<TypesResponseIpcalcReverseDNS>> {
         if (requestParameters['ip'] == null) {
             throw new runtime.RequiredError(
                 'ip',
@@ -131,13 +131,13 @@ export class ToolsApi extends runtime.BaseAPI {
             query: queryParameters,
         }, initOverrides);
 
-        return new runtime.JSONApiResponse(response, (jsonValue) => TypesResponseIptoolsReverseDNSFromJSON(jsonValue));
+        return new runtime.JSONApiResponse(response, (jsonValue) => TypesResponseIpcalcReverseDNSFromJSON(jsonValue));
     }
 
     /**
      * Resolve the reverse-DNS (PTR) name for an address, plus the delegation zone for a CIDR
      */
-    async apiToolsReverseGet(requestParameters: ApiToolsReverseGetRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<TypesResponseIptoolsReverseDNS> {
+    async apiToolsReverseGet(requestParameters: ApiToolsReverseGetRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<TypesResponseIpcalcReverseDNS> {
         const response = await this.apiToolsReverseGetRaw(requestParameters, initOverrides);
         return await response.value();
     }
@@ -145,7 +145,7 @@ export class ToolsApi extends runtime.BaseAPI {
     /**
      * Compute an ipcalc-style subnet breakdown for an address or CIDR
      */
-    async apiToolsSubnetGetRaw(requestParameters: ApiToolsSubnetGetRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<TypesResponseIptoolsSubnetInfo>> {
+    async apiToolsSubnetGetRaw(requestParameters: ApiToolsSubnetGetRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<TypesResponseIpcalcSubnetInfo>> {
         if (requestParameters['cidr'] == null) {
             throw new runtime.RequiredError(
                 'cidr',
@@ -172,13 +172,13 @@ export class ToolsApi extends runtime.BaseAPI {
             query: queryParameters,
         }, initOverrides);
 
-        return new runtime.JSONApiResponse(response, (jsonValue) => TypesResponseIptoolsSubnetInfoFromJSON(jsonValue));
+        return new runtime.JSONApiResponse(response, (jsonValue) => TypesResponseIpcalcSubnetInfoFromJSON(jsonValue));
     }
 
     /**
      * Compute an ipcalc-style subnet breakdown for an address or CIDR
      */
-    async apiToolsSubnetGet(requestParameters: ApiToolsSubnetGetRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<TypesResponseIptoolsSubnetInfo> {
+    async apiToolsSubnetGet(requestParameters: ApiToolsSubnetGetRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<TypesResponseIpcalcSubnetInfo> {
         const response = await this.apiToolsSubnetGetRaw(requestParameters, initOverrides);
         return await response.value();
     }

@@ -4,7 +4,7 @@ Address-calculation utilities that do not touch the config: an ipcalc-style
 subnet breakdown, reverse-DNS name resolution, and range-to-CIDR conversion.
 They are available in the web UI (**Tools > IP Tools**), the HTTP API
 (`/api/tools/...`), and the CLI (`routier ipcalc ...`). All three share the same
-`pkg/iptools` engine, so the results match.
+`pkg/net/ipcalc` engine, so the results match.
 
 ## Subnet calculator
 

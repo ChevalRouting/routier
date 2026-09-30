@@ -5713,7 +5713,7 @@ const docTemplate = `{
                 },
                 "type": "object"
             },
-            "types.Response-iptools_RangeCIDRs": {
+            "types.Response-ipcalc_RangeCIDRs": {
                 "properties": {
                     "code": {
                         "type": "integer"
@@ -5730,7 +5730,7 @@ const docTemplate = `{
                 },
                 "type": "object"
             },
-            "types.Response-iptools_ReverseDNS": {
+            "types.Response-ipcalc_ReverseDNS": {
                 "properties": {
                     "code": {
                         "type": "integer"
@@ -5747,7 +5747,7 @@ const docTemplate = `{
                 },
                 "type": "object"
             },
-            "types.Response-iptools_SubnetInfo": {
+            "types.Response-ipcalc_SubnetInfo": {
                 "properties": {
                     "code": {
                         "type": "integer"
@@ -10776,7 +10776,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/types.Response-iptools_RangeCIDRs"
+                                    "$ref": "#/components/schemas/types.Response-ipcalc_RangeCIDRs"
                                 }
                             }
                         },
@@ -10822,7 +10822,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/types.Response-iptools_ReverseDNS"
+                                    "$ref": "#/components/schemas/types.Response-ipcalc_ReverseDNS"
                                 }
                             }
                         },
@@ -10868,7 +10868,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/types.Response-iptools_SubnetInfo"
+                                    "$ref": "#/components/schemas/types.Response-ipcalc_SubnetInfo"
                                 }
                             }
                         },

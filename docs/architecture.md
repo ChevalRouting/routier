@@ -107,11 +107,17 @@ keepalived raises the tunnels on the MASTER transition instead.
 | `pkg/apply` | File writing, snapshots, rollback |
 | `pkg/managers` | Apply orchestration, apply lock, pending/watchdog, rollback, boot, friend sync |
 | `pkg/svc` | Service control, reload ordering, service reconciliation |
-| `pkg/netlink` | Link/address/route reconciliation |
-| `pkg/api` | HTTP APIs (web/UI and REST v1), embedded web app |
+| `pkg/net/netlink` | Link/address/route reconciliation |
+| `pkg/server/api` | HTTP APIs (web/UI and REST v1), embedded web app |
 | `pkg/friends` | Peer router protocol (poll, pairing, variables) |
-| `pkg/kea` | Kea DHCP control-socket client |
-| `pkg/bind` | BIND rndc client and runtime inspection |
+| `pkg/daemon/kea` | Kea DHCP control-socket client |
+| `pkg/daemon/bind` | BIND rndc client and runtime inspection |
 | `pkg/db` | SQLite storage, embedded migrations and the sqlc-backed persistence facade |
+
+Related packages are grouped by concern: `pkg/net` (netlink, iproute, probe,
+ipcalc), `pkg/daemon` (kea, bind, dhcpcd, keepalived, vtysh), `pkg/telemetry`
+(stats, bondstat, lldp, conntrack), `pkg/server` (api, client, mcpserver),
+`pkg/auth` (identity, unixauth), `pkg/state` (applylog, failures, backup) and
+`pkg/host` (boot, motd, updates).
 | `web/` | React/TypeScript frontend |
 | `tests/` | Integration tests with a mocked service runner |

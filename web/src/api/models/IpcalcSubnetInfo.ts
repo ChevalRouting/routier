@@ -16,135 +16,135 @@ import { mapValues } from '../runtime';
 /**
  * 
  * @export
- * @interface IptoolsSubnetInfo
+ * @interface IpcalcSubnetInfo
  */
-export interface IptoolsSubnetInfo {
+export interface IpcalcSubnetInfo {
     /**
      * 
      * @type {string}
-     * @memberof IptoolsSubnetInfo
+     * @memberof IpcalcSubnetInfo
      */
     address: string;
     /**
      * 
      * @type {string}
-     * @memberof IptoolsSubnetInfo
+     * @memberof IpcalcSubnetInfo
      */
     address_bits: string;
     /**
      * 
      * @type {string}
-     * @memberof IptoolsSubnetInfo
+     * @memberof IpcalcSubnetInfo
      */
     broadcast?: string;
     /**
      * 
      * @type {string}
-     * @memberof IptoolsSubnetInfo
+     * @memberof IpcalcSubnetInfo
      */
     broadcast_bits?: string;
     /**
      * 
      * @type {string}
-     * @memberof IptoolsSubnetInfo
+     * @memberof IpcalcSubnetInfo
      */
     _class?: string;
     /**
      * 
      * @type {string}
-     * @memberof IptoolsSubnetInfo
+     * @memberof IpcalcSubnetInfo
      */
     family: string;
     /**
      * 
      * @type {string}
-     * @memberof IptoolsSubnetInfo
+     * @memberof IpcalcSubnetInfo
      */
     host_max: string;
     /**
      * 
      * @type {string}
-     * @memberof IptoolsSubnetInfo
+     * @memberof IpcalcSubnetInfo
      */
     host_max_bits: string;
     /**
      * 
      * @type {string}
-     * @memberof IptoolsSubnetInfo
+     * @memberof IpcalcSubnetInfo
      */
     host_min: string;
     /**
      * 
      * @type {string}
-     * @memberof IptoolsSubnetInfo
+     * @memberof IpcalcSubnetInfo
      */
     host_min_bits: string;
     /**
      * 
      * @type {boolean}
-     * @memberof IptoolsSubnetInfo
+     * @memberof IpcalcSubnetInfo
      */
     host_route?: boolean;
     /**
      * 
      * @type {string}
-     * @memberof IptoolsSubnetInfo
+     * @memberof IpcalcSubnetInfo
      */
     hosts: string;
     /**
      * 
      * @type {string}
-     * @memberof IptoolsSubnetInfo
+     * @memberof IpcalcSubnetInfo
      */
     netmask: string;
     /**
      * 
      * @type {string}
-     * @memberof IptoolsSubnetInfo
+     * @memberof IpcalcSubnetInfo
      */
     netmask_bits: string;
     /**
      * 
      * @type {string}
-     * @memberof IptoolsSubnetInfo
+     * @memberof IpcalcSubnetInfo
      */
     network: string;
     /**
      * 
      * @type {string}
-     * @memberof IptoolsSubnetInfo
+     * @memberof IpcalcSubnetInfo
      */
     network_bits: string;
     /**
      * 
      * @type {number}
-     * @memberof IptoolsSubnetInfo
+     * @memberof IpcalcSubnetInfo
      */
     prefix: number;
     /**
      * 
      * @type {string}
-     * @memberof IptoolsSubnetInfo
+     * @memberof IpcalcSubnetInfo
      */
     scope: string;
     /**
      * 
      * @type {string}
-     * @memberof IptoolsSubnetInfo
+     * @memberof IpcalcSubnetInfo
      */
     wildcard: string;
     /**
      * 
      * @type {string}
-     * @memberof IptoolsSubnetInfo
+     * @memberof IpcalcSubnetInfo
      */
     wildcard_bits: string;
 }
 
 /**
- * Check if a given object implements the IptoolsSubnetInfo interface.
+ * Check if a given object implements the IpcalcSubnetInfo interface.
  */
-export function instanceOfIptoolsSubnetInfo(value: object): value is IptoolsSubnetInfo {
+export function instanceOfIpcalcSubnetInfo(value: object): value is IpcalcSubnetInfo {
     if (!('address' in value) || value['address'] === undefined) return false;
     if (!('address_bits' in value) || value['address_bits'] === undefined) return false;
     if (!('family' in value) || value['family'] === undefined) return false;
@@ -164,11 +164,11 @@ export function instanceOfIptoolsSubnetInfo(value: object): value is IptoolsSubn
     return true;
 }
 
-export function IptoolsSubnetInfoFromJSON(json: any): IptoolsSubnetInfo {
-    return IptoolsSubnetInfoFromJSONTyped(json, false);
+export function IpcalcSubnetInfoFromJSON(json: any): IpcalcSubnetInfo {
+    return IpcalcSubnetInfoFromJSONTyped(json, false);
 }
 
-export function IptoolsSubnetInfoFromJSONTyped(json: any, ignoreDiscriminator: boolean): IptoolsSubnetInfo {
+export function IpcalcSubnetInfoFromJSONTyped(json: any, ignoreDiscriminator: boolean): IpcalcSubnetInfo {
     if (json == null) {
         return json;
     }
@@ -197,11 +197,11 @@ export function IptoolsSubnetInfoFromJSONTyped(json: any, ignoreDiscriminator: b
     };
 }
 
-export function IptoolsSubnetInfoToJSON(json: any): IptoolsSubnetInfo {
-    return IptoolsSubnetInfoToJSONTyped(json, false);
+export function IpcalcSubnetInfoToJSON(json: any): IpcalcSubnetInfo {
+    return IpcalcSubnetInfoToJSONTyped(json, false);
 }
 
-export function IptoolsSubnetInfoToJSONTyped(value?: IptoolsSubnetInfo | null, ignoreDiscriminator: boolean = false): any {
+export function IpcalcSubnetInfoToJSONTyped(value?: IpcalcSubnetInfo | null, ignoreDiscriminator: boolean = false): any {
     if (value == null) {
         return value;
     }
