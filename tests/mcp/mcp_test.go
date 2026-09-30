@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ChevalRouting/routier/pkg/mcpserver"
+	"github.com/ChevalRouting/routier/pkg/server/mcpserver"
 )
 
 func TestServerLoadsMultipleInstances(t *testing.T) {

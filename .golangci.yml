@@ -53,8 +53,8 @@ linters:
         linters:
           - errcheck
     paths:
-      - pkg/client/generated
-      - pkg/api/docs
+      - pkg/server/client/generated
+      - pkg/server/api/docs
       - web/
       - website/
 
@@ -63,8 +63,8 @@ formatters:
     - gofmt
   exclusions:
     paths:
-      - pkg/client/generated
-      - pkg/api/docs
+      - pkg/server/client/generated
+      - pkg/server/api/docs
       - web/
       - website/
 

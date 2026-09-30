@@ -15,7 +15,7 @@ cp APKBUILD scripts/routier.post-install scripts/routier.post-upgrade scripts/ro
 cp -r . /tmp/routier-${VERSION}
 rm -rf /tmp/routier-${VERSION}/.git /tmp/routier-${VERSION}/dist
 rm -rf /tmp/routier-${VERSION}/web/node_modules
-rm -rf /tmp/routier-${VERSION}/pkg/api/dist
+rm -rf /tmp/routier-${VERSION}/pkg/server/api/dist
 rm -f /tmp/routier-${VERSION}/go.work /tmp/routier-${VERSION}/go.work.sum
 
 EXTRA_DIRS=""

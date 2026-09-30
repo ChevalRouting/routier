@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/ChevalRouting/routier/pkg/mcpserver"
+	"github.com/ChevalRouting/routier/pkg/server/mcpserver"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 )

@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/ChevalRouting/routier/pkg/api"
+	"github.com/ChevalRouting/routier/pkg/server/api"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
