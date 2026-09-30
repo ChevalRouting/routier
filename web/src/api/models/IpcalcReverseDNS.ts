@@ -16,43 +16,43 @@ import { mapValues } from '../runtime';
 /**
  * 
  * @export
- * @interface IptoolsReverseDNS
+ * @interface IpcalcReverseDNS
  */
-export interface IptoolsReverseDNS {
+export interface IpcalcReverseDNS {
     /**
      * 
      * @type {string}
-     * @memberof IptoolsReverseDNS
+     * @memberof IpcalcReverseDNS
      */
     family: string;
     /**
      * 
      * @type {string}
-     * @memberof IptoolsReverseDNS
+     * @memberof IpcalcReverseDNS
      */
     name: string;
     /**
      * 
      * @type {string}
-     * @memberof IptoolsReverseDNS
+     * @memberof IpcalcReverseDNS
      */
     zone?: string;
 }
 
 /**
- * Check if a given object implements the IptoolsReverseDNS interface.
+ * Check if a given object implements the IpcalcReverseDNS interface.
  */
-export function instanceOfIptoolsReverseDNS(value: object): value is IptoolsReverseDNS {
+export function instanceOfIpcalcReverseDNS(value: object): value is IpcalcReverseDNS {
     if (!('family' in value) || value['family'] === undefined) return false;
     if (!('name' in value) || value['name'] === undefined) return false;
     return true;
 }
 
-export function IptoolsReverseDNSFromJSON(json: any): IptoolsReverseDNS {
-    return IptoolsReverseDNSFromJSONTyped(json, false);
+export function IpcalcReverseDNSFromJSON(json: any): IpcalcReverseDNS {
+    return IpcalcReverseDNSFromJSONTyped(json, false);
 }
 
-export function IptoolsReverseDNSFromJSONTyped(json: any, ignoreDiscriminator: boolean): IptoolsReverseDNS {
+export function IpcalcReverseDNSFromJSONTyped(json: any, ignoreDiscriminator: boolean): IpcalcReverseDNS {
     if (json == null) {
         return json;
     }
@@ -64,11 +64,11 @@ export function IptoolsReverseDNSFromJSONTyped(json: any, ignoreDiscriminator: b
     };
 }
 
-export function IptoolsReverseDNSToJSON(json: any): IptoolsReverseDNS {
-    return IptoolsReverseDNSToJSONTyped(json, false);
+export function IpcalcReverseDNSToJSON(json: any): IpcalcReverseDNS {
+    return IpcalcReverseDNSToJSONTyped(json, false);
 }
 
-export function IptoolsReverseDNSToJSONTyped(value?: IptoolsReverseDNS | null, ignoreDiscriminator: boolean = false): any {
+export function IpcalcReverseDNSToJSONTyped(value?: IpcalcReverseDNS | null, ignoreDiscriminator: boolean = false): any {
     if (value == null) {
         return value;
     }

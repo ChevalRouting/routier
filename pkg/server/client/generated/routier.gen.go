@@ -1089,21 +1089,21 @@ type FriendcacheCachedState struct {
 	Status     *TypesFriendStatus      `json:"status,omitempty"`
 }
 
-// IptoolsRangeCIDRs defines model for ipcalc.RangeCIDRs.
-type IptoolsRangeCIDRs struct {
+// IpcalcRangeCIDRs defines model for ipcalc.RangeCIDRs.
+type IpcalcRangeCIDRs struct {
 	Cidrs  []string `json:"cidrs"`
 	Family string   `json:"family"`
 }
 
-// IptoolsReverseDNS defines model for ipcalc.ReverseDNS.
-type IptoolsReverseDNS struct {
+// IpcalcReverseDNS defines model for ipcalc.ReverseDNS.
+type IpcalcReverseDNS struct {
 	Family string  `json:"family"`
 	Name   string  `json:"name"`
 	Zone   *string `json:"zone,omitempty"`
 }
 
-// IptoolsSubnetInfo defines model for ipcalc.SubnetInfo.
-type IptoolsSubnetInfo struct {
+// IpcalcSubnetInfo defines model for ipcalc.SubnetInfo.
+type IpcalcSubnetInfo struct {
 	Address       string  `json:"address"`
 	AddressBits   string  `json:"address_bits"`
 	Broadcast     *string `json:"broadcast,omitempty"`
@@ -2035,28 +2035,28 @@ type TypesResponseFriendcacheCachedState struct {
 	Status *string                 `json:"status,omitempty"`
 }
 
-// TypesResponseIptoolsRangeCIDRs defines model for types.Response-iptools_RangeCIDRs.
-type TypesResponseIptoolsRangeCIDRs struct {
-	Code   *int               `json:"code,omitempty"`
-	Error  *string            `json:"error,omitempty"`
-	Result *IptoolsRangeCIDRs `json:"result,omitempty"`
-	Status *string            `json:"status,omitempty"`
+// TypesResponseIpcalcRangeCIDRs defines model for types.Response-ipcalc_RangeCIDRs.
+type TypesResponseIpcalcRangeCIDRs struct {
+	Code   *int              `json:"code,omitempty"`
+	Error  *string           `json:"error,omitempty"`
+	Result *IpcalcRangeCIDRs `json:"result,omitempty"`
+	Status *string           `json:"status,omitempty"`
 }
 
-// TypesResponseIptoolsReverseDNS defines model for types.Response-iptools_ReverseDNS.
-type TypesResponseIptoolsReverseDNS struct {
-	Code   *int               `json:"code,omitempty"`
-	Error  *string            `json:"error,omitempty"`
-	Result *IptoolsReverseDNS `json:"result,omitempty"`
-	Status *string            `json:"status,omitempty"`
+// TypesResponseIpcalcReverseDNS defines model for types.Response-ipcalc_ReverseDNS.
+type TypesResponseIpcalcReverseDNS struct {
+	Code   *int              `json:"code,omitempty"`
+	Error  *string           `json:"error,omitempty"`
+	Result *IpcalcReverseDNS `json:"result,omitempty"`
+	Status *string           `json:"status,omitempty"`
 }
 
-// TypesResponseIptoolsSubnetInfo defines model for types.Response-iptools_SubnetInfo.
-type TypesResponseIptoolsSubnetInfo struct {
-	Code   *int               `json:"code,omitempty"`
-	Error  *string            `json:"error,omitempty"`
-	Result *IptoolsSubnetInfo `json:"result,omitempty"`
-	Status *string            `json:"status,omitempty"`
+// TypesResponseIpcalcSubnetInfo defines model for types.Response-ipcalc_SubnetInfo.
+type TypesResponseIpcalcSubnetInfo struct {
+	Code   *int              `json:"code,omitempty"`
+	Error  *string           `json:"error,omitempty"`
+	Result *IpcalcSubnetInfo `json:"result,omitempty"`
+	Status *string           `json:"status,omitempty"`
 }
 
 // TypesResponseString defines model for types.Response-string.
@@ -17095,7 +17095,7 @@ func (r GetApiSystemVersionResponse) StatusCode() int {
 type GetApiToolsRangeResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *TypesResponseIptoolsRangeCIDRs
+	JSON200      *TypesResponseIpcalcRangeCIDRs
 	JSON400      *TypesResponseAny
 }
 
@@ -17118,7 +17118,7 @@ func (r GetApiToolsRangeResponse) StatusCode() int {
 type GetApiToolsReverseResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *TypesResponseIptoolsReverseDNS
+	JSON200      *TypesResponseIpcalcReverseDNS
 	JSON400      *TypesResponseAny
 }
 
@@ -17141,7 +17141,7 @@ func (r GetApiToolsReverseResponse) StatusCode() int {
 type GetApiToolsSubnetResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *TypesResponseIptoolsSubnetInfo
+	JSON200      *TypesResponseIpcalcSubnetInfo
 	JSON400      *TypesResponseAny
 }
 
@@ -23763,7 +23763,7 @@ func ParseGetApiToolsRangeResponse(rsp *http.Response) (*GetApiToolsRangeRespons
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest TypesResponseIptoolsRangeCIDRs
+		var dest TypesResponseIpcalcRangeCIDRs
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -23796,7 +23796,7 @@ func ParseGetApiToolsReverseResponse(rsp *http.Response) (*GetApiToolsReverseRes
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest TypesResponseIptoolsReverseDNS
+		var dest TypesResponseIpcalcReverseDNS
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -23829,7 +23829,7 @@ func ParseGetApiToolsSubnetResponse(rsp *http.Response) (*GetApiToolsSubnetRespo
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest TypesResponseIptoolsSubnetInfo
+		var dest TypesResponseIpcalcSubnetInfo
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

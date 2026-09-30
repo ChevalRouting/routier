@@ -2054,7 +2054,7 @@ components:
         status:
           $ref: '#/components/schemas/types.FriendStatus'
       type: object
-    iptools.RangeCIDRs:
+    ipcalc.RangeCIDRs:
       properties:
         cidrs:
           items:
@@ -2067,7 +2067,7 @@ components:
       - cidrs
       - family
       type: object
-    iptools.ReverseDNS:
+    ipcalc.ReverseDNS:
       properties:
         family:
           type: string
@@ -2079,7 +2079,7 @@ components:
       - family
       - name
       type: object
-    iptools.SubnetInfo:
+    ipcalc.SubnetInfo:
       properties:
         address:
           type: string
@@ -3871,36 +3871,36 @@ components:
         status:
           type: string
       type: object
-    types.Response-iptools_RangeCIDRs:
+    types.Response-ipcalc_RangeCIDRs:
       properties:
         code:
           type: integer
         error:
           type: string
         result:
-          $ref: '#/components/schemas/iptools.RangeCIDRs'
+          $ref: '#/components/schemas/ipcalc.RangeCIDRs'
         status:
           type: string
       type: object
-    types.Response-iptools_ReverseDNS:
+    types.Response-ipcalc_ReverseDNS:
       properties:
         code:
           type: integer
         error:
           type: string
         result:
-          $ref: '#/components/schemas/iptools.ReverseDNS'
+          $ref: '#/components/schemas/ipcalc.ReverseDNS'
         status:
           type: string
       type: object
-    types.Response-iptools_SubnetInfo:
+    types.Response-ipcalc_SubnetInfo:
       properties:
         code:
           type: integer
         error:
           type: string
         result:
-          $ref: '#/components/schemas/iptools.SubnetInfo'
+          $ref: '#/components/schemas/ipcalc.SubnetInfo'
         status:
           type: string
       type: object
@@ -6916,7 +6916,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/types.Response-iptools_RangeCIDRs'
+                $ref: '#/components/schemas/types.Response-ipcalc_RangeCIDRs'
           description: OK
         "400":
           content:
@@ -6943,7 +6943,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/types.Response-iptools_ReverseDNS'
+                $ref: '#/components/schemas/types.Response-ipcalc_ReverseDNS'
           description: OK
         "400":
           content:
@@ -6971,7 +6971,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/types.Response-iptools_SubnetInfo'
+                $ref: '#/components/schemas/types.Response-ipcalc_SubnetInfo'
           description: OK
         "400":
           content:

@@ -8,7 +8,7 @@ import { Badge } from 'cheval-ui'
 import { Card, CardContent } from 'cheval-ui'
 import { CopyButton } from 'cheval-ui'
 import { Calculator } from 'lucide-react'
-import type { IptoolsSubnetInfo, IptoolsReverseDNS, IptoolsRangeCIDRs } from '@/api'
+import type { IpcalcSubnetInfo, IpcalcReverseDNS, IpcalcRangeCIDRs } from '@/api'
 
 type Tab = 'subnet' | 'reverse' | 'range'
 
@@ -101,7 +101,7 @@ function ErrorNote({ message }: { message: string }) {
 function SubnetTool() {
   const [input, setInput] = useState('100.64.12.192/27')
   const query = useDebounced(input.trim())
-  const [info, setInfo] = useState<IptoolsSubnetInfo | null>(null)
+  const [info, setInfo] = useState<IpcalcSubnetInfo | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -112,7 +112,7 @@ function SubnetTool() {
     }
     let live = true
     api.apiToolsSubnetGet({ cidr: query })
-      .then((res) => { if (live) { setInfo(res as IptoolsSubnetInfo); setError(null) } })
+      .then((res) => { if (live) { setInfo(res as IpcalcSubnetInfo); setError(null) } })
       .catch((err) => { if (live) { setInfo(null); setError(errorMessage(err)) } })
     return () => { live = false }
   }, [query])
@@ -160,7 +160,7 @@ function SubnetTool() {
 function ReverseTool() {
   const [input, setInput] = useState('100.64.12.192')
   const query = useDebounced(input.trim())
-  const [result, setResult] = useState<IptoolsReverseDNS | null>(null)
+  const [result, setResult] = useState<IpcalcReverseDNS | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -171,7 +171,7 @@ function ReverseTool() {
     }
     let live = true
     api.apiToolsReverseGet({ ip: query })
-      .then((res) => { if (live) { setResult(res as IptoolsReverseDNS); setError(null) } })
+      .then((res) => { if (live) { setResult(res as IpcalcReverseDNS); setError(null) } })
       .catch((err) => { if (live) { setResult(null); setError(errorMessage(err)) } })
     return () => { live = false }
   }, [query])
@@ -217,7 +217,7 @@ function RangeTool() {
   const [end, setEnd] = useState('192.0.2.20')
   const qStart = useDebounced(start.trim())
   const qEnd = useDebounced(end.trim())
-  const [result, setResult] = useState<IptoolsRangeCIDRs | null>(null)
+  const [result, setResult] = useState<IpcalcRangeCIDRs | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -228,7 +228,7 @@ function RangeTool() {
     }
     let live = true
     api.apiToolsRangeGet({ start: qStart, end: qEnd })
-      .then((res) => { if (live) { setResult(res as IptoolsRangeCIDRs); setError(null) } })
+      .then((res) => { if (live) { setResult(res as IpcalcRangeCIDRs); setError(null) } })
       .catch((err) => { if (live) { setResult(null); setError(errorMessage(err)) } })
     return () => { live = false }
   }, [qStart, qEnd])

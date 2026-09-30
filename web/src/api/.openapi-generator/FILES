@@ -127,9 +127,9 @@ models/DnsQueryRequest.ts
 models/DnsServiceState.ts
 models/DnsStatsResponse.ts
 models/FriendcacheCachedState.ts
-models/IptoolsRangeCIDRs.ts
-models/IptoolsReverseDNS.ts
-models/IptoolsSubnetInfo.ts
+models/IpcalcRangeCIDRs.ts
+models/IpcalcReverseDNS.ts
+models/IpcalcSubnetInfo.ts
 models/KeaHost.ts
 models/KeaLease.ts
 models/KeaStat.ts
@@ -240,9 +240,9 @@ models/TypesResponseDhcpStatsResponse.ts
 models/TypesResponseDnsOverviewResponse.ts
 models/TypesResponseDnsStatsResponse.ts
 models/TypesResponseFriendcacheCachedState.ts
-models/TypesResponseIptoolsRangeCIDRs.ts
-models/TypesResponseIptoolsReverseDNS.ts
-models/TypesResponseIptoolsSubnetInfo.ts
+models/TypesResponseIpcalcRangeCIDRs.ts
+models/TypesResponseIpcalcReverseDNS.ts
+models/TypesResponseIpcalcSubnetInfo.ts
 models/TypesResponseString.ts
 models/TypesResponseSystemInterfaceStatus.ts
 models/TypesResponseTypesAnnouncement.ts

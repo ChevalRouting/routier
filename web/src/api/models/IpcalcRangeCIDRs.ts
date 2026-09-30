@@ -16,37 +16,37 @@ import { mapValues } from '../runtime';
 /**
  * 
  * @export
- * @interface IptoolsRangeCIDRs
+ * @interface IpcalcRangeCIDRs
  */
-export interface IptoolsRangeCIDRs {
+export interface IpcalcRangeCIDRs {
     /**
      * 
      * @type {Array<string>}
-     * @memberof IptoolsRangeCIDRs
+     * @memberof IpcalcRangeCIDRs
      */
     cidrs: Array<string>;
     /**
      * 
      * @type {string}
-     * @memberof IptoolsRangeCIDRs
+     * @memberof IpcalcRangeCIDRs
      */
     family: string;
 }
 
 /**
- * Check if a given object implements the IptoolsRangeCIDRs interface.
+ * Check if a given object implements the IpcalcRangeCIDRs interface.
  */
-export function instanceOfIptoolsRangeCIDRs(value: object): value is IptoolsRangeCIDRs {
+export function instanceOfIpcalcRangeCIDRs(value: object): value is IpcalcRangeCIDRs {
     if (!('cidrs' in value) || value['cidrs'] === undefined) return false;
     if (!('family' in value) || value['family'] === undefined) return false;
     return true;
 }
 
-export function IptoolsRangeCIDRsFromJSON(json: any): IptoolsRangeCIDRs {
-    return IptoolsRangeCIDRsFromJSONTyped(json, false);
+export function IpcalcRangeCIDRsFromJSON(json: any): IpcalcRangeCIDRs {
+    return IpcalcRangeCIDRsFromJSONTyped(json, false);
 }
 
-export function IptoolsRangeCIDRsFromJSONTyped(json: any, ignoreDiscriminator: boolean): IptoolsRangeCIDRs {
+export function IpcalcRangeCIDRsFromJSONTyped(json: any, ignoreDiscriminator: boolean): IpcalcRangeCIDRs {
     if (json == null) {
         return json;
     }
@@ -57,11 +57,11 @@ export function IptoolsRangeCIDRsFromJSONTyped(json: any, ignoreDiscriminator: b
     };
 }
 
-export function IptoolsRangeCIDRsToJSON(json: any): IptoolsRangeCIDRs {
-    return IptoolsRangeCIDRsToJSONTyped(json, false);
+export function IpcalcRangeCIDRsToJSON(json: any): IpcalcRangeCIDRs {
+    return IpcalcRangeCIDRsToJSONTyped(json, false);
 }
 
-export function IptoolsRangeCIDRsToJSONTyped(value?: IptoolsRangeCIDRs | null, ignoreDiscriminator: boolean = false): any {
+export function IpcalcRangeCIDRsToJSONTyped(value?: IpcalcRangeCIDRs | null, ignoreDiscriminator: boolean = false): any {
     if (value == null) {
         return value;
     }
