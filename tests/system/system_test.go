@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/ChevalRouting/routier/pkg/conntrack"
-	"github.com/ChevalRouting/routier/pkg/iproute"
+	"github.com/ChevalRouting/routier/pkg/net/iproute"
 	"github.com/ChevalRouting/routier/pkg/keepalived"
 	"github.com/ChevalRouting/routier/pkg/vtysh"
 )

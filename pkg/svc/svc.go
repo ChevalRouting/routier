@@ -13,7 +13,7 @@ import (
 	"github.com/ChevalRouting/routier/pkg/bind"
 	"github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/kea"
-	"github.com/ChevalRouting/routier/pkg/netlink"
+	"github.com/ChevalRouting/routier/pkg/net/netlink"
 	"github.com/ChevalRouting/routier/pkg/render"
 	"github.com/ChevalRouting/routier/pkg/vtysh"
 	"github.com/rs/zerolog/log"

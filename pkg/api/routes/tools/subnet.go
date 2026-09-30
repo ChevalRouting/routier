@@ -3,7 +3,7 @@ package tools
 import (
 	"net/http"
 
-	"github.com/ChevalRouting/routier/pkg/iptools"
+	"github.com/ChevalRouting/routier/pkg/net/ipcalc"
 	"github.com/ChevalRouting/routier/pkg/types"
 )
 
@@ -12,7 +12,7 @@ import (
 // @Tags tools
 // @Produce json
 // @Param cidr query string true "Address or CIDR, e.g. 100.64.12.192/27 or 2001:db8::/64"
-// @Success 200 {object} types.Response[iptools.SubnetInfo]
+// @Success 200 {object} types.Response[ipcalc.SubnetInfo]
 // @Failure 400 {object} types.Response[any]
 // @Security BearerAuth
 // @Router /api/tools/subnet [get]
@@ -23,7 +23,7 @@ func Subnet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	info, err := iptools.Subnet(cidr)
+	info, err := ipcalc.Subnet(cidr)
 	if err != nil {
 		types.Err(http.StatusBadRequest, err.Error()).Write(w)
 		return

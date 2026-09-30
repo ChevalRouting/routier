@@ -9,7 +9,7 @@ import (
 	"github.com/ChevalRouting/routier/pkg/api/cfgstore"
 	"github.com/ChevalRouting/routier/pkg/config"
 	webdb "github.com/ChevalRouting/routier/pkg/db"
-	"github.com/ChevalRouting/routier/pkg/probe"
+	"github.com/ChevalRouting/routier/pkg/net/probe"
 	"github.com/ChevalRouting/routier/pkg/types"
 )
 

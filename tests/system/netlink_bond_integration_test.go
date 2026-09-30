@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/ChevalRouting/routier/pkg/config"
-	"github.com/ChevalRouting/routier/pkg/netlink"
+	"github.com/ChevalRouting/routier/pkg/net/netlink"
 	vnl "github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 )

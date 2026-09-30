@@ -12,7 +12,7 @@ import (
 	"github.com/ChevalRouting/routier/pkg/api/cfgstore"
 	"github.com/ChevalRouting/routier/pkg/api/friendcache"
 	"github.com/ChevalRouting/routier/pkg/config"
-	"github.com/ChevalRouting/routier/pkg/iptools"
+	"github.com/ChevalRouting/routier/pkg/net/ipcalc"
 	"github.com/ChevalRouting/routier/pkg/managers"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/rs/zerolog/log"
@@ -272,7 +272,7 @@ func recordFQDN(label, zone string) string {
 }
 
 func addReversePTR(s *config.DNSServer, addr netip.Addr, target string) {
-	rev, err := iptools.Reverse(addr.String())
+	rev, err := ipcalc.Reverse(addr.String())
 	if err != nil {
 		return
 	}

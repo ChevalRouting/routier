@@ -3,7 +3,7 @@ package tools
 import (
 	"net/http"
 
-	"github.com/ChevalRouting/routier/pkg/iptools"
+	"github.com/ChevalRouting/routier/pkg/net/ipcalc"
 	"github.com/ChevalRouting/routier/pkg/types"
 )
 
@@ -13,7 +13,7 @@ import (
 // @Produce json
 // @Param start query string true "First address in the range"
 // @Param end query string true "Last address in the range"
-// @Success 200 {object} types.Response[iptools.RangeCIDRs]
+// @Success 200 {object} types.Response[ipcalc.RangeCIDRs]
 // @Failure 400 {object} types.Response[any]
 // @Security BearerAuth
 // @Router /api/tools/range [get]
@@ -25,7 +25,7 @@ func Range(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	out, err := iptools.Range(start, end)
+	out, err := ipcalc.Range(start, end)
 	if err != nil {
 		types.Err(http.StatusBadRequest, err.Error()).Write(w)
 		return

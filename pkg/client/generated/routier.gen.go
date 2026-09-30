@@ -1089,20 +1089,20 @@ type FriendcacheCachedState struct {
 	Status     *TypesFriendStatus      `json:"status,omitempty"`
 }
 
-// IptoolsRangeCIDRs defines model for iptools.RangeCIDRs.
+// IptoolsRangeCIDRs defines model for ipcalc.RangeCIDRs.
 type IptoolsRangeCIDRs struct {
 	Cidrs  []string `json:"cidrs"`
 	Family string   `json:"family"`
 }
 
-// IptoolsReverseDNS defines model for iptools.ReverseDNS.
+// IptoolsReverseDNS defines model for ipcalc.ReverseDNS.
 type IptoolsReverseDNS struct {
 	Family string  `json:"family"`
 	Name   string  `json:"name"`
 	Zone   *string `json:"zone,omitempty"`
 }
 
-// IptoolsSubnetInfo defines model for iptools.SubnetInfo.
+// IptoolsSubnetInfo defines model for ipcalc.SubnetInfo.
 type IptoolsSubnetInfo struct {
 	Address       string  `json:"address"`
 	AddressBits   string  `json:"address_bits"`

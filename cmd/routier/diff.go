@@ -10,7 +10,7 @@ import (
 
 	"github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/diffutil"
-	"github.com/ChevalRouting/routier/pkg/netlink"
+	"github.com/ChevalRouting/routier/pkg/net/netlink"
 	"github.com/ChevalRouting/routier/pkg/render"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/rs/zerolog"

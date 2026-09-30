@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/ChevalRouting/routier/pkg/iproute"
+	"github.com/ChevalRouting/routier/pkg/net/iproute"
 	"github.com/ChevalRouting/routier/pkg/types"
 )
 
