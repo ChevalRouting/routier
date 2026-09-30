@@ -5,13 +5,13 @@ import (
 	"testing"
 
 	"github.com/ChevalRouting/routier/pkg/types"
-	"github.com/ChevalRouting/routier/tests/harness"
+	"github.com/ChevalRouting/routier/tests/testkit"
 )
 
 func TestFriendInterfacesCacheFallback(t *testing.T) {
 	const token = "cache-token"
 
-	b := harness.NewNode(t, `version: v3.0.0
+	b := testkit.NewNode(t, `version: v3.0.0
 hostname: node-b
 interfaces:
   lan:
@@ -24,7 +24,7 @@ friends:
     enabled: true
 `)
 
-	a := harness.NewNode(t, `version: v3.0.0
+	a := testkit.NewNode(t, `version: v3.0.0
 hostname: node-a
 friends:
   - name: node-b
@@ -39,7 +39,7 @@ friends:
 		t.Fatalf("live interfaces %d: %s", status, raw)
 	}
 
-	if !hasIface(harness.DecodeData[[]types.FriendInterface](t, raw), "lan") {
+	if !hasIface(testkit.DecodeData[[]types.FriendInterface](t, raw), "lan") {
 		t.Fatalf("live interfaces missing lan: %s", raw)
 	}
 
@@ -50,7 +50,7 @@ friends:
 		t.Fatalf("cached interfaces %d: %s", status, raw)
 	}
 
-	if !hasIface(harness.DecodeData[[]types.FriendInterface](t, raw), "lan") {
+	if !hasIface(testkit.DecodeData[[]types.FriendInterface](t, raw), "lan") {
 		t.Fatalf("cache fallback missing lan: %s", raw)
 	}
 }

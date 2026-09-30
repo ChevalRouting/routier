@@ -61,12 +61,12 @@ func KernelRoutes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	force := query.Get("refresh") == "1" || query.Get("refresh") == "true"
-	if err := routecache.MaybeRefresh(app.DB, force, routesTTL); err != nil {
+	if err := routecache.MaybeRefresh(r.Context(), app.DB, force, routesTTL); err != nil {
 		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "refresh route snapshot"))
 		return
 	}
 
-	routes, total, err := webdb.QueryKernelRoutes(app.DB, filter, offset, limit)
+	routes, total, err := webdb.QueryKernelRoutes(r.Context(), app.DB, filter, offset, limit)
 	if err != nil {
 		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "query routes"))
 		return

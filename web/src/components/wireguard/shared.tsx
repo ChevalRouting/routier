@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { Input } from 'cheval-ui'
+import { Label } from 'cheval-ui'
 import { Eye, EyeOff } from 'lucide-react'
-import { CopyButton } from '@/components/CopyButton'
+import { CopyButton } from 'cheval-ui'
 
 export interface WgPeer {
   name: string

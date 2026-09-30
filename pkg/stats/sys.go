@@ -67,22 +67,6 @@ func ReadIfaceStats() map[string]*types.IfaceStats {
 	return out
 }
 
-func PhysicalIfaces() map[string]bool {
-	out := map[string]bool{}
-	entries, err := os.ReadDir("/sys/class/net")
-	if err != nil {
-		return out
-	}
-
-	for _, e := range entries {
-		if _, err := os.Stat(filepath.Join("/sys/class/net", e.Name(), "device")); err == nil {
-			out[e.Name()] = true
-		}
-	}
-
-	return out
-}
-
 func parseU64(s string) uint64 {
 	v, _ := strconv.ParseUint(s, 10, 64)
 	return v

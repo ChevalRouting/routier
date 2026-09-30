@@ -8,7 +8,7 @@ import {
 } from '@/lib/instance'
 import { useDataVersion } from '@/lib/dataVersion'
 import { useFetch } from '@/lib/useFetch'
-import { cn } from '@/lib/utils'
+import { cn } from 'cheval-ui'
 import type { TypesFriendInfo as FriendInfo, TypesFriendStatus as FriendStatus } from '@/api'
 
 type Tone = 'sidebar' | 'sheet'

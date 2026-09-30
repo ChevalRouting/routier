@@ -2,7 +2,18 @@ version: v3.0.0
 
 hostname: routier
 
+users:
+  routier:
+    shell: /bin/ash
+    groups:
+      - wheel
+
 interfaces:
+  loopback:
+    select: lo
+    addresses:
+      - 127.0.0.1/8
+      - ::1/128
   wan:
     select: eth[0]
     addresses: [dhcp]

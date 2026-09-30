@@ -106,29 +106,29 @@ func handleV1PutSSH(w http.ResponseWriter, r *http.Request) {
 	v1PutObject(w, r, func(c *config.Config, v *config.SSH) { c.SSH = v })
 }
 
-// handleV1GetConntrackd godoc
-// @Summary  Get session conntrackd
+// handleV1GetHA godoc
+// @Summary  Get session HA config (vrrp, conntrackd)
 // @Tags v1-config
 // @Produce json
 // @Param sessionID path string true "session id"
 // @Success 200 {object} object
 // @Security BearerAuth
-// @Router /api/v1/sessions/{sessionID}/conntrackd [get]
-func handleV1GetConntrackd(w http.ResponseWriter, r *http.Request) {
-	v1GetObject(w, r, func(c *config.Config) *config.Conntrackd { return c.Conntrackd })
+// @Router /api/v1/sessions/{sessionID}/ha [get]
+func handleV1GetHA(w http.ResponseWriter, r *http.Request) {
+	v1GetObject(w, r, func(c *config.Config) *config.HA { return c.HA })
 }
 
-// handleV1PutConntrackd godoc
-// @Summary  Replace session conntrackd
+// handleV1PutHA godoc
+// @Summary  Replace session HA config (vrrp, conntrackd)
 // @Tags v1-config
 // @Accept json
 // @Produce json
 // @Param sessionID path string true "session id"
 // @Success 200 {object} object
 // @Security BearerAuth
-// @Router /api/v1/sessions/{sessionID}/conntrackd [put]
-func handleV1PutConntrackd(w http.ResponseWriter, r *http.Request) {
-	v1PutObject(w, r, func(c *config.Config, v *config.Conntrackd) { c.Conntrackd = v })
+// @Router /api/v1/sessions/{sessionID}/ha [put]
+func handleV1PutHA(w http.ResponseWriter, r *http.Request) {
+	v1PutObject(w, r, func(c *config.Config, v *config.HA) { c.HA = v })
 }
 
 // handleV1GetGAI godoc

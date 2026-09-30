@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react'
+import { toast } from 'sonner'
 import { api } from '@/lib/client'
 import { useFetch } from '@/lib/useFetch'
 import { usePageSave } from '@/lib/usePageSave'
 import { useDataRefresh } from '@/lib/dataVersion'
-import { useTabState } from '@/lib/useTabState'
-import { Tabs } from '@/components/ui/tabs'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { PageHeader } from '@/components/PageHeader'
-import SaveButton from '@/components/SaveButton'
-import { Spinner } from '@/components/Spinner'
+import { useTabState } from 'cheval-ui'
+import { Tabs } from 'cheval-ui'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from 'cheval-ui'
+import { PageHeader } from 'cheval-ui'
+import { SaveButton } from 'cheval-ui'
+import { Spinner } from 'cheval-ui'
 import RadvdTab, { RADVDConfig } from '@/components/routing/RadvdTab'
 import NatPanel, { type NatSaveState } from '@/components/routing/NatPanel'
 import {
@@ -44,7 +45,8 @@ export default function Routing() {
   const { data: vrfsData } = useFetch<Record<string, { table: number }>>(
     () => api.apiConfigSectionGet({ section: 'vrfs' }) as Promise<Record<string, { table: number }>>
   )
-  const { isDirty, markDirty, save, saving } = usePageSave('routing')
+  const { isDirty, markDirty, reset } = usePageSave('routing')
+  const [saving, setSaving] = useState(false)
 
   const [activeTab, setActiveTab] = useTabState<Tab>('routing', 'static')
   const [initialized, setInitialized] = useState(false)
@@ -69,13 +71,10 @@ export default function Routing() {
   const [vrfContext, setVrfContext] = useState<string>('global')
   const [vrfRoutings, setVrfRoutings] = useState<Record<string, VRFRouting>>({})
 
-  const { data: ifacesData } = useFetch<Record<string, { vlans?: Record<string, unknown> }>>(
-    () => api.apiConfigSectionGet({ section: 'interfaces' }) as Promise<Record<string, { vlans?: Record<string, unknown> }>>
+  const { data: ifacesData } = useFetch<Record<string, unknown>>(
+    () => api.apiConfigSectionGet({ section: 'interfaces' }) as Promise<Record<string, unknown>>
   )
-  const ifaceNames = [
-    ...Object.keys(ifacesData ?? {}),
-    ...Object.values(ifacesData ?? {}).flatMap((iface) => Object.keys(iface?.vlans ?? {})),
-  ]
+  const ifaceNames = Object.keys(ifacesData ?? {})
 
   const vrfNames = vrfRows.map((r) => r.name).filter(Boolean)
 
@@ -83,11 +82,11 @@ export default function Routing() {
     if (data && !initialized) {
       setStaticRows((data.static ?? []).map((r) => ({ ...r, id: newId() })))
       setBGPEnabled(!!data.bgp)
-      setBGP(data.bgp ? (data.bgp as BGPConfig) : defaultBGP())
+      setBGP(data.bgp ? { ...defaultBGP(), ...(data.bgp as BGPConfig) } : defaultBGP())
       setOSPFEnabled(!!data.ospf)
-      setOSPF(data.ospf ?? defaultOSPF())
+      setOSPF(data.ospf ? { ...defaultOSPF(), ...data.ospf } : defaultOSPF())
       setOSPF6Enabled(!!data.ospf6)
-      setOSPF6(data.ospf6 ?? defaultOSPF6())
+      setOSPF6(data.ospf6 ? { ...defaultOSPF6(), ...data.ospf6 } : defaultOSPF6())
       setRadvd((data.radvd as RADVDConfig) ?? null)
       setVrfRoutings((data.vrfs as Record<string, VRFRouting>) ?? {})
       setPBR(data.pbr ?? {})
@@ -124,7 +123,7 @@ export default function Routing() {
   }
   const getVRFBGP = (): BGPConfig => {
     if (vrfContext === 'global') return bgp
-    return vrfRoutings[vrfContext]?.bgp ?? defaultBGP()
+    return { ...defaultBGP(), ...vrfRoutings[vrfContext]?.bgp }
   }
   const setVRFBGP = (v: BGPConfig) => {
     if (vrfContext === 'global') { setBGP(v); return }
@@ -152,7 +151,7 @@ export default function Routing() {
   }
   const getVRFOSPF = (): OSPFConfig => {
     if (vrfContext === 'global') return ospf
-    return vrfRoutings[vrfContext]?.ospf ?? defaultOSPF()
+    return { ...defaultOSPF(), ...vrfRoutings[vrfContext]?.ospf }
   }
   const setVRFOSPF = (v: OSPFConfig) => {
     if (vrfContext === 'global') { setOSPF(v); return }
@@ -180,7 +179,7 @@ export default function Routing() {
   }
   const getVRFOSPF6 = (): OSPF6Config => {
     if (vrfContext === 'global') return ospf6
-    return vrfRoutings[vrfContext]?.ospf6 ?? defaultOSPF6()
+    return { ...defaultOSPF6(), ...vrfRoutings[vrfContext]?.ospf6 }
   }
   const setVRFOSPF6 = (v: OSPF6Config) => {
     if (vrfContext === 'global') { setOSPF6(v); return }
@@ -228,8 +227,10 @@ export default function Routing() {
       Object.keys(pbr.policies ?? {}).length > 0
     ) payload.pbr = pbr
     if (bfdProfiles.length > 0) payload.bfd = { profiles: bfdProfiles }
+    const declared = new Set(vrfRows.map((r) => r.name).filter(Boolean))
     const vrfs: Record<string, VRFRouting> = {}
     for (const [name, vr] of Object.entries(vrfRoutings)) {
+      if (!declared.has(name)) continue
       if (vr.bgp || vr.ospf || vr.ospf6 || (vr.static && vr.static.length > 0)) {
         vrfs[name] = vr
       }
@@ -243,8 +244,30 @@ export default function Routing() {
     for (const { name, table } of vrfRows) {
       if (name) vrfsPayload[name] = { table }
     }
-    await api.apiConfigSectionPut({ section: 'vrfs', body: vrfsPayload })
-    save(buildPayload())
+    const routingPayload = buildPayload()
+
+    const put = (section: 'vrfs' | 'routing') =>
+      api.apiConfigSectionPut({ section, body: section === 'vrfs' ? vrfsPayload : routingPayload })
+
+    const putBoth = async (first: 'vrfs' | 'routing') => {
+      await put(first)
+      await put(first === 'vrfs' ? 'routing' : 'vrfs')
+    }
+
+    setSaving(true)
+    try {
+      try {
+        await putBoth('vrfs')
+      } catch {
+        await putBoth('routing')
+      }
+
+      reset()
+    } catch (err: unknown) {
+      toast.error((err as Error).message || 'Failed to save')
+    } finally {
+      setSaving(false)
+    }
   }
 
   if (isLoading) {
@@ -299,6 +322,10 @@ export default function Routing() {
             setEnabled={setVRFBGPEnabled}
             vrfNames={vrfNames}
             bfdProfileNames={bfdProfiles.map((p) => p.name).filter(Boolean)}
+            prefixLists={bgp.prefix_lists ?? {}}
+            setPrefixLists={(prefix_lists) => { setBGP({ ...bgp, prefix_lists }); markDirty() }}
+            routeMaps={bgp.route_maps ?? {}}
+            setRouteMaps={(route_maps) => { setBGP({ ...bgp, route_maps }); markDirty() }}
             onDirty={markDirty}
           />
         )}

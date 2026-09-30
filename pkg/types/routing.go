@@ -26,6 +26,24 @@ type NeighborsResponse struct {
 	Neighbors []Neighbor `json:"neighbors,omitempty" validate:"optional"`
 }
 
+type LLDPNeighbor struct {
+	LocalIface   string `json:"local_iface"`
+	Protocol     string `json:"protocol"`
+	ChassisID    string `json:"chassis_id,omitempty" validate:"optional"`
+	ChassisName  string `json:"chassis_name,omitempty" validate:"optional"`
+	SysDescr     string `json:"sys_descr,omitempty" validate:"optional"`
+	MgmtIP       string `json:"mgmt_ip,omitempty" validate:"optional"`
+	PortID       string `json:"port_id,omitempty" validate:"optional"`
+	PortDescr    string `json:"port_descr,omitempty" validate:"optional"`
+	Capabilities string `json:"capabilities,omitempty" validate:"optional"`
+	VLAN         string `json:"vlan,omitempty" validate:"optional"`
+	Age          string `json:"age,omitempty" validate:"optional"`
+}
+
+type LLDPNeighborsResponse struct {
+	Neighbors []LLDPNeighbor `json:"neighbors,omitempty" validate:"optional"`
+}
+
 type LearnedRoute struct {
 	Prefix   string `json:"prefix"`
 	Protocol string `json:"protocol"`

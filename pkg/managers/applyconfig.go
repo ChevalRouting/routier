@@ -94,7 +94,7 @@ func rawArtifactErrors(err error) []types.ArtifactError {
 	return []types.ArtifactError{{Message: err.Error()}}
 }
 
-func ApplyConfig(ctx context.Context, cfg *config.Config, outputs []render.Output, opts ApplyOptions) (snapID string, err error) {
+func ApplyConfig(ctx context.Context, cfg *config.Config, outputs []render.Output, opts ApplyOptions) (snapID string, changed []string, err error) {
 	source := opts.Source
 	if source == "" {
 		source = "cli"
@@ -104,7 +104,7 @@ func ApplyConfig(ctx context.Context, cfg *config.Config, outputs []render.Outpu
 	if !opts.DryRun {
 		release, lerr := acquireApplyLock(ctx)
 		if lerr != nil {
-			return "", lerr
+			return "", nil, lerr
 		}
 
 		defer release()
@@ -126,30 +126,29 @@ func ApplyConfig(ctx context.Context, cfg *config.Config, outputs []render.Outpu
 	}
 
 	if !opts.DryRun {
-		if verrs := svc.ValidateArtifacts(outputs); len(verrs) > 0 {
+		if verrs := svc.ValidateArtifactsBeforeApply(outputs); len(verrs) > 0 {
 			_ = failures.Save(rec.ID(), source, "", cfg, outputs, verrs)
 			rec.MarkBundle()
 			ve := failures.NewValidationError(verrs)
 			ve.BundleID = rec.ID()
-			return "", ve
+			return "", nil, ve
 		}
 	}
 
 	if err := apply.Hostname(cfg.Hostname, opts.DryRun); err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	if len(cfg.Users) > 0 {
 		if err := apply.Users(cfg.Users, opts.DryRun); err != nil {
-			return "", err
+			return "", nil, err
 		}
 	}
 
 	if err := apply.DNS(cfg.DNS, cfg.Hostname, opts.DryRun); err != nil {
-		return "", err
+		return "", nil, err
 	}
 
-	var changed []string
 	if len(outputs) > 0 {
 		snapshotAlso := []string{LastAppliedPath}
 		configPath := opts.ConfigPath
@@ -163,7 +162,7 @@ func ApplyConfig(ctx context.Context, cfg *config.Config, outputs []render.Outpu
 
 		snapID, changed, err = apply.Write(outputs, opts.DryRun, snapshotAlso...)
 		if err != nil {
-			return "", err
+			return "", nil, err
 		}
 	}
 
@@ -176,20 +175,20 @@ func ApplyConfig(ctx context.Context, cfg *config.Config, outputs []render.Outpu
 	}
 
 	if err := svc.ReloadFromOutputs(reloadNames, cfg, opts.DryRun, opts.SkipWireguard); err != nil {
-		return snapID, err
+		return snapID, changed, err
 	}
 
 	if err := svc.ReconcileServices(cfg, opts.DryRun); err != nil {
-		return snapID, err
+		return snapID, changed, err
 	}
 
 	if len(cfg.Services) > 0 {
 		if err := svc.EnableServices(cfg.Services, opts.DryRun); err != nil {
-			return snapID, err
+			return snapID, changed, err
 		}
 
 		if err := svc.ReloadServices(cfg.Services, reloadNames, opts.DryRun); err != nil {
-			return snapID, err
+			return snapID, changed, err
 		}
 	}
 
@@ -197,7 +196,7 @@ func ApplyConfig(ctx context.Context, cfg *config.Config, outputs []render.Outpu
 		saveLastApplied(cfg)
 	}
 
-	return snapID, nil
+	return snapID, changed, nil
 }
 
 func toAnykServices(services []config.AnycastService) []anyk.AnykService {

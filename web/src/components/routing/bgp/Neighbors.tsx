@@ -1,16 +1,17 @@
 import { useState } from 'react'
 import { checkIP, checkASN } from '@/lib/validate'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
-import { EmptyState } from '@/components/EmptyState'
-import { Switch } from '@/components/ui/switch'
-import { Badge } from '@/components/ui/badge'
-import TagInput from '@/components/TagInput'
-import { Sheet } from '@/components/ui/sheet'
+import { Input } from 'cheval-ui'
+import { Label } from 'cheval-ui'
+import { Button } from 'cheval-ui'
+import { EmptyState } from 'cheval-ui'
+import { Switch } from 'cheval-ui'
+import { Badge } from 'cheval-ui'
+import { TagInput } from 'cheval-ui'
+import { Card } from 'cheval-ui'
+import { Sheet } from 'cheval-ui'
 import { Plus, Trash2 } from 'lucide-react'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { PreferencesGroup, PreferencesColumns, EntryRow, ComboRow, SwitchRow } from '@/components/Preferences'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from 'cheval-ui'
+import { PreferencesGroup, PreferencesColumns, EntryRow, ComboRow, SwitchRow } from 'cheval-ui'
 import { BGPNeighborAF, BGPNeighbor, STANDARD_AFS } from '../types'
 import { NameSelect } from '../shared'
 
@@ -69,7 +70,7 @@ export function NeighborAFEditor({
           {configured.map((afName) => {
             const af = afs[afName] ?? {}
             return (
-              <div key={afName} className="border rounded-md p-3 space-y-3">
+              <Card key={afName} className="p-3 space-y-3">
                 <div className="flex items-center justify-between">
                   <Badge variant="outline" className="font-mono text-xs">{afName}</Badge>
                   <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => remove(afName)}>
@@ -103,11 +104,11 @@ export function NeighborAFEditor({
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     <Label className="text-xs text-muted-foreground">allowas-in (0 = off)</Label>
                     <Input value={af.allowas_in ?? ''} onChange={(e) => upd(afName, { allowas_in: Number(e.target.value) || undefined })} placeholder="0" className="font-mono text-xs h-8" />
                   </div>
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     <Label className="text-xs text-muted-foreground">Weight (0 = default)</Label>
                     <Input value={af.weight ?? ''} onChange={(e) => upd(afName, { weight: Number(e.target.value) || undefined })} placeholder="0" className="font-mono text-xs h-8" />
                   </div>
@@ -119,7 +120,7 @@ export function NeighborAFEditor({
                     ['route_map_in', 'Route Map In', routeMapNames],
                     ['route_map_out', 'Route Map Out', routeMapNames],
                   ] as const).map(([field, label, names]) => (
-                    <div key={field} className="space-y-1">
+                    <div key={field} className="space-y-1.5">
                       <Label className="text-xs text-muted-foreground">{label}</Label>
                       <NameSelect
                         value={af[field]}
@@ -129,11 +130,11 @@ export function NeighborAFEditor({
                     </div>
                   ))}
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">Additional directives (per address-family)</Label>
                   <TagInput values={af.extra ?? []} onChange={(v) => upd(afName, { extra: v.length ? v : undefined })} placeholder="send-community extended" mono />
                 </div>
-              </div>
+              </Card>
             )
           })}
         </div>
@@ -325,4 +326,3 @@ export function BGPNeighborsPanel({
     </div>
   )
 }
-

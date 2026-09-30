@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { api } from '@/lib/client'
 import { toast } from 'sonner'
 
@@ -18,6 +18,8 @@ export function useAutoSave(section: string, debounceMs = 700) {
     clearTimeout(timerRef.current)
     timerRef.current = setTimeout(() => saveNow(data), debounceMs)
   }, [saveNow, debounceMs])
+
+  useEffect(() => () => clearTimeout(timerRef.current), [])
 
   return { save, saveNow }
 }

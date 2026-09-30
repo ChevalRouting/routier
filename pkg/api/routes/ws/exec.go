@@ -7,12 +7,15 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"os/user"
 	"strconv"
+	"syscall"
 	"time"
 
 	appctx "github.com/ChevalRouting/routier/pkg/api/app"
 	"github.com/ChevalRouting/routier/pkg/managers"
 	"github.com/ChevalRouting/routier/pkg/types"
+	"github.com/ChevalRouting/routier/pkg/updates"
 
 	"github.com/creack/pty"
 	"github.com/gorilla/websocket"
@@ -45,6 +48,9 @@ var wsRegistry = map[string]wsStream{
 		}
 
 		return []string{exe, "apply", "--source", "web", "--timeout", strconv.Itoa(managers.WatchdogTimeout), app.ConfigPath}
+	}},
+	"upgrade": {args: func(*appctx.App) []string {
+		return []string{"tail", "-n", "+1", "-F", updates.LogPath}
 	}},
 }
 
@@ -86,6 +92,10 @@ func Exec(w http.ResponseWriter, r *http.Request) {
 
 	cmd := exec.CommandContext(r.Context(), args[0], args[1:]...)
 	cmd.Env = append(cmd.Environ(), "TERM=xterm-256color")
+
+	if name == "debug" {
+		dropToUnixUser(cmd, appctx.UsernameFromContext(r.Context()))
+	}
 
 	ptmx, err := pty.Start(cmd)
 	if err != nil {
@@ -139,6 +149,48 @@ func Exec(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+}
+
+func dropToUnixUser(cmd *exec.Cmd, username string) {
+	if username == "" || username == "root" {
+		return
+	}
+
+	osUser, err := user.Lookup(username)
+	if err != nil {
+		log.Warn().Err(err).Str("user", username).Msg("debug console: unix user lookup failed")
+		return
+	}
+
+	uid, uerr := strconv.Atoi(osUser.Uid)
+	gid, gerr := strconv.Atoi(osUser.Gid)
+	if uerr != nil || gerr != nil {
+		return
+	}
+
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Credential: &syscall.Credential{Uid: uint32(uid), Gid: uint32(gid), Groups: supplementaryGroups(osUser)},
+	}
+	cmd.Env = append(cmd.Env, "HOME="+osUser.HomeDir, "USER="+username, "LOGNAME="+username)
+	if info, err := os.Stat(osUser.HomeDir); err == nil && info.IsDir() {
+		cmd.Dir = osUser.HomeDir
+	}
+}
+
+func supplementaryGroups(osUser *user.User) []uint32 {
+	ids, err := osUser.GroupIds()
+	if err != nil {
+		return nil
+	}
+
+	var groups []uint32
+	for _, id := range ids {
+		if gid, err := strconv.Atoi(id); err == nil {
+			groups = append(groups, uint32(gid))
+		}
+	}
+
+	return groups
 }
 
 func runDetachedStream(conn *websocket.Conn, args []string) {

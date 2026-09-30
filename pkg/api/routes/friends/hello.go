@@ -50,7 +50,7 @@ func buildHello(app *appctx.App, cfg *cfgpkg.Config) types.FriendsHello {
 
 	if cfg != nil {
 		resp.Hostname = cfg.Hostname
-		resp.Conntrackd = cfg.Conntrackd != nil
+		resp.Conntrackd = cfg.HA != nil && cfg.HA.Conntrackd != nil
 	}
 
 	resp.ConntrackdRunning = svc.ServiceRunning("conntrackd")

@@ -1,32 +1,39 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { toast } from 'sonner'
 import { api } from '@/lib/client'
-import type { TypesApplyLogRecord as ApplyLogRecord, TypesSnapshotInfo as SnapshotInfo } from '@/api'
+import type { TypesApplyLogRecord as ApplyLogRecord, TypesSnapshotInfo as SnapshotInfo, TypesAPIKey } from '@/api'
+import type { ConfigMonitoringConfig as MonitoringConfig, ConfigLLDPConfig as LLDPConfig } from '@/api'
 import { WatchdogConfirmBar } from '@/components/WatchdogConfirmBar'
-import { useTabState } from '@/lib/useTabState'
+import UpdatesPanel from '@/components/system/UpdatesPanel'
+import { useTabState } from 'cheval-ui'
 import { useFetch } from '@/lib/useFetch'
 import { usePageSave } from '@/lib/usePageSave'
 import { useDataRefresh } from '@/lib/dataVersion'
-import { SectionNav } from '@/components/ui/section-nav'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
-import { SectionLabel } from '@/components/SectionLabel'
-import { PreferencesGroup, PreferencesGroups, PreferencesColumns, Row, EntryRow, ComboRow } from '@/components/Preferences'
-import { EmptyState } from '@/components/EmptyState'
-import { Dialog, AlertDialog } from '@/components/ui/dialog'
-import { Pagination, usePagination } from '@/components/Pagination'
+import { SectionNav } from 'cheval-ui'
+import { Button } from 'cheval-ui'
+import { Input } from 'cheval-ui'
+import { CopyButton } from 'cheval-ui'
+import { Badge } from 'cheval-ui'
+import { Separator } from 'cheval-ui'
+import { SectionLabel } from 'cheval-ui'
+import { PreferencesGroup, PreferencesGroups, PreferencesColumns, Row, EntryRow, ComboRow } from 'cheval-ui'
+import { SwitchRow } from 'cheval-ui'
+import { TagInput } from 'cheval-ui'
+import { Label } from 'cheval-ui'
+import { EmptyState } from 'cheval-ui'
+import { Dialog, AlertDialog } from 'cheval-ui'
+import { Pagination, usePagination } from 'cheval-ui'
 import { checkPort, isIP } from '@/lib/validate'
-import SaveButton from '@/components/SaveButton'
-import { PageHeader } from '@/components/PageHeader'
-import { Spinner } from '@/components/Spinner'
+import { SaveButton } from 'cheval-ui'
+import { PageHeader } from 'cheval-ui'
+import { Spinner } from 'cheval-ui'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select'
+} from 'cheval-ui'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table'
-import { Plus, Trash2, X, Download, Upload, RotateCcw, RefreshCw, SlidersHorizontal, ExternalLink, FileJson, History } from 'lucide-react'
+} from 'cheval-ui'
+import { Plus, Trash2, X, Download, Upload, RotateCcw, RefreshCw, SlidersHorizontal, ExternalLink, FileJson, History, KeyRound } from 'lucide-react'
 
 interface TabSaveState {
   isDirty: boolean
@@ -303,7 +310,8 @@ function SysctlTab({ onStateChange }: { onStateChange: OnStateChange }) {
   const [entries, setEntries] = useState<SysctlEntry[] | null>(null)
   const { isDirty, markDirty, save, saving } = usePageSave('sysctl')
 
-  const current = entries ?? parseEntries(data)
+  const parsed = useMemo(() => parseEntries(data), [data])
+  const current = entries ?? parsed
 
   const handleSave = useCallback(() => save(toRecord(current)), [save, current])
   useEffect(() => { onStateChange({ isDirty, saving, save: handleSave }) }, [isDirty, saving, handleSave, onStateChange])
@@ -581,6 +589,121 @@ function BackupTab({ onChanged }: { onChanged: () => void }) {
 }
 
 
+function ApiKeysTab() {
+  const { data, isLoading, reload } = useFetch(() => api.apiAuthApiKeysGet())
+  const [name, setName] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [created, setCreated] = useState<{ name: string; token: string } | null>(null)
+  const [revoke, setRevoke] = useState<TypesAPIKey | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+
+  const keys = (data ?? []).filter((k) => !k.revoked_at)
+
+  const create = () => {
+    const trimmed = name.trim()
+    if (!trimmed) return
+    setCreating(true)
+    api.apiAuthApiKeysPost({ TypesCreateAPIKeyRequest: { name: trimmed } })
+      .then((res) => {
+        const token = res.token ?? ''
+        setCreated({ name: trimmed, token })
+        setName('')
+        reload()
+      })
+      .catch((e) => toast.error(`Create failed: ${e.message}`))
+      .finally(() => setCreating(false))
+  }
+
+  const doRevoke = () => {
+    const k = revoke
+    if (!k) return
+    setRevoke(null)
+    setBusy(k.id)
+    api.apiAuthApiKeysIdDelete({ id: k.id })
+      .then(() => { toast.success('API key revoked'); reload() })
+      .catch((e) => toast.error(`Revoke failed: ${e.message}`))
+      .finally(() => setBusy(null))
+  }
+
+  return (
+    <div className="space-y-4">
+      <SectionLabel>API Keys</SectionLabel>
+      <p className="text-sm text-muted-foreground">
+        API keys authenticate programmatic clients such as <code className="text-xs bg-muted px-1 py-0.5 rounded">routier-mcp</code> using a
+        <code className="text-xs bg-muted px-1 py-0.5 rounded">Bearer</code> token. They cannot manage authentication credentials. The full token is
+        shown only once at creation.
+      </p>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') create() }}
+          placeholder="Key name (e.g. edge-a-mcp)"
+          className="max-w-xs"
+          disabled={creating}
+        />
+        <Button onClick={create} disabled={creating || !name.trim()} className="gap-2">
+          {creating ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}Generate key
+        </Button>
+      </div>
+
+      {isLoading ? <Spinner /> : keys.length === 0 ? (
+        <EmptyState
+          icon={<KeyRound />}
+          title="No API keys"
+          message="Generate a key to authenticate programmatic clients."
+        />
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow><TableHead>Name</TableHead><TableHead>Prefix</TableHead><TableHead>Created</TableHead><TableHead>Created by</TableHead><TableHead></TableHead></TableRow>
+          </TableHeader>
+          <TableBody>
+            {keys.map((k) => (
+              <TableRow key={k.id}>
+                <TableCell>{k.name}</TableCell>
+                <TableCell className="font-mono text-xs text-muted-foreground">{k.prefix}…</TableCell>
+                <TableCell className="font-mono text-xs">{new Date(k.created_at * 1000).toLocaleString()}</TableCell>
+                <TableCell className="text-muted-foreground">{k.created_by}</TableCell>
+                <TableCell className="text-right">
+                  <Button variant="outline" size="sm" className="gap-1.5" disabled={busy === k.id} onClick={() => setRevoke(k)}>
+                    <Trash2 className="h-3.5 w-3.5" />Revoke
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+
+      <Dialog open={!!created} onClose={() => setCreated(null)} title="API key created">
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Copy the token for <span className="font-medium text-foreground">{created?.name}</span> now. It will not be shown again.
+          </p>
+          <div className="flex items-center gap-2 rounded-md bg-[#09090b] p-3">
+            <code className="flex-1 overflow-auto whitespace-nowrap font-mono text-xs text-zinc-200">{created?.token}</code>
+            <CopyButton text={created?.token ?? ''} />
+          </div>
+        </div>
+      </Dialog>
+
+      <AlertDialog
+        open={!!revoke}
+        onCancel={() => setRevoke(null)}
+        onConfirm={doRevoke}
+        title="Revoke this API key?"
+        description={revoke ? `Clients using "${revoke.name}" will immediately lose access. This cannot be undone.` : undefined}
+        confirmLabel="Revoke"
+        cancelLabel="Cancel"
+        destructive
+      />
+    </div>
+  )
+}
+
+
 function ApiDocsTab() {
   return (
     <div className="space-y-4">
@@ -604,20 +727,119 @@ function ApiDocsTab() {
   )
 }
 
-type SystemTab = 'hostname' | 'dns' | 'ssh' | 'sysctl' | 'apply' | 'snapshots' | 'backup' | 'apidocs'
+const INTERVAL_KEYS: Array<{ key: keyof NonNullable<MonitoringConfig['collection']>; label: string }> = [
+  { key: 'iface',     label: 'Interfaces' },
+  { key: 'system',    label: 'CPU / RAM' },
+  { key: 'bgp',       label: 'BGP' },
+  { key: 'proto',     label: 'Protocols' },
+  { key: 'neighbors', label: 'Neighbors' },
+  { key: 'lldp',      label: 'LLDP / CDP' },
+  { key: 'routes',    label: 'Route cache TTL' },
+]
+
+function MonitoringTab({ onStateChange }: { onStateChange: OnStateChange }) {
+  const { data, isLoading } = useFetch<MonitoringConfig>(() => api.apiConfigSectionGet({ section: 'monitoring' }) as Promise<MonitoringConfig>)
+  const [monitoring, setMonitoring] = useState<MonitoringConfig>({})
+  const [intervalRaw, setIntervalRaw] = useState<Record<string, string>>({})
+  const [initialized, setInitialized] = useState(false)
+  const { isDirty, markDirty, save, saving } = usePageSave('monitoring')
+  useDataRefresh(() => setInitialized(false))
+
+  useEffect(() => {
+    if (data && !initialized) {
+      setMonitoring(data)
+      const raw: Record<string, string> = {}
+      for (const { key } of INTERVAL_KEYS) raw[key] = String(data.collection?.[key] ?? 60)
+      setIntervalRaw(raw)
+      setInitialized(true)
+    }
+  }, [data, initialized])
+
+  const handleSave = useCallback(() => save(monitoring), [save, monitoring])
+  useEffect(() => { onStateChange({ isDirty, saving, save: handleSave }) }, [isDirty, saving, handleSave, onStateChange])
+
+  const updateInterval = (key: string, raw: string) => {
+    setIntervalRaw((p) => ({ ...p, [key]: raw }))
+    const n = parseInt(raw, 10)
+    if (!isNaN(n) && n >= 10) setMonitoring((prev) => ({ ...prev, collection: { ...prev.collection, [key]: n } }))
+    markDirty()
+  }
+
+  const lldp = monitoring.lldp ?? {}
+  const patchLldp = (next: Partial<LLDPConfig>) => { setMonitoring((prev) => ({ ...prev, lldp: { ...prev.lldp, ...next } })); markDirty() }
+
+  if (isLoading) return <Spinner />
+
+  return (
+    <div className="max-w-2xl space-y-6">
+      <PreferencesGroup title="Collection intervals" description="How often each metric is sampled, in seconds (minimum 10).">
+        <div className="grid gap-3 grid-cols-2 px-4 py-3">
+          {INTERVAL_KEYS.map(({ key, label }) => (
+            <div key={key} className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">{label}</Label>
+              <div className="flex items-center gap-1.5">
+                <Input value={intervalRaw[key] ?? ''} onChange={(e) => updateInterval(key, e.target.value)} className="font-mono text-xs h-8" placeholder="60" />
+                <span className="text-xs text-muted-foreground shrink-0">s</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </PreferencesGroup>
+
+      <PreferencesGroup title="Link-layer discovery (LLDP / CDP)" description="Discover directly connected switches and routers. Discovered devices appear in Monitor > Neighbors.">
+        <SwitchRow
+          title="Enable LLDP / CDP"
+          subtitle="Run lldpd to discover directly connected devices"
+          checked={!!lldp.enabled}
+          onCheckedChange={(v) => patchLldp({ enabled: v })}
+        />
+      </PreferencesGroup>
+
+      {lldp.enabled && (
+        <>
+          <PreferencesGroup>
+            <SwitchRow
+              title="Receive CDP"
+              subtitle="Also discover neighbors advertising Cisco Discovery Protocol"
+              checked={!!lldp.cdp}
+              onCheckedChange={(v) => patchLldp({ cdp: v })}
+            />
+            <SwitchRow
+              title="Advertise this router"
+              subtitle="Transmit LLDP so upstream devices can discover this router. When off, lldpd only listens."
+              checked={!!lldp.transmit}
+              onCheckedChange={(v) => patchLldp({ transmit: v })}
+            />
+          </PreferencesGroup>
+
+          <PreferencesGroup title="Interfaces" description="Restrict discovery to these interfaces. Leave empty for all.">
+            <div className="px-4 py-3">
+              <TagInput values={lldp.interfaces ?? []} onChange={(v) => patchLldp({ interfaces: v })} placeholder="eth1" mono />
+            </div>
+          </PreferencesGroup>
+        </>
+      )}
+    </div>
+  )
+}
+
+type SystemTab = 'hostname' | 'dns' | 'ssh' | 'sysctl' | 'monitoring' | 'updates' | 'apply' | 'snapshots' | 'backup' | 'apikeys' | 'apidocs'
 
 const SYSTEM_TABS: { key: SystemTab; label: string }[] = [
   { key: 'hostname',  label: 'Hostname' },
   { key: 'dns',       label: 'DNS' },
   { key: 'ssh',       label: 'SSH' },
   { key: 'sysctl',    label: 'Sysctl' },
+  { key: 'monitoring', label: 'Monitoring' },
+  { key: 'updates',   label: 'Updates' },
   { key: 'apply',     label: 'Apply History' },
   { key: 'snapshots', label: 'Snapshots' },
   { key: 'backup',    label: 'Backup' },
+  { key: 'apikeys',   label: 'API Keys' },
   { key: 'apidocs',   label: 'API Docs' },
 ]
 
-const CONFIG_TABS: SystemTab[] = ['hostname', 'dns', 'ssh', 'sysctl']
+const CONFIG_TABS: SystemTab[] = ['hostname', 'dns', 'ssh', 'sysctl', 'monitoring']
 
 const EMPTY_SAVE: TabSaveState = { isDirty: false, saving: false, save: () => {} }
 
@@ -637,7 +859,7 @@ export default function SystemConfig() {
     <div className="space-y-6">
       <PageHeader
         title="General"
-        description="OS hostname, DNS, SSH daemon, kernel parameters, apply history and backups"
+        description="OS hostname, DNS, SSH daemon, kernel parameters, monitoring, apply history and backups"
         action={isConfigTab ? <SaveButton isDirty={saveState.isDirty} saving={saveState.saving} onClick={saveState.save} /> : undefined}
       />
       <WatchdogConfirmBar pollKey={pendingPoll} />
@@ -646,9 +868,12 @@ export default function SystemConfig() {
         {activeTab === 'dns'       && <DNSTab onStateChange={setSaveState} />}
         {activeTab === 'ssh'       && <SSHTab onStateChange={setSaveState} />}
         {activeTab === 'sysctl'    && <SysctlTab onStateChange={setSaveState} />}
+        {activeTab === 'monitoring' && <MonitoringTab onStateChange={setSaveState} />}
+        {activeTab === 'updates'   && <UpdatesPanel />}
         {activeTab === 'apply'     && <ApplyHistoryTab />}
         {activeTab === 'snapshots' && <SnapshotsTab onChanged={() => setPendingPoll((k) => k + 1)} />}
         {activeTab === 'backup'    && <BackupTab onChanged={() => setPendingPoll((k) => k + 1)} />}
+        {activeTab === 'apikeys'   && <ApiKeysTab />}
         {activeTab === 'apidocs'   && <ApiDocsTab />}
       </SectionNav>
     </div>

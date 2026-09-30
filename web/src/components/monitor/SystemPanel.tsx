@@ -1,19 +1,21 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { InterfaceDetails } from './InterfaceDetails'
 import { api } from '@/lib/client'
 import type {
   TypesHAStatusResponse as HAStatusResponse, TypesStatsResponse as StatsResponse,
   TypesSystemHistoryPoint as SystemHistoryPoint, TypesNeighborStat as NeighborStat,
 } from '@/api'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { StateChip } from '@/components/ui/status-chip'
-import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from 'cheval-ui'
+import { StateChip } from 'cheval-ui'
+import { Button } from 'cheval-ui'
 import { RefreshCw, Pause, Play, Cpu, MemoryStick, Network } from 'lucide-react'
-import { Spinner } from '@/components/Spinner'
-import { TimeSeriesChart } from '@/components/TimeSeriesChart'
-import { fmtBytes, fmtUptime } from '@/lib/fmt'
+import { Spinner } from 'cheval-ui'
+import { TimeSeriesChart } from 'cheval-ui/charts'
+import { fmtBytes, fmtUptime } from 'cheval-ui'
 import { OnActionChange, VRRPState } from './shared'
 
 export function SystemPanel({ onActionChange }: { onActionChange: OnActionChange }) {
+  const [selectedInterface, setSelectedInterface] = useState<string | null>(null)
   const [stats, setStats] = useState<StatsResponse | null>(null)
   const [prev, setPrev] = useState<StatsResponse | null>(null)
   const [paused, setPaused] = useState(false)
@@ -92,6 +94,7 @@ export function SystemPanel({ onActionChange }: { onActionChange: OnActionChange
 
   return (
     <div className="space-y-5">
+      {selectedInterface && <InterfaceDetails name={selectedInterface} onClose={() => setSelectedInterface(null)} />}
       {!sys ? <Spinner /> : (
         <>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -171,8 +174,8 @@ export function SystemPanel({ onActionChange }: { onActionChange: OnActionChange
                   </thead>
                   <tbody>
                     {Object.entries(stats.interfaces ?? {}).sort(([a], [b]) => a.localeCompare(b)).map(([name, iface]) => (
-                      <tr key={name} className="border-b border-border/50 hover:bg-muted/30">
-                        <td className="py-2 pr-4 font-mono font-medium">{name}</td>
+                      <tr key={name} className="border-b border-border/50 hover:bg-muted/30 cursor-pointer" onClick={() => setSelectedInterface(name)}>
+                        <td className="py-2 pr-4 font-mono font-medium"><button type="button" className="text-primary hover:underline focus-visible:underline" onClick={(event) => { event.stopPropagation(); setSelectedInterface(name) }} aria-label={`Show ${name} interface status`}>{name}</button></td>
                         <td className="py-2 pr-4">
                           {vrrpByIface[name] ? (
                             <StateChip state={vrrpByIface[name]} />

@@ -1,7 +1,7 @@
 package routecache
 
 import (
-	"database/sql"
+	"context"
 	"strconv"
 	"sync"
 	"time"
@@ -18,23 +18,23 @@ const (
 
 var routesRefreshMu sync.Mutex
 
-func MaybeRefresh(db *sql.DB, force bool, ttl time.Duration) error {
+func MaybeRefresh(ctx context.Context, db *webdb.DB, force bool, ttl time.Duration) error {
 	routesRefreshMu.Lock()
 	defer routesRefreshMu.Unlock()
 
-	if !force && routesSnapshotFresh(db, ttl) {
+	if !force && routesSnapshotFresh(ctx, db, ttl) {
 		return nil
 	}
 
-	return refreshKernelRoutes(db)
+	return refreshKernelRoutes(ctx, db)
 }
 
-func routesSnapshotFresh(db *sql.DB, ttl time.Duration) bool {
+func routesSnapshotFresh(ctx context.Context, db *webdb.DB, ttl time.Duration) bool {
 	if ttl <= 0 {
 		ttl = routesSnapshotTTL
 	}
 
-	ts, err := strconv.ParseInt(webdb.Setting(db, settingRoutesSnapshotAt, "0"), 10, 64)
+	ts, err := strconv.ParseInt(webdb.Setting(ctx, db, settingRoutesSnapshotAt, "0"), 10, 64)
 	if err != nil || ts == 0 {
 		return false
 	}
@@ -42,7 +42,7 @@ func routesSnapshotFresh(db *sql.DB, ttl time.Duration) bool {
 	return time.Since(time.Unix(ts, 0)) < ttl
 }
 
-func refreshKernelRoutes(db *sql.DB) error {
+func refreshKernelRoutes(ctx context.Context, db *webdb.DB) error {
 	var routes []types.KernelRoute
 	collect := func(rt iproute.Route) {
 		routes = append(routes, types.KernelRoute{
@@ -59,9 +59,9 @@ func refreshKernelRoutes(db *sql.DB) error {
 		return err
 	}
 
-	if err := webdb.ReplaceKernelRoutes(db, routes); err != nil {
+	if err := webdb.ReplaceKernelRoutes(ctx, db, routes); err != nil {
 		return err
 	}
 
-	return webdb.SetSetting(db, settingRoutesSnapshotAt, strconv.FormatInt(time.Now().Unix(), 10))
+	return webdb.SetSetting(context.WithoutCancel(ctx), db, settingRoutesSnapshotAt, strconv.FormatInt(time.Now().Unix(), 10))
 }

@@ -27,6 +27,13 @@ import {
     ConfigKeaControlAgentToJSON,
     ConfigKeaControlAgentToJSONTyped,
 } from './ConfigKeaControlAgent';
+import type { ConfigDHCPDDNS } from './ConfigDHCPDDNS';
+import {
+    ConfigDHCPDDNSFromJSON,
+    ConfigDHCPDDNSFromJSONTyped,
+    ConfigDHCPDDNSToJSON,
+    ConfigDHCPDDNSToJSONTyped,
+} from './ConfigDHCPDDNS';
 
 /**
  * 
@@ -40,6 +47,12 @@ export interface ConfigDHCP {
      * @memberof ConfigDHCP
      */
     control_agent?: ConfigKeaControlAgent;
+    /**
+     * 
+     * @type {ConfigDHCPDDNS}
+     * @memberof ConfigDHCP
+     */
+    ddns?: ConfigDHCPDDNS;
     /**
      * 
      * @type {boolean}
@@ -84,6 +97,7 @@ export function ConfigDHCPFromJSONTyped(json: any, ignoreDiscriminator: boolean)
     return {
         
         'control_agent': json['control_agent'] == null ? undefined : ConfigKeaControlAgentFromJSON(json['control_agent']),
+        'ddns': json['ddns'] == null ? undefined : ConfigDHCPDDNSFromJSON(json['ddns']),
         'enabled': json['enabled'] == null ? undefined : json['enabled'],
         'interfaces': json['interfaces'] == null ? undefined : json['interfaces'],
         'subnets4': json['subnets4'] == null ? undefined : ((json['subnets4'] as Array<any>).map(ConfigKeaSubnetFromJSON)),
@@ -103,6 +117,7 @@ export function ConfigDHCPToJSONTyped(value?: ConfigDHCP | null, ignoreDiscrimin
     return {
         
         'control_agent': ConfigKeaControlAgentToJSON(value['control_agent']),
+        'ddns': ConfigDHCPDDNSToJSON(value['ddns']),
         'enabled': value['enabled'],
         'interfaces': value['interfaces'],
         'subnets4': value['subnets4'] == null ? undefined : ((value['subnets4'] as Array<any>).map(ConfigKeaSubnetToJSON)),

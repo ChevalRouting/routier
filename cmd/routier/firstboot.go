@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"sort"
 	"strings"
 
 	"github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/motd"
+	"github.com/ChevalRouting/routier/pkg/netlink"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
@@ -24,14 +24,14 @@ func newFirstbootCommand() *cobra.Command {
 
 const firstbootPass = "routier"
 
-func runFirstboot(_ *cobra.Command, _ []string) error {
+func runFirstboot(command *cobra.Command, _ []string) error {
 	if _, err := os.Stat(defaultConfigPath); err == nil {
 		return nil
 	}
 
-	nics := physicalNICs()
+	nics := usableNICs()
 	if len(nics) == 0 {
-		fmt.Fprintln(os.Stderr, "routier firstboot: no physical ethernet interfaces found; skipping")
+		fmt.Fprintln(os.Stderr, "routier firstboot: no usable ethernet interfaces found; skipping")
 		return nil
 	}
 
@@ -84,59 +84,25 @@ func runFirstboot(_ *cobra.Command, _ []string) error {
 		return fmt.Errorf("write ui-seed-password: %w", err)
 	}
 
-	ver := VERSION
-	issue := "\nWelcome to Routier"
-	if ver != "" && ver != "dev" {
-		issue += " " + ver
-	}
-
-	_ = os.WriteFile("/etc/issue", []byte(issue+"\n\n"), 0644)
-
-	motd.Write("routier", firstbootPass)
+	motd.WriteIssue(VERSION)
+	motd.Write(command.Context(), "routier", firstbootPass)
 
 	fmt.Printf("routier firstboot: generated %s (DHCP on: %s)\n", defaultConfigPath, strings.Join(nics, " "))
 	return nil
 }
 
-func physicalNICs() []string {
-	entries, err := os.ReadDir("/sys/class/net")
+func usableNICs() []string {
+	nics, err := netlink.SystemNics()
 	if err != nil {
 		return nil
 	}
 
-	var nics []string
-	for _, e := range entries {
-		name := e.Name()
-		if name == "lo" {
-			continue
-		}
-
-		if _, err := os.Stat("/sys/class/net/" + name + "/device"); os.IsNotExist(err) {
-			continue
-		}
-
-		typ, _ := os.ReadFile("/sys/class/net/" + name + "/type")
-		if strings.TrimSpace(string(typ)) != "1" {
-			continue
-		}
-
-		switch {
-		case strings.HasPrefix(name, "veth"),
-			strings.HasPrefix(name, "virbr"),
-			strings.HasPrefix(name, "docker"),
-			strings.HasPrefix(name, "br-"),
-			strings.HasPrefix(name, "bond"),
-			strings.HasPrefix(name, "tap"),
-			strings.HasPrefix(name, "tun"),
-			strings.HasPrefix(name, "wg"):
-			continue
-		}
-
-		nics = append(nics, name)
+	names := make([]string, 0, len(nics))
+	for _, n := range nics {
+		names = append(names, n.Name)
 	}
 
-	sort.Strings(nics)
-	return nics
+	return names
 }
 
 func sha512Crypt(pass string) (string, error) {

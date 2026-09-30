@@ -14,11 +14,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type vrrpEntry struct {
-	ifName string
-	vrrp   *config.VRRPInstance
-}
-
 // Status godoc
 // @Summary  VRRP / conntrackd HA status
 // @Tags ha
@@ -40,39 +35,32 @@ func Status(w http.ResponseWriter, r *http.Request) {
 
 	states := keepalived.States()
 
-	var entries []vrrpEntry
-	for ifName, iface := range cfg.Interfaces {
-		for _, v := range iface.VRRP {
-			entries = append(entries, vrrpEntry{ifName, v})
-		}
+	var instances []*config.VRRPInstance
+	if cfg.HA != nil {
+		instances = append(instances, cfg.HA.VRRP...)
 	}
 
-	sort.Slice(entries, func(i, j int) bool {
-		if entries[i].ifName != entries[j].ifName {
-			return entries[i].ifName < entries[j].ifName
+	sort.Slice(instances, func(i, j int) bool {
+		if instances[i].Interface != instances[j].Interface {
+			return instances[i].Interface < instances[j].Interface
 		}
 
-		return entries[i].vrrp.ID < entries[j].vrrp.ID
+		return instances[i].ID < instances[j].ID
 	})
 
-	for _, e := range entries {
-		ifName := e.ifName
-		if e.vrrp.Interface != "" {
-			ifName = e.vrrp.Interface
-		}
-
-		instanceName := fmt.Sprintf("VI_%s_%d", e.ifName, e.vrrp.ID)
-		if e.vrrp.Name != "" {
-			instanceName = e.vrrp.Name
+	for _, v := range instances {
+		instanceName := fmt.Sprintf("VI_%s_%d", v.Interface, v.ID)
+		if v.Name != "" {
+			instanceName = v.Name
 		}
 
 		kd := states[instanceName]
 		st := types.VRRPInstanceStatus{
-			Name:      e.vrrp.Name,
-			Interface: ifName,
-			ID:        e.vrrp.ID,
-			VIPs:      e.vrrp.VIPs,
-			Priority:  e.vrrp.Priority,
+			Name:      v.Name,
+			Interface: v.Interface,
+			ID:        v.ID,
+			VIPs:      v.VIPs,
+			Priority:  v.Priority,
 			State:     "UNKNOWN",
 		}
 		if kd != nil {
@@ -90,7 +78,7 @@ func Status(w http.ResponseWriter, r *http.Request) {
 		resp.VRRP = append(resp.VRRP, st)
 	}
 
-	if cfg.Conntrackd != nil {
+	if cfg.HA != nil && cfg.HA.Conntrackd != nil {
 		resp.Conntrackd = conntrackdStatus()
 	}
 

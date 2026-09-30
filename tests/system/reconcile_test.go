@@ -1,7 +1,7 @@
 package systemtest
 
 import (
-	"github.com/ChevalRouting/routier/tests/harness"
+	"github.com/ChevalRouting/routier/tests/testkit"
 	"testing"
 
 	"github.com/ChevalRouting/routier/pkg/dhcpcd"
@@ -9,7 +9,7 @@ import (
 )
 
 func TestDHCPCDReconcileDryRun(t *testing.T) {
-	cfg := harness.LoadCfg(t, `version: v3.0.0
+	cfg := testkit.LoadCfg(t, `version: v3.0.0
 hostname: gw
 interfaces:
   wan:
@@ -26,7 +26,7 @@ interfaces:
 }
 
 func TestNetlinkReconcileDryRun(t *testing.T) {
-	cfg := harness.LoadCfg(t, `version: v3.0.0
+	cfg := testkit.LoadCfg(t, `version: v3.0.0
 hostname: gw
 `)
 

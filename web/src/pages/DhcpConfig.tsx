@@ -4,19 +4,20 @@ import { toast } from 'sonner'
 import { api } from '@/lib/client'
 import { useFetch } from '@/lib/useFetch'
 import { usePageSave } from '@/lib/usePageSave'
-import { useTabState } from '@/lib/useTabState'
-import SaveButton from '@/components/SaveButton'
-import { Spinner } from '@/components/Spinner'
-import { EmptyState } from '@/components/EmptyState'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
-import { Tabs } from '@/components/ui/tabs'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
-import TagInput from '@/components/TagInput'
+import { useTabState } from 'cheval-ui'
+import { SaveButton } from 'cheval-ui'
+import { Spinner } from 'cheval-ui'
+import { EmptyState } from 'cheval-ui'
+import { Button } from 'cheval-ui'
+import { Input } from 'cheval-ui'
+import { Label } from 'cheval-ui'
+import { Switch } from 'cheval-ui'
+import { Tabs } from 'cheval-ui'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from 'cheval-ui'
+import { Card, CardHeader, CardTitle, CardContent } from 'cheval-ui'
+import { TagInput } from 'cheval-ui'
 import { VarPickerInput } from '@/components/VarPickerInput'
+import { AccordionList } from '@/components/ui/AccordionList'
 import { cidrNetwork } from '@/lib/cidr'
 
 const ANY_IFACE = '*'
@@ -38,11 +39,19 @@ interface KeaSubnet {
   reservations?: KeaReservation[]
 }
 
+interface DhcpDDNS {
+  enabled?: boolean
+  domain?: string
+  ttl?: number
+  reverse?: boolean
+}
+
 interface DhcpConfigData {
   enabled?: boolean
   control_agent?: { url?: string; user?: string; password?: string }
   subnets4?: KeaSubnet[]
   subnets6?: KeaSubnet[]
+  ddns?: DhcpDDNS
 }
 
 function InterfaceSelect({ value, options, onChange }: {
@@ -107,20 +116,33 @@ function PoolRows({ v6, pools, onChange }: {
   )
 }
 
-function SubnetCard({ v6, subnet, networks, ifaceNames, onChange, onDelete }: {
+function SubnetSummary({ subnet }: { subnet: KeaSubnet }) {
+  const pools = (subnet.pools ?? []).length
+  const dns = (subnet.dns ?? []).length
+  return (
+    <div className="flex min-w-0 flex-1 items-center gap-3">
+      <span className="w-52 shrink-0 truncate font-mono text-sm font-medium">{subnet.subnet || 'new subnet'}</span>
+      <span className="w-28 shrink-0 truncate font-mono text-xs text-muted-foreground">{subnet.interface || 'all interfaces'}</span>
+      <span className="shrink-0 text-xs text-muted-foreground">{pools} pool{pools === 1 ? '' : 's'}</span>
+      {dns > 0 && <span className="shrink-0 text-xs text-muted-foreground">{dns} DNS</span>}
+    </div>
+  )
+}
+
+function SubnetBody({ v6, subnet, networks, ifaceNames, onChange }: {
   v6: boolean
   subnet: KeaSubnet
   networks: string[]
   ifaceNames: string[]
   onChange: (s: KeaSubnet) => void
-  onDelete: () => void
 }) {
   const set = <K extends keyof KeaSubnet>(k: K, val: KeaSubnet[K]) => onChange({ ...subnet, [k]: val })
 
   return (
-    <div className="rounded-lg border border-border p-3 space-y-3">
+    <>
       <div className="space-y-2">
-        <div className="flex items-center gap-2">
+        <div className="space-y-1.5">
+          <Label className="text-[11px] text-muted-foreground">Network (CIDR)</Label>
           <VarPickerInput
             value={subnet.subnet}
             onChange={(v) => set('subnet', v)}
@@ -132,17 +154,14 @@ function SubnetCard({ v6, subnet, networks, ifaceNames, onChange, onDelete }: {
             wrapperClassName="flex-1"
             className="h-8 text-xs"
           />
-          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive" onClick={onDelete}>
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <Label className="text-[11px] text-muted-foreground">Interface</Label>
             <InterfaceSelect value={subnet.interface} options={ifaceNames} onChange={(v) => set('interface', v)} />
           </div>
           {!v6 && (
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <Label className="text-[11px] text-muted-foreground">Gateway</Label>
               <Input value={subnet.gateway ?? ''} onChange={(e) => set('gateway', e.target.value || undefined)} placeholder="10.0.0.1" className="h-8 text-xs font-mono" />
             </div>
@@ -152,16 +171,16 @@ function SubnetCard({ v6, subnet, networks, ifaceNames, onChange, onDelete }: {
 
       <div className="grid gap-4 md:grid-cols-2">
         <PoolRows v6={v6} pools={subnet.pools ?? []} onChange={(v) => set('pools', v.length ? v : undefined)} />
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <Label className="text-[11px] text-muted-foreground">DNS servers</Label>
           <TagInput values={subnet.dns ?? []} onChange={(v) => set('dns', v.length ? v : undefined)} placeholder={v6 ? '2001:db8::53' : '1.1.1.1'} mono />
         </div>
-        <div className="space-y-1 md:col-span-2">
+        <div className="space-y-1.5 md:col-span-2">
           <Label className="text-[11px] text-muted-foreground">Reserved for manual use (excluded from auto-suggested addresses)</Label>
           <TagInput values={subnet.exclusions ?? []} onChange={(v) => set('exclusions', v.length ? v : undefined)} placeholder={v6 ? '2001:db8::1-2001:db8::ff' : '10.0.0.1-10.0.0.20 or 10.0.0.5'} mono />
         </div>
       </div>
-    </div>
+    </>
   )
 }
 
@@ -173,34 +192,28 @@ function SubnetList({ v6, subnets, networks, ifaceNames, onChange }: {
   onChange: (s: KeaSubnet[]) => void
 }) {
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-sm">{v6 ? 'IPv6 subnets' : 'IPv4 subnets'}</CardTitle>
-        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => onChange([...subnets, { subnet: '' }])}>
-          <Plus className="h-3.5 w-3.5" />Add subnet
-        </Button>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {subnets.length === 0 && (
-          <EmptyState className="py-10"
-            title={v6 ? 'No IPv6 subnets' : 'No IPv4 subnets'}
-            message="Add a subnet to serve leases on an interface."
-            action={<Button variant="outline" size="sm" className="gap-2" onClick={() => onChange([...subnets, { subnet: '' }])}><Plus className="h-4 w-4" />Add subnet</Button>}
-          />
-        )}
-        {subnets.map((s, i) => (
-          <SubnetCard
-            key={i}
+    <div className="space-y-2">
+      <div className="px-1 text-sm font-medium">{v6 ? 'IPv6 subnets' : 'IPv4 subnets'}</div>
+      <AccordionList
+        items={subnets}
+        description={`Serve leases on an interface (${subnets.length}).`}
+        addLabel="Add subnet"
+        onAdd={() => onChange([...subnets, { subnet: '' }])}
+        onRemove={(s) => onChange(subnets.filter((x) => x !== s))}
+        emptyTitle={v6 ? 'No IPv6 subnets' : 'No IPv4 subnets'}
+        emptyMessage="Add a subnet to serve leases on an interface."
+        renderSummary={(s) => <SubnetSummary subnet={s} />}
+        renderBody={(s) => (
+          <SubnetBody
             v6={v6}
             subnet={s}
             networks={networks}
             ifaceNames={ifaceNames}
-            onChange={(next) => onChange(subnets.map((x, j) => (j === i ? next : x)))}
-            onDelete={() => onChange(subnets.filter((_, j) => j !== i))}
+            onChange={(next) => onChange(subnets.map((x) => (x === s ? next : x)))}
           />
-        ))}
-      </CardContent>
-    </Card>
+        )}
+      />
+    </div>
   )
 }
 
@@ -380,12 +393,56 @@ function ReservationsTab({ cfg, onChange }: {
   )
 }
 
-interface IfaceData {
-  addresses?: string[]
-  vlans?: Record<string, { addresses?: string[] }>
+function DdnsTab({ cfg, onChange }: {
+  cfg: DhcpConfigData
+  onChange: (next: DhcpConfigData) => void
+}) {
+  const d = cfg.ddns ?? {}
+  const set = <K extends keyof DhcpDDNS>(k: K, v: DhcpDDNS[K]) => onChange({ ...cfg, ddns: { ...d, [k]: v } })
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm">Dynamic DNS</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <label className="flex items-center gap-3">
+          <Switch checked={!!d.enabled} onCheckedChange={(v) => set('enabled', v || undefined)} />
+          <div>
+            <div className="text-sm font-medium">Register leases in DNS</div>
+            <div className="text-xs text-muted-foreground">Kea updates the local BIND with A/AAAA and PTR records as leases come and go. Requires the DNS server to be enabled.</div>
+          </div>
+        </label>
+
+        {d.enabled && (
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label className="text-[11px] text-muted-foreground">Forward domain</Label>
+              <Input value={d.domain ?? ''} onChange={(e) => set('domain', e.target.value || undefined)} placeholder="lan.example.com" className="h-8 text-xs font-mono" />
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label className="text-[11px] text-muted-foreground">Record TTL (seconds)</Label>
+                <Input type="number" value={d.ttl ?? ''} onChange={(e) => set('ttl', e.target.value ? Number(e.target.value) : undefined)} placeholder="3600" className="h-8 text-xs" />
+              </div>
+              <label className="flex items-center gap-3 pt-5">
+                <Switch checked={d.reverse !== false} onCheckedChange={(v) => set('reverse', v ? undefined : false)} />
+                <div className="text-sm">Update reverse (PTR) zones</div>
+              </label>
+            </div>
+            <p className="text-xs text-muted-foreground">The forward domain is appended to client hostnames. The closest existing parent zone is reused: ans.mvinc.fr registers hostname.ans.mvinc.fr in mvinc.fr when that zone exists. Existing reverse zones are also reused. Missing zones are created automatically. The TSIG key that authenticates updates is generated on first apply and stored in the config.</p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
 }
 
-type DhcpTab = 'subnets' | 'reservations'
+interface IfaceData {
+  addresses?: string[]
+}
+
+type DhcpTab = 'subnets' | 'reservations' | 'ddns'
 
 export function DhcpConfig({ onActionChange }: { onActionChange?: (a: React.ReactNode) => void }) {
   const { data, isLoading } = useFetch<DhcpConfigData | null>(() => api.apiConfigSectionGet({ section: 'dhcp' }) as Promise<DhcpConfigData | null>)
@@ -395,16 +452,10 @@ export function DhcpConfig({ onActionChange }: { onActionChange?: (a: React.Reac
   const [tab, setTab] = useTabState<DhcpTab>('dhcp.config', 'subnets')
   const { isDirty, markDirty, save, saving } = usePageSave('dhcp')
 
-  const ifaceNames = [
-    ...Object.keys(ifaces ?? {}),
-    ...Object.values(ifaces ?? {}).flatMap((i) => Object.keys(i?.vlans ?? {})),
-  ]
+  const ifaceNames = Object.keys(ifaces ?? {})
 
   const networks = Array.from(new Set(
-    Object.values(ifaces ?? {}).flatMap((i) => [
-      ...(i?.addresses ?? []),
-      ...Object.values(i?.vlans ?? {}).flatMap((vl) => vl?.addresses ?? []),
-    ])
+    Object.values(ifaces ?? {}).flatMap((i) => i?.addresses ?? [])
       .map(cidrNetwork)
       .filter((n): n is string => n !== null),
   ))
@@ -441,7 +492,7 @@ export function DhcpConfig({ onActionChange }: { onActionChange?: (a: React.Reac
       </label>
 
       {remote && (
-        <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+        <p className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
           A remote control agent ({cfg.control_agent?.url}) is configured, so no local Kea is rendered. The subnets below are ignored for a remote server.
         </p>
       )}
@@ -452,17 +503,20 @@ export function DhcpConfig({ onActionChange }: { onActionChange?: (a: React.Reac
         tabs={[
           { key: 'subnets', label: 'Subnets' },
           { key: 'reservations', label: 'Reservations' },
+          { key: 'ddns', label: 'Dynamic DNS' },
         ]}
       />
 
-      {tab === 'subnets' ? (
+      {tab === 'subnets' && (
         <div className="space-y-5">
           <SubnetList v6={false} subnets={cfg.subnets4 ?? []} networks={networks} ifaceNames={ifaceNames} onChange={(s) => set('subnets4', s.length ? s : undefined)} />
           <SubnetList v6={true} subnets={cfg.subnets6 ?? []} networks={networks} ifaceNames={ifaceNames} onChange={(s) => set('subnets6', s.length ? s : undefined)} />
         </div>
-      ) : (
-        <ReservationsTab cfg={cfg} onChange={update} />
       )}
+
+      {tab === 'reservations' && <ReservationsTab cfg={cfg} onChange={update} />}
+
+      {tab === 'ddns' && <DdnsTab cfg={cfg} onChange={update} />}
     </div>
   )
 }

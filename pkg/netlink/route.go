@@ -194,7 +194,7 @@ func reconcileRoutes(cfg *config.Config, dryRun bool) error {
 		}
 
 		log.Info().Msgf("delete route %s", k)
-		if err := vnl.RouteDel(&r); err != nil {
+		if err := routeDel(&r); err != nil {
 			log.Warn().Err(err).Msgf("delete route %s failed", k)
 		}
 	}
@@ -208,7 +208,7 @@ func reconcileRoutes(cfg *config.Config, dryRun bool) error {
 			}
 
 			log.Info().Msgf("add route %s", k)
-			if err := vnl.RouteAdd(&r); err != nil {
+			if err := routeAdd(&r); err != nil {
 				return fmt.Errorf("add route %s: %w", k, err)
 			}
 		} else if !routesEqual(cur, r) {
@@ -218,7 +218,7 @@ func reconcileRoutes(cfg *config.Config, dryRun bool) error {
 			}
 
 			log.Info().Msgf("replace route %s", k)
-			if err := vnl.RouteReplace(&r); err != nil {
+			if err := routeReplace(&r); err != nil {
 				return fmt.Errorf("replace route %s: %w", k, err)
 			}
 		}

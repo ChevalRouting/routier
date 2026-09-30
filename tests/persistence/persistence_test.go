@@ -1,7 +1,7 @@
 package persistencetest
 
 import (
-	"github.com/ChevalRouting/routier/tests/harness"
+	"github.com/ChevalRouting/routier/tests/testkit"
 	"path/filepath"
 	"testing"
 
@@ -39,7 +39,7 @@ func TestApplyLogRecordLifecycle(t *testing.T) {
 
 func TestBackupRoundTrip(t *testing.T) {
 	dir := t.TempDir()
-	cfgPath := harness.WriteConfig(t, dir, harness.MinimalConfig)
+	cfgPath := testkit.WriteConfig(t, dir, testkit.MinimalConfig)
 
 	cfg, err := config.Load(cfgPath)
 	if err != nil {

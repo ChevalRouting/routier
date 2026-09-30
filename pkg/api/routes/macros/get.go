@@ -21,7 +21,7 @@ import (
 func Get(w http.ResponseWriter, r *http.Request) {
 	app := appctx.FromContext(r.Context())
 	id := chi.URLParam(r, "id")
-	m, err := webdb.LoadMacro(app.DB, id)
+	m, err := webdb.LoadMacro(r.Context(), app.DB, id)
 	if err != nil {
 		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "failed to load macro"))
 		return

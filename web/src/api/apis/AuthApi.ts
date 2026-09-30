@@ -16,23 +16,50 @@
 import * as runtime from '../runtime';
 import type {
   TypesChangePasswordRequest,
+  TypesCreateAPIKeyRequest,
   TypesLoginRequest,
+  TypesPasswordHashRequest,
+  TypesResponseArrayTypesAPIKey,
+  TypesResponseTypesCreateAPIKeyResponse,
   TypesResponseTypesLoginResponse,
+  TypesResponseTypesPasswordHashResponse,
   TypesResponseTypesStatusResponse,
 } from '../models/index';
 import {
     TypesChangePasswordRequestFromJSON,
     TypesChangePasswordRequestToJSON,
+    TypesCreateAPIKeyRequestFromJSON,
+    TypesCreateAPIKeyRequestToJSON,
     TypesLoginRequestFromJSON,
     TypesLoginRequestToJSON,
+    TypesPasswordHashRequestFromJSON,
+    TypesPasswordHashRequestToJSON,
+    TypesResponseArrayTypesAPIKeyFromJSON,
+    TypesResponseArrayTypesAPIKeyToJSON,
+    TypesResponseTypesCreateAPIKeyResponseFromJSON,
+    TypesResponseTypesCreateAPIKeyResponseToJSON,
     TypesResponseTypesLoginResponseFromJSON,
     TypesResponseTypesLoginResponseToJSON,
+    TypesResponseTypesPasswordHashResponseFromJSON,
+    TypesResponseTypesPasswordHashResponseToJSON,
     TypesResponseTypesStatusResponseFromJSON,
     TypesResponseTypesStatusResponseToJSON,
 } from '../models/index';
 
+export interface ApiAuthApiKeysIdDeleteRequest {
+    id: string;
+}
+
+export interface ApiAuthApiKeysPostRequest {
+    TypesCreateAPIKeyRequest: TypesCreateAPIKeyRequest;
+}
+
 export interface ApiAuthLoginPostRequest {
     TypesLoginRequest: TypesLoginRequest;
+}
+
+export interface ApiAuthPasswordHashPostRequest {
+    TypesPasswordHashRequest: TypesPasswordHashRequest;
 }
 
 export interface ApiAuthPasswordPutRequest {
@@ -43,6 +70,113 @@ export interface ApiAuthPasswordPutRequest {
  * 
  */
 export class AuthApi extends runtime.BaseAPI {
+
+    /**
+     * List application API keys
+     */
+    async apiAuthApiKeysGetRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<TypesResponseArrayTypesAPIKey>> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["Authorization"] = await this.configuration.apiKey("Authorization"); // BearerAuth authentication
+        }
+
+        const response = await this.request({
+            path: `/api/auth/api-keys`,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => TypesResponseArrayTypesAPIKeyFromJSON(jsonValue));
+    }
+
+    /**
+     * List application API keys
+     */
+    async apiAuthApiKeysGet(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<TypesResponseArrayTypesAPIKey> {
+        const response = await this.apiAuthApiKeysGetRaw(initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Revoke an application API key
+     */
+    async apiAuthApiKeysIdDeleteRaw(requestParameters: ApiAuthApiKeysIdDeleteRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<TypesResponseTypesStatusResponse>> {
+        if (requestParameters['id'] == null) {
+            throw new runtime.RequiredError(
+                'id',
+                'Required parameter "id" was null or undefined when calling apiAuthApiKeysIdDelete().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["Authorization"] = await this.configuration.apiKey("Authorization"); // BearerAuth authentication
+        }
+
+        const response = await this.request({
+            path: `/api/auth/api-keys/{id}`.replace(`{${"id"}}`, encodeURIComponent(String(requestParameters['id']))),
+            method: 'DELETE',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => TypesResponseTypesStatusResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Revoke an application API key
+     */
+    async apiAuthApiKeysIdDelete(requestParameters: ApiAuthApiKeysIdDeleteRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<TypesResponseTypesStatusResponse> {
+        const response = await this.apiAuthApiKeysIdDeleteRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Create an application API key
+     */
+    async apiAuthApiKeysPostRaw(requestParameters: ApiAuthApiKeysPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<TypesResponseTypesCreateAPIKeyResponse>> {
+        if (requestParameters['TypesCreateAPIKeyRequest'] == null) {
+            throw new runtime.RequiredError(
+                'TypesCreateAPIKeyRequest',
+                'Required parameter "TypesCreateAPIKeyRequest" was null or undefined when calling apiAuthApiKeysPost().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["Authorization"] = await this.configuration.apiKey("Authorization"); // BearerAuth authentication
+        }
+
+        const response = await this.request({
+            path: `/api/auth/api-keys`,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: TypesCreateAPIKeyRequestToJSON(requestParameters['TypesCreateAPIKeyRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => TypesResponseTypesCreateAPIKeyResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Create an application API key
+     */
+    async apiAuthApiKeysPost(requestParameters: ApiAuthApiKeysPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<TypesResponseTypesCreateAPIKeyResponse> {
+        const response = await this.apiAuthApiKeysPostRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
 
     /**
      * Authenticate and obtain a token
@@ -77,6 +211,46 @@ export class AuthApi extends runtime.BaseAPI {
      */
     async apiAuthLoginPost(requestParameters: ApiAuthLoginPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<TypesResponseTypesLoginResponse> {
         const response = await this.apiAuthLoginPostRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Hash a plaintext password for a config user (sha512-crypt)
+     */
+    async apiAuthPasswordHashPostRaw(requestParameters: ApiAuthPasswordHashPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<TypesResponseTypesPasswordHashResponse>> {
+        if (requestParameters['TypesPasswordHashRequest'] == null) {
+            throw new runtime.RequiredError(
+                'TypesPasswordHashRequest',
+                'Required parameter "TypesPasswordHashRequest" was null or undefined when calling apiAuthPasswordHashPost().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["Authorization"] = await this.configuration.apiKey("Authorization"); // BearerAuth authentication
+        }
+
+        const response = await this.request({
+            path: `/api/auth/password-hash`,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: TypesPasswordHashRequestToJSON(requestParameters['TypesPasswordHashRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => TypesResponseTypesPasswordHashResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Hash a plaintext password for a config user (sha512-crypt)
+     */
+    async apiAuthPasswordHashPost(requestParameters: ApiAuthPasswordHashPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<TypesResponseTypesPasswordHashResponse> {
+        const response = await this.apiAuthPasswordHashPostRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -14,10 +15,12 @@ import (
 var VERSION = "dev"
 
 func main() {
+	ensureRoot()
+
 	log.Logger = zerolog.New(consoleWriter()).With().Timestamp().Logger()
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 
-	if base := filepath.Base(os.Args[0]); base == "routier-setup" {
+	if base := filepath.Base(os.Args[0]); base == "setup-routier" {
 		os.Args = append([]string{os.Args[0], "setup"}, os.Args[1:]...)
 	}
 
@@ -27,6 +30,16 @@ func main() {
 			fmt.Fprintln(os.Stderr, e)
 			os.Exit(1)
 		}
+	}
+}
+
+func ensureRoot() {
+	if os.Geteuid() != 0 || os.Getuid() == 0 {
+		return
+	}
+
+	if err := syscall.Setreuid(0, 0); err != nil {
+		fmt.Fprintf(os.Stderr, "routier: failed to become root (setuid helper): %v\n", err)
 	}
 }
 

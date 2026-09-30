@@ -1,0 +1,65 @@
+version: v3.0.0
+
+hostname: pve-rtr-01
+
+vrfs:
+  vm-public:
+    table: 1010
+
+interfaces:
+  wan:
+    select: eth[0]
+    addresses: [2001:db8:ffff::2/64]
+
+  vm-public:
+    select: mac(BC:24:11:DC:EF:02)
+    vrf: vm-public
+    addresses: [2001:db8:1000::1/64]
+
+sysctl:
+  net.ipv6.conf.all.forwarding: "1"
+
+routing:
+  static:
+    - destination: ::/0
+      via: 2001:db8:ffff::1
+
+  bgp:
+    asn: 65001
+    router_id: 192.0.2.1
+    no_default_ipv4_unicast: true
+    neighbors:
+      - address: 2001:db8:ffff::1
+        remote_asn: 65000
+        description: ISP upstream
+        address_families:
+          ipv6-unicast:
+            route_map_out: ADV-PUBLIC
+    address_families:
+      ipv6-unicast:
+        redistribute: [static]
+        import_vrf: [vm-public]
+    prefix_lists:
+      OUR-V6:
+        - { seq: 10, action: permit, prefix: "2001:db8:1000::/64" }
+      DEFAULT-V6:
+        - { seq: 10, action: permit, prefix: "::/0" }
+    route_maps:
+      ADV-PUBLIC:
+        - { seq: 10, action: permit, match: { "ipv6 address prefix-list": OUR-V6 } }
+      IMPORT-DEFAULT:
+        - { seq: 10, action: permit, match: { "ipv6 address prefix-list": DEFAULT-V6 } }
+
+  vrfs:
+    vm-public:
+      bgp:
+        asn: 65001
+        router_id: 192.0.2.1
+        no_default_ipv4_unicast: true
+        address_families:
+          ipv6-unicast:
+            networks:
+              - 2001:db8:1000::/64
+            import_vrf: [default]
+            extra:
+              - import vrf route-map IMPORT-DEFAULT

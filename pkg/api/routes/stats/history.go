@@ -20,7 +20,7 @@ const historyMaxPoints = 200
 // @Produce json
 // @Param minutes query int false "lookback minutes"
 // @Param iface query string false "interface filter"
-// @Param series query string false "comma-separated series to include (interfaces,bgp,proto,system,total,usage); default all"
+// @Param series query string false "comma-separated series to include (interfaces,bgp,proto,system,total,usage,probes); default all"
 // @Success 200 {object} types.Response[types.StatsHistoryResponse]
 // @Security BearerAuth
 // @Router /api/stats/history [get]
@@ -44,7 +44,7 @@ func History(w http.ResponseWriter, r *http.Request) {
 
 	var ifaceHistory map[string][]types.IfaceHistoryPoint
 	if want("interfaces") || want("usage") {
-		ifaceHistory = webdb.IfaceHistory(app.DB, cutoff, bucket, ifaceFilter)
+		ifaceHistory = webdb.IfaceHistory(r.Context(), app.DB, cutoff, bucket, ifaceFilter)
 	}
 
 	if want("interfaces") {
@@ -52,23 +52,27 @@ func History(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if want("bgp") {
-		resp.BGPPeers = webdb.BGPHistory(app.DB, cutoff, bucket)
+		resp.BGPPeers = webdb.BGPHistory(r.Context(), app.DB, cutoff, bucket)
 	}
 
 	if want("proto") {
-		resp.Proto = webdb.ProtoHistory(app.DB, cutoff, bucket)
+		resp.Proto = webdb.ProtoHistory(r.Context(), app.DB, cutoff, bucket)
 	}
 
 	if want("system") {
-		resp.System = webdb.SystemHistory(app.DB, cutoff, bucket)
+		resp.System = webdb.SystemHistory(r.Context(), app.DB, cutoff, bucket)
 	}
 
 	if want("total") {
-		resp.Total = webdb.IfaceTotals(app.DB, cutoff, bucket, physical)
+		resp.Total = webdb.IfaceTotals(r.Context(), app.DB, cutoff, bucket, physical)
 	}
 
 	if want("usage") {
 		resp.Usage = summarizeUsage(ifaceHistory, physical)
+	}
+
+	if want("probes") {
+		resp.Probes = webdb.ProbeHistory(r.Context(), app.DB, cutoff, bucket)
 	}
 
 	types.OK(w, resp)

@@ -48,3 +48,37 @@ func TestValidateArtifactsSkipsMissingTool(t *testing.T) {
 		t.Fatalf("want nil when validator binary absent, got %+v", errs)
 	}
 }
+
+func TestValidateArtifactsBeforeApplyDefersKea(t *testing.T) {
+	binDir := t.TempDir()
+	for _, bin := range []string{"kea-dhcp4", "kea-dhcp6", "nft"} {
+		if err := os.WriteFile(filepath.Join(binDir, bin), []byte("#!/bin/sh\nexit 1\n"), 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("PATH", binDir)
+	var calls []string
+	restore := SetCommandRunner(func(_ context.Context, bin string, _ ...string) ([]byte, error) {
+		calls = append(calls, bin)
+		return nil, nil
+	})
+	defer restore()
+	outputs := []render.Output{
+		{Name: "kea/kea-dhcp4.conf", Dest: "/etc/kea/kea-dhcp4.conf", Content: "{}"},
+		{Name: "kea/kea-dhcp6.conf", Dest: "/etc/kea/kea-dhcp6.conf", Content: "{}"},
+		{Name: "nftables/routier.nft", Dest: "/etc/nftables.d/routier.nft", Content: "table inet routier {}"},
+	}
+	if errs := ValidateArtifactsBeforeApply(outputs); len(errs) != 0 {
+		t.Fatal(errs)
+	}
+	if len(calls) != 1 || calls[0] != "nft" {
+		t.Fatalf("pre-apply validators: %v", calls)
+	}
+	calls = nil
+	if errs := ValidateArtifacts(outputs); len(errs) != 0 {
+		t.Fatal(errs)
+	}
+	if len(calls) != 3 || calls[0] != "kea-dhcp4" || calls[1] != "kea-dhcp6" {
+		t.Fatalf("standalone validators: %v", calls)
+	}
+}

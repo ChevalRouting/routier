@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
-import { Input } from '@/components/ui/input'
-import { NumberInput } from '@/components/ui/number-input'
-import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
-import { EmptyState } from '@/components/EmptyState'
-import { Sheet } from '@/components/ui/sheet'
+import { Input } from 'cheval-ui'
+import { NumberInput } from 'cheval-ui'
+import { Label } from 'cheval-ui'
+import { Button } from 'cheval-ui'
+import { EmptyState } from 'cheval-ui'
+import { Sheet } from 'cheval-ui'
 import { Plus, Trash2 } from 'lucide-react'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { PreferencesColumns, Row } from '@/components/Preferences'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from 'cheval-ui'
+import { PreferencesColumns, Row } from 'cheval-ui'
 import { PrefixEntry } from '../types'
 import { newId } from '../shared'
 
@@ -58,7 +58,7 @@ export function PrefixListForm({
       </div>
 
       {rows.length > 0 && (
-        <div className="rounded border overflow-x-auto">
+        <div className="rounded bg-card shadow-[var(--card-shadow)] overflow-x-auto">
           <table className="w-full text-xs">
             <thead className="bg-muted/50">
               <tr>
@@ -238,4 +238,3 @@ export function BGPPrefixListsPanel({
     </div>
   )
 }
-

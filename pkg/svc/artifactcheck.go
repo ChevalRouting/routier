@@ -13,11 +13,13 @@ import (
 )
 
 type artifactValidator struct {
-	name   string
-	tool   string
-	bin    string
-	prefix []string
-	suffix []string
+	name       string
+	namePrefix bool
+	tool       string
+	bin        string
+	prefix     []string
+	suffix     []string
+	argsFor    func(o render.Output, staged string) []string
 }
 
 var artifactValidators = []artifactValidator{
@@ -26,12 +28,31 @@ var artifactValidators = []artifactValidator{
 	{name: "radvd/radvd.conf", tool: artifacterr.ToolRadvd, bin: "radvd", prefix: []string{"radvd", "-C"}, suffix: []string{"-c"}},
 	{name: "kea/kea-dhcp4.conf", tool: artifacterr.ToolKea, bin: "kea-dhcp4", prefix: []string{"kea-dhcp4", "-t"}},
 	{name: "kea/kea-dhcp6.conf", tool: artifacterr.ToolKea, bin: "kea-dhcp6", prefix: []string{"kea-dhcp6", "-t"}},
+	{name: "kea/kea-dhcp-ddns.conf", tool: artifacterr.ToolKea, bin: "kea-dhcp-ddns", prefix: []string{"kea-dhcp-ddns", "-t"}},
+	{
+		name:       render.NamedZoneName,
+		namePrefix: true,
+		tool:       artifacterr.ToolNamedCheckzone,
+		bin:        "named-checkzone",
+		argsFor: func(o render.Output, staged string) []string {
+			return []string{"named-checkzone", render.ZoneOriginFromName(o.Name), staged}
+		},
+	},
 }
 
 func validatorFor(name string) *artifactValidator {
 	for i := range artifactValidators {
-		if artifactValidators[i].name == name {
-			return &artifactValidators[i]
+		v := &artifactValidators[i]
+		if v.namePrefix {
+			if strings.HasPrefix(name, v.name) {
+				return v
+			}
+
+			continue
+		}
+
+		if v.name == name {
+			return v
 		}
 	}
 
@@ -39,6 +60,16 @@ func validatorFor(name string) *artifactValidator {
 }
 
 func ValidateArtifacts(outputs []render.Output) []types.ArtifactError {
+	return validateArtifacts(outputs, false)
+}
+
+// ValidateArtifactsBeforeApply defers Kea validation until ReloadFromOutputs has
+// configured the network. Kea checks that its configured interfaces exist.
+func ValidateArtifactsBeforeApply(outputs []render.Output) []types.ArtifactError {
+	return validateArtifacts(outputs, true)
+}
+
+func validateArtifacts(outputs []render.Output, deferKea bool) []types.ArtifactError {
 	dir, err := os.MkdirTemp("", "routier-check-")
 	if err != nil {
 		return []types.ArtifactError{{Message: "staging dir: " + err.Error()}}
@@ -49,7 +80,7 @@ func ValidateArtifacts(outputs []render.Output) []types.ArtifactError {
 	var errs []types.ArtifactError
 	for _, o := range outputs {
 		v := validatorFor(o.Name)
-		if v == nil {
+		if v == nil || (deferKea && v.tool == artifacterr.ToolKea) {
 			continue
 		}
 
@@ -63,8 +94,13 @@ func ValidateArtifacts(outputs []render.Output) []types.ArtifactError {
 			continue
 		}
 
-		argv := append(append([]string{}, v.prefix...), f)
-		argv = append(argv, v.suffix...)
+		var argv []string
+		if v.argsFor != nil {
+			argv = v.argsFor(o, f)
+		} else {
+			argv = append(append([]string{}, v.prefix...), f)
+			argv = append(argv, v.suffix...)
+		}
 
 		out, runErr := runCombined(argv, 15*time.Second)
 		if runErr == nil {

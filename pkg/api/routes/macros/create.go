@@ -9,6 +9,7 @@ import (
 
 	appctx "github.com/ChevalRouting/routier/pkg/api/app"
 	"github.com/ChevalRouting/routier/pkg/api/cfgstore"
+	"github.com/ChevalRouting/routier/pkg/api/requests"
 	"github.com/ChevalRouting/routier/pkg/config"
 	webdb "github.com/ChevalRouting/routier/pkg/db"
 	"github.com/ChevalRouting/routier/pkg/macro"
@@ -84,7 +85,7 @@ func Create(w http.ResponseWriter, r *http.Request) {
 		CreatedBy:   username,
 	}
 
-	if err := webdb.InsertMacro(app.DB, m); err != nil {
+	if err := webdb.InsertMacro(requests.DurableContext(r), app.DB, m); err != nil {
 		if strings.Contains(err.Error(), "UNIQUE") {
 			types.Err(http.StatusConflict, "macro \""+req.Name+"\" already exists").Write(w)
 			return

@@ -58,6 +58,49 @@ and [configuration.md](configuration.md) for the config model.
 - **Surfaces**. The web UI, the HTTP API, and the `routier` CLI are three views
   of the same engine and the same config.
 
+## Documentation index
+
+### Overview
+
+| Page | Purpose |
+|------|---------|
+| [installation.md](installation.md) | package install, host takeover, upgrades |
+| [architecture.md](architecture.md) | the load/render/apply pipeline, apply ordering, repository layout |
+| [configuration.md](configuration.md) | the config model: sections, versioning, staging, apply and rollback |
+
+### Configuration sections
+
+| Page | Purpose |
+|------|---------|
+| [interfaces.md](interfaces.md) | interfaces, VLANs, bridges, VRFs |
+| [routing.md](routing.md) | static routes, BGP, OSPF, BFD, PBR, anycast, router advertisements |
+| [ha.md](ha.md) | high availability: VRRP failover and conntrackd state replication |
+| [firewall.md](firewall.md) | the routier-owned nftables table, automatic allows, variables |
+| [wireguard.md](wireguard.md) | WireGuard interfaces and peers |
+| [dhcp.md](dhcp.md) | Kea DHCP subnets, pools, reservations and lease operations |
+| [dns.md](dns.md) | the BIND resolver and authoritative zones (`dns.server`) |
+| [system.md](system.md) | hostname, resolv.conf, SSH, sysctl, users, managed services |
+| [friends.md](friends.md) | mutually-authenticated peer routers, liveness, derived tunnels |
+| [macros.md](macros.md) | saved, reusable config fragments |
+
+### Surfaces and operations
+
+| Page | Purpose |
+|------|---------|
+| [cli.md](cli.md) | `routier` command reference |
+| [api.md](api.md) | REST API v1 and the web/UI API |
+| [mcp.md](mcp.md) | generic multi-instance MCP server for AI-driven configuration and monitoring |
+| [monitoring.md](monitoring.md) | stats collection, live status, logs |
+| [tools.md](tools.md) | address-calculation utilities (subnet, reverse, range) |
+
+### Development
+
+| Page | Purpose |
+|------|---------|
+| [building.md](building.md) | building and testing the Alpine package |
+| [testing.md](testing.md) | test layout and conventions |
+| [code-style.md](code-style.md) | coding rules gofmt and eslint do not enforce |
+
 ## AI usage
 
 This project welcomes AI-assisted contributions. I build it with tools like
@@ -65,4 +108,3 @@ Claude Code, and you are free to use Claude, Codex, or your hands. Whatever you
 use, own the result: know what the code does, test it, and be ready to explain
 it. See [code-style.md](code-style.md) for the coding style and other rules,
 and how I review the backend and the frontend differently.
-

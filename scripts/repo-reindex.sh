@@ -30,7 +30,7 @@ podman run --rm \
 			echo "apk index failed - keeping the existing APKINDEX.tar.gz" >&2
 			exit 1
 		fi
-		grep -v "WARNING: No provider\|WARNING: Total of.*unsatisfiable\|Your repository may be broken" /tmp/idx.err >&2 || true
+		awk "/^WARNING: No provider/{s=1;next} s&&/^[[:space:]]/{next} {s=0} /^WARNING: Total of .*unsatisfiable/{next} /Your repository may be broken/{next} {print}" /tmp/idx.err >&2 || true
 		got=$(tar -Oxzf APKINDEX.tar.gz.new APKINDEX | grep -c "^P:")
 		if [ "$#" != "$got" ]; then
 			echo "index describes $got packages but $# apks are present - refusing to publish" >&2

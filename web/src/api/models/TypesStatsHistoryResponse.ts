@@ -34,6 +34,13 @@ import {
     TypesBGPHistoryPointToJSON,
     TypesBGPHistoryPointToJSONTyped,
 } from './TypesBGPHistoryPoint';
+import type { TypesProbeHistoryPoint } from './TypesProbeHistoryPoint';
+import {
+    TypesProbeHistoryPointFromJSON,
+    TypesProbeHistoryPointFromJSONTyped,
+    TypesProbeHistoryPointToJSON,
+    TypesProbeHistoryPointToJSONTyped,
+} from './TypesProbeHistoryPoint';
 import type { TypesUsageSummary } from './TypesUsageSummary';
 import {
     TypesUsageSummaryFromJSON,
@@ -74,6 +81,12 @@ export interface TypesStatsHistoryResponse {
      * @memberof TypesStatsHistoryResponse
      */
     interfaces?: { [key: string]: Array<TypesIfaceHistoryPoint>; };
+    /**
+     * 
+     * @type {{ [key: string]: Array<TypesProbeHistoryPoint>; }}
+     * @memberof TypesStatsHistoryResponse
+     */
+    probes?: { [key: string]: Array<TypesProbeHistoryPoint>; };
     /**
      * 
      * @type {Array<TypesProtoHistoryPoint>}
@@ -119,6 +132,7 @@ export function TypesStatsHistoryResponseFromJSONTyped(json: any, ignoreDiscrimi
         
         'bgp_peers': json['bgp_peers'] == null ? undefined : json['bgp_peers'],
         'interfaces': json['interfaces'] == null ? undefined : json['interfaces'],
+        'probes': json['probes'] == null ? undefined : json['probes'],
         'proto': json['proto'] == null ? undefined : ((json['proto'] as Array<any>).map(TypesProtoHistoryPointFromJSON)),
         'system': json['system'] == null ? undefined : ((json['system'] as Array<any>).map(TypesSystemHistoryPointFromJSON)),
         'total': json['total'] == null ? undefined : ((json['total'] as Array<any>).map(TypesIfaceTotalPointFromJSON)),
@@ -139,6 +153,7 @@ export function TypesStatsHistoryResponseToJSONTyped(value?: TypesStatsHistoryRe
         
         'bgp_peers': value['bgp_peers'],
         'interfaces': value['interfaces'],
+        'probes': value['probes'],
         'proto': value['proto'] == null ? undefined : ((value['proto'] as Array<any>).map(TypesProtoHistoryPointToJSON)),
         'system': value['system'] == null ? undefined : ((value['system'] as Array<any>).map(TypesSystemHistoryPointToJSON)),
         'total': value['total'] == null ? undefined : ((value['total'] as Array<any>).map(TypesIfaceTotalPointToJSON)),

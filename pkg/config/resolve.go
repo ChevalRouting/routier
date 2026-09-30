@@ -19,13 +19,14 @@ func ResolveInterfaces(cfg *Config) {
 
 func resolveInterfaces(cfg *Config, add addfunc) {
 	for name, iface := range cfg.Interfaces {
-		resolveMembers := func() {
+		resolveBridgeMembers := func() {
 			if iface.Bridge == nil {
 				return
 			}
 
+			iface.Bridge.MemberDevices = nil
 			for _, sel := range iface.Bridge.Members {
-				dev, err := resolveSelector(sel)
+				dev, err := resolveMemberDevice(cfg, sel)
 				if err != nil {
 					add("interfaces.%s.bridge.members: %v", name, err)
 					continue
@@ -35,14 +36,46 @@ func resolveInterfaces(cfg *Config, add addfunc) {
 			}
 		}
 
+		resolveBondMembers := func() {
+			if iface.Bond == nil {
+				return
+			}
+
+			iface.Bond.MemberDevices = nil
+			iface.Bond.PrimaryDevice = ""
+			for _, sel := range iface.Bond.Members {
+				dev, err := resolveMemberDevice(cfg, sel)
+				if err != nil {
+					add("interfaces.%s.bond.members: %v", name, err)
+					continue
+				}
+
+				iface.Bond.MemberDevices = append(iface.Bond.MemberDevices, dev)
+			}
+
+			if iface.Bond.Primary != "" {
+				dev, err := resolveMemberDevice(cfg, iface.Bond.Primary)
+				if err != nil {
+					add("interfaces.%s.bond.primary: %v", name, err)
+				} else {
+					iface.Bond.PrimaryDevice = dev
+				}
+			}
+		}
+
 		switch iface.Type {
-		case "dummy", "bridge":
+		case "dummy", "bridge", "vxlan", "bond", "vlan":
 			iface.Device = name
-			resolveMembers()
+			resolveBridgeMembers()
+			resolveBondMembers()
 		default:
 			if iface.Bridge != nil {
 				iface.Device = iface.Select
-				resolveMembers()
+				if !isValidIfname(iface.Device) {
+					add("interfaces.%s: select %q is used as the bridge device name and %s", name, iface.Select, ifnameRule)
+				}
+
+				resolveBridgeMembers()
 			} else {
 				dev, err := resolveSelector(iface.Select)
 				if err != nil {
@@ -53,19 +86,17 @@ func resolveInterfaces(cfg *Config, add addfunc) {
 				iface.Device = dev
 			}
 		}
+	}
 
-		for _, vlan := range iface.VLANs {
-			vlan.Device = fmt.Sprintf("%s.%d", iface.Device, vlan.ID)
-		}
-
-		for _, v := range iface.VRRP {
+	if cfg.HA != nil {
+		for i, v := range cfg.HA.VRRP {
 			for j, sel := range v.TrackInterfaces {
-				if iface2, ok := cfg.Interfaces[sel]; ok {
-					v.TrackInterfaces[j] = iface2.Device
+				if iface, ok := cfg.Interfaces[sel]; ok {
+					v.TrackInterfaces[j] = iface.Device
 				} else {
 					dev, err := resolveSelector(sel)
 					if err != nil {
-						add("interfaces.%s.vrrp[*].track_interfaces[%d]: %v", name, j, err)
+						add("ha.vrrp[%d].track_interfaces[%d]: %v", i, j, err)
 						continue
 					}
 
@@ -74,6 +105,29 @@ func resolveInterfaces(cfg *Config, add addfunc) {
 			}
 		}
 	}
+
+	for _, iface := range cfg.Interfaces {
+		if iface.VXLAN == nil || iface.VXLAN.VTEP == "" {
+			continue
+		}
+
+		if vtep, ok := cfg.Interfaces[iface.VXLAN.VTEP]; ok {
+			iface.VXLAN.VTEP = vtep.Device
+		}
+	}
+}
+
+func resolveMemberDevice(cfg *Config, sel string) (string, error) {
+	if member, ok := cfg.Interfaces[sel]; ok {
+		switch member.Type {
+		case "dummy", "bridge", "vxlan", "bond":
+			return sel, nil
+		default:
+			return resolveSelector(member.Select)
+		}
+	}
+
+	return resolveSelector(sel)
 }
 
 func resolveSelector(sel string) (string, error) {
@@ -101,20 +155,45 @@ func resolveSelector(sel string) (string, error) {
 }
 
 func resolveByMAC(mac string) (string, error) {
-	entries, err := os.ReadDir("/sys/class/net")
+	return ResolveMACAt("/sys/class/net", mac)
+}
+
+func ResolveMACAt(root, mac string) (string, error) {
+	entries, err := os.ReadDir(root)
 	if err != nil {
 		return "", err
 	}
 
+	var physical, virtual []string
 	for _, e := range entries {
-		data, err := os.ReadFile(filepath.Join("/sys/class/net", e.Name(), "address"))
+		base := filepath.Join(root, e.Name())
+		data, err := os.ReadFile(filepath.Join(base, "bonding_slave", "perm_hwaddr"))
 		if err != nil {
+			data, err = os.ReadFile(filepath.Join(base, "address"))
+		}
+
+		if err != nil || !strings.EqualFold(strings.TrimSpace(string(data)), mac) {
 			continue
 		}
 
-		if strings.TrimSpace(string(data)) == mac {
-			return e.Name(), nil
+		if _, err := os.Stat(filepath.Join(base, "device")); err == nil {
+			physical = append(physical, e.Name())
+		} else {
+			virtual = append(virtual, e.Name())
 		}
+	}
+
+	matches := physical
+	if len(matches) == 0 {
+		matches = virtual
+	}
+
+	if len(matches) == 1 {
+		return matches[0], nil
+	}
+
+	if len(matches) > 1 {
+		return "", fmt.Errorf("mac(%s): ambiguous interfaces %s; use an interface name", mac, strings.Join(matches, ", "))
 	}
 
 	return "", fmt.Errorf("mac(%s): no interface found", mac)

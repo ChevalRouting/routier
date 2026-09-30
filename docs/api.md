@@ -26,6 +26,13 @@ POST   /api/v1/sessions/{id}/validate   full validation
 POST   /api/v1/sessions/{id}/apply      validate, apply, arm watchdog, delete session
 ```
 
+Automation that works with complete YAML documents can read the committed
+canonical configuration with `GET /api/v1/config`, then use
+`GET/PUT /api/v1/sessions/{id}/config` to read or replace a session. These
+responses include the canonical YAML and its SHA-256 digest. Replacing a
+session never changes the committed configuration; validate, inspect the diff
+and apply explicitly.
+
 Every config section is a resource under the session. Objects support
 `GET`/`PUT` (`/hostname`, `/dns`, `/routing`, `/ssh`, `/sysctl`, ...), keyed
 maps additionally expose per-item routes (`/interfaces`,
@@ -47,8 +54,17 @@ successful apply writes it.
 The API the React frontend uses. It follows a per-user staging model
 (`GET/PUT /api/config/{section}` edit a staging copy, `POST /api/config/apply`
 validates, applies and promotes) and adds operational endpoints: stats
-history, monitor streams, DHCP lease operations, friend management, backup
-export/import, apply log, snapshots and rollback confirmation.
+history, monitor streams, DHCP lease operations, DNS operations (resolver
+overview and statistics, zone inspection and per-zone reload, cache flush,
+resolving a name through the local resolver, and a live query-log stream),
+friend management, backup export/import, apply log, snapshots and rollback
+confirmation.
+
+Configuration routes accept a `layer` query parameter. Omitting it selects
+the canonical `advanced` representation. `layer=simple` projects supported
+Internet, local-network and system concepts and maps writes back into the same
+canonical config. A staging copy belongs to the layer that created it; writes,
+apply or discard from another layer return `409 Conflict`.
 
 It also exposes stateless IP utilities under `/api/tools` (`subnet`, `reverse`,
 `range`); see [tools.md](tools.md).

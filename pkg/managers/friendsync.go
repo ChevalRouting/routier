@@ -46,29 +46,24 @@ func SyncSections(f *config.Friend) []string {
 	return defaultHASections
 }
 
-func vrrpInterfaces(cfg *config.Config) map[string]*config.Interface {
-	out := map[string]*config.Interface{}
-	for name, iface := range cfg.Interfaces {
-		if len(iface.VRRP) == 0 {
-			continue
-		}
-
-		vrrp := make([]*config.VRRPInstance, len(iface.VRRP))
-		for i, v := range iface.VRRP {
-			cp := *v
-			vrrp[i] = &cp
-		}
-
-		out[name] = &config.Interface{Select: iface.Select, VRRP: vrrp}
+func vrrpCopies(cfg *config.Config) []*config.VRRPInstance {
+	if cfg.HA == nil || len(cfg.HA.VRRP) == 0 {
+		return nil
 	}
 
-	return out
+	vrrp := make([]*config.VRRPInstance, len(cfg.HA.VRRP))
+	for i, v := range cfg.HA.VRRP {
+		cp := *v
+		vrrp[i] = &cp
+	}
+
+	return vrrp
 }
 
 func clusterPeerIPs(cfg *config.Config, target *config.Friend) []string {
 	var peers []string
-	if cfg.Conntrackd != nil && cfg.Conntrackd.Address != "" {
-		peers = append(peers, cfg.Conntrackd.Address)
+	if cfg.HA != nil && cfg.HA.Conntrackd != nil && cfg.HA.Conntrackd.Address != "" {
+		peers = append(peers, cfg.HA.Conntrackd.Address)
 	}
 
 	for _, f := range haMembers(cfg) {
@@ -92,14 +87,19 @@ func localPeerIPs(cfg *config.Config) []string {
 }
 
 func conntrackdFor(cfg *config.Config, target *config.Friend) *config.Conntrackd {
+	local := (*config.Conntrackd)(nil)
+	if cfg.HA != nil {
+		local = cfg.HA.Conntrackd
+	}
+
 	port := target.HA.Link.Port
-	if port == 0 && cfg.Conntrackd != nil {
-		port = cfg.Conntrackd.Port
+	if port == 0 && local != nil {
+		port = local.Port
 	}
 
 	allow := false
-	if cfg.Conntrackd != nil {
-		allow = cfg.Conntrackd.AllowInbound
+	if local != nil {
+		allow = local.AllowInbound
 	}
 
 	return &config.Conntrackd{
@@ -112,26 +112,28 @@ func conntrackdFor(cfg *config.Config, target *config.Friend) *config.Conntrackd
 }
 
 func applyOverrides(out *config.Config, overrides map[string]string) {
+	if out.HA == nil {
+		return
+	}
+
 	for k, v := range overrides {
 		switch k {
 		case "conntrackd.interface":
-			if out.Conntrackd != nil {
-				out.Conntrackd.Interface = v
+			if out.HA.Conntrackd != nil {
+				out.HA.Conntrackd.Interface = v
 			}
 		case "conntrackd.address":
-			if out.Conntrackd != nil {
-				out.Conntrackd.Address = v
+			if out.HA.Conntrackd != nil {
+				out.HA.Conntrackd.Address = v
 			}
 		case "conntrackd.port":
-			if n, err := strconv.Atoi(v); err == nil && out.Conntrackd != nil {
-				out.Conntrackd.Port = n
+			if n, err := strconv.Atoi(v); err == nil && out.HA.Conntrackd != nil {
+				out.HA.Conntrackd.Port = n
 			}
 		case "vrrp.priority":
 			if n, err := strconv.Atoi(v); err == nil {
-				for _, iface := range out.Interfaces {
-					for _, vi := range iface.VRRP {
-						vi.Priority = n
-					}
+				for _, vi := range out.HA.VRRP {
+					vi.Priority = n
 				}
 			}
 		}
@@ -143,9 +145,19 @@ func BuildFriendSyncPayload(cfg *config.Config, f *config.Friend) PushPayload {
 	for _, s := range SyncSections(f) {
 		switch s {
 		case "vrrp":
-			out.Interfaces = vrrpInterfaces(cfg)
+			if vrrp := vrrpCopies(cfg); vrrp != nil {
+				if out.HA == nil {
+					out.HA = &config.HA{}
+				}
+
+				out.HA.VRRP = vrrp
+			}
 		case "conntrackd":
-			out.Conntrackd = conntrackdFor(cfg, f)
+			if out.HA == nil {
+				out.HA = &config.HA{}
+			}
+
+			out.HA.Conntrackd = conntrackdFor(cfg, f)
 		}
 	}
 
@@ -208,8 +220,8 @@ func SyncHA(ctx context.Context, cfg *config.Config, only string) ([]PushResult,
 		results = append(results, res)
 	}
 
-	if cfg.Conntrackd != nil {
-		cfg.Conntrackd.PeerIPs = localPeerIPs(cfg)
+	if cfg.HA != nil && cfg.HA.Conntrackd != nil {
+		cfg.HA.Conntrackd.PeerIPs = localPeerIPs(cfg)
 	}
 
 	outputs, err := render.All(cfg, render.WithFriends(friends.CachedVars()))
@@ -217,7 +229,7 @@ func SyncHA(ctx context.Context, cfg *config.Config, only string) ([]PushResult,
 		return results, fmt.Errorf("local render: %w", err)
 	}
 
-	if _, err := ApplyConfig(ctx, cfg, outputs, ApplyOptions{Source: "ha-sync"}); err != nil {
+	if _, _, err := ApplyConfig(ctx, cfg, outputs, ApplyOptions{Source: "ha-sync"}); err != nil {
 		return results, fmt.Errorf("local apply: %w", err)
 	}
 

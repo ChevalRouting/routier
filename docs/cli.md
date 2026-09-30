@@ -36,6 +36,28 @@ CLI equivalent. Most commands take an optional `[config]` path argument
 Friend commands accept `--config` (config path) and `--identity` (ed25519 key
 path, default `/var/lib/routier/identity_ed25519`).
 
+## DNS
+
+| Command | Purpose |
+|---------|---------|
+| `routier dns` | mode, recursion, listen addresses, upstreams and zones |
+| `routier dns stats` | key BIND counters |
+| `routier dns zones [name]` | declared records, serial, and whether the zone is answering |
+| `routier dns query <name> [type]` | resolve through the local resolver |
+| `routier dns flush [name]` | flush the cache, or one name within it |
+| `routier dns reload [zone]` | reconfigure named, or reload one zone |
+
+See [dns.md](dns.md).
+
+## DHCP
+
+| Command | Purpose |
+|---------|---------|
+| `routier dhcp leases` | list active leases |
+| `routier dhcp reservations` | list host reservations |
+
+See [dhcp.md](dhcp.md).
+
 ## HA and macros
 
 - `routier switchover` / `routier activate` - VRRP BACKUP/MASTER hooks.

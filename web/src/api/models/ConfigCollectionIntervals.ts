@@ -36,6 +36,12 @@ export interface ConfigCollectionIntervals {
      * @type {number}
      * @memberof ConfigCollectionIntervals
      */
+    lldp?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof ConfigCollectionIntervals
+     */
     neighbors?: number;
     /**
      * 
@@ -76,6 +82,7 @@ export function ConfigCollectionIntervalsFromJSONTyped(json: any, ignoreDiscrimi
         
         'bgp': json['bgp'] == null ? undefined : json['bgp'],
         'iface': json['iface'] == null ? undefined : json['iface'],
+        'lldp': json['lldp'] == null ? undefined : json['lldp'],
         'neighbors': json['neighbors'] == null ? undefined : json['neighbors'],
         'proto': json['proto'] == null ? undefined : json['proto'],
         'routes': json['routes'] == null ? undefined : json['routes'],
@@ -96,6 +103,7 @@ export function ConfigCollectionIntervalsToJSONTyped(value?: ConfigCollectionInt
         
         'bgp': value['bgp'],
         'iface': value['iface'],
+        'lldp': value['lldp'],
         'neighbors': value['neighbors'],
         'proto': value['proto'],
         'routes': value['routes'],

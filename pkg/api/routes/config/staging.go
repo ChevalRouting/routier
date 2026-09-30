@@ -2,7 +2,6 @@ package config
 
 import (
 	"net/http"
-	"os"
 
 	appctx "github.com/ChevalRouting/routier/pkg/api/app"
 	"github.com/ChevalRouting/routier/pkg/api/cfgstore"
@@ -14,14 +13,21 @@ import (
 // @Summary  Discard staged changes
 // @Tags config
 // @Produce json
+// @Param layer query string false "configuration layer" Enums(advanced, simple)
 // @Success 200 {object} types.Response[types.StatusResponse]
 // @Security BearerAuth
 // @Router /api/config/staging [delete]
 func DiscardStaging(w http.ResponseWriter, r *http.Request) {
 	app := appctx.FromContext(r.Context())
 	username := appctx.UsernameFromContext(r.Context())
-	if err := os.Remove(cfgstore.StagingPath(app.ConfigPath, username)); err != nil && !os.IsNotExist(err) {
-		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "failed to discard staging"))
+	layer, appErr := requestLayer(r)
+	if appErr != nil {
+		types.Error(log.Logger, w, appErr)
+		return
+	}
+
+	if err := cfgstore.DiscardLayer(app.ConfigPath, username, layer.Name()); err != nil {
+		types.Error(log.Logger, w, cfgstore.StagingError(err, "failed to discard staging config"))
 		return
 	}
 

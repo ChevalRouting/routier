@@ -2,7 +2,7 @@ package lifecycletest
 
 import (
 	"context"
-	"github.com/ChevalRouting/routier/tests/harness"
+	"github.com/ChevalRouting/routier/tests/testkit"
 	"testing"
 
 	"github.com/ChevalRouting/routier/pkg/config"
@@ -18,7 +18,7 @@ func TestApplyDryRunPipeline(t *testing.T) {
 	})
 	defer restore()
 
-	cfg, err := config.Load(harness.WriteConfig(t, t.TempDir(), harness.FullConfig))
+	cfg, err := config.Load(testkit.WriteConfig(t, t.TempDir(), testkit.FullConfig))
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
@@ -28,7 +28,7 @@ func TestApplyDryRunPipeline(t *testing.T) {
 		t.Fatalf("render: %v", err)
 	}
 
-	if _, err := managers.ApplyConfig(context.Background(), cfg, outputs, managers.ApplyOptions{DryRun: true}); err != nil {
+	if _, _, err := managers.ApplyConfig(context.Background(), cfg, outputs, managers.ApplyOptions{DryRun: true}); err != nil {
 		t.Fatalf("dry-run apply: %v", err)
 	}
 }

@@ -6,6 +6,7 @@ install -dm700 /var/lib/routier/snapshots
 
 if [ -x /usr/bin/routier ]; then
 	/usr/bin/routier version > /etc/routier/version 2>/dev/null || true
+	/usr/bin/routier issue > /etc/issue 2>/dev/null || true
 fi
 
 rc-update add routier-net boot 2>/dev/null || true

@@ -29,23 +29,7 @@ func ifaceAddresses(cfg *config.Config, name string) []string {
 		return w.Addresses
 	}
 
-	for _, iface := range cfg.Interfaces {
-		if v, ok := iface.VLANs[name]; ok {
-			return v.Addresses
-		}
-	}
-
 	return nil
-}
-
-func findVLANDevice(cfg *config.Config, name string) string {
-	for _, iface := range cfg.Interfaces {
-		if v, ok := iface.VLANs[name]; ok {
-			return v.Device
-		}
-	}
-
-	return ""
 }
 
 func neighborDefaultAF(addr string) string {
@@ -91,20 +75,7 @@ func templateFuncs(data TemplateData) template.FuncMap {
 				return i.Device
 			}
 
-			if dev := findVLANDevice(cfg, name); dev != "" {
-				return dev
-			}
-
 			return name
-		},
-		"vlan": func(ifaceName, vlanName string) string {
-			if i, ok := cfg.Interfaces[ifaceName]; ok {
-				if v, ok := i.VLANs[vlanName]; ok {
-					return v.Device
-				}
-			}
-
-			return ""
 		},
 		"addr": func(ifaceName string) string {
 			addrs := ifaceAddresses(cfg, ifaceName)
@@ -260,10 +231,6 @@ func templateFuncs(data TemplateData) template.FuncMap {
 			var devs []string
 			for _, i := range cfg.Interfaces {
 				devs = append(devs, i.Device)
-
-				for _, v := range i.VLANs {
-					devs = append(devs, v.Device)
-				}
 			}
 
 			return devs
@@ -403,8 +370,20 @@ func templateFuncs(data TemplateData) template.FuncMap {
 
 			sort.Strings(ifaceNames)
 
+			vrrpByIface := map[string][]string{}
 			vrrpByID := map[int][]string{}
 			var vrrpIDs []int
+
+			if cfg.HA != nil {
+				for _, v := range cfg.HA.VRRP {
+					vrrpByIface[v.Interface] = append(vrrpByIface[v.Interface], v.VIPs...)
+					if _, seen := vrrpByID[v.ID]; !seen {
+						vrrpIDs = append(vrrpIDs, v.ID)
+					}
+
+					vrrpByID[v.ID] = append(vrrpByID[v.ID], v.VIPs...)
+				}
+			}
 
 			for _, name := range ifaceNames {
 				iface := cfg.Interfaces[name]
@@ -424,17 +403,7 @@ func templateFuncs(data TemplateData) template.FuncMap {
 
 				writeAddrDefines(sanitized, iface.Addresses)
 
-				var vips []string
-				for _, v := range iface.VRRP {
-					vips = append(vips, v.VIPs...)
-					if _, seen := vrrpByID[v.ID]; !seen {
-						vrrpIDs = append(vrrpIDs, v.ID)
-					}
-
-					vrrpByID[v.ID] = append(vrrpByID[v.ID], v.VIPs...)
-				}
-
-				if len(vips) > 0 {
+				if vips := vrrpByIface[name]; len(vips) > 0 {
 					emitVRRPDefines(&b, nftSet, emitAddrDefines, sanitized+"_vrrp", vips)
 				}
 
@@ -454,21 +423,6 @@ func templateFuncs(data TemplateData) template.FuncMap {
 							fmt.Fprintf(&b, "define %s_gateway = %s\n", sanitized, r.Via)
 						}
 					}
-				}
-
-				vlanNames := make([]string, 0, len(iface.VLANs))
-				for n := range iface.VLANs {
-					vlanNames = append(vlanNames, n)
-				}
-
-				sort.Strings(vlanNames)
-				for _, vname := range vlanNames {
-					vlan := iface.VLANs[vname]
-					vsanitized := sanitizeNftName(vname)
-					fmt.Fprintf(&b, "define %s_interfaces = \"%s\"\n", vsanitized, vlan.Device)
-
-					ifaceDevs = append(ifaceDevs, "\""+vlan.Device+"\"")
-					writeAddrDefines(vsanitized, vlan.Addresses)
 				}
 			}
 
@@ -543,6 +497,11 @@ func templateFuncs(data TemplateData) template.FuncMap {
 
 			if cfg.DNS != nil && len(cfg.DNS.Nameservers) > 0 {
 				fmt.Fprintf(&b, "define dns_nameservers = %s\n", nftSet(cfg.DNS.Nameservers))
+			}
+
+			if s := dnsServer(cfg); s != nil {
+				emitPrefixSet(&b, nftSet, "dns_allow_from", s.AllowFrom)
+				emitPrefixSet(&b, nftSet, "dns_listen", dnsListenAddresses(cfg))
 			}
 
 			if cfg.Routing != nil && cfg.Routing.Anycast != nil {
@@ -713,11 +672,17 @@ func templateFuncs(data TemplateData) template.FuncMap {
 						seen[name] = struct{}{}
 					}
 				}
+
+				for name := range cfg.Interfaces {
+					seen[name] = struct{}{}
+				}
 			}
 
 			names := make([]string, 0, len(seen))
 			for name := range seen {
-				names = append(names, name)
+				if name != "" {
+					names = append(names, name)
+				}
 			}
 
 			sort.Strings(names)
@@ -782,6 +747,23 @@ func templateFuncs(data TemplateData) template.FuncMap {
 
 			for _, vr := range cfg.Routing.VRFs {
 				if vr.OSPF6 != nil {
+					return true
+				}
+			}
+
+			return false
+		},
+		"bgpNoRIB": func() bool {
+			if cfg.Routing == nil {
+				return false
+			}
+
+			if cfg.Routing.BGP != nil && cfg.Routing.BGP.NoRIB {
+				return true
+			}
+
+			for _, vr := range cfg.Routing.VRFs {
+				if vr.BGP != nil && vr.BGP.NoRIB {
 					return true
 				}
 			}
@@ -874,6 +856,83 @@ func templateFuncs(data TemplateData) template.FuncMap {
 
 			return out, nil
 		},
+		"dnsName": func(name string) string {
+			return config.NormalizeDNSName(name)
+		},
+		"bindZoneFile": func(name string) string {
+			return zoneFilePath(name)
+		},
+		"bindAllowFrom": func() []string {
+			return bindAllowFrom(cfg)
+		},
+		"dnsNeedsNonlocalBind": func() bool {
+			if _, ok := cfg.Sysctl["net.ipv4.ip_nonlocal_bind"]; ok {
+				return false
+			}
+
+			return DNSListensOnVIP(cfg)
+		},
+		"bindListen4": func() string {
+			if dnsListenAny(cfg) {
+				return "any;"
+			}
+
+			v4, _ := splitListenFamilies(dnsListenAddresses(cfg))
+			if len(v4) == 0 {
+				return "127.0.0.1;"
+			}
+
+			return bindAddressList(v4)
+		},
+		"bindListen6": func() string {
+			if dnsListenAny(cfg) {
+				return "any;"
+			}
+
+			_, v6 := splitListenFamilies(dnsListenAddresses(cfg))
+
+			return bindAddressList(v6)
+		},
+		"bindRecursion": func() bool {
+			s := dnsServer(cfg)
+
+			return s != nil && s.Recurses()
+		},
+		"bindViewRecursion": func(v *config.DNSView) bool {
+			s := dnsServer(cfg)
+
+			return v.Recurses(s != nil && s.Recurses())
+		},
+		"bindPort": func() int {
+			if s := dnsServer(cfg); s != nil && s.Port > 0 {
+				return s.Port
+			}
+
+			return 53
+		},
+		"bindValidateExcept": func() []string {
+			return dnsInsecureDomains(cfg)
+		},
+		"bindDisableEmptyZones": func() []string {
+			return dnsEmptyZoneOverrides(cfg)
+		},
+		"bindSize": func(size string) string {
+			return bindCacheSize(size)
+		},
+		"ddnsManagedZone":     func(name string) bool { return ddnsManagedZone(cfg, name) },
+		"ddnsUndeclaredZones": func() []string { return ddnsUndeclaredZones(cfg) },
+		"ddnsEnabled":         func() bool { return ddnsActive(cfg) },
+		"ddnsKeyName":         func() string { return DDNSKeyName },
+		"ddnsKeyAlgorithm":    func() string { return bindTSIGAlgorithm(cfg) },
+		"ddnsKeySecret":       func() string { return ddnsKeySecret(cfg) },
+		"ddnsForwardZone":     func() string { return ddnsForwardZone(cfg) },
+		"ddnsForwardZones":    func() []string { return ddnsForwardZones(cfg) },
+		"ddnsReverseZones":    func() []string { return ddnsReverseZoneNames(cfg) },
+		"bindZoneFileName":    func(name string) string { return zoneFilePath(name) },
+		"bindControlAddr":     func() string { return "127.0.0.1" },
+		"bindControlPort":     func() int { return 953 },
+		"bindStatsFile":       func() string { return NamedStats },
+		"bindLog":             func() string { return NamedLog },
 	}
 }
 
@@ -989,7 +1048,8 @@ func nftChainUserLines(cfg *config.Config, name string) ([]string, error) {
 		return nil, nil
 	}
 
-	var lines []string
+	lines := managedRuleLines(ch.Managed)
+
 	if block := strings.TrimRight(ch.Rules, "\n"); block != "" {
 		lines = append(lines, strings.Split(block, "\n")...)
 	}
@@ -1008,8 +1068,6 @@ func nftChainUserLines(cfg *config.Config, name string) ([]string, error) {
 
 		lines = append(lines, splitRuleLines(string(content))...)
 	}
-
-	lines = append(lines, managedRuleLines(ch.Managed)...)
 
 	return lines, nil
 }
@@ -1042,35 +1100,31 @@ func routierManagedRules(cfg *config.Config) map[string][]string {
 		add("input", fmt.Sprintf("udp dport %s accept comment \"routier: wireguard\"", set))
 	}
 
-	if cfg.Conntrackd != nil && cfg.Conntrackd.AllowInbound && cfg.Conntrackd.Interface != "" {
-		port := cfg.Conntrackd.Port
-		if port == 0 {
-			port = 3780
+	if cfg.HA != nil && cfg.HA.Conntrackd != nil {
+		ct := cfg.HA.Conntrackd
+		if ct.AllowInbound && ct.Interface != "" {
+			port := ct.Port
+			if port == 0 {
+				port = 3780
+			}
+
+			add("input", fmt.Sprintf("iifname %q udp dport %d accept comment \"routier: conntrackd\"", resolveDevice(cfg, ct.Interface), port))
 		}
-
-		add("input", fmt.Sprintf("iifname %q udp dport %d accept comment \"routier: conntrackd\"", cfg.Conntrackd.Interface, port))
 	}
 
-	seenDev := map[string]bool{}
-	ifaceNames := make([]string, 0, len(cfg.Interfaces))
-	for name := range cfg.Interfaces {
-		ifaceNames = append(ifaceNames, name)
-	}
-
-	sort.Strings(ifaceNames)
-	for _, name := range ifaceNames {
-		iface := cfg.Interfaces[name]
-
-		for _, v := range iface.VRRP {
+	if cfg.HA != nil {
+		seenDev := map[string]bool{}
+		for _, v := range cfg.HA.VRRP {
 			if !v.AllowInbound {
 				continue
 			}
 
-			dev := iface.Device
-			if v.Interface != "" {
-				dev = v.Interface
+			target := v.Interface
+			if v.Transport != "" {
+				target = v.Transport
 			}
 
+			dev := resolveDevice(cfg, target)
 			if dev == "" || seenDev[dev] {
 				continue
 			}
@@ -1100,11 +1154,91 @@ func routierManagedRules(cfg *config.Config) map[string][]string {
 		}
 	}
 
+	if s := dnsServer(cfg); s != nil {
+		for _, ifn := range s.AllowInbound {
+			out["input"] = append(out["input"], dnsAllow(cfg, ifn)...)
+		}
+	}
+
 	return out
 }
 
-func ifaceStaticFamilies(iface *config.Interface) (v4, v6 bool) {
-	for _, addr := range iface.Addresses {
+func resolveDevice(cfg *config.Config, name string) string {
+	if iface, ok := cfg.Interfaces[name]; ok && iface.Device != "" {
+		return iface.Device
+	}
+
+	return name
+}
+
+func emitPrefixSet(b *strings.Builder, nftSet func([]string) string, prefix string, entries []string) {
+	var v4, v6 []string
+	for _, e := range entries {
+		e = strings.TrimSpace(e)
+		if e == "" {
+			continue
+		}
+
+		if strings.Contains(e, ":") {
+			v6 = append(v6, e)
+		} else {
+			v4 = append(v4, e)
+		}
+	}
+
+	if len(v4) > 0 {
+		fmt.Fprintf(b, "define %s = %s\n", prefix, nftSet(v4))
+	}
+
+	if len(v6) > 0 {
+		fmt.Fprintf(b, "define %s6 = %s\n", prefix, nftSet(v6))
+	}
+}
+
+func dnsAllow(cfg *config.Config, ifaceName string) []string {
+	s := dnsServer(cfg)
+	if s == nil {
+		return nil
+	}
+
+	if _, known := scopedAddresses(cfg, ifaceName); !known {
+		log.Warn().Str("interface", ifaceName).
+			Msg("dns allow_inbound: unknown interface, no firewall rule emitted")
+
+		return nil
+	}
+
+	port := s.Port
+	if port == 0 {
+		port = 53
+	}
+
+	var v4, v6 bool
+	for _, from := range s.AllowFrom {
+		if strings.Contains(from, ":") {
+			v6 = true
+		} else {
+			v4 = true
+		}
+	}
+
+	san := sanitizeNftName(ifaceName)
+	match := fmt.Sprintf("meta l4proto { tcp, udp } th dport %d accept comment %q", port, "routier: dns")
+
+	var out []string
+	if v4 {
+		out = append(out, fmt.Sprintf("iifname $%s_interfaces ip saddr $dns_allow_from %s", san, match))
+	}
+
+	if v6 {
+		out = append(out, fmt.Sprintf("iifname $%s_interfaces ip6 saddr $dns_allow_from6 %s", san, match))
+	}
+
+	return out
+}
+
+func addressFamilies(addrs []string) (v4, v6 bool) {
+	for _, addr := range addrs {
 		if !isStaticAddr(addr) {
 			continue
 		}
@@ -1124,14 +1258,33 @@ func ifaceStaticFamilies(iface *config.Interface) (v4, v6 bool) {
 	return
 }
 
+func scopedAddresses(cfg *config.Config, name string) ([]string, bool) {
+	if iface, ok := cfg.Interfaces[name]; ok {
+		return iface.Addresses, true
+	}
+
+	if wg, ok := cfg.Wireguard[name]; ok {
+		return wg.Addresses, true
+	}
+
+	if t, ok := cfg.Tunnels[name]; ok {
+		return t.Addresses, true
+	}
+
+	return nil, false
+}
+
 func scopedAllow(cfg *config.Config, ifaceName, match, comment string, fams ...string) []string {
-	iface := cfg.Interfaces[ifaceName]
-	if iface == nil {
+	addrs, known := scopedAddresses(cfg, ifaceName)
+	if !known {
+		log.Warn().Str("interface", ifaceName).Str("feature", comment).
+			Msg("allow_inbound: unknown interface, no firewall rule emitted")
+
 		return nil
 	}
 
 	san := sanitizeNftName(ifaceName)
-	v4, v6 := ifaceStaticFamilies(iface)
+	v4, v6 := addressFamilies(addrs)
 
 	want := func(f string) bool {
 		if len(fams) == 0 {

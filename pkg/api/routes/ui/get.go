@@ -18,7 +18,7 @@ import (
 // @Router /api/ui/layout [get]
 func GetLayout(w http.ResponseWriter, r *http.Request) {
 	app := appctx.FromContext(r.Context())
-	val, err := webdb.UILayout(app.DB, "routing_topology")
+	val, err := webdb.UILayout(r.Context(), app.DB, "routing_topology")
 	if err != nil {
 		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "failed to read layout"))
 		return

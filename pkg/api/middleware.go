@@ -13,6 +13,7 @@ import (
 
 	appctx "github.com/ChevalRouting/routier/pkg/api/app"
 	"github.com/ChevalRouting/routier/pkg/api/cfgstore"
+	webdb "github.com/ChevalRouting/routier/pkg/db"
 	"github.com/ChevalRouting/routier/pkg/types"
 
 	"github.com/ChevalRouting/routier/pkg/config"
@@ -66,15 +67,20 @@ func (sw *stagingWriter) setStagingHeader() {
 
 	sw.headerDone = true
 	pending := "false"
+	layer := ""
 
 	if staged, err := os.ReadFile(cfgstore.StagingPath(sw.configPath, sw.username)); err == nil {
 		committed, _ := os.ReadFile(sw.configPath)
 		if !bytes.Equal(staged, committed) {
 			pending = "true"
 		}
+		layer, _, _ = cfgstore.StagingLayer(sw.configPath, sw.username)
 	}
 
 	sw.ResponseWriter.Header().Set("X-Staging-Pending", pending)
+	if layer != "" {
+		sw.ResponseWriter.Header().Set("X-Staging-Layer", layer)
+	}
 }
 
 func (sw *stagingWriter) WriteHeader(code int) {
@@ -128,7 +134,7 @@ func jwtMiddleware(next http.Handler) http.Handler {
 		} else if q, _ := r.Context().Value(ctxQueryTokenKey{}).(string); q != "" {
 			tokenStr = q
 		} else {
-			types.Err(http.StatusUnauthorized, "missing or invalid authorization header").Write(w)
+			types.Err(http.StatusUnauthorized, "unauthorized").Write(w)
 			return
 		}
 
@@ -141,9 +147,28 @@ func jwtMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
+		if strings.HasPrefix(tokenStr, "rtr_api_") {
+			key, keyErr := webdb.AuthenticateAPIKey(r.Context(), app.DB, tokenStr)
+			if keyErr == nil {
+				if strings.HasPrefix(r.URL.Path, "/api/auth/") {
+					types.Err(http.StatusForbidden, "API keys cannot manage authentication credentials").Write(w)
+					return
+				}
+
+				ctx := appctx.WithUsername(r.Context(), "apikey_"+key.ID)
+				next.ServeHTTP(w, r.WithContext(ctx))
+				return
+			}
+		}
+
 		if cfg, cfgErr := config.Load(app.ConfigPath); cfgErr == nil {
 			for _, f := range cfg.Friends {
 				if f.IsEnabled() && f.Token != "" && subtle.ConstantTimeCompare([]byte(f.Token), []byte(tokenStr)) == 1 {
+					if strings.HasPrefix(r.URL.Path, "/api/auth/") {
+						types.Err(http.StatusForbidden, "friend tokens cannot manage authentication credentials").Write(w)
+						return
+					}
+
 					if !friendTokenAllowed(f, r.Method, r.URL.Path) {
 						types.Err(http.StatusForbidden, "friend token not permitted for this endpoint").Write(w)
 						return
@@ -156,7 +181,7 @@ func jwtMiddleware(next http.Handler) http.Handler {
 			}
 		}
 
-		types.Err(http.StatusUnauthorized, "invalid or expired token").Write(w)
+		types.Err(http.StatusUnauthorized, "unauthorized").Write(w)
 	})
 }
 

@@ -1,6 +1,8 @@
 package dhcp
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
 	"net/netip"
 	"os"
@@ -10,6 +12,7 @@ import (
 	"github.com/ChevalRouting/routier/pkg/api/cfgstore"
 	"github.com/ChevalRouting/routier/pkg/api/friendcache"
 	"github.com/ChevalRouting/routier/pkg/config"
+	"github.com/ChevalRouting/routier/pkg/iptools"
 	"github.com/ChevalRouting/routier/pkg/managers"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/rs/zerolog/log"
@@ -19,6 +22,8 @@ type reserveFromLeaseRequest struct {
 	LeaseIP  string `json:"lease_ip"`
 	IP       string `json:"ip"`
 	Hostname string `json:"hostname"`
+	DNSZone  string `json:"dns_zone,omitempty" validate:"optional"`
+	DNSName  string `json:"dns_name,omitempty" validate:"optional"`
 }
 
 // ReserveFromLease adds a reservation for a leased host, applies it, then clears
@@ -112,6 +117,14 @@ func ReserveFromLease(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	dnsZone := strings.TrimSpace(req.DNSZone)
+	if dnsZone != "" {
+		if _, err := addReservationDNS(live, dnsZone, req.DNSName, resIP); err != nil {
+			types.Err(http.StatusBadRequest, err.Error()).Write(w)
+			return
+		}
+	}
+
 	if appErr := cfgstore.ValidationError(live); appErr != nil {
 		types.Error(log.Logger, w, appErr)
 		return
@@ -134,7 +147,7 @@ func ReserveFromLease(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	preserveStagedReservation(app.ConfigPath, username, subnetCIDR, v6, res)
+	preserveStagedReservation(app.ConfigPath, username, subnetCIDR, v6, res, dnsZone, req.DNSName, resIP)
 
 	_ = client.ClearLease(req.LeaseIP)
 
@@ -161,7 +174,7 @@ func addReservationToSubnet(cfg *config.Config, subnetCIDR string, v6 bool, res 
 	return false
 }
 
-func preserveStagedReservation(configPath, username, subnetCIDR string, v6 bool, res config.KeaReservation) {
+func preserveStagedReservation(configPath, username, subnetCIDR string, v6 bool, res config.KeaReservation, dnsZone, dnsName, resIP string) {
 	stagingPath := cfgstore.StagingPath(configPath, username)
 	if _, err := os.Stat(stagingPath); err != nil {
 		return
@@ -172,7 +185,131 @@ func preserveStagedReservation(configPath, username, subnetCIDR string, v6 bool,
 		return
 	}
 
-	if addReservationToSubnet(staged, subnetCIDR, v6, res) {
+	changed := addReservationToSubnet(staged, subnetCIDR, v6, res)
+	if dnsZone != "" {
+		if _, err := addReservationDNS(staged, dnsZone, dnsName, resIP); err == nil {
+			changed = true
+		}
+	}
+
+	if changed {
 		_ = cfgstore.WriteStaging(configPath, username, staged)
 	}
+}
+
+func addReservationDNS(cfg *config.Config, zoneName, name, ip string) (string, error) {
+	if cfg.DNS == nil || cfg.DNS.Server == nil {
+		return "", errors.New("the DNS server is not configured")
+	}
+
+	addr, err := netip.ParseAddr(strings.TrimSpace(ip))
+	if err != nil {
+		return "", fmt.Errorf("%q is not a valid address", ip)
+	}
+
+	server := cfg.DNS.Server
+	zone := findAuthoritativeZone(server, zoneName)
+	if zone == nil {
+		return "", fmt.Errorf("no authoritative zone %q in the DNS config", zoneName)
+	}
+
+	label := dnsRecordLabel(name, zone.Name)
+	if label == "" {
+		return "", errors.New("a record name is required")
+	}
+
+	rtype := "A"
+	if addr.Is6() {
+		rtype = "AAAA"
+	}
+
+	zone.Records = append(zone.Records, config.DNSRecord{Name: label, Type: rtype, Value: addr.String()})
+
+	fqdn := recordFQDN(label, zone.Name)
+	addReversePTR(server, addr, fqdn)
+
+	return fqdn, nil
+}
+
+func findAuthoritativeZone(s *config.DNSServer, name string) *config.DNSZone {
+	want := config.NormalizeDNSName(name)
+	for i := range s.Zones {
+		z := &s.Zones[i]
+		if len(z.Primaries) == 0 && config.NormalizeDNSName(z.Name) == want {
+			return z
+		}
+	}
+
+	return nil
+}
+
+func dnsRecordLabel(name, zone string) string {
+	name = strings.TrimSpace(name)
+	if name == "" || name == "@" {
+		return name
+	}
+
+	origin := config.NormalizeDNSName(zone)
+	full := config.NormalizeDNSName(name)
+	if full == origin {
+		return "@"
+	}
+
+	if strings.HasSuffix(full, "."+origin) {
+		return strings.TrimSuffix(full, "."+origin)
+	}
+
+	return strings.TrimSuffix(name, ".")
+}
+
+func recordFQDN(label, zone string) string {
+	origin := config.NormalizeDNSName(zone)
+	if label == "@" {
+		return origin
+	}
+
+	return label + "." + origin
+}
+
+func addReversePTR(s *config.DNSServer, addr netip.Addr, target string) {
+	rev, err := iptools.Reverse(addr.String())
+	if err != nil {
+		return
+	}
+
+	full := config.NormalizeDNSName(rev.Name)
+
+	var best *config.DNSZone
+	var bestLen int
+	for i := range s.Zones {
+		z := &s.Zones[i]
+		if len(z.Primaries) > 0 {
+			continue
+		}
+
+		origin := config.NormalizeDNSName(z.Name)
+		if !isReverseZone(origin) {
+			continue
+		}
+
+		if (full == origin || strings.HasSuffix(full, "."+origin)) && len(origin) > bestLen {
+			best, bestLen = z, len(origin)
+		}
+	}
+
+	if best == nil {
+		return
+	}
+
+	origin := config.NormalizeDNSName(best.Name)
+	owner := "@"
+	if full != origin {
+		owner = strings.TrimSuffix(full, "."+origin)
+	}
+
+	best.Records = append(best.Records, config.DNSRecord{Name: owner, Type: "PTR", Value: target})
+}
+
+func isReverseZone(origin string) bool {
+	return strings.HasSuffix(origin, "in-addr.arpa.") || strings.HasSuffix(origin, "ip6.arpa.")
 }

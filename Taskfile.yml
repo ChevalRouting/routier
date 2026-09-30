@@ -1,0 +1,414 @@
+version: '3'
+vars:
+  VERSION: '{{.VERSION | default "0.0.0"}}'
+  RELEASE: '{{.RELEASE | default "0"}}'
+  NATIVE: '{{.NATIVE | default "false"}}'
+  EMBED: '{{.EMBED | default "0"}}'
+  LOCAL_ANYK: '{{.LOCAL_ANYK | default "0"}}'
+  OFFLINE: '{{.OFFLINE | default "0"}}'
+  FLAVOR: '{{.FLAVOR | default "lts"}}'
+  MCP_GOOS: '{{.MCP_GOOS | default "linux"}}'
+  ALPINE_VERSION: '{{.ALPINE_VERSION | default "3.23"}}'
+  ISO_APORTS: '{{.ISO_APORTS | default "./dist/aports"}}'
+  WWW_DIR: '{{.WWW_DIR | default "/var/lib/Routier"}}'
+  CHEVAL_UI_DIR: '{{.CHEVAL_UI_DIR | default "../cheval-ui"}}'
+  ROOT_DIR: '{{.TASKFILE_DIR}}'
+  HOST_UID:
+    sh: 'id -u'
+  HOST_GID:
+    sh: 'id -g'
+  HOST_ARCH:
+    sh: 'uname -m | sed s/arm64/aarch64/'
+  ARCH: '{{.ARCH | default .HOST_ARCH}}'
+  CONTAINER: '{{.CONTAINER | default (ternary "docker" "podman" (eq OS "darwin"))}}'
+  COMPOSE: 'docker compose -f dev/docker-compose.yml'
+  DEV_COMPOSE: 'dev/docker-compose.yml'
+  TOOL_RUN: '{{if ne .NATIVE "true"}}ROUTIER_HOST_UID={{.HOST_UID}} ROUTIER_HOST_GID={{.HOST_GID}} {{.COMPOSE}} run --rm --no-deps tools{{end}}'
+  TOOL_WORKSPACE: '{{if eq .NATIVE "true"}}{{.ROOT_DIR}}{{else}}/workspace{{end}}'
+  OPENAPI_GENERATOR: '{{if eq .NATIVE "true"}}npx --yes @openapitools/openapi-generator-cli{{else}}java -jar /usr/local/lib/openapi-generator-cli.jar{{end}}'
+  MCP_GOARCH: '{{if eq .ARCH "aarch64"}}arm64{{else}}amd64{{end}}'
+  MCP_DIST: 'dist/{{.ARCH}}/routier-mcp'
+  DOCKER_PLATFORM: '{{.DOCKER_PLATFORM | default (ternary "linux/arm64" "linux/amd64" (eq .ARCH "aarch64"))}}'
+  PLATFORM_FLAG: '--platform {{.DOCKER_PLATFORM}}'
+  APK_ANYK_MOUNT: '{{if eq .LOCAL_ANYK "1"}}-v {{printf "%s/../anyk:/anyk:z" .ROOT_DIR | shellQuote}}{{end}}'
+  GO_TAGS: '{{if eq .EMBED "1"}}-tags prod{{end}}'
+  DOCKER_STAMP: '.docker-image-{{.ARCH}}-{{.VERSION}}-{{.RELEASE}}'
+  PODMAN_TTY:
+    sh: 'if [ -t 0 ] && [ -t 1 ]; then printf -- "-it"; fi'
+  ISO_APORTS_MOUNT: '-v {{if isAbs .ISO_APORTS}}{{printf "%s:/aports:z" .ISO_APORTS | shellQuote}}{{else}}{{printf "%s/%s:/aports:z" .ROOT_DIR .ISO_APORTS | shellQuote}}{{end}}'
+  REPO_DIR: 'dist/{{.ARCH}}'
+  REPO_URL: '{{.REPO_URL | default (printf "http://localhost/%s/" .ARCH)}}'
+  CHEVAL_UI_ARCHIVE:
+    sh: 'find {{.CHEVAL_UI_DIR | shellQuote}} -maxdepth 1 -name "*cheval-ui-*.tgz" -print 2>/dev/null | sort | head -1'
+tasks:
+  default:
+    desc: 'Build all binaries'
+    cmds:
+      - task: 'build'
+  help:
+    desc: 'List available tasks'
+    cmds:
+      - |
+        {{.TASK_EXE | shellQuote}} --list
+  tools:
+    desc: 'Build the development toolchain container'
+    run: 'once'
+    cmds:
+      - |
+        {{if eq .NATIVE "true"}}echo "using native development tools"{{else}}{{.COMPOSE}} --profile tools build tools{{end}}
+  build:
+    desc: 'Build all binaries (EMBED=1 embeds the web UI)'
+    cmds:
+      - task: 'tools'
+      - task: 'prepare-web'
+      - task: 'build-routier'
+      - task: 'build-routier-mcp'
+      - task: 'build-routier-ui'
+  prepare-web:
+    desc: 'Prepare embedded UI'
+    internal: true
+    run: 'once'
+    cmds:
+      - task: '{{if eq .EMBED "1"}}web-build{{else}}noop{{end}}'
+  noop:
+    desc: 'No preparation needed'
+    internal: true
+    cmds: []
+  build-routier:
+    desc: 'Build routier'
+    cmds:
+      - task: 'tools'
+      - task: 'prepare-web'
+      - |
+        {{.TOOL_RUN}} sh -c 'CGO_ENABLED=1 go build {{.GO_TAGS}} -ldflags="-s -w -X main.VERSION={{.VERSION}} -X github.com/ChevalRouting/routier/pkg/api/app.Version={{.VERSION}}" -o routier ./cmd/routier'
+  build-routier-mcp:
+    desc: 'Build routier-mcp'
+    cmds:
+      - task: 'tools'
+      - task: 'prepare-web'
+      - |
+        {{.TOOL_RUN}} sh -c 'CGO_ENABLED=1 go build {{.GO_TAGS}} -ldflags="-s -w -X main.VERSION={{.VERSION}} -X github.com/ChevalRouting/routier/pkg/api/app.Version={{.VERSION}}" -o routier-mcp ./cmd/routier-mcp'
+  build-routier-ui:
+    desc: 'Build routier-ui'
+    cmds:
+      - task: 'tools'
+      - task: 'prepare-web'
+      - |
+        {{.TOOL_RUN}} sh -c 'CGO_ENABLED=1 go build {{.GO_TAGS}} -ldflags="-s -w -X main.VERSION={{.VERSION}} -X github.com/ChevalRouting/routier/pkg/api/app.Version={{.VERSION}}" -o routier-ui ./cmd/routier-ui'
+  mcp:
+    desc: 'Build the standalone MCP server'
+    cmds:
+      - task: 'mcp-dist'
+  mcp-dist:
+    desc: 'Cross-compile the standalone MCP server'
+    cmds:
+      - task: 'tools'
+      - |
+        set -e
+        mkdir -p {{dir .MCP_DIST | shellQuote}}
+        {{.TOOL_RUN}} sh -c 'CGO_ENABLED=0 GOOS={{.MCP_GOOS}} GOARCH={{.MCP_GOARCH}} go build -ldflags="-s -w -X main.VERSION={{.VERSION}} -X main.RELEASE={{.RELEASE}}" -o {{.MCP_DIST}} ./cmd/routier-mcp'
+  web-build:
+    desc: 'Build the web UI'
+    cmds:
+      - task: 'tools'
+      - |
+        {{.TOOL_RUN}} sh -c 'cd web && npm install && npm run build'
+  docs:
+    desc: 'Generate API documentation and clients'
+    cmds:
+      - task: 'tools'
+      - |
+        set -e
+        dirs="./pkg/api"; for d in pkg/api/routes/*/; do dirs="$dirs,./${d%/}"; done; \
+        {{.TOOL_RUN}} swag init --v3.1 -g doc.go -d "$dirs" --parseDependency --parseInternal --requiredByDefault -o pkg/api/docs
+        {{.TOOL_RUN}} oapi-codegen -generate types,client -package routierclient -o pkg/client/generated/routier.gen.go pkg/api/docs/swagger.json
+        {{.TOOL_RUN}} {{.OPENAPI_GENERATOR}} generate -i {{.TOOL_WORKSPACE}}/pkg/api/docs/swagger.json -g typescript-fetch -o {{.TOOL_WORKSPACE}}/web/src/api \
+        	--additional-properties=modelPropertyNaming=original,paramNaming=original,supportsES6=true \
+        	--reserved-words-mappings interface=interface,in=in,new=new
+        {{.TOOL_RUN}} npm --prefix web install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund swagger-ui-dist
+        mkdir -p pkg/api/docs/swagger-ui
+        cp web/node_modules/swagger-ui-dist/swagger-ui.css web/node_modules/swagger-ui-dist/swagger-ui-bundle.js pkg/api/docs/swagger-ui/
+  sqlc:
+    desc: 'Generate database code'
+    cmds:
+      - task: 'tools'
+      - |
+        {{.TOOL_RUN}} sqlc generate
+  test:
+    desc: 'Run Go vet and tests'
+    cmds:
+      - task: 'tools'
+      - |
+        set -e
+        {{.TOOL_RUN}} go vet ./...
+        {{.TOOL_RUN}} go test ./...
+  lint:
+    desc: 'Lint Go and frontend code'
+    cmds:
+      - task: 'tools'
+      - |
+        set -e
+        {{.TOOL_RUN}} golangci-lint run ./...
+        {{.TOOL_RUN}} sh -c 'cd web && npm install && npx eslint src'
+  cheval-ui:
+    desc: 'Import the local cheval-ui package'
+    cmds:
+      - |
+        set -e
+        test -n "{{.CHEVAL_UI_ARCHIVE}}" || { echo "cheval-ui archive not found in {{.CHEVAL_UI_DIR}}"; exit 1; }
+        mkdir -p web/vendor
+        cp "{{.CHEVAL_UI_ARCHIVE}}" web/vendor/cheval-ui.tgz
+        cd web && npm_config_cache=$(mktemp -d /tmp/routier-cheval-ui.XXXXXX) \
+        	npm install --package-lock-only --ignore-scripts --offline --force \
+        	cheval-ui@file:vendor/cheval-ui.tgz
+  generate-check:
+    desc: 'Check generated database code for drift'
+    cmds:
+      - task: 'sqlc'
+      - |
+        git diff --exit-code -- sqlc.yaml pkg/db/generated pkg/db/migrations pkg/db/query
+  website:
+    desc: 'Build the documentation website'
+    cmds:
+      - |
+        cd website && npm install && npm run build
+  website-serve:
+    desc: 'Serve the documentation website locally'
+    cmds:
+      - |
+        cd website && npm install && npm start
+  website-version:
+    desc: 'Snapshot documentation for VERSION'
+    cmds:
+      - |
+        set -e
+        test "{{.VERSION}}" != "0.0.0" || { echo "set VERSION=x.y (e.g. VERSION=0.5)"; exit 1; }
+        cd website && npm install && npm run docusaurus docs:version {{.VERSION}}
+  website-version-dev:
+    desc: 'Update the development documentation snapshot'
+    cmds:
+      - |
+        cd website && npm install && sh scripts/version-dev.sh
+  apk-index:
+    desc: 'Build packages and sign the repository index'
+    cmds:
+      - task: 'apk'
+      - |
+        set -e
+        {{.CONTAINER}} run {{.PLATFORM_FLAG}} --rm -v {{printf "%s:/app:z" .ROOT_DIR | shellQuote}} \
+        	--entrypoint sh "routier:{{.VERSION}}-{{.RELEASE}}" /app/scripts/mkindex.sh
+  www:
+    desc: 'Assemble the local APK repository'
+    cmds:
+      - task: 'apk-index'
+      - |
+        set -e
+        rm -rf {{.WWW_DIR}}/*
+        mkdir -p {{.WWW_DIR}}/{{.ARCH}}
+        cp {{.REPO_DIR}}/*.apk {{.REPO_DIR}}/APKINDEX.tar.gz {{.WWW_DIR}}/{{.ARCH}}/
+        cp routier.rsa.pub {{.WWW_DIR}}/
+        echo "apk repo assembled in {{.WWW_DIR}}/{{.ARCH}} (serve as {{.REPO_URL}})"
+  apk_debug:
+    desc: 'Open an interactive shell in the package builder'
+    cmds:
+      - task: 'builder'
+      - |
+        EMBED=1 LOCAL_ANYK={{.LOCAL_ANYK}} {{.CONTAINER}} run {{.PLATFORM_FLAG}} -it -e RELEASE="{{.RELEASE}}" -e VERSION="{{.VERSION}}" -e LOCAL_ANYK="{{.LOCAL_ANYK}}" -v {{printf "%s:/app:z" .ROOT_DIR | shellQuote}} {{.APK_ANYK_MOUNT}} --entrypoint ash "routier:{{.VERSION}}-{{.RELEASE}}"
+  run-iso:
+    desc: 'Boot the ISO in QEMU'
+    cmds:
+      - |
+        sh scripts/run-iso.sh
+  run-disk:
+    desc: 'Boot the installed disk in QEMU'
+    cmds:
+      - |
+        sh scripts/run-iso.sh ""
+  run-kernel:
+    desc: 'Boot the kernel directly in QEMU'
+    cmds:
+      - |
+        sh scripts/run-kernel.sh
+  iso:
+    desc: 'Build a bootable Alpine ISO'
+    cmds:
+      - task: 'apk'
+      - task: 'aports'
+      - |
+        set -e
+        {{.CONTAINER}} run {{.PLATFORM_FLAG}} {{.PODMAN_TTY}} --rm --privileged \
+        	-e VERSION="{{.VERSION}}" \
+        	-e RELEASE="{{.RELEASE}}" \
+        	-e ROUTIER_REPO="/app/dist" \
+        	-e APORTS="/aports" \
+        	-e OUTDIR="/app/dist/iso" \
+        	-e OFFLINE="{{.OFFLINE}}" \
+        	-e FLAVOR="{{.FLAVOR}}" \
+        	-v {{printf "%s:/app:z" .ROOT_DIR | shellQuote}} \
+        	{{.ISO_APORTS_MOUNT}} \
+        	"routier:{{.VERSION}}-{{.RELEASE}}" \
+        	sh /app/scripts/build-iso.sh
+  prefetch:
+    desc: 'Cache dependencies for offline ISO builds'
+    cmds:
+      - task: 'apk'
+      - task: 'aports'
+      - |
+        set -e
+        {{.CONTAINER}} run {{.PLATFORM_FLAG}} --rm \
+        	-e VERSION="{{.VERSION}}" \
+        	-e RELEASE="{{.RELEASE}}" \
+        	-e ROUTIER_REPO="/app/dist" \
+        	-e APORTS="/aports" \
+        	-v {{printf "%s:/app:z" .ROOT_DIR | shellQuote}} \
+        	{{.ISO_APORTS_MOUNT}} \
+        	"routier:{{.VERSION}}-{{.RELEASE}}" \
+        	sh /app/scripts/prefetch.sh
+  dev-build:
+    desc: 'Build the development router image'
+    cmds:
+      - |
+        {{.CONTAINER}} build -f dev/Dockerfile -t routier-dev:latest --build-arg VERSION={{.VERSION}} .
+  dev-vendor:
+    desc: 'Vendor Go dependencies'
+    cmds:
+      - |
+        go mod vendor
+  dev-prefetch:
+    desc: 'Vendor Go dependencies and warm development images'
+    cmds:
+      - task: 'dev-vendor'
+      - |
+        set -e
+        {{.CONTAINER}} pull golang:1.25-alpine
+        {{.CONTAINER}} pull alpine:3.23
+      - task: 'dev-build'
+  dev-up:
+    desc: 'Start the development routers'
+    cmds:
+      - |
+        {{.CONTAINER}} compose -f {{.DEV_COMPOSE}} up -d --build
+  dev-down:
+    desc: 'Stop the development routers'
+    cmds:
+      - |
+        {{.CONTAINER}} compose -f {{.DEV_COMPOSE}} down
+  dev-logs:
+    desc: 'Follow development router logs'
+    cmds:
+      - |
+        {{.CONTAINER}} compose -f {{.DEV_COMPOSE}} logs -f
+  dev-shell:
+    desc: 'Open a shell on the first development router'
+    cmds:
+      - |
+        {{.CONTAINER}} compose -f {{.DEV_COMPOSE}} exec routier-a ash
+  dev-apply:
+    desc: 'Apply configuration to both development routers'
+    cmds:
+      - |
+        set -e
+        {{.CONTAINER}} compose -f {{.DEV_COMPOSE}} exec routier-a routier apply --no-confirm /etc/routier/config.yml
+        {{.CONTAINER}} compose -f {{.DEV_COMPOSE}} exec routier-b routier apply --no-confirm /etc/routier/config.yml
+  install:
+    desc: 'Build and install binaries'
+    cmds:
+      - task: 'build'
+      - |
+        for bin in cmd/*; do install -m 755 "${bin##*/}" "/usr/local/bin/${bin##*/}"; done
+  clean:
+    desc: 'Remove binaries, frontend dependencies and builder stamp'
+    cmds:
+      - |
+        for bin in cmd/*; do rm -f "${bin##*/}"; done
+      - |
+        rm -rf {{.MCP_DIST | shellQuote}} pkg/api/dist web/node_modules {{.DOCKER_STAMP | shellQuote}}
+  builder:
+    desc: 'Build the Alpine package builder image'
+    method: 'timestamp'
+    sources:
+      - |
+        Dockerfile
+      - |
+        APKBUILD
+      - |
+        go.mod
+      - |
+        go.sum
+      - |
+        web/package-lock.json
+    generates:
+      - |
+        {{.DOCKER_STAMP}}
+    cmds:
+      - |
+        set -e
+        {{.CONTAINER}} build {{.PLATFORM_FLAG}} -t "routier:{{.VERSION}}-{{.RELEASE}}" -f Dockerfile .
+        touch {{.DOCKER_STAMP}}
+  signing-key:
+    desc: 'Create the package signing key if missing'
+    status:
+      - |
+        test -f routier.rsa && test -f routier.rsa.pub
+    internal: true
+    cmds:
+      - |
+        test -f routier.rsa || openssl genrsa -out routier.rsa 4096
+      - |
+        openssl rsa -in routier.rsa -pubout -out routier.rsa.pub
+      - |
+        chmod 600 routier.rsa
+  apk:
+    desc: 'Build signed Alpine packages'
+    cmds:
+      - task: 'builder'
+      - task: 'signing-key'
+      - |
+        set -e
+        EMBED=1 LOCAL_ANYK={{.LOCAL_ANYK}} {{.CONTAINER}} run {{.PLATFORM_FLAG}} {{.PODMAN_TTY}} --rm \
+        	-e RELEASE="{{.RELEASE}}" -e VERSION="{{.VERSION}}" -e LOCAL_ANYK="{{.LOCAL_ANYK}}" \
+        	-v {{printf "%s:/app:z" .ROOT_DIR | shellQuote}} {{.APK_ANYK_MOUNT}} \
+        	--entrypoint sh "routier:{{.VERSION}}-{{.RELEASE}}" /app/scripts/mkpkg.sh
+  aports:
+    desc: 'Fetch Alpine ISO build scripts'
+    internal: true
+    cmds:
+      - |
+        test -d {{printf "%s/.git" .ISO_APORTS | shellQuote}} || git clone --depth=1 --branch {{.ALPINE_VERSION}}-stable https://gitlab.alpinelinux.org/alpine/aports {{.ISO_APORTS | shellQuote}}
+  iso-all:
+    desc: 'Build all architecture and kernel flavor combinations'
+    cmds:
+      - |
+        set -e
+        for arch in x86_64 aarch64; do
+          for flavor in lts virt stable; do
+            {{.TASK_EXE | shellQuote}} iso ARCH="$arch" FLAVOR="$flavor" \
+              VERSION={{.VERSION | shellQuote}} RELEASE={{.RELEASE | shellQuote}} \
+              CONTAINER={{.CONTAINER | shellQuote}} OFFLINE={{.OFFLINE | shellQuote}} \
+              LOCAL_ANYK={{.LOCAL_ANYK | shellQuote}} PODMAN_TTY={{.PODMAN_TTY | shellQuote}} \
+              ISO_APORTS={{.ISO_APORTS | shellQuote}} ALPINE_VERSION={{.ALPINE_VERSION | shellQuote}}
+          done
+        done
+
+  deploy:
+    desc: 'Build missing packages, upload over SSH and install (HOST=user@router VERSION=x.y.z)'
+    interactive: true
+    requires:
+      vars: [HOST]
+    preconditions:
+      - sh: 'test -n {{.HOST | shellQuote}}'
+        msg: 'Set HOST to an SSH hostname, user@host, or SSH config alias'
+      - sh: 'command -v ssh && command -v scp'
+        msg: 'SSH and SCP are required'
+    env:
+      TASK_BIN: '{{.TASK_EXE}}'
+      CONTAINER: '{{.CONTAINER}}'
+      LOCAL_ANYK: '{{.LOCAL_ANYK}}'
+      PODMAN_TTY: '{{.PODMAN_TTY}}'
+    cmds:
+      - sh scripts/deploy.sh {{.HOST | shellQuote}} {{.VERSION | shellQuote}} {{.RELEASE | shellQuote}}
+
+  test-deploy:
+    desc: 'Test deployment orchestration and installation with mocked commands'
+    cmds:
+      - python3 scripts/deploy_test.py

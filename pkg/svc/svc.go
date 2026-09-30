@@ -3,9 +3,14 @@ package svc
 import (
 	"fmt"
 	"os"
+	"os/user"
+	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/ChevalRouting/routier/pkg/bind"
 	"github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/kea"
 	"github.com/ChevalRouting/routier/pkg/netlink"
@@ -75,13 +80,18 @@ type reloadConfig struct {
 	FRRDaemons  bool
 	Keepalived  bool
 	RADVD       bool
+	LLDP        bool
 	Conntrackd  bool
 	SSH         bool
 	ModulesLoad bool
 	GAI         bool
 	KeaDHCP4    bool
 	KeaDHCP6    bool
+	KeaDDNS     bool
+	Named       bool
 	Wireguard   []string
+
+	NamedZones []string
 }
 
 func ReloadFromOutputs(names []string, cfg *config.Config, dryRun bool, skipWireguard bool) error {
@@ -101,6 +111,8 @@ func ReloadFromOutputs(names []string, cfg *config.Config, dryRun bool, skipWire
 			rc.Keepalived = true
 		case "radvd/radvd.conf":
 			rc.RADVD = true
+		case "lldp/lldpd.conf", "lldp/conf.d":
+			rc.LLDP = true
 		case "conntrackd/conntrackd.conf":
 			rc.Conntrackd = true
 		case "ssh/sshd_config":
@@ -113,6 +125,14 @@ func ReloadFromOutputs(names []string, cfg *config.Config, dryRun bool, skipWire
 			rc.KeaDHCP4 = true
 		case "kea/kea-dhcp6.conf":
 			rc.KeaDHCP6 = true
+		case "kea/kea-dhcp-ddns.conf":
+			rc.KeaDDNS = true
+		case render.NamedConfName:
+			rc.Named = true
+		}
+
+		if strings.HasPrefix(n, render.NamedZoneName) {
+			rc.NamedZones = append(rc.NamedZones, render.ZoneOriginFromName(n))
 		}
 
 		if strings.HasPrefix(n, "wireguard/") && strings.HasSuffix(n, ".conf") {
@@ -254,6 +274,10 @@ func ReloadFromOutputs(names []string, cfg *config.Config, dryRun bool, skipWire
 		}
 	}
 
+	if rc.LLDP && ServiceRunning("lldpd") {
+		actions = append(actions, Action{Desc: "restart lldpd", Args: []string{"rc-service", "lldpd", "restart"}, BestEffort: true})
+	}
+
 	if rc.Conntrackd {
 		if ServiceRunning("conntrackd") {
 			actions = append(actions, Action{Desc: "restart conntrackd", Args: []string{"rc-service", "conntrackd", "restart"}, BestEffort: true})
@@ -271,10 +295,22 @@ func ReloadFromOutputs(names []string, cfg *config.Config, dryRun bool, skipWire
 		)
 	}
 
-	if rc.KeaDHCP4 || rc.KeaDHCP6 {
+	if rc.KeaDHCP4 || rc.KeaDHCP6 || rc.KeaDDNS {
 		actions = append(actions,
 			Action{Desc: "ensure kea log dir", Args: []string{"install", "-d", "-m", "0750", "-o", "kea", "-g", "kea", "/var/log/kea"}, BestEffort: true},
 			Action{Desc: "ensure kea run dir", Args: []string{"install", "-d", "-m", "0750", "-o", "kea", "-g", "kea", "/run/kea"}, BestEffort: true},
+		)
+	}
+
+	if rc.Named || len(rc.NamedZones) > 0 {
+		actions = append(actions,
+			Action{Desc: "ensure named log dir", Args: []string{"install", "-d", "-m", "0750", "-o", "named", "-g", "named", filepath.Dir(render.NamedLog)}, BestEffort: true},
+			Action{Desc: "ensure named run dir", Args: []string{"install", "-d", "-m", "0755", "-o", "named", "-g", "named", render.NamedRunDir}, BestEffort: true},
+			Action{Desc: "ensure named work dir", Args: []string{"install", "-d", "-m", "0755", "-o", "named", "-g", "named", filepath.Dir(render.NamedStats)}, BestEffort: true},
+			Action{Desc: "ensure named zone dir", Args: []string{"install", "-d", "-m", "0755", "-o", "named", "-g", "named", render.NamedZoneDir}},
+			Action{Desc: "ensure rndc key", Args: []string{"sh", "-c", "test -s " + bind.RndcKey + " || rndc-confgen -a -c " + bind.RndcKey}, BestEffort: true},
+			Action{Desc: "own rndc key", Args: []string{"chown", "named:named", bind.RndcKey}, BestEffort: true},
+			Action{Desc: "protect rndc key", Args: []string{"chmod", "0640", bind.RndcKey}, BestEffort: true},
 		)
 	}
 
@@ -288,17 +324,25 @@ func ReloadFromOutputs(names []string, cfg *config.Config, dryRun bool, skipWire
 		}
 	}
 
+	var removedWG []string
 	if cfg != nil {
 		desired := make(map[string]bool, len(cfg.Wireguard))
 		for name := range cfg.Wireguard {
 			desired[name] = true
 		}
 
-		for _, wg := range netlink.ManagedWireguardLinks() {
-			if desired[wg] {
+		seen := map[string]bool{}
+		for _, wg := range append(netlink.ManagedWireguardLinks(), managedWireguardConfs()...) {
+			if desired[wg] || seen[wg] {
 				continue
 			}
 
+			seen[wg] = true
+			removedWG = append(removedWG, wg)
+		}
+
+		sort.Strings(removedWG)
+		for _, wg := range removedWG {
 			actions = append(actions, Action{
 				Desc:       "wireguard down " + wg + " (removed)",
 				Args:       []string{"wg-quick", "down", wg},
@@ -326,6 +370,22 @@ func ReloadFromOutputs(names []string, cfg *config.Config, dryRun bool, skipWire
 	}
 
 	if !dryRun {
+		for _, wg := range removedWG {
+			pruneWireguardConf(wg)
+		}
+
+		if rc.Named || len(rc.NamedZones) > 0 {
+			if err := applyNamed(rc, cfg); err != nil {
+				return err
+			}
+		}
+
+		if rc.KeaDDNS {
+			if err := applyKeaDDNS(); err != nil {
+				return err
+			}
+		}
+
 		if rc.KeaDHCP4 {
 			if err := applyKeaServer("kea-dhcp4", "dhcp4"); err != nil {
 				return err
@@ -340,6 +400,233 @@ func ReloadFromOutputs(names []string, cfg *config.Config, dryRun bool, skipWire
 	}
 
 	return nil
+}
+
+func pruneNamedZones(cfg *config.Config) {
+	entries, err := os.ReadDir(render.NamedZoneDir)
+	if err != nil {
+		return
+	}
+
+	keep := map[string]bool{}
+	if cfg != nil && cfg.DNS != nil && cfg.DNS.Server != nil {
+		for _, z := range cfg.DNS.Server.Zones {
+			keep[render.ZoneFileName(z.Name)] = true
+		}
+
+		for _, v := range cfg.DNS.Server.Views {
+			for _, z := range v.Zones {
+				keep[render.ZoneFileName(z.Name)] = true
+			}
+		}
+	}
+
+	for _, name := range render.DDNSZoneNames(cfg) {
+		keep[render.ZoneFileName(name)] = true
+	}
+
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".zone") || keep[e.Name()] {
+			continue
+		}
+
+		path := filepath.Join(render.NamedZoneDir, e.Name())
+		if err := os.Remove(path); err != nil {
+			log.Warn().Err(err).Str("file", path).Msg("named: remove stale zone file")
+			continue
+		}
+
+		log.Info().Str("file", path).Msg("named: removed stale zone file")
+	}
+}
+
+func applyNamed(rc reloadConfig, cfg *config.Config) error {
+	ensureDynamicZones(cfg)
+
+	if err := runCmdOutput([]string{"named-checkconf", render.NamedConfDest}, 0); err != nil {
+		return fmt.Errorf("named: config invalid: %w", err)
+	}
+
+	pruneNamedZones(cfg)
+
+	if !ServiceRunning("named") {
+		if err := runCmd([]string{"rc-service", "named", "start"}, 0); err != nil {
+			return fmt.Errorf("named: start failed: %w", err)
+		}
+
+		return nil
+	}
+
+	client, cerr := bind.LoadLocal()
+
+	var plainZones []string
+	for _, zone := range rc.NamedZones {
+		if render.DDNSManagedZone(cfg, zone) {
+			if cerr == nil {
+				if err := syncDDNSZone(client, cfg, zone); err != nil {
+					log.Warn().Err(err).Str("zone", zone).Msg("named: ddns zone sync failed")
+				}
+			}
+
+			continue
+		}
+
+		plainZones = append(plainZones, zone)
+	}
+
+	if !rc.Named && len(plainZones) > 0 && cerr == nil {
+		reloaded := true
+		for _, zone := range plainZones {
+			if err := client.ReloadZone(zone); err != nil {
+				log.Warn().Err(err).Str("zone", zone).Msg("named: zone reload failed")
+				reloaded = false
+
+				break
+			}
+
+			log.Info().Str("zone", zone).Msg("named: zone reloaded")
+		}
+
+		if reloaded {
+			return nil
+		}
+	}
+
+	if cerr == nil && !rc.Named && len(plainZones) == 0 {
+		return nil
+	}
+
+	if cerr == nil {
+		if err := client.Reconfig(); err == nil {
+			log.Info().Msg("named: reconfigured")
+			return nil
+		} else {
+			log.Warn().Err(err).Msg("named: rndc reconfig failed, falling back")
+		}
+	}
+
+	if err := runCmd([]string{"rc-service", "named", "reload"}, 0); err == nil {
+		return nil
+	}
+
+	if err := runCmd([]string{"rc-service", "named", "restart"}, 0); err != nil {
+		return fmt.Errorf("named: restart failed: %w", err)
+	}
+
+	return nil
+}
+
+func syncDDNSZone(client *bind.Client, cfg *config.Config, zone string) error {
+	path := filepath.Join(render.NamedZoneDir, render.ZoneFileName(zone))
+
+	if err := client.Freeze(zone); err != nil {
+		return fmt.Errorf("freeze %s: %w", zone, err)
+	}
+
+	thawed := false
+	thaw := func() {
+		if thawed {
+			return
+		}
+
+		thawed = true
+		if err := client.Thaw(zone); err != nil {
+			log.Warn().Err(err).Str("zone", zone).Msg("named: thaw failed")
+		}
+	}
+	defer thaw()
+
+	frozen, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("read frozen zone %s: %w", zone, err)
+	}
+
+	merged := render.MergeDDNSZone(cfg, zone, string(frozen))
+	if merged == string(frozen) {
+		return nil
+	}
+
+	if err := os.WriteFile(path, []byte(merged), 0644); err != nil {
+		return fmt.Errorf("write merged zone %s: %w", zone, err)
+	}
+
+	if err := chownNamed(path); err != nil {
+		log.Warn().Err(err).Str("file", path).Msg("ddns: own merged zone file")
+	}
+
+	thaw()
+	log.Info().Str("zone", zone).Msg("named: ddns zone merged")
+
+	return nil
+}
+
+func chownNamed(path string) error {
+	named, err := user.Lookup("named")
+	if err != nil {
+		return err
+	}
+
+	uid, err := strconv.Atoi(named.Uid)
+	if err != nil {
+		return err
+	}
+
+	gid, err := strconv.Atoi(named.Gid)
+	if err != nil {
+		return err
+	}
+
+	return os.Chown(path, uid, gid)
+}
+
+func applyKeaDDNS() error {
+	file := "/etc/kea/kea-dhcp-ddns.conf"
+	if err := runCmdOutput([]string{"kea-dhcp-ddns", "-t", file}, 0); err != nil {
+		return fmt.Errorf("kea-dhcp-ddns: config invalid: %w", err)
+	}
+
+	if !ServiceRunning("kea-dhcp-ddns") {
+		if err := runCmd([]string{"rc-service", "kea-dhcp-ddns", "start"}, 0); err != nil {
+			return fmt.Errorf("kea-dhcp-ddns: start failed: %w", err)
+		}
+
+		return nil
+	}
+
+	if err := runCmd([]string{"rc-service", "kea-dhcp-ddns", "restart"}, 0); err != nil {
+		return fmt.Errorf("kea-dhcp-ddns: restart failed: %w", err)
+	}
+
+	return nil
+}
+
+func ensureDynamicZones(cfg *config.Config) {
+	if !render.DDNSActive(cfg) {
+		return
+	}
+
+	for _, name := range render.DDNSZoneNames(cfg) {
+		path := filepath.Join(render.NamedZoneDir, render.ZoneFileName(name))
+		if _, err := os.Stat(path); err == nil {
+			if err := chownNamed(path); err != nil {
+				log.Warn().Err(err).Str("file", path).Msg("ddns: own existing zone file")
+			}
+
+			continue
+		}
+
+		content := render.DDNSBootstrapZoneFile(cfg, name)
+		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			log.Warn().Err(err).Str("file", path).Msg("ddns: write bootstrap zone file")
+			continue
+		}
+
+		if err := chownNamed(path); err != nil {
+			log.Warn().Err(err).Str("file", path).Msg("ddns: own bootstrap zone file")
+		}
+
+		log.Info().Str("zone", name).Str("file", path).Msg("ddns: created dynamic zone")
+	}
 }
 
 func applyKeaServer(svcName, service string) error {
@@ -422,6 +709,10 @@ func getServiceStatus(name string) svcStatus {
 
 func ServiceRunning(name string) bool {
 	return getServiceStatus(name) == svcStarted
+}
+
+func RestartService(name string) error {
+	return runCmdOutput([]string{"rc-service", name, "restart"}, 90*time.Second)
 }
 
 func frrStatus() svcStatus {
@@ -511,23 +802,20 @@ type serviceEntry struct {
 func ReconcileServices(cfg *config.Config, dryRun bool) error {
 	needFRR := cfg.Routing != nil
 
-	needKeepalived := false
-	for _, iface := range cfg.Interfaces {
-		if len(iface.VRRP) > 0 {
-			needKeepalived = true
-			break
-		}
-	}
+	needKeepalived := cfg.HA != nil && len(cfg.HA.VRRP) > 0
 
 	needRAVD := cfg.Routing != nil &&
 		cfg.Routing.RADVD != nil &&
 		len(cfg.Routing.RADVD.Interfaces) > 0
 
-	needConntrackd := cfg.Conntrackd != nil
+	needConntrackd := cfg.HA != nil && cfg.HA.Conntrackd != nil
+
+	needLLDP := cfg.Monitoring != nil && cfg.Monitoring.LLDP != nil && cfg.Monitoring.LLDP.Enabled
 
 	needKea := render.LocalKeaEnabled(cfg)
 	needKeaV4 := needKea && len(cfg.DHCP.Subnets4) > 0
 	needKeaV6 := needKea && len(cfg.DHCP.Subnets6) > 0
+	needKeaDDNS := render.DDNSActive(cfg)
 
 	frrSt := frrStatus()
 	switch {
@@ -565,9 +853,12 @@ func ReconcileServices(cfg *config.Config, dryRun bool) error {
 		{name: "routier-ui", needed: true},
 		{name: "keepalived", needed: needKeepalived},
 		{name: "radvd", needed: needRAVD},
+		{name: "lldpd", needed: needLLDP, bestEffort: true},
 		{name: "conntrackd", needed: needConntrackd, bestEffort: true},
 		{name: "kea-dhcp4", needed: needKeaV4, bestEffort: true},
 		{name: "kea-dhcp6", needed: needKeaV6, bestEffort: true},
+		{name: "kea-dhcp-ddns", needed: needKeaDDNS, bestEffort: true},
+		{name: "named", needed: render.LocalDNSServerEnabled(cfg), bestEffort: true},
 	}
 
 	for _, s := range services {

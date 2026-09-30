@@ -71,21 +71,26 @@ func ConfigureVRRP(w http.ResponseWriter, r *http.Request) {
 		friendPriority = 100
 	}
 
-	li := cfg.Interfaces[req.LocalInterface]
-	li.VRRP = upsertVRRP(li.VRRP, &cfgpkg.VRRPInstance{ID: req.VRID, VIPs: req.VIPs, Priority: ourPriority, Friend: name})
-
-	var friendVrrp []*cfgpkg.VRRPInstance
-	if fcfg, ok := friendcache.CachedConfig(name); ok && fcfg.Interfaces != nil && fcfg.Interfaces[req.FriendInterface] != nil {
-		friendVrrp = fcfg.Interfaces[req.FriendInterface].VRRP
+	if cfg.HA == nil {
+		cfg.HA = &cfgpkg.HA{}
 	}
 
-	friendVrrp = upsertVRRP(friendVrrp, &cfgpkg.VRRPInstance{ID: req.VRID, VIPs: req.VIPs, Priority: friendPriority, Friend: cfg.Hostname})
+	cfg.HA.VRRP = upsertVRRP(cfg.HA.VRRP, &cfgpkg.VRRPInstance{ID: req.VRID, Interface: req.LocalInterface, VIPs: req.VIPs, Priority: ourPriority, Friend: name})
+
+	var friendVrrp []*cfgpkg.VRRPInstance
+	if fcfg, ok := friendcache.CachedConfig(name); ok && fcfg.HA != nil {
+		for _, v := range fcfg.HA.VRRP {
+			if v.Interface == req.FriendInterface {
+				friendVrrp = append(friendVrrp, v)
+			}
+		}
+	}
+
+	friendVrrp = upsertVRRP(friendVrrp, &cfgpkg.VRRPInstance{ID: req.VRID, Interface: req.FriendInterface, VIPs: req.VIPs, Priority: friendPriority, Friend: cfg.Hostname})
 
 	payload := managers.PushPayload{Config: &cfgpkg.Config{
 		Version: cfg.Version,
-		Interfaces: map[string]*cfgpkg.Interface{
-			req.FriendInterface: {VRRP: friendVrrp},
-		},
+		HA:      &cfgpkg.HA{VRRP: friendVrrp},
 	}}
 
 	cfgpkg.ResolveInterfaces(cfg)

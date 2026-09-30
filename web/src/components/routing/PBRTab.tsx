@@ -1,15 +1,16 @@
 import { useState, useEffect } from 'react'
-import { useTabState } from '@/lib/useTabState'
-import { SectionNav } from '@/components/ui/section-nav'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
-import { EmptyState } from '@/components/EmptyState'
-import { Badge } from '@/components/ui/badge'
-import { Sheet } from '@/components/ui/sheet'
+import { useTabState } from 'cheval-ui'
+import { SectionNav } from 'cheval-ui'
+import { Input } from 'cheval-ui'
+import { Label } from 'cheval-ui'
+import { Button } from 'cheval-ui'
+import { EmptyState } from 'cheval-ui'
+import { Badge } from 'cheval-ui'
+import { Sheet } from 'cheval-ui'
+import { Card } from 'cheval-ui'
 import { Plus, Trash2 } from 'lucide-react'
 import { VarPickerInput } from '@/components/VarPickerInput'
-import { PreferencesColumns } from '@/components/Preferences'
+import { PreferencesColumns } from 'cheval-ui'
 import { PBRNexthop, PBRNexthopGroup, PBRMapEntry, PBRConfig, PBRSubTab } from './types'
 import { newId } from './shared'
 
@@ -339,7 +340,7 @@ export function PBRTab({
                     </Button>
                   </div>
                   {openMap.entries.length > 0 && (
-                    <div className="rounded border overflow-x-auto">
+                    <div className="rounded bg-card shadow-[var(--card-shadow)] overflow-x-auto">
                       <table className="w-full text-xs">
                         <thead className="bg-muted/50">
                           <tr>
@@ -401,33 +402,27 @@ export function PBRTab({
               action={<Button variant="outline" size="sm" onClick={addPolicy} className="gap-2"><Plus className="h-4 w-4" />Add policy</Button>}
             />
           ) : (
-            <div className="rounded-xl border border-border overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/50">
-                  <tr>
-                    <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Interface</th>
-                    <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Map</th>
-                    <th className="w-10" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {policies.map((p) => (
-                    <tr key={p._id}>
-                      <td className="px-3 py-1.5">
-                        <Input value={p.iface} onChange={(e) => updatePolicy(p._id, { iface: e.target.value })} placeholder="eth0" className="font-mono text-xs h-8 border-0 shadow-none focus-visible:ring-1" />
-                      </td>
-                      <td className="px-3 py-1.5">
-                        <VarPickerInput value={p.map} onChange={(v) => updatePolicy(p._id, { map: v })} vars={maps.map((m) => m.name)} placeholder="map-name" prefix="" label="Route maps" mono className="text-xs h-8 border-0 shadow-none focus-visible:ring-1" />
-                      </td>
-                      <td className="px-2">
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => removePolicy(p._id)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="grid gap-3 md:grid-cols-2">
+              {policies.map((p) => (
+                <Card key={p._id} className="space-y-4 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="font-mono text-sm font-semibold">{p.iface || 'New policy'}</span>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => removePolicy(p._id)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Interface</Label>
+                      <Input value={p.iface} onChange={(e) => updatePolicy(p._id, { iface: e.target.value })} placeholder="eth0" className="font-mono text-sm" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Map</Label>
+                      <VarPickerInput value={p.map} onChange={(v) => updatePolicy(p._id, { map: v })} vars={maps.map((m) => m.name)} placeholder="map-name" prefix="" label="Route maps" mono className="text-sm" />
+                    </div>
+                  </div>
+                </Card>
+              ))}
             </div>
           )}
         </div>
@@ -436,4 +431,3 @@ export function PBRTab({
     </div>
   )
 }
-

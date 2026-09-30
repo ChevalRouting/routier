@@ -161,7 +161,7 @@ export class SetupApi extends runtime.BaseAPI {
     }
 
     /**
-     * List physical system NICs
+     * List candidate system NICs
      */
     async apiSystemNicsGetRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<TypesResponseArrayTypesSystemNic>> {
         const queryParameters: any = {};
@@ -183,7 +183,7 @@ export class SetupApi extends runtime.BaseAPI {
     }
 
     /**
-     * List physical system NICs
+     * List candidate system NICs
      */
     async apiSystemNicsGet(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<TypesResponseArrayTypesSystemNic> {
         const response = await this.apiSystemNicsGetRaw(initOverrides);

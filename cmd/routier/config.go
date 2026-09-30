@@ -1,8 +1,7 @@
 package main
 
 type CLIConfig struct {
-	LogLevel   string
-	ConfigFile string
+	LogLevel string
 }
 
 var cli = &CLIConfig{}

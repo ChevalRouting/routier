@@ -27,6 +27,24 @@ export interface TypesSystemNic {
     addrs?: Array<string>;
     /**
      * 
+     * @type {boolean}
+     * @memberof TypesSystemNic
+     */
+    carrier?: boolean;
+    /**
+     * 
+     * @type {string}
+     * @memberof TypesSystemNic
+     */
+    driver?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof TypesSystemNic
+     */
+    duplex?: string;
+    /**
+     * 
      * @type {string}
      * @memberof TypesSystemNic
      */
@@ -43,6 +61,30 @@ export interface TypesSystemNic {
      * @memberof TypesSystemNic
      */
     operstate?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof TypesSystemNic
+     */
+    pci_device?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof TypesSystemNic
+     */
+    pci_vendor?: string;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof TypesSystemNic
+     */
+    physical?: boolean;
+    /**
+     * 
+     * @type {number}
+     * @memberof TypesSystemNic
+     */
+    speed?: number;
 }
 
 /**
@@ -64,9 +106,16 @@ export function TypesSystemNicFromJSONTyped(json: any, ignoreDiscriminator: bool
     return {
         
         'addrs': json['addrs'] == null ? undefined : json['addrs'],
+        'carrier': json['carrier'] == null ? undefined : json['carrier'],
+        'driver': json['driver'] == null ? undefined : json['driver'],
+        'duplex': json['duplex'] == null ? undefined : json['duplex'],
         'mac': json['mac'] == null ? undefined : json['mac'],
         'name': json['name'],
         'operstate': json['operstate'] == null ? undefined : json['operstate'],
+        'pci_device': json['pci_device'] == null ? undefined : json['pci_device'],
+        'pci_vendor': json['pci_vendor'] == null ? undefined : json['pci_vendor'],
+        'physical': json['physical'] == null ? undefined : json['physical'],
+        'speed': json['speed'] == null ? undefined : json['speed'],
     };
 }
 
@@ -82,9 +131,16 @@ export function TypesSystemNicToJSONTyped(value?: TypesSystemNic | null, ignoreD
     return {
         
         'addrs': value['addrs'],
+        'carrier': value['carrier'],
+        'driver': value['driver'],
+        'duplex': value['duplex'],
         'mac': value['mac'],
         'name': value['name'],
         'operstate': value['operstate'],
+        'pci_device': value['pci_device'],
+        'pci_vendor': value['pci_vendor'],
+        'physical': value['physical'],
+        'speed': value['speed'],
     };
 }
 

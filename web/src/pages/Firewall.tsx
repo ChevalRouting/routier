@@ -4,23 +4,23 @@ import type { RenderNftVar as NftVar, TypesNftValidateResult as NftValidateResul
 import { useFetch } from '@/lib/useFetch'
 import { usePageSave } from '@/lib/usePageSave'
 import { useDataRefresh } from '@/lib/dataVersion'
-import { useTabState } from '@/lib/useTabState'
-import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/switch'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
-import { SectionNav } from '@/components/ui/section-nav'
+import { useTabState } from 'cheval-ui'
+import { Switch } from 'cheval-ui'
+import { Input } from 'cheval-ui'
+import { Label } from 'cheval-ui'
+import { Badge } from 'cheval-ui'
+import { Separator } from 'cheval-ui'
+import { SectionNav } from 'cheval-ui'
 import CodeMirror from '@uiw/react-codemirror'
 import { nftExtensions, nftTheme, nftAutocomplete, nftErrorHighlight } from '@/lib/nftables-lang'
-import SaveButton from '@/components/SaveButton'
-import { Plus, Trash2, ChevronDown, ChevronRight, EyeOff, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
+import { SaveButton } from 'cheval-ui'
+import { ChevronDown, ChevronRight, EyeOff, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
+import { AccordionList } from '@/components/ui/AccordionList'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select'
-import { PageHeader } from '@/components/PageHeader'
-import { Spinner } from '@/components/Spinner'
+} from 'cheval-ui'
+import { PageHeader } from 'cheval-ui'
+import { Spinner } from 'cheval-ui'
 import { VarPickerInput } from '@/components/VarPickerInput'
 
 interface RuleMatch {
@@ -176,7 +176,7 @@ function CodeArea({ value, onChange, placeholder, height = 180, vars, errorLines
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vars, errorKey])
   return (
-    <div className="rounded-md border border-border overflow-hidden">
+    <div className="rounded-md bg-card overflow-hidden shadow-[var(--card-shadow)]">
       <CodeMirror
         value={value}
         onChange={onChange}
@@ -197,49 +197,33 @@ function CodeArea({ value, onChange, placeholder, height = 180, vars, errorLines
   )
 }
 
-interface RuleRowProps {
-  rule: ManagedRule
-  index: number
-  onChange: (r: ManagedRule) => void
-  onDelete: () => void
-  vars: string[]
+function RuleSummary({ rule, index }: { rule: ManagedRule; index: number }) {
+  const actionColor = ACTION_COLORS[rule.action] ?? 'bg-muted text-muted-foreground'
+  return (
+    <div className={`flex min-w-0 flex-1 items-center gap-2 ${rule.disabled ? 'opacity-50' : ''}`}>
+      <span className="shrink-0 text-xs text-muted-foreground">#{index + 1}</span>
+      <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">
+        {ruleSummary(rule)}
+      </span>
+      {rule.tag && <Badge variant="secondary" className="shrink-0 text-[10px]">{rule.tag}</Badge>}
+      <span className={`shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium ${actionColor}`}>
+        {rule.action}
+      </span>
+      {rule.disabled && <EyeOff className="h-3 w-3 shrink-0 text-muted-foreground" />}
+    </div>
+  )
 }
 
-function RuleRow({ rule, index, onChange, onDelete, vars }: RuleRowProps) {
-  const [expanded, setExpanded] = useState(!rule.action)
+function RuleBody({ rule, onChange, vars }: { rule: ManagedRule; onChange: (r: ManagedRule) => void; vars: string[] }) {
   const m = rule.match ?? {}
 
   const setMatch = (patch: Partial<RuleMatch>) =>
     onChange({ ...rule, match: { ...m, ...patch } })
 
-  const actionColor = ACTION_COLORS[rule.action] ?? 'bg-muted text-muted-foreground'
-
   return (
-    <div className={`border rounded-md overflow-hidden ${rule.disabled ? 'opacity-50' : ''}`}>
-      <div className="flex items-center gap-2 px-3 py-2 bg-muted/20 cursor-pointer select-none"
-           onClick={() => setExpanded(!expanded)}>
-        <span className="text-xs text-muted-foreground shrink-0">#{index + 1}</span>
-        {expanded
-          ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-          : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
-        <span className="text-xs font-mono flex-1 truncate text-muted-foreground">
-          {ruleSummary(rule)}
-        </span>
-        {rule.tag && <Badge variant="secondary" className="text-[10px] shrink-0">{rule.tag}</Badge>}
-        <span className={`text-[11px] px-1.5 py-0.5 rounded font-medium shrink-0 ${actionColor}`}>
-          {rule.action}
-        </span>
-        {rule.disabled && <EyeOff className="h-3 w-3 text-muted-foreground shrink-0" />}
-        <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 hover:text-destructive"
-                onClick={(e) => { e.stopPropagation(); onDelete() }}>
-          <Trash2 className="h-3 w-3" />
-        </Button>
-      </div>
-
-      {expanded && (
-        <div className="p-3 border-t bg-background space-y-3">
+    <>
           <div className="grid grid-cols-3 gap-2">
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <Label className="text-[11px]">Protocol</Label>
               <Select value={m.protocol ?? '_any'} onValueChange={(v) => setMatch({ protocol: v === '_any' ? undefined : v })}>
                 <SelectTrigger className="h-8 text-xs font-mono">
@@ -251,31 +235,31 @@ function RuleRow({ rule, index, onChange, onDelete, vars }: RuleRowProps) {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <Label className="text-[11px]">Input interface</Label>
               <VarPickerInput value={m.iif ?? ''} onChange={(v) => setMatch({ iif: v || undefined })}
                 vars={vars.filter((v) => v.endsWith('_interfaces') || v === 'interfaces' || v === 'tunnels' || v === 'wireguard')}
                 placeholder="$lan_interfaces" mono />
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <Label className="text-[11px]">Output interface</Label>
               <VarPickerInput value={m.oif ?? ''} onChange={(v) => setMatch({ oif: v || undefined })}
                 vars={vars.filter((v) => v.endsWith('_interfaces') || v === 'interfaces' || v === 'tunnels' || v === 'wireguard')}
                 placeholder="$wan_interfaces" mono />
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <Label className="text-[11px]">Source addr</Label>
               <VarPickerInput value={m.saddr ?? ''} onChange={(v) => setMatch({ saddr: v || undefined })}
                 vars={vars.filter((v) => v.includes('_address') || v.includes('_network'))}
                 placeholder="$lan_network" mono />
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <Label className="text-[11px]">Dest addr</Label>
               <VarPickerInput value={m.daddr ?? ''} onChange={(v) => setMatch({ daddr: v || undefined })}
                 vars={vars.filter((v) => v.includes('_address') || v.includes('_network'))}
                 placeholder="192.168.0.0/24" mono />
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <Label className="text-[11px]">
                 Addr family
                 {(m.saddr || m.daddr) && <span className="text-destructive ml-0.5">*</span>}
@@ -290,17 +274,17 @@ function RuleRow({ rule, index, onChange, onDelete, vars }: RuleRowProps) {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <Label className="text-[11px]">Source port</Label>
               <Input value={m.sport ?? ''} onChange={(e) => setMatch({ sport: e.target.value || undefined })}
                 placeholder="1024-65535" className="font-mono text-xs h-8" />
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <Label className="text-[11px]">Dest port</Label>
               <Input value={m.dport ?? ''} onChange={(e) => setMatch({ dport: e.target.value || undefined })}
                 placeholder="80,443" className="font-mono text-xs h-8" />
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <Label className="text-[11px]">CT state</Label>
               <Select value={m.ct_state ?? '_any'} onValueChange={(v) => setMatch({ ct_state: v === '_any' ? undefined : v })}>
                 <SelectTrigger className="h-8 text-xs font-mono">
@@ -317,7 +301,7 @@ function RuleRow({ rule, index, onChange, onDelete, vars }: RuleRowProps) {
           <Separator />
 
           <div className="flex flex-wrap items-end gap-3">
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <Label className="text-[11px]">Action</Label>
               <Select value={rule.action} onValueChange={(v) => onChange({ ...rule, action: v })}>
                 <SelectTrigger className="h-8 text-xs">
@@ -329,14 +313,14 @@ function RuleRow({ rule, index, onChange, onDelete, vars }: RuleRowProps) {
               </Select>
             </div>
             {(rule.action === 'dnat' || rule.action === 'snat') && (
-              <div className="space-y-1 flex-1 min-w-32">
+              <div className="space-y-1.5 flex-1 min-w-32">
                 <Label className="text-[11px]">Target address</Label>
                 <Input value={rule.action_to ?? ''}
                   onChange={(e) => onChange({ ...rule, action_to: e.target.value || undefined })}
                   placeholder="10.0.0.1" className="font-mono text-xs h-8" />
               </div>
             )}
-            <div className="space-y-1 flex-1 min-w-32">
+            <div className="space-y-1.5 flex-1 min-w-32">
               <Label className="text-[11px]">Comment</Label>
               <Input value={rule.comment ?? ''}
                 onChange={(e) => onChange({ ...rule, comment: e.target.value || undefined })}
@@ -348,9 +332,7 @@ function RuleRow({ rule, index, onChange, onDelete, vars }: RuleRowProps) {
                 onCheckedChange={(v) => onChange({ ...rule, disabled: v || undefined })} />
             </div>
           </div>
-        </div>
-      )}
-    </div>
+    </>
   )
 }
 
@@ -394,7 +376,7 @@ function ChainPane({ meta, chain, onChange, varNames, acVars, errorLines }: {
         vars={acVars}
         errorLines={errorLines} />
       <p className="text-[11px] text-muted-foreground">
-        Appended after routier&apos;s rules. Type <span className="font-mono">$</span> to autocomplete variables like $wan_interfaces, $me.
+        Appended after routier&apos;s auto rules and the structured rules below. Type <span className="font-mono">$</span> to autocomplete variables like $wan_interfaces, $me.
       </p>
 
       <div>
@@ -404,17 +386,19 @@ function ChainPane({ meta, chain, onChange, varNames, acVars, errorLines }: {
           Structured rules ({managed.length})
         </button>
         {showManaged && (
-          <div className="mt-2 space-y-2">
-            {managed.map((rule, i) => (
-              <RuleRow key={i} rule={rule} index={i}
-                onChange={(r) => setManaged(managed.map((x, j) => (j === i ? r : x)))}
-                onDelete={() => setManaged(managed.filter((_, j) => j !== i))}
-                vars={varNames} />
-            ))}
-            <Button type="button" variant="outline" size="sm"
-              onClick={() => setManaged([...managed, emptyRule()])} className="gap-1 h-7 text-xs">
-              <Plus className="h-3 w-3" />Add structured rule
-            </Button>
+          <div className="mt-2">
+            <AccordionList
+              items={managed}
+              addLabel="Add structured rule"
+              onAdd={() => setManaged([...managed, emptyRule()])}
+              onRemove={(r) => setManaged(managed.filter((x) => x !== r))}
+              emptyTitle="No structured rules"
+              emptyMessage="Add a structured rule, or write nftables above."
+              renderSummary={(r) => <RuleSummary rule={r} index={managed.indexOf(r)} />}
+              renderBody={(r) => (
+                <RuleBody rule={r} vars={varNames} onChange={(nr) => setManaged(managed.map((x) => (x === r ? nr : x)))} />
+              )}
+            />
           </div>
         )}
       </div>
@@ -563,7 +547,7 @@ function ValidationStrip({ validating, result }: { validating: boolean; result: 
   }
 
   return (
-    <div className="rounded-md border border-danger/40 bg-danger/10 p-3 space-y-1">
+    <div className="rounded-md border border-danger/40 bg-danger/10 p-3 space-y-1.5">
       <div className="flex items-center gap-2 text-xs font-medium text-danger">
         <AlertCircle className="h-3.5 w-3.5" />nft validation failed
       </div>

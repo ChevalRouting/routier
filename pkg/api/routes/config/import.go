@@ -12,7 +12,6 @@ import (
 	appctx "github.com/ChevalRouting/routier/pkg/api/app"
 	"github.com/ChevalRouting/routier/pkg/api/cfgstore"
 	cfgpkg "github.com/ChevalRouting/routier/pkg/config"
-	webdb "github.com/ChevalRouting/routier/pkg/db"
 	friendspkg "github.com/ChevalRouting/routier/pkg/friends"
 	"github.com/ChevalRouting/routier/pkg/managers"
 	"github.com/ChevalRouting/routier/pkg/types"
@@ -98,13 +97,6 @@ func Import(w http.ResponseWriter, r *http.Request) {
 
 	incoming := payload.Config
 
-	for _, u := range payload.Users {
-		if err := webdb.UpsertUser(app.DB, u.Username, u.PasswordHash); err != nil {
-			types.Err(http.StatusInternalServerError, fmt.Sprintf("sync user %s: %v", u.Username, err)).Write(w)
-			return
-		}
-	}
-
 	for path, content := range payload.Files {
 		if err := validateImportFilePath(path); err != nil {
 			types.Err(http.StatusBadRequest, fmt.Sprintf("rejected file path %q: %v", path, err)).Write(w)
@@ -131,7 +123,7 @@ func Import(w http.ResponseWriter, r *http.Request) {
 	mergeIncoming(local, incoming)
 
 	if err := cfgstore.WriteStaging(app.ConfigPath, username, local); err != nil {
-		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "write staging"))
+		types.Error(log.Logger, w, cfgstore.StagingError(err, "write staging"))
 		return
 	}
 
@@ -151,6 +143,10 @@ func mergeIncoming(local, incoming *cfgpkg.Config) {
 
 	if incoming.Routing != nil {
 		local.Routing = incoming.Routing
+	}
+
+	if incoming.HA != nil {
+		mergeHA(local, incoming.HA)
 	}
 
 	if incoming.Wireguard != nil {
@@ -190,24 +186,32 @@ func mergeIncoming(local, incoming *cfgpkg.Config) {
 	if incoming.SSH != nil {
 		local.SSH = incoming.SSH
 	}
+}
 
-	if incoming.Conntrackd != nil {
-		local.Conntrackd = incoming.Conntrackd
+func mergeHA(local *cfgpkg.Config, incoming *cfgpkg.HA) {
+	if local.HA == nil {
+		local.HA = &cfgpkg.HA{}
 	}
 
-	if incoming.Interfaces == nil {
+	if incoming.Conntrackd != nil {
+		local.HA.Conntrackd = incoming.Conntrackd
+	}
+
+	if len(incoming.VRRP) == 0 {
 		return
 	}
 
-	if local.Interfaces == nil {
-		local.Interfaces = make(map[string]*cfgpkg.Interface)
+	replaced := map[string]bool{}
+	for _, v := range incoming.VRRP {
+		replaced[v.Interface] = true
 	}
 
-	for name, inIface := range incoming.Interfaces {
-		if localIface, exists := local.Interfaces[name]; exists {
-			localIface.VRRP = inIface.VRRP
-		} else {
-			local.Interfaces[name] = inIface
+	var kept []*cfgpkg.VRRPInstance
+	for _, v := range local.HA.VRRP {
+		if !replaced[v.Interface] {
+			kept = append(kept, v)
 		}
 	}
+
+	local.HA.VRRP = append(kept, incoming.VRRP...)
 }

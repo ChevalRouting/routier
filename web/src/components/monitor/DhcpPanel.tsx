@@ -1,24 +1,24 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { toast } from 'sonner'
-import { useTabState } from '@/lib/useTabState'
-import { api } from '@/lib/client'
+import { useTabState } from 'cheval-ui'
+import { api, configLayerRequest } from '@/lib/client'
 import type { DhcpStatsResponse as DhcpStats, DhcpLeaseView as DhcpLeaseRow, KeaSubnet } from '@/api'
 import { getToken } from '@/lib/utils'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table'
-import { Dialog, AlertDialog } from '@/components/ui/dialog'
-import { Badge } from '@/components/ui/badge'
-import { Segmented } from '@/components/ui/segmented'
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
-import { SectionNav } from '@/components/ui/section-nav'
-import { StateChip } from '@/components/ui/status-chip'
-import { SectionLabel } from '@/components/SectionLabel'
-import { EmptyState } from '@/components/EmptyState'
-import { Pagination, usePagination } from '@/components/Pagination'
-import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
-import { Trash2, ChevronsDown, Search, Pin } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from 'cheval-ui'
+import { Input } from 'cheval-ui'
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from 'cheval-ui'
+import { Dialog, AlertDialog } from 'cheval-ui'
+import { Badge } from 'cheval-ui'
+import { Segmented } from 'cheval-ui'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from 'cheval-ui'
+import { SectionNav } from 'cheval-ui'
+import { StateChip } from 'cheval-ui'
+import { Tabs } from 'cheval-ui'
+import { EmptyState } from 'cheval-ui'
+import { Pagination, usePagination } from 'cheval-ui'
+import { Button } from 'cheval-ui'
+import { Label } from 'cheval-ui'
+import { Trash2, ChevronsDown, Search, Pin, RefreshCw, RotateCw } from 'lucide-react'
 
 export const DHCP_KEY_STATS = [
   'declined-addresses',
@@ -60,6 +60,24 @@ export function DhcpStatGrid({ title, stats }: { title: string; stats: { name: s
 
 type LeaseFamily = 'all' | 'dhcp4' | 'dhcp6'
 
+const NO_ZONE = '__none__'
+
+interface DnsZoneOption {
+  name: string
+  primaries?: string[]
+}
+
+interface DnsServerSection {
+  zones?: DnsZoneOption[]
+}
+
+function forwardZoneNames(section: DnsServerSection | null): string[] {
+  return (section?.zones ?? [])
+    .filter((z) => (z.primaries ?? []).length === 0)
+    .map((z) => z.name)
+    .filter((n) => n && !n.endsWith('in-addr.arpa') && !n.endsWith('ip6.arpa'))
+}
+
 function subnetService(cidr: string): string {
   return cidr.includes(':') ? 'dhcp6' : 'dhcp4'
 }
@@ -67,6 +85,9 @@ function subnetService(cidr: string): string {
 export function DhcpLeases() {
   const [q, setQ] = useState('')
   const [rows, setRows] = useState<DhcpLeaseRow[]>([])
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const requestID = useRef(0)
   const [subnets, setSubnets] = useState<KeaSubnet[]>([])
   const [family, setFamily] = useState<LeaseFamily>('all')
   const [subnetKey, setSubnetKey] = useState('all')
@@ -75,18 +96,49 @@ export function DhcpLeases() {
   const [reserving, setReserving] = useState<DhcpLeaseRow | null>(null)
   const [resIP, setResIP] = useState('')
   const [resHostname, setResHostname] = useState('')
+  const [zones, setZones] = useState<string[]>([])
+  const [resZone, setResZone] = useState(NO_ZONE)
+  const [resDnsName, setResDnsName] = useState('')
 
-  const load = useCallback((query: string) => {
-    api.apiDhcpLeasesGet({ q: query || undefined }).then((r) => setRows(r ?? [])).catch(() => setRows([]))
+  const load = useCallback(async (query: string) => {
+    const id = ++requestID.current
+    setLoading(true)
+    try {
+      const result = await api.apiDhcpLeasesGet({ q: query || undefined })
+      if (id !== requestID.current) return
+      setRows(result ?? [])
+      setLoadError(null)
+    } catch (error) {
+      if (id !== requestID.current) return
+      setLoadError(error instanceof Error ? error.message : 'Unable to load DHCP leases.')
+    } finally {
+      if (id === requestID.current) setLoading(false)
+    }
   }, [])
 
   useEffect(() => {
-    const id = setTimeout(() => load(q), 250)
-    return () => clearTimeout(id)
+    let stopped = false
+    let timer: ReturnType<typeof setTimeout>
+    const refresh = async () => {
+      await load(q)
+      if (!stopped) timer = setTimeout(refresh, 5000)
+    }
+    timer = setTimeout(refresh, 250)
+    return () => {
+      stopped = true
+      clearTimeout(timer)
+      ++requestID.current
+    }
   }, [q, load])
 
   useEffect(() => {
     api.apiDhcpSubnetsGet().then((s) => setSubnets(s ?? [])).catch(() => setSubnets([]))
+  }, [])
+
+  useEffect(() => {
+    api.apiConfigSectionGet({ section: 'dns_server' })
+      .then((s) => setZones(forwardZoneNames(s as DnsServerSection | null)))
+      .catch(() => setZones([]))
   }, [])
 
   const changeFamily = (f: LeaseFamily) => {
@@ -111,6 +163,8 @@ export function DhcpLeases() {
     setReserving(l)
     setResIP('')
     setResHostname(l.hostname ?? '')
+    setResZone(NO_ZONE)
+    setResDnsName(l.hostname ?? '')
     try {
       const { status } = await api.apiDhcpFreeIpGet({ target: l.ip_address })
       setResIP(status ?? '')
@@ -121,12 +175,24 @@ export function DhcpLeases() {
 
   const doReserve = async () => {
     if (!reserving) return
+    const withZone = resZone !== NO_ZONE
+    const dnsName = resDnsName.trim()
     setBusy(true)
     try {
       const { status } = await api.apiDhcpReservationsFromLeasePost({
-        DhcpReserveFromLeaseRequest: { lease_ip: reserving.ip_address, ip: resIP.trim(), hostname: resHostname.trim() },
+        DhcpReserveFromLeaseRequest: {
+          lease_ip: reserving.ip_address,
+          ip: resIP.trim(),
+          hostname: resHostname.trim(),
+          dns_zone: withZone ? resZone : undefined,
+          dns_name: withZone ? dnsName : undefined,
+        },
       })
-      toast.success(`Reserved ${status}. The client will pick up its new address shortly.`)
+      toast.success(
+        withZone
+          ? `Reserved ${status} and added ${dnsName}.${resZone}. The client will pick up its new address shortly.`
+          : `Reserved ${status}. The client will pick up its new address shortly.`,
+      )
       setReserving(null)
       load(q)
     } catch (e) {
@@ -148,6 +214,10 @@ export function DhcpLeases() {
       <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 pb-2">
         <CardTitle className="text-sm">Active leases ({filtered.length})</CardTitle>
         <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" disabled={loading} onClick={() => load(q)} className="gap-1.5">
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
           <Segmented
             value={family}
             onChange={changeFamily}
@@ -177,13 +247,17 @@ export function DhcpLeases() {
         </div>
       </CardHeader>
       <CardContent>
-        {filtered.length === 0 ? (
+        {loadError && <p role="alert" className="mb-3 text-sm text-destructive">Unable to refresh leases: {loadError}{rows.length > 0 ? ' Showing the last successful result.' : ''}</p>}
+        {filtered.length === 0 && (loadError || loading) ? (
+          loading && !loadError ? <p className="py-10 text-sm text-muted-foreground">Loading leases…</p> : null
+        ) : filtered.length === 0 ? (
           q || family !== 'all' || subnetKey !== 'all' ? (
             <p className="text-sm text-muted-foreground italic">No leases match.</p>
           ) : (
             <EmptyState className="py-10" title="No active leases" message="Leases show up here as clients obtain addresses." />
           )
         ) : (
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -199,8 +273,8 @@ export function DhcpLeases() {
                 const ip = l.ip_address
                 return (
                   <TableRow key={`${l.service}-${ip}`}>
-                    <TableCell className="font-mono">{ip}</TableCell>
-                    <TableCell className="font-mono text-xs break-all">{l.service === 'dhcp6' ? l.duid : (l.hw_address || l.duid || '')}</TableCell>
+                    <TableCell className="font-mono whitespace-nowrap">{ip}</TableCell>
+                    <TableCell className="font-mono text-xs whitespace-nowrap">{l.service === 'dhcp6' ? l.duid : (l.hw_address || l.duid || '')}</TableCell>
                     <TableCell>{l.hostname || <span className="text-muted-foreground">-</span>}</TableCell>
                     <TableCell>
                       <Badge variant={l.reserved ? 'default' : 'secondary'} className="text-[10px]">
@@ -230,6 +304,7 @@ export function DhcpLeases() {
               })}
             </TableBody>
           </Table>
+          </div>
         )}
         <Pagination page={paged.page} totalPages={paged.totalPages} total={paged.total} pageSize={paged.pageSize} onPage={paged.setPage} unit="leases" className="mt-3" />
       </CardContent>
@@ -251,7 +326,7 @@ export function DhcpLeases() {
         footer={
           <>
             <Button variant="outline" onClick={() => setReserving(null)} disabled={busy}>Cancel</Button>
-            <Button onClick={doReserve} disabled={busy || resIP.trim() === ''}>Reserve</Button>
+            <Button onClick={doReserve} disabled={busy || resIP.trim() === '' || (resZone !== NO_ZONE && resDnsName.trim() === '')}>Reserve</Button>
           </>
         }
       >
@@ -272,6 +347,34 @@ export function DhcpLeases() {
               <Input value={resIP} onChange={(e) => setResIP(e.target.value)} placeholder="pre-filled with a free address" className="font-mono" />
               <p className="text-[11px] text-muted-foreground">Pre-filled with a free out-of-pool address; change it if you like.</p>
             </div>
+            {zones.length > 0 && (
+              <div className="space-y-1.5 rounded-md bg-muted/30 p-3">
+                <Label>DNS record (optional)</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={resDnsName}
+                    onChange={(e) => setResDnsName(e.target.value)}
+                    placeholder="name"
+                    className="font-mono"
+                    disabled={resZone === NO_ZONE}
+                  />
+                  <Select value={resZone} onValueChange={setResZone}>
+                    <SelectTrigger className="w-52 font-mono text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NO_ZONE} className="text-xs">No DNS record</SelectItem>
+                      {zones.map((z) => (
+                        <SelectItem key={z} value={z} className="font-mono text-xs">{z}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  {resZone === NO_ZONE
+                    ? 'Pick a zone to also create an A/AAAA record (and a PTR when a reverse zone exists).'
+                    : `Creates ${resDnsName.trim() || 'name'}.${resZone} pointing at the reserved address.`}
+                </p>
+              </div>
+            )}
           </div>
         )}
       </Dialog>
@@ -281,14 +384,32 @@ export function DhcpLeases() {
 
 export function DhcpStatusPanel() {
   const [stats, setStats] = useState<DhcpStats | null>(null)
+  const [restarting, setRestarting] = useState(false)
+
+  const load = useCallback(() => api.apiDhcpStatsGet().then(setStats).catch(() => {}), [])
 
   useEffect(() => {
     let alive = true
-    const load = () => api.apiDhcpStatsGet().then((s) => { if (alive) setStats(s) }).catch(() => {})
-    load()
-    const id = setInterval(load, 10_000)
+    const tick = () => api.apiDhcpStatsGet().then((s) => { if (alive) setStats(s) }).catch(() => {})
+    tick()
+    const id = setInterval(tick, 10_000)
     return () => { alive = false; clearInterval(id) }
   }, [])
+
+  const running = (stats?.services ?? []).some((s) => s.running)
+
+  const restart = async () => {
+    setRestarting(true)
+    try {
+      await configLayerRequest('/api/dhcp/restart', { method: 'POST' })
+      toast.success('DHCP server restarted')
+      await load()
+    } catch (e) {
+      toast.error((e as Error).message)
+    } finally {
+      setRestarting(false)
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -299,6 +420,9 @@ export function DhcpStatusPanel() {
             <StateChip state={s.running ? 'RUNNING' : 'STOPPED'} />
           </div>
         ))}
+        <Button variant="outline" size="sm" className="gap-1.5" disabled={restarting || !running} onClick={() => void restart()}>
+          <RotateCw className={`h-3.5 w-3.5 ${restarting ? 'animate-spin' : ''}`} /> Restart
+        </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -311,7 +435,15 @@ export function DhcpStatusPanel() {
   )
 }
 
+type DhcpLogSource = 'kea-dhcp4' | 'kea-dhcp6' | 'kea-dhcp-ddns'
+const DHCP_LOG_TABS: { key: DhcpLogSource; label: string }[] = [
+  { key: 'kea-dhcp4', label: 'kea-dhcp4' },
+  { key: 'kea-dhcp6', label: 'kea-dhcp6' },
+  { key: 'kea-dhcp-ddns', label: 'kea-dhcp-ddns' },
+]
+
 export function DhcpLogsPanel() {
+  const [source, setSource] = useTabState<DhcpLogSource>('monitor.dhcp.logs', 'kea-dhcp4')
   const [lines, setLines] = useState<string[]>([])
   const [streaming, setStreaming] = useState(false)
   const [autoScroll, setAutoScroll] = useState(true)
@@ -333,46 +465,47 @@ export function DhcpLogsPanel() {
     setAutoScroll(el.scrollHeight - el.scrollTop - el.clientHeight < 32)
   }
 
-  const startStream = async () => {
+  const startStream = useCallback(async (selectedSource: DhcpLogSource) => {
     if (abortRef.current) abortRef.current.abort()
     const controller = new AbortController()
     abortRef.current = controller
     setStreaming(true); setAutoScroll(true)
     try {
-      const res = await fetch('/api/dhcp/leases/stream', {
+      const res = await fetch(`/api/dhcp/leases/stream?source=${encodeURIComponent(selectedSource)}`, {
         headers: { Authorization: `Bearer ${getToken() ?? ''}` },
         signal: controller.signal,
       })
-      if (!res.ok || !res.body) { setStreaming(false); return }
+      if (!res.ok || !res.body) throw new Error(`Unable to stream ${selectedSource} logs (${res.status})`)
       const reader = res.body.getReader(); const decoder = new TextDecoder(); let buffer = ''
       while (true) {
         const { done, value } = await reader.read()
-        if (done) break
+        if (done || controller.signal.aborted) break
         buffer += decoder.decode(value, { stream: true })
         const parts = buffer.split('\n\n'); buffer = parts.pop() ?? ''
         for (const part of parts) {
-          const line = part.replace(/^data: /, '').trim()
+          const line = part.split('\n').filter((value) => value.startsWith('data:')).map((value) => value.slice(5).trimStart()).join('\n')
           if (line) setLines((prev) => { const next = [...prev, line]; return next.length > 2000 ? next.slice(-2000) : next })
         }
       }
     } catch (err: unknown) {
-      if (err instanceof Error && err.name !== 'AbortError') console.error(err)
-    } finally { setStreaming(false) }
-  }
+      if (!controller.signal.aborted && err instanceof Error) toast.error(err.message)
+    } finally { if (abortRef.current === controller) setStreaming(false) }
+  }, [])
 
   const stopStream = () => { abortRef.current?.abort(); abortRef.current = null; setStreaming(false) }
 
   useEffect(() => {
-    startStream()
+    setLines([])
+    startStream(source)
     return () => { abortRef.current?.abort() }
-  }, [])
+  }, [source, startStream])
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <SectionLabel>Live lease events</SectionLabel>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Tabs tabs={DHCP_LOG_TABS} active={source} onChange={setSource} variant="pills" />
         <div className="flex items-center gap-2">
-          <Button size="sm" variant={streaming ? 'default' : 'outline'} onClick={streaming ? stopStream : startStream}
+          <Button size="sm" variant={streaming ? 'default' : 'outline'} onClick={streaming ? stopStream : () => startStream(source)}
             className={`gap-1.5 ${streaming ? 'bg-green-600 hover:bg-green-700 border-green-600 dark:bg-green-700 dark:hover:bg-green-600' : ''}`}>
             <span className={`h-1.5 w-1.5 rounded-full inline-block ${streaming ? 'bg-white animate-pulse' : 'bg-muted-foreground'}`} />
             Live
@@ -387,7 +520,7 @@ export function DhcpLogsPanel() {
       <div className="relative">
         <div ref={scrollBoxRef} onScroll={handleScroll} className="bg-zinc-950 text-zinc-100 font-mono text-xs p-3 rounded-md overflow-auto h-[520px]">
           {lines.length === 0
-            ? <span className="text-zinc-500">{streaming ? 'Waiting for lease events…' : 'Press Live to tail lease events.'}</span>
+            ? <span className="text-zinc-500">{streaming ? `Waiting for ${source} log output…` : 'Press Live to begin streaming logs.'}</span>
             : lines.map((line, i) => <div key={i}>{line}</div>)
           }
         </div>
@@ -406,7 +539,7 @@ export function DhcpPanel() {
   const [sub, setSub] = useTabState<'status' | 'logs'>('dhcp', 'status')
   return (
     <SectionNav
-      items={[{ key: 'status', label: 'Status & Leases' }, { key: 'logs', label: 'Live lease events' }]}
+      items={[{ key: 'status', label: 'Status & Leases' }, { key: 'logs', label: 'Logs' }]}
       active={sub}
       onChange={setSub}
     >
@@ -417,4 +550,3 @@ export function DhcpPanel() {
 }
 
 export type MonitorTab = 'system' | 'bgp' | 'traffic' | 'logs' | 'ha-status' | 'neighbors' | 'processes' | 'collection' | 'dhcp'
-

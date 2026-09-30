@@ -32,6 +32,11 @@ func DNS(dns *config.DNS, hostname string, dryRun bool) error {
 		return nil
 	}
 
+	if current, err := os.ReadFile(dest); err == nil && string(current) == content {
+		log.Debug().Str("dest", dest).Msg("unchanged")
+		return nil
+	}
+
 	log.Info().Str("dest", dest).Msg("wrote")
 	return os.WriteFile(dest, []byte(content), 0644)
 }

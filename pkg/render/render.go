@@ -109,6 +109,30 @@ func All(cfg *config.Config, opts ...Option) ([]Output, error) {
 	}
 
 	out = append(out, keaOut...)
+	keaDDNSOut, err := renderKeaDDNS(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	out = append(out, keaDDNSOut...)
+	dnsOut, err := renderDNSZones(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	out = append(out, dnsOut...)
+	dhcpcdOut, err := renderDhcpcd(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	out = append(out, dhcpcdOut...)
+	lldpOut, err := renderLLDP(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	out = append(out, lldpOut...)
 	return out, nil
 }
 
@@ -172,29 +196,17 @@ func shouldRender(cfg *config.Config, name string) bool {
 	case strings.HasPrefix(name, "sysctl/"):
 		return len(cfg.Sysctl) > 0
 	case strings.HasPrefix(name, "keepalived/"):
-		for _, iface := range cfg.Interfaces {
-			if len(iface.VRRP) > 0 {
-				return true
-			}
-		}
-
-		return false
+		return cfg.HA != nil && len(cfg.HA.VRRP) > 0
 	case strings.HasPrefix(name, "conntrackd/"):
-		return cfg.Conntrackd != nil
+		return cfg.HA != nil && cfg.HA.Conntrackd != nil
 	case strings.HasPrefix(name, "ssh/"):
 		return cfg.SSH != nil
 	case strings.HasPrefix(name, "modules-load.d/"):
 		return len(cfg.BootModules) > 0
 	case strings.HasPrefix(name, "gai/"):
 		return cfg.GAI != nil
-	case strings.HasPrefix(name, "dhcpcd/"):
-		for _, iface := range cfg.Interfaces {
-			if len(iface.DHCPOptions) > 0 {
-				return true
-			}
-		}
-
-		return false
+	case strings.HasPrefix(name, "bind/"):
+		return LocalDNSServerEnabled(cfg)
 	}
 
 	return true
@@ -213,6 +225,9 @@ func NameForDest(dest string) string {
 		"/etc/ssh/sshd_config.d/routier.conf": "ssh/sshd_config",
 		"/etc/modules-load.d/routier.conf":    "modules-load.d/routier.conf",
 		"/etc/gai.conf":                       "gai/gai.conf",
+		lldpdConfDest:                         lldpdConfName,
+		lldpdOptsDest:                         lldpdOptsName,
+		NamedConfDest:                         NamedConfName,
 	}
 	if n, ok := m[dest]; ok {
 		return n
@@ -222,12 +237,15 @@ func NameForDest(dest string) string {
 		return "wireguard/" + filepath.Base(dest)
 	}
 
+	if strings.HasPrefix(dest, namedZoneDest) {
+		return namedZonePfx + filepath.Base(dest)
+	}
+
 	return ""
 }
 
 func destFor(name string) string {
 	m := map[string]string{
-		"dhcpcd/dhcpcd.conf":          "/etc/dhcpcd.conf",
 		"nftables/routier.nft":        "/etc/nftables.d/routier.nft",
 		"frr/frr.conf":                "/etc/frr/frr.conf",
 		"frr/daemons":                 "/etc/frr/daemons",
@@ -238,6 +256,9 @@ func destFor(name string) string {
 		"ssh/sshd_config":             "/etc/ssh/sshd_config.d/routier.conf",
 		"modules-load.d/routier.conf": "/etc/modules-load.d/routier.conf",
 		"gai/gai.conf":                "/etc/gai.conf",
+		lldpdConfName:                 lldpdConfDest,
+		lldpdOptsName:                 lldpdOptsDest,
+		NamedConfName:                 NamedConfDest,
 	}
 	if d, ok := m[name]; ok {
 		return d
@@ -245,6 +266,10 @@ func destFor(name string) string {
 
 	if strings.HasPrefix(name, "wireguard/") {
 		return "/etc/wireguard/" + filepath.Base(name)
+	}
+
+	if strings.HasPrefix(name, namedZonePfx) {
+		return namedZoneDest + filepath.Base(name)
 	}
 
 	return "/etc/routier/out/" + name

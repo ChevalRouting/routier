@@ -42,7 +42,7 @@ func macroToInfo(m *webdb.Macro) types.MacroInfo {
 // @Router /api/macros [get]
 func List(w http.ResponseWriter, r *http.Request) {
 	app := appctx.FromContext(r.Context())
-	macros, err := webdb.ListMacros(app.DB)
+	macros, err := webdb.ListMacros(r.Context(), app.DB)
 	if err != nil {
 		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "failed to list macros"))
 		return

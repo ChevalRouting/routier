@@ -1,11 +1,11 @@
 import React, { useState } from 'react'
-import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
-import { EmptyState } from '@/components/EmptyState'
-import { Badge } from '@/components/ui/badge'
-import { Sheet } from '@/components/ui/sheet'
+import { Label } from 'cheval-ui'
+import { Button } from 'cheval-ui'
+import { EmptyState } from 'cheval-ui'
+import { Badge } from 'cheval-ui'
+import { Sheet } from 'cheval-ui'
 import { Plus, Trash2 } from 'lucide-react'
-import { PreferencesGroup, PreferencesColumns, EntryRow, SwitchRow } from '@/components/Preferences'
+import { PreferencesGroup, PreferencesColumns, EntryRow, SwitchRow } from 'cheval-ui'
 import { BFDProfile } from './types'
 
 export function emptyBFDProfile(): BFDProfile {

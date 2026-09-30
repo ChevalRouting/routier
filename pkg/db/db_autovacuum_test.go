@@ -8,7 +8,7 @@ import (
 
 func TestInitDBEnablesIncrementalAutoVacuum(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "web.db")
-	db, err := InitDB(path)
+	db, err := InitDB(t.Context(), path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,7 +38,7 @@ func TestInitDBConvertsExistingDatabase(t *testing.T) {
 
 	legacy.Close()
 
-	db, err := InitDB(path)
+	db, err := InitDB(t.Context(), path)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -7,6 +7,59 @@ import (
 	"github.com/ChevalRouting/routier/pkg/config"
 )
 
+func TestFRRSkipsBlankInterfaceName(t *testing.T) {
+	cfg := &config.Config{
+		Hostname:   "rtr",
+		Interfaces: map[string]*config.Interface{"lan": {Device: "eth1"}},
+		Routing: &config.Routing{
+			OSPF: &config.OSPF{
+				RouterID: "1.1.1.1",
+				Interfaces: map[string]*config.OSPFInterface{
+					"lan": {Area: "0.0.0.0"},
+					"":    {Area: "0.0.0.0"},
+				},
+			},
+			PBR: &config.PBR{Policies: map[string]string{"": "m1"}},
+		},
+	}
+
+	out := renderFrr(t, cfg)
+
+	for _, line := range strings.Split(out, "\n") {
+		if strings.TrimSpace(line) == "interface" {
+			t.Fatalf("rendered a nameless interface stanza:\n%s", out)
+		}
+	}
+
+	if !strings.Contains(out, "interface eth1") {
+		t.Fatalf("expected the named interface to still render:\n%s", out)
+	}
+}
+
+func TestFRRKeepsStanzaForPresentInterface(t *testing.T) {
+	cfg := &config.Config{
+		Hostname: "rtr",
+		Interfaces: map[string]*config.Interface{
+			"lan": {Device: "eth1"},
+			"wan": {Device: "eth2"},
+		},
+		Routing: &config.Routing{
+			OSPF: &config.OSPF{
+				RouterID:   "1.1.1.1",
+				Interfaces: map[string]*config.OSPFInterface{"lan": {Area: "0.0.0.0"}},
+			},
+		},
+	}
+
+	out := renderFrr(t, cfg)
+
+	for _, want := range []string{"interface eth1", "interface eth2"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("expected present interface to keep a stanza (%q):\n%s", want, out)
+		}
+	}
+}
+
 func TestFRRExtraDirectivesEverywhere(t *testing.T) {
 	cfg := &config.Config{
 		Hostname:   "rtr",

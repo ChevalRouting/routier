@@ -13,6 +13,13 @@
  */
 
 import { mapValues } from '../runtime';
+import type { ConfigLLDPConfig } from './ConfigLLDPConfig';
+import {
+    ConfigLLDPConfigFromJSON,
+    ConfigLLDPConfigFromJSONTyped,
+    ConfigLLDPConfigToJSON,
+    ConfigLLDPConfigToJSONTyped,
+} from './ConfigLLDPConfig';
 import type { ConfigCollectionIntervals } from './ConfigCollectionIntervals';
 import {
     ConfigCollectionIntervalsFromJSON,
@@ -20,6 +27,13 @@ import {
     ConfigCollectionIntervalsToJSON,
     ConfigCollectionIntervalsToJSONTyped,
 } from './ConfigCollectionIntervals';
+import type { ConfigPingProbe } from './ConfigPingProbe';
+import {
+    ConfigPingProbeFromJSON,
+    ConfigPingProbeFromJSONTyped,
+    ConfigPingProbeToJSON,
+    ConfigPingProbeToJSONTyped,
+} from './ConfigPingProbe';
 
 /**
  * 
@@ -33,6 +47,18 @@ export interface ConfigMonitoringConfig {
      * @memberof ConfigMonitoringConfig
      */
     collection?: ConfigCollectionIntervals;
+    /**
+     * 
+     * @type {ConfigLLDPConfig}
+     * @memberof ConfigMonitoringConfig
+     */
+    lldp?: ConfigLLDPConfig;
+    /**
+     * 
+     * @type {Array<ConfigPingProbe>}
+     * @memberof ConfigMonitoringConfig
+     */
+    probes?: Array<ConfigPingProbe>;
 }
 
 /**
@@ -53,6 +79,8 @@ export function ConfigMonitoringConfigFromJSONTyped(json: any, ignoreDiscriminat
     return {
         
         'collection': json['collection'] == null ? undefined : ConfigCollectionIntervalsFromJSON(json['collection']),
+        'lldp': json['lldp'] == null ? undefined : ConfigLLDPConfigFromJSON(json['lldp']),
+        'probes': json['probes'] == null ? undefined : ((json['probes'] as Array<any>).map(ConfigPingProbeFromJSON)),
     };
 }
 
@@ -68,6 +96,8 @@ export function ConfigMonitoringConfigToJSONTyped(value?: ConfigMonitoringConfig
     return {
         
         'collection': ConfigCollectionIntervalsToJSON(value['collection']),
+        'lldp': ConfigLLDPConfigToJSON(value['lldp']),
+        'probes': value['probes'] == null ? undefined : ((value['probes'] as Array<any>).map(ConfigPingProbeToJSON)),
     };
 }
 

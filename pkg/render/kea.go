@@ -3,6 +3,7 @@ package render
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/kea"
@@ -16,6 +17,9 @@ const (
 
 	KeaLog4 = "/var/log/kea/kea-dhcp4.log"
 	KeaLog6 = "/var/log/kea/kea-dhcp6.log"
+
+	keaD2ServerIP   = "127.0.0.1"
+	keaD2ServerPort = 53001
 )
 
 func LocalKeaEnabled(cfg *config.Config) bool {
@@ -28,6 +32,16 @@ func LocalKeaEnabled(cfg *config.Config) bool {
 	}
 
 	return len(cfg.DHCP.Subnets4) > 0 || len(cfg.DHCP.Subnets6) > 0
+}
+
+func LocalKeaDDNSEnabled(cfg *config.Config) bool {
+	if !LocalKeaEnabled(cfg) {
+		return false
+	}
+
+	d := cfg.DHCP.DDNS
+
+	return d != nil && d.Enabled && d.Domain != ""
 }
 
 type keaControlSocket struct {
@@ -71,13 +85,23 @@ type keaReservation struct {
 }
 
 type keaSubnet struct {
-	ID            int              `json:"id"`
-	Subnet        string           `json:"subnet"`
-	Interface     string           `json:"interface,omitempty"`
-	Pools         []keaPool        `json:"pools,omitempty"`
-	OptionData    []keaOption      `json:"option-data,omitempty"`
-	ValidLifetime int              `json:"valid-lifetime,omitempty"`
-	Reservations  []keaReservation `json:"reservations,omitempty"`
+	ID                   int              `json:"id"`
+	Subnet               string           `json:"subnet"`
+	Interface            string           `json:"interface,omitempty"`
+	Pools                []keaPool        `json:"pools,omitempty"`
+	OptionData           []keaOption      `json:"option-data,omitempty"`
+	ValidLifetime        int              `json:"valid-lifetime,omitempty"`
+	Reservations         []keaReservation `json:"reservations,omitempty"`
+	DDNSSendUpdates      *bool            `json:"ddns-send-updates,omitempty"`
+	DDNSQualifyingSuffix string           `json:"ddns-qualifying-suffix,omitempty"`
+}
+
+type keaDHCPDDNS struct {
+	EnableUpdates bool   `json:"enable-updates"`
+	ServerIP      string `json:"server-ip,omitempty"`
+	ServerPort    int    `json:"server-port,omitempty"`
+	NCRProtocol   string `json:"ncr-protocol,omitempty"`
+	NCRFormat     string `json:"ncr-format,omitempty"`
 }
 
 type keaLoggerOutput struct {
@@ -90,14 +114,27 @@ type keaLogger struct {
 	Severity      string            `json:"severity"`
 }
 
+type keaDDNSBehavior struct {
+	SendUpdates             *bool  `json:"ddns-send-updates,omitempty"`
+	QualifyingSuffix        string `json:"ddns-qualifying-suffix,omitempty"`
+	OverrideClientUpdate    *bool  `json:"ddns-override-client-update,omitempty"`
+	OverrideNoUpdate        *bool  `json:"ddns-override-no-update,omitempty"`
+	ReplaceClientName       string `json:"ddns-replace-client-name,omitempty"`
+	GeneratedPrefix         string `json:"ddns-generated-prefix,omitempty"`
+	HostnameCharSet         string `json:"hostname-char-set,omitempty"`
+	HostnameCharReplacement string `json:"hostname-char-replacement,omitempty"`
+}
+
 type keaDHCP4 struct {
 	InterfacesConfig keaInterfacesConfig `json:"interfaces-config"`
 	ControlSocket    keaControlSocket    `json:"control-socket"`
 	LeaseDatabase    keaLeaseDB          `json:"lease-database"`
 	HooksLibraries   []keaHook           `json:"hooks-libraries,omitempty"`
 	ValidLifetime    int                 `json:"valid-lifetime,omitempty"`
-	Subnet4          []keaSubnet         `json:"subnet4"`
-	Loggers          []keaLogger         `json:"loggers,omitempty"`
+	DHCPDDNS         *keaDHCPDDNS        `json:"dhcp-ddns,omitempty"`
+	keaDDNSBehavior
+	Subnet4 []keaSubnet `json:"subnet4"`
+	Loggers []keaLogger `json:"loggers,omitempty"`
 }
 
 type keaDHCP6 struct {
@@ -106,8 +143,10 @@ type keaDHCP6 struct {
 	LeaseDatabase    keaLeaseDB          `json:"lease-database"`
 	HooksLibraries   []keaHook           `json:"hooks-libraries,omitempty"`
 	ValidLifetime    int                 `json:"valid-lifetime,omitempty"`
-	Subnet6          []keaSubnet         `json:"subnet6"`
-	Loggers          []keaLogger         `json:"loggers,omitempty"`
+	DHCPDDNS         *keaDHCPDDNS        `json:"dhcp-ddns,omitempty"`
+	keaDDNSBehavior
+	Subnet6 []keaSubnet `json:"subnet6"`
+	Loggers []keaLogger `json:"loggers,omitempty"`
 }
 
 func keaLoggers(name, path string) []keaLogger {
@@ -125,12 +164,6 @@ func keaResolveIface(cfg *config.Config, name string) string {
 
 	if i, ok := cfg.Interfaces[name]; ok && i.Device != "" {
 		return i.Device
-	}
-
-	for _, iface := range cfg.Interfaces {
-		if v, ok := iface.VLANs[name]; ok && v.Device != "" {
-			return v.Device
-		}
 	}
 
 	return name
@@ -176,7 +209,7 @@ func keaReservations(rs []config.KeaReservation, v6 bool) []keaReservation {
 	return out
 }
 
-func keaSubnets(cfg *config.Config, subnets []config.KeaSubnet, v6 bool) []keaSubnet {
+func keaSubnets(cfg *config.Config, subnets []config.KeaSubnet, v6 bool, ddns *config.DHCPDDNS) []keaSubnet {
 	out := make([]keaSubnet, 0, len(subnets))
 	for i, s := range subnets {
 		ks := keaSubnet{ID: i + 1, Subnet: s.Subnet, ValidLifetime: s.ValidLifetime}
@@ -201,11 +234,53 @@ func keaSubnets(cfg *config.Config, subnets []config.KeaSubnet, v6 bool) []keaSu
 			ks.OptionData = append(ks.OptionData, keaOption{Name: name, Data: joinComma(s.DNS)})
 		}
 
+		if ddns != nil {
+			ks.DDNSSendUpdates = s.DDNS
+			if s.DDNSDomain != "" {
+				ks.DDNSQualifyingSuffix = strings.TrimSuffix(s.DDNSDomain, ".")
+			}
+		}
+
 		ks.Reservations = keaReservations(s.Reservations, v6)
 		out = append(out, ks)
 	}
 
 	return out
+}
+
+func keaDDNSBlock() *keaDHCPDDNS {
+	return &keaDHCPDDNS{
+		EnableUpdates: true,
+		ServerIP:      keaD2ServerIP,
+		ServerPort:    keaD2ServerPort,
+		NCRProtocol:   "UDP",
+		NCRFormat:     "JSON",
+	}
+}
+
+func keaTrue() *bool {
+	v := true
+
+	return &v
+}
+
+func keaDDNSBehaviorFor(d *config.DHCPDDNS) keaDDNSBehavior {
+	b := keaDDNSBehavior{
+		SendUpdates:       keaTrue(),
+		QualifyingSuffix:  strings.TrimSuffix(d.Domain, "."),
+		ReplaceClientName: d.ReplaceClientName,
+		GeneratedPrefix:   d.GeneratedPrefix,
+		HostnameCharSet:   d.HostnameCharSet,
+	}
+	if d.OverrideClientUpdate {
+		b.OverrideClientUpdate = keaTrue()
+	}
+
+	if d.OverrideNoUpdate {
+		b.OverrideNoUpdate = keaTrue()
+	}
+
+	return b
 }
 
 func joinComma(s []string) string {
@@ -238,15 +313,25 @@ func renderKea(cfg *config.Config) ([]Output, error) {
 
 	var out []Output
 
+	var ddns *config.DHCPDDNS
+	if LocalKeaDDNSEnabled(cfg) {
+		ddns = cfg.DHCP.DDNS
+	}
+
 	if len(cfg.DHCP.Subnets4) > 0 {
 		d4 := keaDHCP4{
 			InterfacesConfig: keaInterfacesConfig{Interfaces: keaFamilyInterfaces(cfg, cfg.DHCP.Subnets4)},
 			ControlSocket:    unixControlSocket(kea.LocalSock4),
 			LeaseDatabase:    keaLeaseDB{Type: "memfile", Persist: true, Name: "/var/lib/kea/kea-leases4.csv"},
 			HooksLibraries:   []keaHook{{Library: keaLeaseCmds}},
-			Subnet4:          keaSubnets(cfg, cfg.DHCP.Subnets4, false),
+			Subnet4:          keaSubnets(cfg, cfg.DHCP.Subnets4, false, ddns),
 			Loggers:          keaLoggers("kea-dhcp4", KeaLog4),
 		}
+		if ddns != nil {
+			d4.DHCPDDNS = keaDDNSBlock()
+			d4.keaDDNSBehavior = keaDDNSBehaviorFor(ddns)
+		}
+
 		content, err := marshalKea("Dhcp4", d4)
 		if err != nil {
 			return nil, err
@@ -261,9 +346,14 @@ func renderKea(cfg *config.Config) ([]Output, error) {
 			ControlSocket:    unixControlSocket(kea.LocalSock6),
 			LeaseDatabase:    keaLeaseDB{Type: "memfile", Persist: true, Name: "/var/lib/kea/kea-leases6.csv"},
 			HooksLibraries:   []keaHook{{Library: keaLeaseCmds}},
-			Subnet6:          keaSubnets(cfg, cfg.DHCP.Subnets6, true),
+			Subnet6:          keaSubnets(cfg, cfg.DHCP.Subnets6, true, ddns),
 			Loggers:          keaLoggers("kea-dhcp6", KeaLog6),
 		}
+		if ddns != nil {
+			d6.DHCPDDNS = keaDDNSBlock()
+			d6.keaDDNSBehavior = keaDDNSBehaviorFor(ddns)
+		}
+
 		content, err := marshalKea("Dhcp6", d6)
 		if err != nil {
 			return nil, err

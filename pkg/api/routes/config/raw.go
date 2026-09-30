@@ -49,7 +49,7 @@ func PutRaw(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := cfgstore.WriteStaging(app.ConfigPath, username, &cfg); err != nil {
-		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "failed to write staging config"))
+		types.Error(log.Logger, w, cfgstore.StagingError(err, "failed to write staging config"))
 		return
 	}
 

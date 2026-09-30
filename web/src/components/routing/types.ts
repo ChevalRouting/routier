@@ -15,6 +15,20 @@ export interface BGPAddressFamily {
   default_originate?: boolean
   maximum_paths?: number
   import_vrf?: string[]
+  advertise_all_vni?: boolean
+  advertise_default_gateway?: boolean
+  advertise_svi_ip?: boolean
+  advertise?: string[]
+  route_target_import?: string[]
+  route_target_export?: string[]
+  rd?: string
+  rt_vpn_import?: string[]
+  rt_vpn_export?: string[]
+  label_vpn_export_auto?: boolean
+  import_vpn?: boolean
+  export_vpn?: boolean
+  route_map_vpn_import?: string
+  route_map_vpn_export?: string
   extra?: string[]
 }
 
@@ -89,6 +103,7 @@ export interface BGPConfig {
   no_ebgp_requires_policy?: boolean
   no_default_ipv4_unicast?: boolean
   no_import_check?: boolean
+  no_rib?: boolean
   neighbors: BGPNeighbor[]
   address_families?: Record<string, BGPAddressFamily>
   prefix_lists?: Record<string, PrefixEntry[]>
@@ -215,11 +230,11 @@ export interface RoutingConfig {
 }
 
 export const STANDARD_AFS = [
-  'ipv4 unicast',
-  'ipv6 unicast',
-  'ipv4 multicast',
-  'ipv6 multicast',
-  'l2vpn evpn',
+  'ipv4-unicast',
+  'ipv6-unicast',
+  'ipv4-multicast',
+  'ipv6-multicast',
+  'l2vpn-evpn',
 ]
 
 export const OSPF_TYPES = ['normal', 'stub', 'nssa']

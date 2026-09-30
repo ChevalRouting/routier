@@ -1,78 +1,73 @@
 package db
 
 import (
+	"context"
 	"database/sql"
+	"embed"
 	"fmt"
+	"io/fs"
 
+	"github.com/ChevalRouting/routier/pkg/db/generated"
+	"github.com/pressly/goose/v3"
 	_ "modernc.org/sqlite"
 )
 
-func InitDB(path string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite", path)
+//go:embed migrations/*.sql
+var migrations embed.FS
+
+type DB struct {
+	*sql.DB
+	queries *generated.Queries
+}
+
+func DSN(path string) string {
+	return path + "?_pragma=busy_timeout(10000)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)"
+}
+
+func Open(path string) (*DB, error) {
+	database, err := sql.Open("sqlite", DSN(path))
+	if err != nil {
+		return nil, err
+	}
+
+	return New(database), nil
+}
+
+func New(database *sql.DB) *DB {
+	return &DB{DB: database, queries: generated.New(database)}
+}
+
+func InitDB(ctx context.Context, path string) (*DB, error) {
+	db, err := Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("open db: %w", err)
 	}
 
-	ensureAutoVacuum(db)
+	ensureAutoVacuum(ctx, db.DB)
 
-	if err := ensureUsersSchema(db); err != nil {
-		return nil, fmt.Errorf("create users table: %w", err)
+	migrationFS, err := fs.Sub(migrations, "migrations")
+	if err != nil {
+		db.Close()
+		return nil, fmt.Errorf("open migrations: %w", err)
 	}
 
-	if err := ensureUILayoutSchema(db); err != nil {
-		return nil, fmt.Errorf("create ui_layout table: %w", err)
+	provider, err := goose.NewProvider(goose.DialectSQLite3, db.DB, migrationFS)
+	if err != nil {
+		db.Close()
+		return nil, fmt.Errorf("create migration provider: %w", err)
 	}
 
-	if err := ensureSettingsSchema(db); err != nil {
-		return nil, fmt.Errorf("create settings table: %w", err)
-	}
-
-	if err := ensureKernelRoutesSchema(db); err != nil {
-		return nil, fmt.Errorf("create kernel_routes table: %w", err)
-	}
-
-	if err := ensureIfaceStatsSchema(db); err != nil {
-		return nil, fmt.Errorf("create iface_stats table: %w", err)
-	}
-
-	if err := ensureSystemStatsSchema(db); err != nil {
-		return nil, fmt.Errorf("create system_stats table: %w", err)
-	}
-
-	if err := ensureBGPStatsSchema(db); err != nil {
-		return nil, fmt.Errorf("create bgp_peer_stats table: %w", err)
-	}
-
-	if err := ensureProtoStatsSchema(db); err != nil {
-		return nil, fmt.Errorf("create proto_stats table: %w", err)
-	}
-
-	if err := ensureNeighborStatsSchema(db); err != nil {
-		return nil, fmt.Errorf("create neighbor_stats table: %w", err)
-	}
-
-	if err := ensureSessionsSchema(db); err != nil {
-		return nil, fmt.Errorf("create sessions table: %w", err)
-	}
-
-	if err := ensureMacrosSchema(db); err != nil {
-		return nil, fmt.Errorf("create macros table: %w", err)
-	}
-
-	if err := ensureAnnouncementsSchema(db); err != nil {
-		return nil, fmt.Errorf("create announcements table: %w", err)
-	}
-
-	if err := seedDefaultUser(db); err != nil {
-		return nil, err
+	if _, err := provider.Up(ctx); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("migrate db: %w", err)
 	}
 
 	return db, nil
 }
 
-func ensureAutoVacuum(db *sql.DB) {
+func ensureAutoVacuum(ctx context.Context, db *sql.DB) {
 	var mode int
-	if err := db.QueryRow(`PRAGMA auto_vacuum`).Scan(&mode); err != nil {
+	if err := db.QueryRowContext(ctx, `PRAGMA auto_vacuum`).Scan(&mode); err != nil {
 		return
 	}
 
@@ -80,9 +75,9 @@ func ensureAutoVacuum(db *sql.DB) {
 		return
 	}
 
-	if _, err := db.Exec(`PRAGMA auto_vacuum = INCREMENTAL`); err != nil {
+	if _, err := db.ExecContext(ctx, `PRAGMA auto_vacuum = INCREMENTAL`); err != nil {
 		return
 	}
 
-	_, _ = db.Exec(`VACUUM`)
+	_, _ = db.ExecContext(ctx, `VACUUM`)
 }

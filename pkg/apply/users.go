@@ -17,6 +17,10 @@ const managedGecos = "managed-routier"
 func Users(users map[string]*config.User, dryRun bool) error {
 	for name, u := range users {
 		if name == "routier" {
+			if err := writeSSHKeys(name, u, dryRun); err != nil {
+				return fmt.Errorf("user %s ssh_keys: %w", name, err)
+			}
+
 			continue
 		}
 
@@ -225,10 +229,6 @@ func userInGroup(user, group string) bool {
 }
 
 func writeSSHKeys(name string, u *config.User, dryRun bool) error {
-	if len(u.SSHKeys) == 0 {
-		return nil
-	}
-
 	home := u.Home
 	if home == "" {
 		home = "/home/" + name
@@ -236,27 +236,63 @@ func writeSSHKeys(name string, u *config.User, dryRun bool) error {
 
 	sshDir := filepath.Join(home, ".ssh")
 	authFile := filepath.Join(sshDir, "authorized_keys")
-	content := strings.Join(u.SSHKeys, "\n") + "\n"
-
-	if existing, err := os.ReadFile(authFile); err == nil && string(existing) == content {
-		return nil
+	if len(u.SSHKeys) == 0 {
+		return removeSSHKeys(name, authFile, dryRun)
 	}
 
+	content := strings.Join(u.SSHKeys, "\n") + "\n"
+	existing, readErr := os.ReadFile(authFile)
+	contentChanged := readErr != nil || string(existing) != content
+
 	if dryRun {
-		log.Info().Str("file", authFile).Int("keys", len(u.SSHKeys)).Msg("would write ssh keys")
+		if contentChanged {
+			log.Info().Str("file", authFile).Int("keys", len(u.SSHKeys)).Msg("would write ssh keys")
+		}
+
 		return nil
 	}
 
 	if err := os.MkdirAll(sshDir, 0700); err != nil {
 		return err
 	}
-
-	if err := os.WriteFile(authFile, []byte(content), 0600); err != nil {
+	if err := os.Chmod(sshDir, 0700); err != nil {
 		return err
 	}
 
-	_ = exec.Command("chown", "-R", name+":"+name, sshDir).Run()
+	if contentChanged {
+		if err := os.WriteFile(authFile, []byte(content), 0600); err != nil {
+			return err
+		}
+	}
+	if err := os.Chmod(authFile, 0600); err != nil {
+		return err
+	}
+
+	if out, err := exec.Command("chown", name+":"+name, sshDir, authFile).CombinedOutput(); err != nil {
+		return fmt.Errorf("chown: %w: %s", err, strings.TrimSpace(string(out)))
+	}
+
 	log.Info().Str("file", authFile).Int("keys", len(u.SSHKeys)).Msg("wrote ssh keys")
+	return nil
+}
+
+func removeSSHKeys(name, authFile string, dryRun bool) error {
+	if _, err := os.Stat(authFile); os.IsNotExist(err) {
+		return nil
+	} else if err != nil {
+		return err
+	}
+
+	if dryRun {
+		log.Info().Str("user", name).Str("file", authFile).Msg("would remove ssh keys")
+		return nil
+	}
+
+	if err := os.Remove(authFile); err != nil {
+		return err
+	}
+
+	log.Info().Str("user", name).Str("file", authFile).Msg("removed ssh keys")
 	return nil
 }
 

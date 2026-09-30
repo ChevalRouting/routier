@@ -15,11 +15,14 @@
 
 import * as runtime from '../runtime';
 import type {
+  TypesResponseTypesLLDPNeighborsResponse,
   TypesResponseTypesLearnedRoutesResponse,
   TypesResponseTypesNeighborsResponse,
   TypesResponseTypesRoutesResponse,
 } from '../models/index';
 import {
+    TypesResponseTypesLLDPNeighborsResponseFromJSON,
+    TypesResponseTypesLLDPNeighborsResponseToJSON,
     TypesResponseTypesLearnedRoutesResponseFromJSON,
     TypesResponseTypesLearnedRoutesResponseToJSON,
     TypesResponseTypesNeighborsResponseFromJSON,
@@ -27,6 +30,10 @@ import {
     TypesResponseTypesRoutesResponseFromJSON,
     TypesResponseTypesRoutesResponseToJSON,
 } from '../models/index';
+
+export interface ApiRoutingLldpGetRequest {
+    q?: string;
+}
 
 export interface ApiRoutingNeighborsGetRequest {
     q?: string;
@@ -74,6 +81,40 @@ export class RoutingApi extends runtime.BaseAPI {
      */
     async apiRoutingLearnedGet(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<TypesResponseTypesLearnedRoutesResponse> {
         const response = await this.apiRoutingLearnedGetRaw(initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * LLDP/CDP link-layer neighbors
+     */
+    async apiRoutingLldpGetRaw(requestParameters: ApiRoutingLldpGetRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<TypesResponseTypesLLDPNeighborsResponse>> {
+        const queryParameters: any = {};
+
+        if (requestParameters['q'] != null) {
+            queryParameters['q'] = requestParameters['q'];
+        }
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["Authorization"] = await this.configuration.apiKey("Authorization"); // BearerAuth authentication
+        }
+
+        const response = await this.request({
+            path: `/api/routing/lldp`,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => TypesResponseTypesLLDPNeighborsResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * LLDP/CDP link-layer neighbors
+     */
+    async apiRoutingLldpGet(requestParameters: ApiRoutingLldpGetRequest = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<TypesResponseTypesLLDPNeighborsResponse> {
+        const response = await this.apiRoutingLldpGetRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

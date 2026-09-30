@@ -38,5 +38,15 @@ func GetDiff(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	types.OK(w, diffutil.Lines(string(currentData), string(stagedData)))
+	if os.IsNotExist(err) {
+		stagedData = currentData
+	}
+
+	lines, err := diffutil.YAML(currentData, stagedData)
+	if err != nil {
+		types.Error(log.Logger, w, types.Wrap(http.StatusBadRequest, err, "compare config"))
+		return
+	}
+
+	types.OK(w, lines)
 }

@@ -1,7 +1,7 @@
 package rendertest
 
 import (
-	"github.com/ChevalRouting/routier/tests/harness"
+	"github.com/ChevalRouting/routier/tests/testkit"
 	"strings"
 	"testing"
 
@@ -12,7 +12,7 @@ import (
 func renderByDest(t *testing.T, yaml string) map[string]string {
 	t.Helper()
 
-	cfg, err := config.Load(harness.WriteConfig(t, t.TempDir(), yaml))
+	cfg, err := config.Load(testkit.WriteConfig(t, t.TempDir(), yaml))
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
@@ -31,7 +31,7 @@ func renderByDest(t *testing.T, yaml string) map[string]string {
 }
 
 func TestRenderFullConfig(t *testing.T) {
-	out := renderByDest(t, harness.FullConfig)
+	out := renderByDest(t, testkit.FullConfig)
 
 	checks := map[string][]string{
 		"/etc/nftables.d/routier.nft":         {"table inet routier"},

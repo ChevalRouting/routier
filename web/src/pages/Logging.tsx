@@ -2,13 +2,13 @@ import { useState, useEffect } from 'react'
 import { api } from '@/lib/client'
 import { useFetch } from '@/lib/useFetch'
 import { usePageSave } from '@/lib/usePageSave'
-import SaveButton from '@/components/SaveButton'
+import { SaveButton } from 'cheval-ui'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select'
-import { PageHeader } from '@/components/PageHeader'
-import { PreferencesGroup, ComboRow, EntryRow } from '@/components/Preferences'
-import { Spinner } from '@/components/Spinner'
+} from 'cheval-ui'
+import { PageHeader } from 'cheval-ui'
+import { PreferencesGroup, ComboRow, EntryRow } from 'cheval-ui'
+import { Spinner } from 'cheval-ui'
 
 interface LoggingConfig {
   target?: string

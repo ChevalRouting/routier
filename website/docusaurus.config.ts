@@ -39,6 +39,7 @@ const config: Config = {
         docs: {
           path: '../docs',
           routeBasePath: '/docs',
+          exclude: ['internal/**'],
           sidebarPath: './sidebars.ts',
           remarkPlugins: [remarkDomains],
           includeCurrentVersion: !hasReleasedVersions,

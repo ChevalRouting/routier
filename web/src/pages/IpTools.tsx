@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/client'
-import { PageHeader } from '@/components/PageHeader'
-import { Tabs } from '@/components/ui/tabs'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
-import { CopyButton } from '@/components/CopyButton'
+import { PageHeader } from 'cheval-ui'
+import { Tabs } from 'cheval-ui'
+import { Input } from 'cheval-ui'
+import { Label } from 'cheval-ui'
+import { Badge } from 'cheval-ui'
+import { Card, CardContent } from 'cheval-ui'
+import { CopyButton } from 'cheval-ui'
 import { Calculator } from 'lucide-react'
 import type { IptoolsSubnetInfo, IptoolsReverseDNS, IptoolsRangeCIDRs } from '@/api'
 
@@ -58,26 +59,28 @@ interface CalcRow {
 
 function ResultTable({ rows, prefix, is4 }: { rows: CalcRow[]; prefix: number; is4: boolean }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-border">
-      <table className="w-full text-sm">
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.label} className="border-b border-border last:border-0">
-              <td className="py-2 pl-4 pr-3 align-top font-medium text-muted-foreground w-28 whitespace-nowrap">{row.label}</td>
-              <td className="py-2 pr-3 align-top font-mono whitespace-nowrap">
-                <span className="inline-flex items-center gap-1.5">
-                  {row.value}
-                  <CopyButton text={row.value} />
-                </span>
-              </td>
-              <td className="py-2 pr-4 align-top">
-                {row.bits && <BinaryRow bits={row.bits} prefix={prefix} is4={is4} />}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <Card>
+      <CardContent className="overflow-x-auto p-0">
+        <table className="w-full text-sm">
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.label} className="border-b border-border last:border-0">
+                <td className="py-2 pl-4 pr-3 align-top font-medium text-muted-foreground w-28 whitespace-nowrap">{row.label}</td>
+                <td className="py-2 pr-3 align-top font-mono whitespace-nowrap">
+                  <span className="inline-flex items-center gap-1.5">
+                    {row.value}
+                    <CopyButton text={row.value} />
+                  </span>
+                </td>
+                <td className="py-2 pr-4 align-top">
+                  {row.bits && <BinaryRow bits={row.bits} prefix={prefix} is4={is4} />}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -184,24 +187,26 @@ function ReverseTool() {
       />
       {error && <ErrorNote message={error} />}
       {result && (
-        <div className="space-y-3 rounded-lg border border-border p-4">
-          <div className="space-y-1">
-            <Label className="text-xs">PTR name</Label>
-            <div className="flex items-center gap-1.5 font-mono text-sm break-all">
-              {result.name}
-              <CopyButton text={result.name} />
-            </div>
-          </div>
-          {result.zone && (
-            <div className="space-y-1">
-              <Label className="text-xs">Delegation zone</Label>
+        <Card>
+          <CardContent className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">PTR name</Label>
               <div className="flex items-center gap-1.5 font-mono text-sm break-all">
-                {result.zone}
-                <CopyButton text={result.zone} />
+                {result.name}
+                <CopyButton text={result.name} />
               </div>
             </div>
-          )}
-        </div>
+            {result.zone && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">Delegation zone</Label>
+                <div className="flex items-center gap-1.5 font-mono text-sm break-all">
+                  {result.zone}
+                  <CopyButton text={result.zone} />
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
     </div>
   )
@@ -236,17 +241,19 @@ function RangeTool() {
       </div>
       {error && <ErrorNote message={error} />}
       {result && (
-        <div className="space-y-2 rounded-lg border border-border p-4">
-          <div className="flex items-center justify-between">
-            <Label className="text-xs">{result.cidrs.length} block{result.cidrs.length !== 1 ? 's' : ''}</Label>
-            <CopyButton text={result.cidrs.join('\n')} />
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {result.cidrs.map((c) => (
-              <Badge key={c} variant="outline" className="font-mono">{c}</Badge>
-            ))}
-          </div>
-        </div>
+        <Card>
+          <CardContent className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs">{result.cidrs.length} block{result.cidrs.length !== 1 ? 's' : ''}</Label>
+              <CopyButton text={result.cidrs.join('\n')} />
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {result.cidrs.map((c) => (
+                <Badge key={c} variant="outline" className="font-mono">{c}</Badge>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   )

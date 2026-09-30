@@ -24,7 +24,7 @@ func newBootCommand() *cobra.Command {
 				return err
 			}
 
-			motd.Write("", "")
+			motd.Write(cmd.Context(), "", "")
 			log.Info().Msg("applied")
 			return nil
 		},

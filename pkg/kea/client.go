@@ -162,6 +162,15 @@ func parseResponse(command string, raw []byte) (json.RawMessage, error) {
 		return nil, fmt.Errorf("decode kea response: %w", err)
 	}
 
+	// Lease queries use result 3 for a successful query with no matches.
+	if item.Result == 3 {
+		switch command {
+		case "lease4-get-all", "lease6-get-all":
+			return json.RawMessage(`{"leases":[]}`), nil
+		case "lease4-get", "lease6-get":
+			return json.RawMessage(`{}`), nil
+		}
+	}
 	if item.Result != 0 {
 		if item.Text != "" {
 			return nil, fmt.Errorf("%s", item.Text)

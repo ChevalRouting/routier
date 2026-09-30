@@ -15,9 +15,11 @@ func TestNftVRRPVipDefines(t *testing.T) {
 			"wan": {
 				Device:    "eth0",
 				Addresses: []string{"203.0.113.2/24"},
-				VRRP: []*config.VRRPInstance{
-					{ID: 10, VIPs: []string{"203.0.113.1/24", "198.51.100.1/24"}},
-				},
+			},
+		},
+		HA: &config.HA{
+			VRRP: []*config.VRRPInstance{
+				{ID: 10, Interface: "wan", VIPs: []string{"203.0.113.1/24", "198.51.100.1/24"}},
 			},
 		},
 	}

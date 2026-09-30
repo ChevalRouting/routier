@@ -1,18 +1,22 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
-import { Toaster } from '@/components/ui/sonner'
-import { ThemeContext, useThemeState } from '@/lib/useTheme'
+import { ThemeProvider, Toaster, useTheme } from 'cheval-ui'
 import App from './App.tsx'
+import 'cheval-ui/styles.css'
 import './index.css'
 
+function RoutierToaster() {
+  const { theme } = useTheme()
+  return <Toaster theme={theme} />
+}
+
 function Root() {
-  const themeValue = useThemeState()
   return (
-    <ThemeContext.Provider value={themeValue}>
+    <ThemeProvider storageKey="routier-theme" defaultTheme="dark">
       <App />
-      <Toaster theme={themeValue.theme} />
-    </ThemeContext.Provider>
+      <RoutierToaster />
+    </ThemeProvider>
   )
 }
 

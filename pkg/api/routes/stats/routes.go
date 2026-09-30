@@ -6,5 +6,6 @@ func Routes(r chi.Router) {
 	r.Get("/api/stats", Get)
 	r.Get("/api/stats/history", History)
 	r.Get("/api/stats/neighbors", Neighbors)
+	r.Get("/api/stats/lldp", LLDP)
 	r.Get("/api/stats/processes", Processes)
 }

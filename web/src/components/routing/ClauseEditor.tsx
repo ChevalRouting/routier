@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
+import { Input } from 'cheval-ui'
+import { Button } from 'cheval-ui'
 import { Plus, Trash2 } from 'lucide-react'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select'
-import { cn } from '@/lib/utils'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from 'cheval-ui'
+import { cn } from 'cheval-ui'
 import { KVPair, newId } from './shared'
 
 export type ClauseKind = 'text' | 'number' | 'none' | 'prefix-list' | 'select'
@@ -153,7 +153,7 @@ export function ClauseEditor({
               </SelectContent>
             </Select>
 
-            <div className="flex-1 min-w-0 space-y-1">
+            <div className="flex-1 min-w-0 space-y-1.5">
               {isCustom ? (
                 <>
                   <Input

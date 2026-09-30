@@ -4,6 +4,7 @@
 * * * * * root /usr/bin/routier anycast run /etc/routier/config.yml 2>&1 | logger -t routier-anycast
 
 */5 * * * * root /usr/bin/routier collect-stats 2>&1 | logger -t routier-stats
+* * * * * root /usr/bin/routier collect-probes 2>&1 | logger -t routier-probes
 
 0 * * * * root /usr/bin/routier prune-stats 2>&1 | logger -t routier-stats
 

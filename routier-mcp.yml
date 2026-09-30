@@ -1,0 +1,21 @@
+instances:
+  edge-routier-1:
+    url: https://192.168.2.1:8080
+    token: rtr_api_Wa6HEfd2Wc50Jfft1oIt6-WGlAmK7O8CbA_4jGq-aqo
+    tls:
+      skip_verify: true
+  edge-routier-2:
+    url: https://192.168.2.2:8080
+    token: rtr_api_89nMaI5TCkbKNbS9hLtN-fRLvDIGgDPw-GONC6OHPU8
+    tls:
+      skip_verify: true
+  routier-1:
+    url: https://192.168.0.48:8080
+    token: rtr_api_Lm4svck8FLoJ1JBMhaeUxb2yTsZ5NJ5NQUfzMxajNsg
+    tls:
+      skip_verify: true
+  rt-core-1:
+    url: https://192.168.0.19:8080
+    token: rtr_api_XwExzldZKYfUMtdjcIYTUhSeonXf-pMjVnsFDsiTcSY
+    tls:
+      skip_verify: true

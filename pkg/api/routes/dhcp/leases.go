@@ -54,7 +54,12 @@ func Leases(w http.ResponseWriter, r *http.Request) {
 			service = "dhcp6"
 		}
 
-		if l, err := client.LeaseByIP(q); err == nil && l != nil {
+		l, err := client.LeaseByIP(q)
+		if err != nil {
+			types.Error(log.Logger, w, types.Wrap(http.StatusBadGateway, err, "failed to read DHCP lease"))
+			return
+		}
+		if l != nil {
 			out = append(out, leaseView{Service: service, Reserved: reserved[l.IPAddress], Lease: *l})
 		}
 
@@ -62,11 +67,18 @@ func Leases(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var firstErr error
+	successful := false
 	for _, service := range kea.Services {
 		leases, err := client.AllLeases(service)
 		if err != nil {
+			log.Warn().Err(err).Str("service", service).Msg("failed to read DHCP leases")
+			if firstErr == nil {
+				firstErr = err
+			}
 			continue
 		}
+		successful = true
 
 		for _, l := range leases {
 			if leaseMatches(l, q) {
@@ -75,6 +87,10 @@ func Leases(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if !successful && firstErr != nil {
+		types.Error(log.Logger, w, types.Wrap(http.StatusBadGateway, firstErr, "failed to read DHCP leases"))
+		return
+	}
 	types.OK(w, out)
 }
 

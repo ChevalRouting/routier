@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"os"
 	"strings"
@@ -19,8 +18,8 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-func openMacroDB(path string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite", path)
+func openMacroDB(path string) (*webdb.DB, error) {
+	db, err := webdb.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("open db %s: %w", path, err)
 	}
@@ -50,7 +49,7 @@ func newMacrosListCommand(dbPath *string) *cobra.Command {
 		Use:   "list",
 		Short: "list macros",
 		Args:  cobra.NoArgs,
-		RunE: func(_ *cobra.Command, _ []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			db, err := openMacroDB(*dbPath)
 			if err != nil {
 				return err
@@ -58,7 +57,7 @@ func newMacrosListCommand(dbPath *string) *cobra.Command {
 
 			defer db.Close()
 
-			macros, err := webdb.ListMacros(db)
+			macros, err := webdb.ListMacros(cmd.Context(), db)
 			if err != nil {
 				return err
 			}
@@ -91,7 +90,7 @@ func newMacrosShowCommand(dbPath *string) *cobra.Command {
 		Use:   "show <name-or-id>",
 		Short: "show macro details",
 		Args:  cobra.ExactArgs(1),
-		RunE: func(_ *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			db, err := openMacroDB(*dbPath)
 			if err != nil {
 				return err
@@ -99,13 +98,13 @@ func newMacrosShowCommand(dbPath *string) *cobra.Command {
 
 			defer db.Close()
 
-			m, err := webdb.LoadMacroByName(db, args[0])
+			m, err := webdb.LoadMacroByName(cmd.Context(), db, args[0])
 			if err != nil {
 				return err
 			}
 
 			if m == nil {
-				m, err = webdb.LoadMacro(db, args[0])
+				m, err = webdb.LoadMacro(cmd.Context(), db, args[0])
 				if err != nil {
 					return err
 				}
@@ -151,13 +150,13 @@ func newMacrosApplyCommand(dbPath *string) *cobra.Command {
 
 			defer db.Close()
 
-			m, err := webdb.LoadMacroByName(db, args[0])
+			m, err := webdb.LoadMacroByName(cmd.Context(), db, args[0])
 			if err != nil {
 				return err
 			}
 
 			if m == nil {
-				m, err = webdb.LoadMacro(db, args[0])
+				m, err = webdb.LoadMacro(cmd.Context(), db, args[0])
 				if err != nil {
 					return err
 				}
@@ -244,13 +243,13 @@ func newMacrosApplyCommand(dbPath *string) *cobra.Command {
 				return err
 			}
 
-			_ = webdb.MarkMacroApplied(db, m.ID)
+			_ = webdb.MarkMacroApplied(cmd.Context(), db, m.ID)
 
 			if res.Warning != "" {
 				log.Warn().Msg(res.Warning)
 			}
 
-			if res.SnapID != "" && !noArm {
+			if res.Armed {
 				log.Info().Int("timeout", timeout).Msg("confirm pending: routier confirm")
 			}
 
@@ -272,7 +271,7 @@ func newMacrosDeleteCommand(dbPath *string) *cobra.Command {
 		Use:   "delete <name-or-id>",
 		Short: "delete a macro",
 		Args:  cobra.ExactArgs(1),
-		RunE: func(_ *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			db, err := openMacroDB(*dbPath)
 			if err != nil {
 				return err
@@ -280,13 +279,13 @@ func newMacrosDeleteCommand(dbPath *string) *cobra.Command {
 
 			defer db.Close()
 
-			m, err := webdb.LoadMacroByName(db, args[0])
+			m, err := webdb.LoadMacroByName(cmd.Context(), db, args[0])
 			if err != nil {
 				return err
 			}
 
 			if m == nil {
-				m, err = webdb.LoadMacro(db, args[0])
+				m, err = webdb.LoadMacro(cmd.Context(), db, args[0])
 				if err != nil {
 					return err
 				}
@@ -296,7 +295,7 @@ func newMacrosDeleteCommand(dbPath *string) *cobra.Command {
 				return fmt.Errorf("macro %q not found", args[0])
 			}
 
-			if err := webdb.DeleteMacro(db, m.ID); err != nil {
+			if err := webdb.DeleteMacro(cmd.Context(), db, m.ID); err != nil {
 				return err
 			}
 

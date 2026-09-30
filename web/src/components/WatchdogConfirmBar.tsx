@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
+import { Button } from 'cheval-ui'
 import { api } from '@/lib/client'
 
 type Done = 'kept' | 'gone' | null

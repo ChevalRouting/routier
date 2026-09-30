@@ -22,6 +22,7 @@ import type {
   TypesResponseArrayKeaSubnet,
   TypesResponseArrayKeaSubnetView,
   TypesResponseDhcpStatsResponse,
+  TypesResponseString,
   TypesResponseTypesStatusResponse,
 } from '../models/index';
 import {
@@ -39,6 +40,8 @@ import {
     TypesResponseArrayKeaSubnetViewToJSON,
     TypesResponseDhcpStatsResponseFromJSON,
     TypesResponseDhcpStatsResponseToJSON,
+    TypesResponseStringFromJSON,
+    TypesResponseStringToJSON,
     TypesResponseTypesStatusResponseFromJSON,
     TypesResponseTypesStatusResponseToJSON,
 } from '../models/index';
@@ -53,6 +56,10 @@ export interface ApiDhcpLeasesClearPostRequest {
 
 export interface ApiDhcpLeasesGetRequest {
     q?: string;
+}
+
+export interface ApiDhcpLeasesStreamGetRequest {
+    source?: ApiDhcpLeasesStreamGetSourceEnum;
 }
 
 export interface ApiDhcpReservationsDelPostRequest {
@@ -222,10 +229,14 @@ export class DhcpApi extends runtime.BaseAPI {
     }
 
     /**
-     * Tail Kea DHCP lease events (SSE)
+     * Tail Kea DHCP daemon logs (SSE)
      */
-    async apiDhcpLeasesStreamGetRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<string>> {
+    async apiDhcpLeasesStreamGetRaw(requestParameters: ApiDhcpLeasesStreamGetRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<string>> {
         const queryParameters: any = {};
+
+        if (requestParameters['source'] != null) {
+            queryParameters['source'] = requestParameters['source'];
+        }
 
         const headerParameters: runtime.HTTPHeaders = {};
 
@@ -248,10 +259,10 @@ export class DhcpApi extends runtime.BaseAPI {
     }
 
     /**
-     * Tail Kea DHCP lease events (SSE)
+     * Tail Kea DHCP daemon logs (SSE)
      */
-    async apiDhcpLeasesStreamGet(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<string> {
-        const response = await this.apiDhcpLeasesStreamGetRaw(initOverrides);
+    async apiDhcpLeasesStreamGet(requestParameters: ApiDhcpLeasesStreamGetRequest = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<string> {
+        const response = await this.apiDhcpLeasesStreamGetRaw(requestParameters, initOverrides);
         return await response.value();
     }
 
@@ -416,6 +427,36 @@ export class DhcpApi extends runtime.BaseAPI {
     }
 
     /**
+     * Restart the running DHCP servers (Kea)
+     */
+    async apiDhcpRestartPostRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<TypesResponseString>> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["Authorization"] = await this.configuration.apiKey("Authorization"); // BearerAuth authentication
+        }
+
+        const response = await this.request({
+            path: `/api/dhcp/restart`,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => TypesResponseStringFromJSON(jsonValue));
+    }
+
+    /**
+     * Restart the running DHCP servers (Kea)
+     */
+    async apiDhcpRestartPost(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<TypesResponseString> {
+        const response = await this.apiDhcpRestartPostRaw(initOverrides);
+        return await response.value();
+    }
+
+    /**
      * DHCP server state and Kea statistics
      */
     async apiDhcpStatsGetRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<TypesResponseDhcpStatsResponse>> {
@@ -476,3 +517,13 @@ export class DhcpApi extends runtime.BaseAPI {
     }
 
 }
+
+/**
+ * @export
+ */
+export const ApiDhcpLeasesStreamGetSourceEnum = {
+    KeaDhcp4: 'kea-dhcp4',
+    KeaDhcp6: 'kea-dhcp6',
+    KeaDhcpDdns: 'kea-dhcp-ddns'
+} as const;
+export type ApiDhcpLeasesStreamGetSourceEnum = typeof ApiDhcpLeasesStreamGetSourceEnum[keyof typeof ApiDhcpLeasesStreamGetSourceEnum];

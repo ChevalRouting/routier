@@ -4,6 +4,8 @@ import "github.com/go-chi/chi/v5"
 
 func Routes(r chi.Router) {
 	r.Get("/api/config", GetConfig)
+	r.Get("/api/config/schema", GetSchema)
+	r.Get("/api/config/schema/version", GetSchemaVersion)
 	r.Get("/api/config/diff", GetDiff)
 	r.Get("/api/config/render-diff", RenderDiff)
 	r.Get("/api/config/nftables/vars", GetNftablesVars)

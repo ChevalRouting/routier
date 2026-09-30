@@ -20,7 +20,7 @@ func Boot(ctx context.Context, cfg *config.Config, vars map[string]friends.Vars)
 		log.Info().Msg("VRRP switchover active: skipping WireGuard init on boot")
 	}
 
-	_, err = ApplyConfig(ctx, cfg, outputs, ApplyOptions{
+	_, _, err = ApplyConfig(ctx, cfg, outputs, ApplyOptions{
 		ReloadAll:     true,
 		SkipWireguard: skipWG,
 		Source:        "boot",
@@ -29,11 +29,13 @@ func Boot(ctx context.Context, cfg *config.Config, vars map[string]friends.Vars)
 }
 
 func hasSwitchoverVRRP(cfg *config.Config) bool {
-	for _, iface := range cfg.Interfaces {
-		for _, inst := range iface.VRRP {
-			if inst.Switchover {
-				return true
-			}
+	if cfg.HA == nil {
+		return false
+	}
+
+	for _, inst := range cfg.HA.VRRP {
+		if inst.Switchover {
+			return true
 		}
 	}
 

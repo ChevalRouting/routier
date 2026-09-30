@@ -21,7 +21,6 @@ import (
 
 func newApplyCommand() *cobra.Command {
 	var (
-		dryRun       bool
 		timeout      int
 		noArm        bool
 		noDiff       bool
@@ -55,7 +54,6 @@ func newApplyCommand() *cobra.Command {
 			}
 
 			res, err := managers.Apply(cmd.Context(), cfg, friends.LoadCacheVars(friendsCache), managers.ApplyOptions{
-				DryRun:     dryRun,
 				Source:     source,
 				ConfigPath: configArg(args),
 			}, armTimeout)
@@ -64,26 +62,20 @@ func newApplyCommand() *cobra.Command {
 				return err
 			}
 
-			if dryRun {
-				log.Info().Msg("dry run, no changes")
-				return nil
-			}
-
 			if res.Warning != "" {
 				log.Warn().Msg(res.Warning)
 			}
 
-			if res.SnapID != "" && !noArm {
+			if res.Armed {
 				log.Info().Int("timeout", timeout).Msg("confirm pending: routier confirm")
 			}
 
-			motd.Write("", "")
+			motd.Write(cmd.Context(), "", "")
 			log.Info().Msg("applied")
 			return nil
 		},
 	}
 
-	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "show what would happen")
 	cmd.Flags().IntVar(&timeout, "timeout", 60, "rollback timeout seconds")
 	cmd.Flags().BoolVar(&noArm, "no-confirm", false, "skip rollback timer")
 	cmd.Flags().BoolVar(&noDiff, "no-diff", false, "skip the config + rendered-file diff preview")

@@ -18,7 +18,7 @@ import (
 func Neighbors(w http.ResponseWriter, r *http.Request) {
 	app := appctx.FromContext(r.Context())
 
-	maxTS, neighbors := webdb.LatestNeighbors(app.DB)
+	maxTS, neighbors := webdb.LatestNeighbors(r.Context(), app.DB)
 	if neighbors == nil {
 		neighbors = []types.NeighborStat{}
 	}

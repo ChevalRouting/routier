@@ -32,6 +32,13 @@ func hostIP(addr string) string {
 }
 
 func InterfaceAddresses(cfg *config.Config) []types.FriendInterface {
+	vrrpVIPs := map[string][]string{}
+	if cfg.HA != nil {
+		for _, v := range cfg.HA.VRRP {
+			vrrpVIPs[v.Interface] = append(vrrpVIPs[v.Interface], v.VIPs...)
+		}
+	}
+
 	out := make([]types.FriendInterface, 0, len(cfg.Interfaces))
 	for name, iface := range cfg.Interfaces {
 		var addrs []string
@@ -41,11 +48,9 @@ func InterfaceAddresses(cfg *config.Config) []types.FriendInterface {
 			}
 		}
 
-		for _, v := range iface.VRRP {
-			for _, vip := range v.VIPs {
-				if isStaticAddr(vip) {
-					addrs = append(addrs, hostIP(vip))
-				}
+		for _, vip := range vrrpVIPs[name] {
+			if isStaticAddr(vip) {
+				addrs = append(addrs, hostIP(vip))
 			}
 		}
 

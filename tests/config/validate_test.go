@@ -1,7 +1,7 @@
 package configtest
 
 import (
-	"github.com/ChevalRouting/routier/tests/harness"
+	"github.com/ChevalRouting/routier/tests/testkit"
 	"strings"
 	"testing"
 
@@ -11,7 +11,7 @@ import (
 func validateErr(t *testing.T, yaml string) string {
 	t.Helper()
 
-	errs := config.Validate(harness.LoadCfg(t, yaml), false)
+	errs := config.Validate(testkit.LoadCfg(t, yaml), false)
 	if len(errs) == 0 {
 		return ""
 	}
@@ -325,5 +325,494 @@ dhcp:
 				t.Fatal("expected validation error")
 			}
 		})
+	}
+}
+
+func TestValidateRejectsBadDeviceNames(t *testing.T) {
+	cases := map[string]string{
+		"wireguard too long": `version: v3.0.0
+hostname: gw
+wireguard:
+  nuketown_fr_par_2:
+    private_key: dGVzdA==
+    addresses: ["172.31.0.33/29"]
+`,
+		"wireguard with colon": `version: v3.0.0
+hostname: gw
+wireguard:
+  wg:0:
+    private_key: dGVzdA==
+`,
+		"tunnel too long": `version: v3.0.0
+hostname: gw
+tunnels:
+  gre-to-the-other-site:
+    mode: gre
+    local: 10.0.0.1
+    remote: 10.0.0.2
+`,
+		"vrf too long": `version: v3.0.0
+hostname: gw
+vrfs:
+  a-very-long-vrf-name:
+    table: 100
+`,
+		"dummy too long": `version: v3.0.0
+hostname: gw
+interfaces:
+  loopback-anycast0:
+    type: dummy
+    addresses: ["10.255.0.53/32"]
+`,
+	}
+
+	for name, yaml := range cases {
+		t.Run(name, func(t *testing.T) {
+			if validateErr(t, yaml) == "" {
+				t.Fatal("expected validation error")
+			}
+		})
+	}
+}
+
+func TestValidateRejectsReservedDeviceNames(t *testing.T) {
+	cases := map[string]string{
+		"tunnel gre0": `version: v3.0.0
+hostname: gw
+tunnels:
+  gre0:
+    mode: gre
+    local: 10.0.0.1
+    remote: 10.0.0.2
+`,
+		"tunnel gretap0": `version: v3.0.0
+hostname: gw
+tunnels:
+  gretap0:
+    mode: gretap
+    local: 10.0.0.1
+    remote: 10.0.0.2
+`,
+		"tunnel sit0": `version: v3.0.0
+hostname: gw
+tunnels:
+  sit0:
+    mode: sit
+    local: 10.0.0.1
+    remote: 10.0.0.2
+`,
+		"wireguard tunl0": `version: v3.0.0
+hostname: gw
+wireguard:
+  tunl0:
+    private_key: dGVzdA==
+`,
+		"vrf ip6tnl0": `version: v3.0.0
+hostname: gw
+vrfs:
+  ip6tnl0:
+    table: 100
+`,
+		"dummy erspan0": `version: v3.0.0
+hostname: gw
+interfaces:
+  erspan0:
+    type: dummy
+    addresses: ["10.255.0.53/32"]
+`,
+	}
+
+	for name, yaml := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := validateErr(t, yaml)
+			if got == "" {
+				t.Fatal("expected validation error")
+			}
+
+			if !strings.Contains(got, "reserved kernel device name") {
+				t.Fatalf("expected reserved-name error, got %q", got)
+			}
+		})
+	}
+}
+
+func TestValidateAcceptsNonReservedTunnelName(t *testing.T) {
+	yaml := `version: v3.0.0
+hostname: gw
+tunnels:
+  gre1:
+    mode: gre
+    local: 10.0.0.1
+    remote: 10.0.0.2
+    addresses: ["10.255.255.1/30"]
+`
+
+	if got := validateErr(t, yaml); got != "" {
+		t.Fatalf("expected no validation error, got %q", got)
+	}
+}
+
+func TestValidateVXLANExternalAccepted(t *testing.T) {
+	cases := map[string]string{
+		"external without vni": `version: v3.0.0
+hostname: gw
+interfaces:
+  vx0:
+    type: vxlan
+    vxlan:
+      external: true
+`,
+		"two externals share a port with vnifilter": `version: v3.0.0
+hostname: gw
+interfaces:
+  vx0:
+    type: vxlan
+    vxlan:
+      external: true
+      vnifilter: true
+  vx1:
+    type: vxlan
+    vxlan:
+      external: true
+      vnifilter: true
+`,
+	}
+
+	for name, yaml := range cases {
+		t.Run(name, func(t *testing.T) {
+			if err := validateErr(t, yaml); err != "" {
+				t.Fatalf("expected valid config, got: %s", err)
+			}
+		})
+	}
+}
+
+func TestValidateVXLANExternalRejected(t *testing.T) {
+	cases := map[string]struct{ yaml, want string }{
+		"external with vni": {yaml: `version: v3.0.0
+hostname: gw
+interfaces:
+  vx0:
+    type: vxlan
+    vxlan:
+      external: true
+      vni: 100
+`, want: "vni is ignored when external"},
+		"vnifilter without external": {yaml: `version: v3.0.0
+hostname: gw
+interfaces:
+  vx0:
+    type: vxlan
+    vxlan:
+      vni: 100
+      vnifilter: true
+`, want: "vnifilter requires external"},
+		"non-external missing vni": {yaml: `version: v3.0.0
+hostname: gw
+interfaces:
+  vx0:
+    type: vxlan
+    vxlan: {}
+`, want: "vni must be between"},
+		"two externals share a port without vnifilter": {yaml: `version: v3.0.0
+hostname: gw
+interfaces:
+  vx0:
+    type: vxlan
+    vxlan:
+      external: true
+  vx1:
+    type: vxlan
+    vxlan:
+      external: true
+`, want: "cannot share the port"},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			msg := validateErr(t, tc.yaml)
+			if !strings.Contains(msg, tc.want) {
+				t.Fatalf("expected error containing %q, got: %s", tc.want, msg)
+			}
+		})
+	}
+}
+
+func TestValidateBondAccepted(t *testing.T) {
+	cases := map[string]string{
+		"lacp with hash policy": `version: v3.0.0
+hostname: gw
+interfaces:
+  eth0:
+    select: name=eth0
+  eth1:
+    select: name=eth1
+  bond0:
+    type: bond
+    addresses: ["10.0.0.1/24"]
+    bond:
+      mode: 802.3ad
+      members: [eth0, eth1]
+      miimon: 100
+      xmit_hash_policy: layer3+4
+      lacp_rate: fast
+`,
+		"active-backup with primary": `version: v3.0.0
+hostname: gw
+interfaces:
+  eth0:
+    select: name=eth0
+  eth1:
+    select: name=eth1
+  bond0:
+    type: bond
+    bond:
+      mode: active-backup
+      members: [eth0, eth1]
+      primary: eth0
+`,
+	}
+
+	for name, yaml := range cases {
+		t.Run(name, func(t *testing.T) {
+			if err := validateErr(t, yaml); err != "" {
+				t.Fatalf("expected valid config, got: %s", err)
+			}
+		})
+	}
+}
+
+func TestValidateBondRejected(t *testing.T) {
+	cases := map[string]struct{ yaml, want string }{
+		"unknown mode": {yaml: `version: v3.0.0
+hostname: gw
+interfaces:
+  eth0:
+    select: name=eth0
+  bond0:
+    type: bond
+    bond:
+      mode: turbo
+      members: [eth0]
+`, want: "mode \"turbo\" is not one of"},
+		"no members": {yaml: `version: v3.0.0
+hostname: gw
+interfaces:
+  bond0:
+    type: bond
+    bond:
+      mode: balance-rr
+`, want: "at least one member is required"},
+		"unknown member": {yaml: `version: v3.0.0
+hostname: gw
+interfaces:
+  bond0:
+    type: bond
+    bond:
+      mode: balance-rr
+      members: [eth9]
+`, want: "member \"eth9\" not found"},
+		"lacp rate on non-lacp mode": {yaml: `version: v3.0.0
+hostname: gw
+interfaces:
+  eth0:
+    select: name=eth0
+  bond0:
+    type: bond
+    bond:
+      mode: active-backup
+      members: [eth0]
+      lacp_rate: fast
+`, want: "lacp_rate only applies to 802.3ad"},
+		"hash policy on active-backup": {yaml: `version: v3.0.0
+hostname: gw
+interfaces:
+  eth0:
+    select: name=eth0
+  bond0:
+    type: bond
+    bond:
+      mode: active-backup
+      members: [eth0]
+      xmit_hash_policy: layer3+4
+`, want: "xmit_hash_policy only applies to"},
+		"primary not a member": {yaml: `version: v3.0.0
+hostname: gw
+interfaces:
+  eth0:
+    select: name=eth0
+  eth1:
+    select: name=eth1
+  bond0:
+    type: bond
+    bond:
+      mode: active-backup
+      members: [eth0]
+      primary: eth1
+`, want: "primary \"eth1\" must also be a member"},
+		"bond settings without type bond": {yaml: `version: v3.0.0
+hostname: gw
+interfaces:
+  eth0:
+    select: name=eth0
+  bond0:
+    select: name=eth1
+    bond:
+      mode: balance-rr
+      members: [eth0]
+`, want: "bond settings require type bond"},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			msg := validateErr(t, tc.yaml)
+			if !strings.Contains(msg, tc.want) {
+				t.Fatalf("expected error containing %q, got: %s", tc.want, msg)
+			}
+		})
+	}
+}
+
+func TestValidateRejectsBlankFRRInterfaceNames(t *testing.T) {
+	cases := map[string]string{
+		"ospf blank interface": `version: v3.0.0
+hostname: gw
+routing:
+  ospf:
+    router_id: 1.1.1.1
+    interfaces:
+      "":
+        area: 0.0.0.0
+`,
+		"ospf6 blank interface": `version: v3.0.0
+hostname: gw
+routing:
+  ospf6:
+    router_id: 1.1.1.1
+    interfaces:
+      "":
+        area: 0.0.0.0
+`,
+		"pbr blank policy interface": `version: v3.0.0
+hostname: gw
+routing:
+  pbr:
+    maps:
+      m1:
+        - seq: 10
+          set_nexthop: 10.0.0.1
+    policies:
+      "": m1
+`,
+	}
+
+	for name, yaml := range cases {
+		t.Run(name, func(t *testing.T) {
+			if !strings.Contains(validateErr(t, yaml), "interface name is required") {
+				t.Fatalf("expected a blank interface-name error, got: %s", validateErr(t, yaml))
+			}
+		})
+	}
+}
+
+func TestValidateBGPVPNRouteMaps(t *testing.T) {
+	valid := `version: v3.0.0
+hostname: gw
+routing:
+  bgp:
+    asn: 65000
+    router_id: 10.0.0.1
+    route_maps:
+      rm:
+        - seq: 10
+          action: permit
+    address_families:
+      ipv4-unicast:
+        route_map_vpn_import: rm
+        route_map_vpn_export: rm
+`
+	if msg := validateErr(t, valid); msg != "" {
+		t.Fatalf("expected valid config, got: %s", msg)
+	}
+
+	vrfRefsGlobal := `version: v3.0.0
+hostname: gw
+vrfs:
+  fabric1:
+    table: 100
+routing:
+  bgp:
+    asn: 65000
+    router_id: 10.0.0.1
+    route_maps:
+      IMPORT-DEFAULT:
+        - seq: 10
+          action: permit
+  vrfs:
+    fabric1:
+      bgp:
+        asn: 65000
+        router_id: 10.0.0.1
+        address_families:
+          ipv6-unicast:
+            route_map_vpn_import: IMPORT-DEFAULT
+`
+	if msg := validateErr(t, vrfRefsGlobal); msg != "" {
+		t.Fatalf("vrf bgp referencing a global route-map should be valid, got: %s", msg)
+	}
+
+	cases := map[string]struct{ yaml, want string }{
+		"missing route map": {yaml: `version: v3.0.0
+hostname: gw
+routing:
+  bgp:
+    asn: 65000
+    router_id: 10.0.0.1
+    address_families:
+      ipv4-unicast:
+        route_map_vpn_import: nope
+`, want: "route_map_vpn_import \"nope\" not found in route_maps"},
+		"vpn route map on evpn": {yaml: `version: v3.0.0
+hostname: gw
+routing:
+  bgp:
+    asn: 65000
+    router_id: 10.0.0.1
+    route_maps:
+      rm:
+        - seq: 10
+          action: permit
+    address_families:
+      l2vpn-evpn:
+        route_map_vpn_export: rm
+`, want: "VPN route-leak options require"},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			msg := validateErr(t, tc.yaml)
+			if !strings.Contains(msg, tc.want) {
+				t.Fatalf("expected error containing %q, got: %s", tc.want, msg)
+			}
+		})
+	}
+}
+
+func TestValidateAcceptsDeviceNamesAtTheLimit(t *testing.T) {
+	yaml := `version: v3.0.0
+hostname: gw
+wireguard:
+  fr_par_2:
+    private_key: dGVzdA==
+    addresses: ["172.31.0.33/29"]
+  abcdefghijklmno:
+    private_key: dGVzdA==
+interfaces:
+  dum0:
+    type: dummy
+    addresses: ["10.255.0.53/32"]
+`
+	if err := validateErr(t, yaml); err != "" {
+		t.Fatalf("valid device names rejected: %s", err)
 	}
 }

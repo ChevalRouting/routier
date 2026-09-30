@@ -5,13 +5,13 @@ import type { TypesMacroInfo as MacroInfo } from '@/api'
 import { DiffView, withContext, type ViewLine } from '@/components/DiffView'
 import { useFetch } from '@/lib/useFetch'
 import { useDataVersion } from '@/lib/dataVersion'
-import { PageHeader } from '@/components/PageHeader'
-import { EmptyState } from '@/components/EmptyState'
-import { ReloadButton } from '@/components/ReloadButton'
-import { Spinner } from '@/components/Spinner'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Dialog, AlertDialog } from '@/components/ui/dialog'
+import { PageHeader } from 'cheval-ui'
+import { EmptyState } from 'cheval-ui'
+import { ReloadButton } from 'cheval-ui'
+import { Spinner } from 'cheval-ui'
+import { Button } from 'cheval-ui'
+import { Badge } from 'cheval-ui'
+import { Dialog, AlertDialog } from 'cheval-ui'
 import { RefreshCw, Play, Trash2, Boxes } from 'lucide-react'
 
 
@@ -101,7 +101,7 @@ function ApplyDialog({ macro, onClose, onApplied }: ApplyDialogProps) {
             </p>
           )
           : (
-            <div className="overflow-auto max-h-[50vh] rounded border border-border p-3 bg-muted/30">
+            <div className="overflow-auto max-h-[50vh] rounded bg-muted/30 p-3">
               <DiffView lines={diffLines} />
             </div>
           )
@@ -158,7 +158,7 @@ export default function Macros() {
               {macros.map((m) => (
                 <div
                   key={m.id}
-                  className="flex items-center gap-3 px-4 py-3 rounded-lg border border-border bg-card"
+                  className="flex items-center gap-3 px-4 py-3 rounded-lg bg-card shadow-[var(--card-shadow)]"
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">

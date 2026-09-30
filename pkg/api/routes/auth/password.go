@@ -2,15 +2,20 @@ package auth
 
 import (
 	"net/http"
+	"os"
+	"os/exec"
 	"strings"
 
 	appctx "github.com/ChevalRouting/routier/pkg/api/app"
-	webdb "github.com/ChevalRouting/routier/pkg/db"
+	"github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/motd"
 	"github.com/ChevalRouting/routier/pkg/types"
+	"github.com/ChevalRouting/routier/pkg/unixauth"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/rs/zerolog/log"
 )
+
+const seedPasswordFile = "/var/lib/routier/ui-seed-password"
 
 // ChangePassword godoc
 // @Summary  Change the current user's password
@@ -34,54 +39,63 @@ func ChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := webdb.UserByUsername(app.DB, username)
+	cfg, err := config.Load(app.ConfigPath)
 	if err != nil {
-		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "database error"))
+		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "failed to read config"))
 		return
 	}
 
-	if user == nil {
+	if !isUIAdmin(cfg, username) {
 		types.Err(http.StatusUnauthorized, "user not found").Write(w)
 		return
 	}
 
-	if !webdb.CheckPassword(user.PasswordHash, req.Current) {
+	ok, err := unixauth.Verify(username, req.Current)
+	if err != nil {
+		log.Error().Err(err).Str("user", username).Msg("current password verification failed")
+		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "failed to verify current password"))
+		return
+	}
+	if !ok {
+		log.Warn().Str("user", username).Msg("password change rejected because current password did not verify")
 		types.Err(http.StatusUnauthorized, "current password is incorrect").Write(w)
 		return
 	}
 
-	newHash, err := webdb.HashPassword(req.New)
-	if err != nil {
-		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "failed to hash password"))
-		return
-	}
-
-	if err := webdb.UpdatePassword(app.DB, username, newHash); err != nil {
+	if err := setUnixPassword(username, req.New); err != nil {
+		log.Error().Err(err).Str("user", username).Msg("failed to update Unix password")
 		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "failed to update password"))
 		return
 	}
+	log.Info().Str("user", username).Msg("Unix password updated")
 
-	_ = webdb.SetSetting(app.DB, webdb.SettingPasswordChanged, "true")
-	motd.Write("", "")
+	_ = os.Remove(seedPasswordFile)
+	motd.Write(r.Context(), "", "")
 
 	types.OK(w, types.StatusResponse{Status: "ok"})
+}
+
+func setUnixPassword(username, password string) error {
+	cmd := exec.Command("chpasswd")
+	cmd.Stdin = strings.NewReader(username + ":" + password + "\n")
+	return cmd.Run()
 }
 
 func usernameFromRequest(r *http.Request, jwtSecret []byte) (string, error) {
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
-		return "", types.Errorf(http.StatusUnauthorized, "missing or invalid authorization header")
+		return "", types.Errorf(http.StatusUnauthorized, "unauthorized")
 	}
 
 	tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
 	token, err := jwt.Parse(tokenStr, appctx.JWTKeyFunc(jwtSecret))
 	if err != nil || !token.Valid {
-		return "", types.Errorf(http.StatusUnauthorized, "invalid or expired token")
+		return "", types.Errorf(http.StatusUnauthorized, "unauthorized")
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
-		return "", types.Errorf(http.StatusUnauthorized, "invalid token claims")
+		return "", types.Errorf(http.StatusUnauthorized, "unauthorized")
 	}
 
 	sub, ok := claims["sub"].(string)

@@ -18,15 +18,33 @@ import (
 // @Tags config
 // @Produce json
 // @Param section path string true "section name"
+// @Param layer query string false "configuration layer" Enums(advanced, simple)
 // @Success 200 {object} object
 // @Security BearerAuth
 // @Router /api/config/{section} [get]
 func GetSection(w http.ResponseWriter, r *http.Request) {
 	app := appctx.FromContext(r.Context())
 	section := chi.URLParam(r, "section")
-	cfg, err := cfgstore.Read(app.ConfigPath, appctx.UsernameFromContext(r.Context()))
+	layer, appErr := requestLayer(r)
+	if appErr != nil {
+		types.Error(log.Logger, w, appErr)
+		return
+	}
+
+	cfg, err := cfgstore.ReadLayer(app.ConfigPath, appctx.UsernameFromContext(r.Context()), layer.Name())
 	if err != nil {
 		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "failed to read config"))
+		return
+	}
+
+	if layer.Name() != "advanced" {
+		data, err := layer.ProjectSection(cfg, section)
+		if err != nil {
+			types.Err(http.StatusNotFound, err.Error()).Write(w)
+			return
+		}
+
+		types.OK(w, data)
 		return
 	}
 
@@ -46,6 +64,10 @@ func GetSection(w http.ResponseWriter, r *http.Request) {
 		data = cfg.Sysctl
 	case "dns":
 		data = cfg.DNS
+	case "dns_server":
+		if cfg.DNS != nil {
+			data = cfg.DNS.Server
+		}
 	case "users":
 		data = cfg.Users
 	case "services":
@@ -54,8 +76,8 @@ func GetSection(w http.ResponseWriter, r *http.Request) {
 		data = cfg.Hostname
 	case "logging":
 		data = cfg.Logging
-	case "conntrackd":
-		data = cfg.Conntrackd
+	case "ha":
+		data = cfg.HA
 	case "ssh":
 		data = cfg.SSH
 	case "vrfs":
@@ -78,6 +100,7 @@ func GetSection(w http.ResponseWriter, r *http.Request) {
 // @Accept json
 // @Produce json
 // @Param section path string true "section name"
+// @Param layer query string false "configuration layer" Enums(advanced, simple)
 // @Success 200 {object} types.Response[types.StatusResponse]
 // @Security BearerAuth
 // @Router /api/config/{section} [put]
@@ -85,8 +108,13 @@ func PutSection(w http.ResponseWriter, r *http.Request) {
 	app := appctx.FromContext(r.Context())
 	section := chi.URLParam(r, "section")
 	username := appctx.UsernameFromContext(r.Context())
+	layer, appErr := requestLayer(r)
+	if appErr != nil {
+		types.Error(log.Logger, w, appErr)
+		return
+	}
 
-	cfg, err := cfgstore.Read(app.ConfigPath, username)
+	cfg, err := cfgstore.ReadLayer(app.ConfigPath, username, layer.Name())
 	if err != nil {
 		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "failed to read config"))
 		return
@@ -98,9 +126,17 @@ func PutSection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if appErr := applySectionBody(cfg, section, body); appErr != nil {
-		types.Error(log.Logger, w, appErr)
-		return
+	if layer.Name() == "advanced" {
+		if appErr := applySectionBody(cfg, section, body); appErr != nil {
+			types.Error(log.Logger, w, appErr)
+			return
+		}
+	} else {
+		cfg, err = layer.ReplaceSection(cfg, section, body)
+		if err != nil {
+			types.Err(http.StatusBadRequest, err.Error()).Write(w)
+			return
+		}
 	}
 
 	if appErr := cfgstore.ValidationError(cfg); appErr != nil {
@@ -108,8 +144,8 @@ func PutSection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := cfgstore.WriteStaging(app.ConfigPath, username, cfg); err != nil {
-		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "failed to write staging config"))
+	if err := cfgstore.WriteStagingLayer(app.ConfigPath, username, layer.Name(), cfg); err != nil {
+		types.Error(log.Logger, w, cfgstore.StagingError(err, "failed to write staging config"))
 		return
 	}
 
@@ -170,7 +206,22 @@ func applySectionBody(cfg *cfgpkg.Config, section string, body []byte) *types.Ap
 			return unmarshalErr(err)
 		}
 
+		if v != nil && v.Server == nil && cfg.DNS != nil {
+			v.Server = cfg.DNS.Server
+		}
+
 		cfg.DNS = v
+	case "dns_server":
+		var v *cfgpkg.DNSServer
+		if err := json.Unmarshal(body, &v); err != nil {
+			return unmarshalErr(err)
+		}
+
+		if cfg.DNS == nil {
+			cfg.DNS = &cfgpkg.DNS{}
+		}
+
+		cfg.DNS.Server = v
 	case "users":
 		var v map[string]*cfgpkg.User
 		if err := json.Unmarshal(body, &v); err != nil {
@@ -199,13 +250,13 @@ func applySectionBody(cfg *cfgpkg.Config, section string, body []byte) *types.Ap
 		}
 
 		cfg.Logging = v
-	case "conntrackd":
-		var v *cfgpkg.Conntrackd
+	case "ha":
+		var v *cfgpkg.HA
 		if err := json.Unmarshal(body, &v); err != nil {
 			return unmarshalErr(err)
 		}
 
-		cfg.Conntrackd = v
+		cfg.HA = v
 	case "ssh":
 		var v *cfgpkg.SSH
 		if err := json.Unmarshal(body, &v); err != nil {

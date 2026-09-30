@@ -1,66 +1,54 @@
 package db
 
 import (
-	"database/sql"
+	"context"
+	"errors"
 	"time"
 
+	"github.com/ChevalRouting/routier/pkg/db/generated"
 	"github.com/ChevalRouting/routier/pkg/types"
 )
 
-func ensureAnnouncementsSchema(db *sql.DB) error {
-	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS announcements (
-		id          INTEGER PRIMARY KEY AUTOINCREMENT,
-		message     TEXT    NOT NULL,
-		level       TEXT    NOT NULL DEFAULT 'info',
-		enabled     INTEGER NOT NULL DEFAULT 1,
-		dismissible INTEGER NOT NULL DEFAULT 1,
-		created_at  INTEGER NOT NULL,
-		updated_at  INTEGER NOT NULL
-	)`)
-	return err
-}
+var ErrAnnouncementNotFound = errors.New("announcement not found")
 
-func scanAnnouncements(rows *sql.Rows) ([]types.Announcement, error) {
-	defer rows.Close()
-
-	out := []types.Announcement{}
-	for rows.Next() {
-		var a types.Announcement
-		if err := rows.Scan(&a.ID, &a.Message, &a.Level, &a.Enabled, &a.Dismissible, &a.CreatedAt, &a.UpdatedAt); err != nil {
-			return nil, err
-		}
-
-		out = append(out, a)
+func announcements(rows []generated.Announcement) []types.Announcement {
+	out := make([]types.Announcement, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, types.Announcement{
+			ID: row.ID, Message: row.Message, Level: row.Level,
+			Enabled: row.Enabled != 0, Dismissible: row.Dismissible != 0,
+			CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt,
+		})
 	}
 
-	return out, rows.Err()
+	return out
 }
 
-func ListAnnouncements(db *sql.DB) ([]types.Announcement, error) {
-	rows, err := db.Query("SELECT id, message, level, enabled, dismissible, created_at, updated_at FROM announcements ORDER BY id DESC")
+func ListAnnouncements(ctx context.Context, db *DB) ([]types.Announcement, error) {
+	rows, err := db.queries.ListAnnouncements(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return scanAnnouncements(rows)
+	return announcements(rows), nil
 }
 
-func EnabledAnnouncements(db *sql.DB) ([]types.Announcement, error) {
-	rows, err := db.Query("SELECT id, message, level, enabled, dismissible, created_at, updated_at FROM announcements WHERE enabled = 1 ORDER BY id DESC")
+func EnabledAnnouncements(ctx context.Context, db *DB) ([]types.Announcement, error) {
+	rows, err := db.queries.ListEnabledAnnouncements(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return scanAnnouncements(rows)
+	return announcements(rows), nil
 }
 
-func CreateAnnouncement(db *sql.DB, a *types.Announcement) (int64, error) {
+func CreateAnnouncement(ctx context.Context, db *DB, a *types.Announcement) (int64, error) {
 	now := time.Now().Unix()
 
-	res, err := db.Exec(
-		"INSERT INTO announcements (message, level, enabled, dismissible, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
-		a.Message, a.Level, a.Enabled, a.Dismissible, now, now,
-	)
+	res, err := db.queries.CreateAnnouncement(ctx, generated.CreateAnnouncementParams{
+		Message: a.Message, Level: a.Level, Enabled: boolInt(a.Enabled), Dismissible: boolInt(a.Dismissible),
+		CreatedAt: now, UpdatedAt: now,
+	})
 	if err != nil {
 		return 0, err
 	}
@@ -68,15 +56,39 @@ func CreateAnnouncement(db *sql.DB, a *types.Announcement) (int64, error) {
 	return res.LastInsertId()
 }
 
-func UpdateAnnouncement(db *sql.DB, a *types.Announcement) error {
-	_, err := db.Exec(
-		"UPDATE announcements SET message = ?, level = ?, enabled = ?, dismissible = ?, updated_at = ? WHERE id = ?",
-		a.Message, a.Level, a.Enabled, a.Dismissible, time.Now().Unix(), a.ID,
-	)
-	return err
+func UpdateAnnouncement(ctx context.Context, db *DB, a *types.Announcement) error {
+	rows, err := db.queries.UpdateAnnouncement(ctx, generated.UpdateAnnouncementParams{
+		Message: a.Message, Level: a.Level, Enabled: boolInt(a.Enabled), Dismissible: boolInt(a.Dismissible),
+		UpdatedAt: time.Now().Unix(), ID: a.ID,
+	})
+	if err != nil {
+		return err
+	}
+
+	if rows == 0 {
+		return ErrAnnouncementNotFound
+	}
+
+	return nil
 }
 
-func DeleteAnnouncement(db *sql.DB, id int64) error {
-	_, err := db.Exec("DELETE FROM announcements WHERE id = ?", id)
-	return err
+func DeleteAnnouncement(ctx context.Context, db *DB, id int64) error {
+	rows, err := db.queries.DeleteAnnouncement(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	if rows == 0 {
+		return ErrAnnouncementNotFound
+	}
+
+	return nil
+}
+
+func boolInt(value bool) int64 {
+	if value {
+		return 1
+	}
+
+	return 0
 }

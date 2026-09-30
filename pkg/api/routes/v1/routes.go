@@ -11,6 +11,7 @@ func Routes(r chi.Router, authMiddleware func(http.Handler) http.Handler) {
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware)
 
+			r.Get("/config", handleV1GetConfig)
 			r.Post("/sessions", handleV1CreateSession)
 			r.Get("/sessions", handleV1ListSessions)
 
@@ -22,6 +23,8 @@ func Routes(r chi.Router, authMiddleware func(http.Handler) http.Handler) {
 				r.Get("/diff", handleV1SessionDiff)
 				r.Post("/validate", handleV1SessionValidate)
 				r.Post("/apply", handleV1SessionApply)
+				r.Get("/config", handleV1GetSessionConfig)
+				r.Put("/config", handleV1PutSessionConfig)
 
 				r.Get("/hostname", handleV1GetHostname)
 				r.Put("/hostname", handleV1PutHostname)
@@ -40,8 +43,8 @@ func Routes(r chi.Router, authMiddleware func(http.Handler) http.Handler) {
 				r.Put("/logging", handleV1PutLogging)
 				r.Get("/ssh", handleV1GetSSH)
 				r.Put("/ssh", handleV1PutSSH)
-				r.Get("/conntrackd", handleV1GetConntrackd)
-				r.Put("/conntrackd", handleV1PutConntrackd)
+				r.Get("/ha", handleV1GetHA)
+				r.Put("/ha", handleV1PutHA)
 				r.Get("/gai", handleV1GetGAI)
 				r.Put("/gai", handleV1PutGAI)
 				r.Get("/monitoring", handleV1GetMonitoring)

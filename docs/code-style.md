@@ -59,6 +59,15 @@ are fine.
 * One component per file when the component exceeds a screenful; group related small
   components in a single file only when they are private to a feature.
 * Follow Adwaita/GNOME patterns with the existing primitives.
+* Configuration forms use Cheval UI controls. Use `PreferencesGroup` with
+  `EntryRow`, `ComboRow`, and `SwitchRow` so labels, descriptions, and controls
+  align consistently. Do not recreate field grids or use native inputs and
+  selects when a shared control exists.
+* Preference rows use the shared 20rem control column on desktop so every
+  input, select, switch, and custom control starts at the same position. The
+  control column becomes full-width on mobile.
+* Hand-built field stacks use at least `space-y-1.5` between a label and its
+  control. Keep denser spacing for tabular data and non-form status lists only.
 * No em dashes anywhere (code, UI strings, docs); use a comma, colon, or parentheses.
 
 ## Commits
@@ -68,7 +77,7 @@ Lowercase imperative subject, optionally prefixed by the touched area (`bgp: ...
 
 ## Linting
 
-Run `make lint` before pushing: `golangci-lint` (config in `.golangci.yml`) for
+Run `task lint` before pushing: `golangci-lint` (config in `.golangci.yml`) for
 Go and ESLint (`web/eslint.config.js`) for the frontend. CI runs both on every
 push and blocks packaging on failures. Intentionally ignored errors are written
 as explicit `_ =` assignments, never left bare.

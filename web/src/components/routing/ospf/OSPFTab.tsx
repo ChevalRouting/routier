@@ -1,17 +1,19 @@
 import { useState, useEffect, useRef } from 'react'
-import { useTabState } from '@/lib/useTabState'
-import { SectionNav } from '@/components/ui/section-nav'
+import { useTabState } from 'cheval-ui'
+import { SectionNav } from 'cheval-ui'
 import { checkCIDR } from '@/lib/validate'
-import { Input } from '@/components/ui/input'
-import { NumberInput } from '@/components/ui/number-input'
-import { Label } from '@/components/ui/label'
-import { Separator } from '@/components/ui/separator'
-import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/switch'
-import { Badge } from '@/components/ui/badge'
-import TagInput from '@/components/TagInput'
-import { Plus, Trash2, ChevronDown, ChevronRight } from 'lucide-react'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Input } from 'cheval-ui'
+import { NumberInput } from 'cheval-ui'
+import { Label } from 'cheval-ui'
+import { Separator } from 'cheval-ui'
+import { Button } from 'cheval-ui'
+import { Switch } from 'cheval-ui'
+import { Badge } from 'cheval-ui'
+import { TagInput } from 'cheval-ui'
+import { Card } from 'cheval-ui'
+import { Sheet } from 'cheval-ui'
+import { Plus, Trash2 } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from 'cheval-ui'
 import { ExtraDirectives } from '@/components/ExtraDirectives'
 import { OSPFArea, OSPFInterfaceConfig, OSPFConfig, OSPF_TYPES, OSPF_NETWORK_TYPES, OSPFSubTab } from '../types'
 import { newId } from '../shared'
@@ -33,7 +35,7 @@ export function OSPFInterfacesPanel({
   const [rows, setRows] = useState<IfaceRow[]>(() =>
     Object.entries(interfaces).map(([name, cfg]) => ({ ...cfg, name, _rowId: newId() }))
   )
-  const [expanded, setExpanded] = useState<Set<number>>(new Set())
+  const [openRowId, setOpenRowId] = useState<number | null>(null)
   const firstRun = useRef(true)
 
   useEffect(() => {
@@ -49,11 +51,9 @@ export function OSPFInterfacesPanel({
   const add = () => {
     const rowId = newId()
     setRows((p) => [...p, { _rowId: rowId, name: '', auth_type: 'none' }])
-    setExpanded((p) => new Set([...p, rowId]))
+    setOpenRowId(rowId)
   }
-  const remove = (rowId: number) => setRows((p) => p.filter((r) => r._rowId !== rowId))
-  const toggle = (rowId: number) =>
-    setExpanded((p) => { const n = new Set(p); if (n.has(rowId)) { n.delete(rowId) } else { n.add(rowId) } return n })
+  const remove = (rowId: number) => { setRows((p) => p.filter((r) => r._rowId !== rowId)); if (openRowId === rowId) setOpenRowId(null) }
   const upd = (rowId: number, patch: Partial<IfaceRow>) =>
     setRows((p) => p.map((r) => (r._rowId === rowId ? { ...r, ...patch } : r)))
 
@@ -72,33 +72,31 @@ export function OSPFInterfacesPanel({
 
       <div className="space-y-2">
         {rows.map((row) => {
-          const open = expanded.has(row._rowId)
           return (
-            <div key={row._rowId} className="border rounded-md overflow-hidden">
-              <div className="flex items-center gap-2 px-3 py-2 bg-muted/30">
-                <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => toggle(row._rowId)}>
-                  {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                </button>
-                <Select value={row.name || '__none__'} onValueChange={(v) => upd(row._rowId, { name: v === '__none__' ? '' : v })}>
-                  <SelectTrigger className="h-8 text-xs font-mono w-36 border-0 shadow-none focus-visible:ring-1">
-                    <SelectValue placeholder="Interface…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">- select -</SelectItem>
-                    {ifaceNames.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+            <div key={row._rowId}>
+              <Card className="flex cursor-pointer items-center gap-2 p-4 transition-colors hover:bg-accent/50" onClick={() => setOpenRowId(row._rowId)}>
+                <span className="w-36 truncate font-mono text-sm font-semibold">{row.name || 'New interface'}</span>
                 {row.area && <Badge variant="secondary" className="text-xs font-mono">area {row.area}</Badge>}
                 {row.cost != null && row.cost > 0 && <Badge variant="secondary" className="text-xs">cost {row.cost}</Badge>}
                 {row.auth_type && row.auth_type !== 'none' && <Badge variant="outline" className="text-xs">{row.auth_type}</Badge>}
                 <div className="flex-1" />
-                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => remove(row._rowId)}>
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={(event) => { event.stopPropagation(); remove(row._rowId) }}>
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
-              </div>
+              </Card>
 
-              {open && (
-                <div className="px-4 pb-4 pt-3 space-y-4 border-t">
+              <Sheet open={openRowId === row._rowId} onClose={() => setOpenRowId(null)} title={row.name || 'OSPF interface'} className="max-w-2xl">
+                <div className="space-y-4">
+                  <div className="space-y-1.5 max-w-xs">
+                    <Label className="text-xs text-muted-foreground">Interface</Label>
+                    <Select value={row.name || '__none__'} onValueChange={(v) => upd(row._rowId, { name: v === '__none__' ? '' : v })}>
+                      <SelectTrigger className="font-mono"><SelectValue placeholder="Interface…" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">- select -</SelectItem>
+                        {ifaceNames.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="space-y-1.5 max-w-xs">
                     <Label className="text-xs text-muted-foreground">Area</Label>
                     <Select value={row.area || '__none__'} onValueChange={(v) => upd(row._rowId, { area: v === '__none__' ? '' : v })}>
@@ -180,7 +178,7 @@ export function OSPFInterfacesPanel({
                   </div>
                   <ExtraDirectives label="Additional ip ospf directives" values={row.extra} onChange={(v) => upd(row._rowId, { extra: v })} placeholder="ip ospf authentication null" />
                 </div>
-              )}
+              </Sheet>
             </div>
           )
         })}
@@ -245,6 +243,7 @@ export function OSPFAreasPanel({
   const [rows, setRows] = useState<AreaRow[]>(() =>
     areas.map((a) => ({ ...a, _rowId: newId() }))
   )
+  const [openRowId, setOpenRowId] = useState<number | null>(null)
   const firstRun = useRef(true)
 
   useEffect(() => {
@@ -253,8 +252,8 @@ export function OSPFAreasPanel({
     onDirty()
   }, [rows])
 
-  const add = () => setRows((p) => [...p, { _rowId: newId(), id: '', networks: [], type: 'normal', auth: '' }])
-  const remove = (rowId: number) => setRows((p) => p.filter((r) => r._rowId !== rowId))
+  const add = () => { const rowId = newId(); setRows((p) => [...p, { _rowId: rowId, id: '', networks: [], type: 'normal', auth: '' }]); setOpenRowId(rowId) }
+  const remove = (rowId: number) => { setRows((p) => p.filter((r) => r._rowId !== rowId)); if (openRowId === rowId) setOpenRowId(null) }
   const upd = (rowId: number, patch: Partial<AreaRow>) =>
     setRows((p) => p.map((r) => (r._rowId === rowId ? { ...r, ...patch } : r)))
 
@@ -270,14 +269,23 @@ export function OSPFAreasPanel({
         <p className="text-sm text-muted-foreground italic">No areas configured.</p>
       )}
       {rows.length > 0 && (
-        <div className="rounded-xl border border-border overflow-hidden divide-y">
-          <div className="grid grid-cols-[110px_110px_110px_1fr_36px] bg-muted/50 px-3 py-2 text-xs font-medium text-muted-foreground gap-3">
-            <span>Area ID</span><span>Type</span><span>Auth</span><span>Networks</span><span />
-          </div>
+        <div className="grid gap-3 md:grid-cols-2">
           {rows.map((row) => (
-            <div key={row._rowId} className="px-3 py-2 space-y-2">
-              <div className="grid grid-cols-[110px_110px_110px_1fr_36px] items-start gap-3">
+            <div key={row._rowId}>
+              <Card className="flex cursor-pointer items-center gap-2 p-4 transition-colors hover:bg-accent/50" onClick={() => setOpenRowId(row._rowId)}>
+                <span className="flex-1 truncate font-mono text-sm font-semibold">{row.id || 'New area'}</span>
+                <Badge variant="secondary">{row.type || 'normal'}</Badge>
+                <Badge variant="outline">{row.networks?.length ?? 0} networks</Badge>
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={(event) => { event.stopPropagation(); remove(row._rowId) }}>
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </Card>
+              <Sheet open={openRowId === row._rowId} onClose={() => setOpenRowId(null)} title={row.id || 'OSPF area'} className="max-w-2xl">
+                <div className="space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Area ID</Label>
                 <Input value={row.id} onChange={(e) => upd(row._rowId, { id: e.target.value })} placeholder="0.0.0.0" className="font-mono text-xs h-8 border-0 shadow-none focus-visible:ring-1" />
+                    </div><div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Type</Label>
                 <Select value={row.type || 'normal'} onValueChange={(v) => upd(row._rowId, { type: v })}>
                   <SelectTrigger className="h-8 text-xs font-mono">
                     <SelectValue />
@@ -286,6 +294,7 @@ export function OSPFAreasPanel({
                     {OSPF_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                   </SelectContent>
                 </Select>
+                    </div><div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Authentication</Label>
                 <Select value={row.auth || 'none'} onValueChange={(v) => upd(row._rowId, { auth: v === 'none' ? '' : v })}>
                   <SelectTrigger className="h-8 text-xs font-mono">
                     <SelectValue />
@@ -296,17 +305,17 @@ export function OSPFAreasPanel({
                     <SelectItem value="md5">md5</SelectItem>
                   </SelectContent>
                 </Select>
-                <TagInput values={row.networks} onChange={(v) => upd(row._rowId, { networks: v })} placeholder="10.0.0.0/24" mono validate={checkCIDR} />
-                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive mt-0.5" onClick={() => remove(row._rowId)}>
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-              <div className="grid grid-cols-[130px_1fr] items-center gap-3 pl-1">
-                <div className="space-y-1">
+                    </div>
+                  </div>
+                  <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Networks</Label>
+                <TagInput values={row.networks ?? []} onChange={(v) => upd(row._rowId, { networks: v })} placeholder="10.0.0.0/24" mono validate={checkCIDR} />
+                  </div>
+              <div className="grid grid-cols-[130px_1fr] items-center gap-3">
+                <div className="space-y-1.5">
                   <Label className="text-[10px] text-muted-foreground">Default cost</Label>
                   <NumberInput value={row.default_cost || undefined} onChange={(v) => upd(row._rowId, { default_cost: v })} placeholder="none" className="font-mono h-8 text-xs" />
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <Label className="text-[10px] text-muted-foreground">Ranges (summarize)</Label>
                   <TagInput values={row.ranges ?? []} onChange={(v) => upd(row._rowId, { ranges: v.length ? v : undefined })} placeholder="10.0.0.0/16" mono validate={checkCIDR} />
                 </div>
@@ -318,6 +327,8 @@ export function OSPFAreasPanel({
                 </label>
               )}
               <ExtraDirectives label="Additional area directives" values={row.extra} onChange={(v) => upd(row._rowId, { extra: v })} placeholder="area 0.0.0.0 shortcut enable" />
+                </div>
+              </Sheet>
             </div>
           ))}
         </div>
@@ -383,4 +394,3 @@ export function OSPFTab({
     </div>
   )
 }
-

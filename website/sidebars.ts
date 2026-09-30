@@ -9,7 +9,7 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'Networking',
-      items: ['interfaces', 'routing', 'wireguard', 'firewall', 'dhcp', 'tools'],
+      items: ['interfaces', 'routing', 'wireguard', 'firewall', 'dhcp', 'dns', 'tools'],
     },
     {
       type: 'category',

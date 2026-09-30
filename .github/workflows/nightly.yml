@@ -43,8 +43,13 @@ jobs:
           echo "arch=$(uname -m)" >> "$GITHUB_OUTPUT"
           echo "building ${base}_git${count} (${commit}) for $(uname -m)"
 
+      - name: Install Task
+        uses: go-task/setup-task@v2
+        with:
+          version: 3.53.1
+
       - name: Build packages
-        run: make apk VERSION='${{ steps.v.outputs.version }}' PODMAN_TTY=
+        run: task apk VERSION='${{ steps.v.outputs.version }}' PODMAN_TTY=
 
       - name: Configure SSH
         run: |

@@ -1,6 +1,7 @@
 package cfgstore
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -40,6 +41,61 @@ func StagingPath(configPath, username string) string {
 	return configPath + ".pending." + username
 }
 
+func StagingLayerPath(configPath, username string) string {
+	return StagingPath(configPath, username) + ".layer"
+}
+
+type LayerConflictError struct {
+	Owner     string
+	Requested string
+}
+
+func (e *LayerConflictError) Error() string {
+	return fmt.Sprintf("staged configuration belongs to %s layer, requested %s", e.Owner, e.Requested)
+}
+
+func StagingError(err error, message string) *types.AppError {
+	var conflict *LayerConflictError
+	if errors.As(err, &conflict) {
+		return types.Errorf(http.StatusConflict, "configuration changes belong to the %s layer", conflict.Owner)
+	}
+
+	return types.Wrap(http.StatusInternalServerError, err, message)
+}
+
+func StagingLayer(configPath, username string) (string, bool, error) {
+	Mu.RLock()
+	defer Mu.RUnlock()
+
+	return stagingLayer(configPath, username)
+}
+
+func stagingLayer(configPath, username string) (string, bool, error) {
+	if _, err := os.Stat(StagingPath(configPath, username)); err != nil {
+		if os.IsNotExist(err) {
+			return "", false, nil
+		}
+
+		return "", false, err
+	}
+
+	data, err := os.ReadFile(StagingLayerPath(configPath, username))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "advanced", true, nil
+		}
+
+		return "", false, err
+	}
+
+	layer := strings.TrimSpace(string(data))
+	if layer == "" {
+		layer = "advanced"
+	}
+
+	return layer, true, nil
+}
+
 func Read(configPath, username string) (*config.Config, error) {
 	Mu.RLock()
 	defer Mu.RUnlock()
@@ -52,9 +108,38 @@ func Read(configPath, username string) (*config.Config, error) {
 	return config.Load(path)
 }
 
+func ReadLayer(configPath, username, layer string) (*config.Config, error) {
+	Mu.RLock()
+	defer Mu.RUnlock()
+
+	owner, exists, err := stagingLayer(configPath, username)
+	if err != nil {
+		return nil, err
+	}
+
+	path := configPath
+	if exists && owner == layer {
+		path = StagingPath(configPath, username)
+	}
+
+	return config.Load(path)
+}
+
 func WriteStaging(configPath, username string, cfg *config.Config) error {
+	return WriteStagingLayer(configPath, username, "advanced", cfg)
+}
+
+func WriteStagingLayer(configPath, username, layer string, cfg *config.Config) error {
 	Mu.Lock()
 	defer Mu.Unlock()
+
+	owner, exists, err := stagingLayer(configPath, username)
+	if err != nil {
+		return err
+	}
+	if exists && owner != layer {
+		return &LayerConflictError{Owner: owner, Requested: layer}
+	}
 
 	data, err := yaml.Marshal(cfg)
 	if err != nil {
@@ -62,13 +147,18 @@ func WriteStaging(configPath, username string, cfg *config.Config) error {
 	}
 
 	if current, err := os.ReadFile(configPath); err == nil && string(current) == string(data) {
-		os.Remove(StagingPath(configPath, username))
+		_ = os.Remove(StagingPath(configPath, username))
+		_ = os.Remove(StagingLayerPath(configPath, username))
 		return nil
 	}
 
 	path := StagingPath(configPath, username)
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return fmt.Errorf("create staging dir: %w", err)
+	}
+
+	if err := os.WriteFile(StagingLayerPath(configPath, username), []byte(layer+"\n"), 0600); err != nil {
+		return err
 	}
 
 	return os.WriteFile(path, data, 0600)
@@ -126,7 +216,30 @@ func PromoteConfig(configPath string, cfg *config.Config) error {
 func Discard(configPath, username string) {
 	Mu.Lock()
 	defer Mu.Unlock()
-	os.Remove(StagingPath(configPath, username))
+	_ = os.Remove(StagingPath(configPath, username))
+	_ = os.Remove(StagingLayerPath(configPath, username))
+}
+
+func DiscardLayer(configPath, username, layer string) error {
+	Mu.Lock()
+	defer Mu.Unlock()
+
+	owner, exists, err := stagingLayer(configPath, username)
+	if err != nil {
+		return err
+	}
+	if exists && owner != layer {
+		return &LayerConflictError{Owner: owner, Requested: layer}
+	}
+
+	if err := os.Remove(StagingPath(configPath, username)); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	if err := os.Remove(StagingLayerPath(configPath, username)); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	return nil
 }
 
 func Resolve(cfg *config.Config) (*config.Config, error) {
