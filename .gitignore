@@ -46,7 +46,7 @@ go.work.sum
 /dist/
 /www/
 /.docker-image-*
-/pkg/api/dist/
+/pkg/server/api/dist/
 
 *.md
 !docs/**/*.md

@@ -10,7 +10,7 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: '../pkg/api/dist',
+    outDir: '../pkg/server/api/dist',
     emptyOutDir: true,
     rollupOptions: {
       output: {

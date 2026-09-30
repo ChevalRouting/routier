@@ -20,7 +20,7 @@ build() {
 
 	( cd web && npm ci --prefer-offline && npm run build )
 
-	_ldflags="-s -w -X main.VERSION=${pkgver}-r${pkgrel} -X github.com/ChevalRouting/routier/pkg/api/app.Version=${pkgver}-r${pkgrel}"
+	_ldflags="-s -w -X main.VERSION=${pkgver}-r${pkgrel} -X github.com/ChevalRouting/routier/pkg/server/api/app.Version=${pkgver}-r${pkgrel}"
 	CGO_ENABLED=1 go build -tags prod -ldflags="$_ldflags" -o routier ./cmd/routier
 	CGO_ENABLED=1 go build -tags prod -ldflags="$_ldflags" -o routier-ui ./cmd/routier-ui
 }
