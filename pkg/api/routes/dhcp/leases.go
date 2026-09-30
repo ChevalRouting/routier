@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/ChevalRouting/routier/pkg/kea"
+	"github.com/ChevalRouting/routier/pkg/daemon/kea"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/rs/zerolog/log"
 )

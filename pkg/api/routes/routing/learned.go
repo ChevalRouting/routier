@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/ChevalRouting/routier/pkg/types"
-	"github.com/ChevalRouting/routier/pkg/vtysh"
+	"github.com/ChevalRouting/routier/pkg/daemon/vtysh"
 )
 
 // Learned godoc

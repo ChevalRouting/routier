@@ -4,7 +4,7 @@ package netlink
 
 import (
 	"github.com/ChevalRouting/routier/pkg/config"
-	"github.com/ChevalRouting/routier/pkg/dhcpcd"
+	"github.com/ChevalRouting/routier/pkg/daemon/dhcpcd"
 )
 
 func Reconcile(cfg *config.Config, dryRun bool) error {

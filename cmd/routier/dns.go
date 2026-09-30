@@ -5,7 +5,7 @@ import (
 	"os"
 	"text/tabwriter"
 
-	"github.com/ChevalRouting/routier/pkg/bind"
+	"github.com/ChevalRouting/routier/pkg/daemon/bind"
 	"github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/render"
 	"github.com/spf13/cobra"

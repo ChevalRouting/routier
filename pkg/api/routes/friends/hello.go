@@ -8,7 +8,7 @@ import (
 
 	appctx "github.com/ChevalRouting/routier/pkg/api/app"
 	cfgpkg "github.com/ChevalRouting/routier/pkg/config"
-	"github.com/ChevalRouting/routier/pkg/keepalived"
+	"github.com/ChevalRouting/routier/pkg/daemon/keepalived"
 	"github.com/ChevalRouting/routier/pkg/svc"
 	"github.com/ChevalRouting/routier/pkg/types"
 )

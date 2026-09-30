@@ -9,7 +9,7 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/ChevalRouting/routier/pkg/bind"
+	"github.com/ChevalRouting/routier/pkg/daemon/bind"
 	"github.com/ChevalRouting/routier/pkg/render"
 	"github.com/ChevalRouting/routier/pkg/svc"
 	"github.com/ChevalRouting/routier/pkg/types"
