@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ChevalRouting/routier/pkg/bondstat"
+	"github.com/ChevalRouting/routier/pkg/telemetry/bondstat"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"

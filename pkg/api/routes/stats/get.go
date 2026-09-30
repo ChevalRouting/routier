@@ -6,7 +6,7 @@ import (
 	appctx "github.com/ChevalRouting/routier/pkg/api/app"
 	"github.com/ChevalRouting/routier/pkg/api/cfgstore"
 	"github.com/ChevalRouting/routier/pkg/api/workers"
-	"github.com/ChevalRouting/routier/pkg/stats"
+	"github.com/ChevalRouting/routier/pkg/telemetry/stats"
 	"github.com/ChevalRouting/routier/pkg/types"
 )
 

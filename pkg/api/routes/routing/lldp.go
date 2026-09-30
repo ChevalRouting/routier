@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/ChevalRouting/routier/pkg/lldp"
+	"github.com/ChevalRouting/routier/pkg/telemetry/lldp"
 	"github.com/ChevalRouting/routier/pkg/types"
 )
 

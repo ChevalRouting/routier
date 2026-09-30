@@ -1,7 +1,7 @@
 package system
 
 import (
-	"github.com/ChevalRouting/routier/pkg/bondstat"
+	"github.com/ChevalRouting/routier/pkg/telemetry/bondstat"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"net/http"
 )

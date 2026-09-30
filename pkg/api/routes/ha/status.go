@@ -7,7 +7,7 @@ import (
 
 	appctx "github.com/ChevalRouting/routier/pkg/api/app"
 	"github.com/ChevalRouting/routier/pkg/config"
-	"github.com/ChevalRouting/routier/pkg/conntrack"
+	"github.com/ChevalRouting/routier/pkg/telemetry/conntrack"
 	"github.com/ChevalRouting/routier/pkg/daemon/keepalived"
 	"github.com/ChevalRouting/routier/pkg/svc"
 	"github.com/ChevalRouting/routier/pkg/types"
