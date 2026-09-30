@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ChevalRouting/routier/pkg/conntrack"
+	"github.com/ChevalRouting/routier/pkg/telemetry/conntrack"
 	"github.com/ChevalRouting/routier/pkg/net/iproute"
 	"github.com/ChevalRouting/routier/pkg/daemon/keepalived"
 	"github.com/ChevalRouting/routier/pkg/daemon/vtysh"

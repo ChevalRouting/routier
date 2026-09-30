@@ -13,7 +13,7 @@ import (
 	webdb "github.com/ChevalRouting/routier/pkg/db"
 	"github.com/ChevalRouting/routier/pkg/net/iproute"
 	"github.com/ChevalRouting/routier/pkg/net/netlink"
-	"github.com/ChevalRouting/routier/pkg/stats"
+	"github.com/ChevalRouting/routier/pkg/telemetry/stats"
 )
 
 const dbPath = "/var/lib/routier/web.db"

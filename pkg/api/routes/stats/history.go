@@ -8,7 +8,7 @@ import (
 
 	appctx "github.com/ChevalRouting/routier/pkg/api/app"
 	webdb "github.com/ChevalRouting/routier/pkg/db"
-	sysstats "github.com/ChevalRouting/routier/pkg/stats"
+	sysstats "github.com/ChevalRouting/routier/pkg/telemetry/stats"
 	"github.com/ChevalRouting/routier/pkg/types"
 )
 

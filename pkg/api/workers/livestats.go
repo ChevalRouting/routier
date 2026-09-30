@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ChevalRouting/routier/pkg/stats"
+	"github.com/ChevalRouting/routier/pkg/telemetry/stats"
 	"github.com/ChevalRouting/routier/pkg/types"
 )
 
