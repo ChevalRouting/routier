@@ -15,7 +15,7 @@ import (
 	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	"github.com/ChevalRouting/routier/pkg/managers"
 	"github.com/ChevalRouting/routier/pkg/types"
-	"github.com/ChevalRouting/routier/pkg/updates"
+	"github.com/ChevalRouting/routier/pkg/host/updates"
 
 	"github.com/creack/pty"
 	"github.com/gorilla/websocket"

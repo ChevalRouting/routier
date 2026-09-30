@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ChevalRouting/routier/pkg/boot"
+	"github.com/ChevalRouting/routier/pkg/host/boot"
 )
 
 const (

@@ -9,10 +9,10 @@ import (
 
 	"github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/diffutil"
-	"github.com/ChevalRouting/routier/pkg/failures"
+	"github.com/ChevalRouting/routier/pkg/state/failures"
 	"github.com/ChevalRouting/routier/pkg/friends"
 	"github.com/ChevalRouting/routier/pkg/managers"
-	"github.com/ChevalRouting/routier/pkg/motd"
+	"github.com/ChevalRouting/routier/pkg/host/motd"
 	"github.com/ChevalRouting/routier/pkg/render"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/spf13/cobra"

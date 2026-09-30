@@ -7,7 +7,7 @@ import (
 	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
 	cfgpkg "github.com/ChevalRouting/routier/pkg/config"
 	friendspkg "github.com/ChevalRouting/routier/pkg/friends"
-	"github.com/ChevalRouting/routier/pkg/identity"
+	"github.com/ChevalRouting/routier/pkg/auth/identity"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"

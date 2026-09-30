@@ -5,7 +5,7 @@ import (
 
 	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	"github.com/ChevalRouting/routier/pkg/types"
-	"github.com/ChevalRouting/routier/pkg/unixauth"
+	"github.com/ChevalRouting/routier/pkg/auth/unixauth"
 	"github.com/rs/zerolog/log"
 )
 

@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/ChevalRouting/routier/pkg/apply"
-	"github.com/ChevalRouting/routier/pkg/applylog"
+	"github.com/ChevalRouting/routier/pkg/state/applylog"
 	"github.com/ChevalRouting/routier/pkg/config"
-	"github.com/ChevalRouting/routier/pkg/failures"
+	"github.com/ChevalRouting/routier/pkg/state/failures"
 	"github.com/ChevalRouting/routier/pkg/render"
 	"github.com/ChevalRouting/routier/pkg/svc"
 	"github.com/ChevalRouting/routier/pkg/types"

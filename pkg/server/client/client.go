@@ -11,7 +11,7 @@ import (
 	"time"
 
 	routierclient "github.com/ChevalRouting/routier/pkg/server/client/generated"
-	"github.com/ChevalRouting/routier/pkg/identity"
+	"github.com/ChevalRouting/routier/pkg/auth/identity"
 	"github.com/ChevalRouting/routier/pkg/types"
 )
 

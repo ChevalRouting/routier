@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ChevalRouting/routier/pkg/motd"
+	"github.com/ChevalRouting/routier/pkg/host/motd"
 )
 
 func TestMOTDRender(t *testing.T) {

@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ChevalRouting/routier/pkg/applylog"
-	"github.com/ChevalRouting/routier/pkg/backup"
+	"github.com/ChevalRouting/routier/pkg/state/applylog"
+	"github.com/ChevalRouting/routier/pkg/state/backup"
 	"github.com/ChevalRouting/routier/pkg/config"
 )
 

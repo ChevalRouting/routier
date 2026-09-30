@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/ChevalRouting/routier/pkg/apply"
-	"github.com/ChevalRouting/routier/pkg/applylog"
+	"github.com/ChevalRouting/routier/pkg/state/applylog"
 	"github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/svc"
 )

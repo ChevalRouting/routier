@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ChevalRouting/routier/pkg/boot"
+	"github.com/ChevalRouting/routier/pkg/host/boot"
 	"github.com/spf13/cobra"
 )
 

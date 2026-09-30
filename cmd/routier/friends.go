@@ -9,7 +9,7 @@ import (
 
 	"github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/friends"
-	"github.com/ChevalRouting/routier/pkg/identity"
+	"github.com/ChevalRouting/routier/pkg/auth/identity"
 	"github.com/ChevalRouting/routier/pkg/managers"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"

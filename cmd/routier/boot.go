@@ -4,7 +4,7 @@ import (
 	"github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/friends"
 	"github.com/ChevalRouting/routier/pkg/managers"
-	"github.com/ChevalRouting/routier/pkg/motd"
+	"github.com/ChevalRouting/routier/pkg/host/motd"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
