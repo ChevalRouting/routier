@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ChevalRouting/routier/pkg/boot"
-	"github.com/ChevalRouting/routier/pkg/updates"
+	"github.com/ChevalRouting/routier/pkg/host/boot"
+	"github.com/ChevalRouting/routier/pkg/host/updates"
 	"github.com/spf13/cobra"
 )
 

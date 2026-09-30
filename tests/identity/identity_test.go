@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ChevalRouting/routier/pkg/identity"
+	"github.com/ChevalRouting/routier/pkg/auth/identity"
 )
 
 func TestIdentityPersistAndVerify(t *testing.T) {

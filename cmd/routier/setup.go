@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ChevalRouting/routier/pkg/boot"
+	"github.com/ChevalRouting/routier/pkg/host/boot"
 	"github.com/ChevalRouting/routier/pkg/config"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"

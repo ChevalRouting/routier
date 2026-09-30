@@ -4,9 +4,9 @@ import (
 	"net/http"
 
 	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
-	"github.com/ChevalRouting/routier/pkg/boot"
+	"github.com/ChevalRouting/routier/pkg/host/boot"
 	"github.com/ChevalRouting/routier/pkg/types"
-	"github.com/ChevalRouting/routier/pkg/updates"
+	"github.com/ChevalRouting/routier/pkg/host/updates"
 )
 
 type VersionResponse struct {

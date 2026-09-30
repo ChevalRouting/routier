@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	failurespkg "github.com/ChevalRouting/routier/pkg/failures"
+	failurespkg "github.com/ChevalRouting/routier/pkg/state/failures"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"

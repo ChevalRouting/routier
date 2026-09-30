@@ -8,7 +8,7 @@ import (
 
 	"github.com/ChevalRouting/routier/pkg/server/client"
 	"github.com/ChevalRouting/routier/pkg/config"
-	"github.com/ChevalRouting/routier/pkg/identity"
+	"github.com/ChevalRouting/routier/pkg/auth/identity"
 	"github.com/ChevalRouting/routier/pkg/types"
 )
 

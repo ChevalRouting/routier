@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/ChevalRouting/routier/pkg/types"
-	"github.com/ChevalRouting/routier/pkg/updates"
+	"github.com/ChevalRouting/routier/pkg/host/updates"
 	"github.com/rs/zerolog/log"
 )
 

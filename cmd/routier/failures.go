@@ -6,7 +6,7 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/ChevalRouting/routier/pkg/failures"
+	"github.com/ChevalRouting/routier/pkg/state/failures"
 	"github.com/spf13/cobra"
 )
 

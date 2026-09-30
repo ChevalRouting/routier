@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/ChevalRouting/routier/pkg/identity"
+	"github.com/ChevalRouting/routier/pkg/auth/identity"
 	"github.com/ChevalRouting/routier/pkg/types"
 )
 

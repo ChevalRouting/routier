@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/ChevalRouting/routier/pkg/motd"
+	"github.com/ChevalRouting/routier/pkg/host/motd"
 	"github.com/spf13/cobra"
 )
 
