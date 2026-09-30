@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/ChevalRouting/routier/pkg/api/requests"
+	"github.com/ChevalRouting/routier/pkg/server/api/requests"
 )
 
 type contextKey string

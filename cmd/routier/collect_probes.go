@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/ChevalRouting/routier/pkg/api/collect"
+	"github.com/ChevalRouting/routier/pkg/server/api/collect"
 	"github.com/spf13/cobra"
 )
 

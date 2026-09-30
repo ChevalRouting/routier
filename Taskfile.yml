@@ -80,21 +80,21 @@ tasks:
       - task: 'tools'
       - task: 'prepare-web'
       - |
-        {{.TOOL_RUN}} sh -c 'CGO_ENABLED=1 go build {{.GO_TAGS}} -ldflags="-s -w -X main.VERSION={{.VERSION}} -X github.com/ChevalRouting/routier/pkg/api/app.Version={{.VERSION}}" -o routier ./cmd/routier'
+        {{.TOOL_RUN}} sh -c 'CGO_ENABLED=1 go build {{.GO_TAGS}} -ldflags="-s -w -X main.VERSION={{.VERSION}} -X github.com/ChevalRouting/routier/pkg/server/api/app.Version={{.VERSION}}" -o routier ./cmd/routier'
   build-routier-mcp:
     desc: 'Build routier-mcp'
     cmds:
       - task: 'tools'
       - task: 'prepare-web'
       - |
-        {{.TOOL_RUN}} sh -c 'CGO_ENABLED=1 go build {{.GO_TAGS}} -ldflags="-s -w -X main.VERSION={{.VERSION}} -X github.com/ChevalRouting/routier/pkg/api/app.Version={{.VERSION}}" -o routier-mcp ./cmd/routier-mcp'
+        {{.TOOL_RUN}} sh -c 'CGO_ENABLED=1 go build {{.GO_TAGS}} -ldflags="-s -w -X main.VERSION={{.VERSION}} -X github.com/ChevalRouting/routier/pkg/server/api/app.Version={{.VERSION}}" -o routier-mcp ./cmd/routier-mcp'
   build-routier-ui:
     desc: 'Build routier-ui'
     cmds:
       - task: 'tools'
       - task: 'prepare-web'
       - |
-        {{.TOOL_RUN}} sh -c 'CGO_ENABLED=1 go build {{.GO_TAGS}} -ldflags="-s -w -X main.VERSION={{.VERSION}} -X github.com/ChevalRouting/routier/pkg/api/app.Version={{.VERSION}}" -o routier-ui ./cmd/routier-ui'
+        {{.TOOL_RUN}} sh -c 'CGO_ENABLED=1 go build {{.GO_TAGS}} -ldflags="-s -w -X main.VERSION={{.VERSION}} -X github.com/ChevalRouting/routier/pkg/server/api/app.Version={{.VERSION}}" -o routier-ui ./cmd/routier-ui'
   mcp:
     desc: 'Build the standalone MCP server'
     cmds:
@@ -119,15 +119,15 @@ tasks:
       - task: 'tools'
       - |
         set -e
-        dirs="./pkg/api"; for d in pkg/api/routes/*/; do dirs="$dirs,./${d%/}"; done; \
-        {{.TOOL_RUN}} swag init --v3.1 -g doc.go -d "$dirs" --parseDependency --parseInternal --requiredByDefault -o pkg/api/docs
-        {{.TOOL_RUN}} oapi-codegen -generate types,client -package routierclient -o pkg/client/generated/routier.gen.go pkg/api/docs/swagger.json
-        {{.TOOL_RUN}} {{.OPENAPI_GENERATOR}} generate -i {{.TOOL_WORKSPACE}}/pkg/api/docs/swagger.json -g typescript-fetch -o {{.TOOL_WORKSPACE}}/web/src/api \
+        dirs="./pkg/server/api"; for d in pkg/server/api/routes/*/; do dirs="$dirs,./${d%/}"; done; \
+        {{.TOOL_RUN}} swag init --v3.1 -g doc.go -d "$dirs" --parseDependency --parseInternal --requiredByDefault -o pkg/server/api/docs
+        {{.TOOL_RUN}} oapi-codegen -generate types,client -package routierclient -o pkg/server/client/generated/routier.gen.go pkg/server/api/docs/swagger.json
+        {{.TOOL_RUN}} {{.OPENAPI_GENERATOR}} generate -i {{.TOOL_WORKSPACE}}/pkg/server/api/docs/swagger.json -g typescript-fetch -o {{.TOOL_WORKSPACE}}/web/src/api \
         	--additional-properties=modelPropertyNaming=original,paramNaming=original,supportsES6=true \
         	--reserved-words-mappings interface=interface,in=in,new=new
         {{.TOOL_RUN}} npm --prefix web install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund swagger-ui-dist
-        mkdir -p pkg/api/docs/swagger-ui
-        cp web/node_modules/swagger-ui-dist/swagger-ui.css web/node_modules/swagger-ui-dist/swagger-ui-bundle.js pkg/api/docs/swagger-ui/
+        mkdir -p pkg/server/api/docs/swagger-ui
+        cp web/node_modules/swagger-ui-dist/swagger-ui.css web/node_modules/swagger-ui-dist/swagger-ui-bundle.js pkg/server/api/docs/swagger-ui/
   sqlc:
     desc: 'Generate database code'
     cmds:
@@ -322,7 +322,7 @@ tasks:
       - |
         for bin in cmd/*; do rm -f "${bin##*/}"; done
       - |
-        rm -rf {{.MCP_DIST | shellQuote}} pkg/api/dist web/node_modules {{.DOCKER_STAMP | shellQuote}}
+        rm -rf {{.MCP_DIST | shellQuote}} pkg/server/api/dist web/node_modules {{.DOCKER_STAMP | shellQuote}}
   builder:
     desc: 'Build the Alpine package builder image'
     method: 'timestamp'

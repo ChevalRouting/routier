@@ -1,0 +1,28 @@
+<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Routier">
+  <rect x="24" y="21" width="36" height="13" rx="1.5" fill="#f8fafc"/>
+  <line x1="36" y1="21" x2="36" y2="34" stroke="#cbd5e1" stroke-width="0.8"/>
+  <line x1="48" y1="21" x2="48" y2="34" stroke="#cbd5e1" stroke-width="0.8"/>
+  <rect x="24" y="24" width="36" height="1" fill="#cbd5e1"/>
+  <path d="M6 34 V20 Q6 13 13 13 H21 Q24 13 24 16 V34 H6 Z" fill="#f8fafc"/>
+  <path d="M8 16.5 Q8 15 9.5 15 H19.5 Q21 15 21 16.5 V24 H8 Z" fill="#2d3a4a"/>
+  <line x1="11" y1="15" x2="11" y2="24" stroke="#f8fafc" stroke-width="0.8" stroke-opacity="0.35"/>
+  <rect x="5" y="33" width="55" height="1.4" fill="#d64545"/>
+  <rect x="5" y="34.4" width="55" height="7.6" rx="1" fill="#16181d"/>
+  <circle cx="8.6" cy="30" r="1.6" fill="#eab308"/>
+  <g transform="translate(42 27.2)">
+    <circle r="5" fill="#d64545"/>
+    <g fill="#f8fafc">
+      <path transform="rotate(45)" d="M-0.55 -1 L0.55 -1 L0.55 -2.6 L1.45 -2.6 L0 -4 L-1.45 -2.6 L-0.55 -2.6 Z"/>
+      <path transform="rotate(135)" d="M-0.55 -1 L0.55 -1 L0.55 -2.6 L1.45 -2.6 L0 -4 L-1.45 -2.6 L-0.55 -2.6 Z"/>
+      <path transform="rotate(225)" d="M-0.55 -1 L0.55 -1 L0.55 -2.6 L1.45 -2.6 L0 -4 L-1.45 -2.6 L-0.55 -2.6 Z"/>
+      <path transform="rotate(315)" d="M-0.55 -1 L0.55 -1 L0.55 -2.6 L1.45 -2.6 L0 -4 L-1.45 -2.6 L-0.55 -2.6 Z"/>
+    </g>
+  </g>
+  <rect x="4" y="42" width="56" height="2.5" rx="1" fill="#0b0d10"/>
+  <circle cx="15" cy="48.5" r="5.5" fill="#0b0d10"/>
+  <circle cx="15" cy="48.5" r="2.7" fill="#e2e8f0"/>
+  <circle cx="15" cy="48.5" r="1" fill="#475569"/>
+  <circle cx="47" cy="48.5" r="5.5" fill="#0b0d10"/>
+  <circle cx="47" cy="48.5" r="2.7" fill="#e2e8f0"/>
+  <circle cx="47" cy="48.5" r="1" fill="#475569"/>
+</svg>

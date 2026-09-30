@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ChevalRouting/routier/pkg/api"
+	"github.com/ChevalRouting/routier/pkg/server/api"
 	"github.com/ChevalRouting/routier/pkg/config"
 	"github.com/golang-jwt/jwt/v5"
 )
