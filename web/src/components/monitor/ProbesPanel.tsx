@@ -1,16 +1,24 @@
-import { useEffect, useState } from 'react'
-import { Activity, Trash2 } from 'lucide-react'
-import { toast } from 'sonner'
+import { api, configLayerRequest } from '@/lib/client'
 import { AccordionList, Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Label, SaveButton } from 'cheval-ui'
 import { TimeSeriesChart } from 'cheval-ui/charts'
-import { api, configLayerRequest } from '@/lib/client'
+import { Activity, Trash2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 import { OnActionChange } from './shared'
+
+type ProbesPanelShape = { onActionChange: OnActionChange }
+
+type ProbesShape2 = { probes?: Record<string, ProbePoint[]> }
+
+type ProbesShape = { probes?: Record<string, ProbePoint[]> }
+
+type FieldShape = { label: string; children: React.ReactNode }
 
 interface PingProbe { name: string; target: string; interval?: number; timeout?: number }
 interface Monitoring { collection?: Record<string, number>; probes?: PingProbe[] }
 interface ProbePoint { ts: number; name: string; target: string; reachable: boolean; rtt_avg_ms?: number }
 
-export function ProbesPanel({ onActionChange }: { onActionChange: OnActionChange }) {
+export function ProbesPanel({ onActionChange }: ProbesPanelShape) {
   const [monitoring, setMonitoring] = useState<Monitoring>({ probes: [] })
   const [history, setHistory] = useState<Record<string, ProbePoint[]>>({})
   const [latest, setLatest] = useState<Record<string, ProbePoint>>({})
@@ -25,8 +33,8 @@ export function ProbesPanel({ onActionChange }: { onActionChange: OnActionChange
     api.apiStatsHistoryGet({ minutes: 1440, series: 'probes' }),
     api.apiStatsHistoryGet({ minutes: 60, series: 'probes' }),
   ]).then(([day, hour]) => {
-    setHistory((day as unknown as { probes?: Record<string, ProbePoint[]> }).probes ?? {})
-    const recent = (hour as unknown as { probes?: Record<string, ProbePoint[]> }).probes ?? {}
+    setHistory((day as unknown as ProbesShape2).probes ?? {})
+    const recent = (hour as unknown as ProbesShape).probes ?? {}
     setLatest(Object.fromEntries(Object.entries(recent).flatMap(([name, points]) => points.length ? [[name, points[points.length - 1]]] : [])))
   }).catch(() => { setHistory({}); setLatest({}) })
 
@@ -82,6 +90,6 @@ export function ProbesPanel({ onActionChange }: { onActionChange: OnActionChange
   )
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children }: FieldShape) {
   return <div className="space-y-1.5"><Label>{label}</Label>{children}</div>
 }

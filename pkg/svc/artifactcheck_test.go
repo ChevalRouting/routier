@@ -56,6 +56,7 @@ func TestValidateArtifactsBeforeApplyDefersKea(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+
 	t.Setenv("PATH", binDir)
 	var calls []string
 	restore := SetCommandRunner(func(_ context.Context, bin string, _ ...string) ([]byte, error) {
@@ -71,13 +72,16 @@ func TestValidateArtifactsBeforeApplyDefersKea(t *testing.T) {
 	if errs := ValidateArtifactsBeforeApply(outputs); len(errs) != 0 {
 		t.Fatal(errs)
 	}
+
 	if len(calls) != 1 || calls[0] != "nft" {
 		t.Fatalf("pre-apply validators: %v", calls)
 	}
+
 	calls = nil
 	if errs := ValidateArtifacts(outputs); len(errs) != 0 {
 		t.Fatal(errs)
 	}
+
 	if len(calls) != 3 || calls[0] != "kea-dhcp4" || calls[1] != "kea-dhcp6" {
 		t.Fatalf("standalone validators: %v", calls)
 	}

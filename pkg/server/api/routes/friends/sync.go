@@ -3,15 +3,14 @@ package friends
 import (
 	"net/http"
 
-	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	cfgpkg "github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/managers"
+	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
 )
 
-// Sync godoc
 // @Summary  Sync HA state to one friend
 // @Tags friends
 // @Produce json
@@ -23,7 +22,6 @@ func Sync(w http.ResponseWriter, r *http.Request) {
 	syncHA(w, r, chi.URLParam(r, "name"))
 }
 
-// SyncAll godoc
 // @Summary  Sync HA state to all friends
 // @Tags friends
 // @Produce json

@@ -6,11 +6,11 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/ChevalRouting/routier/pkg/config"
+	webdb "github.com/ChevalRouting/routier/pkg/db"
 	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
 	"github.com/ChevalRouting/routier/pkg/server/api/requests"
-	"github.com/ChevalRouting/routier/pkg/config"
-	webdb "github.com/ChevalRouting/routier/pkg/db"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/rs/zerolog/log"
 	"gopkg.in/yaml.v3"
@@ -33,7 +33,6 @@ func v1ConfigResponse(cfg *config.Config) (*v1ConfigDocument, error) {
 	return &v1ConfigDocument{YAML: string(data), SHA256: hex.EncodeToString(sum[:])}, nil
 }
 
-// handleV1GetConfig godoc
 // @Summary Get the committed canonical configuration as YAML
 // @Tags v1-config
 // @Produce json
@@ -59,7 +58,6 @@ func handleV1GetConfig(w http.ResponseWriter, r *http.Request) {
 	types.OK(w, doc)
 }
 
-// handleV1GetSessionConfig godoc
 // @Summary Get a session's canonical configuration as YAML
 // @Tags v1-config
 // @Produce json
@@ -77,7 +75,6 @@ func handleV1GetSessionConfig(w http.ResponseWriter, r *http.Request) {
 	types.OK(w, doc)
 }
 
-// handleV1PutSessionConfig godoc
 // @Summary Replace a session's canonical configuration with YAML
 // @Tags v1-config
 // @Accept plain

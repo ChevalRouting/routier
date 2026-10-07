@@ -4,14 +4,13 @@ import (
 	"encoding/json"
 	"net/http"
 
+	webdb "github.com/ChevalRouting/routier/pkg/db"
 	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	"github.com/ChevalRouting/routier/pkg/server/api/requests"
-	webdb "github.com/ChevalRouting/routier/pkg/db"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/rs/zerolog/log"
 )
 
-// PutLayout godoc
 // @Summary  Save a UI layout
 // @Tags ui
 // @Accept json

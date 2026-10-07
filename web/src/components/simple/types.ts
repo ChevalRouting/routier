@@ -1,3 +1,18 @@
+
+
+type SectionsShape = {
+    internet?: Internet
+    networks: Network[]
+    port_forwards: PortForward[]
+    dns: SimpleDNS
+    system: SystemShape
+  }
+
+type SystemShape = { hostname: string }
+
+type IssuesShape = { section: string; message: string }
+
+type LossesShape = { path: string; message: string }
 export interface Internet {
   interface: string
   select: string
@@ -55,13 +70,7 @@ export interface SimpleDNS {
 
 export interface SimpleProjection {
   layer: string
-  sections: {
-    internet?: Internet
-    networks: Network[]
-    port_forwards: PortForward[]
-    dns: SimpleDNS
-    system: { hostname: string }
-  }
-  issues?: { section: string; message: string }[]
-  losses?: { path: string; message: string }[]
+  sections: SectionsShape
+  issues?: IssuesShape[]
+  losses?: LossesShape[]
 }

@@ -11,14 +11,14 @@ func NftCheck(ruleset string) (string, error) {
 		return "", err
 	}
 
-	defer os.Remove(f.Name())
+	defer func(path string) { _ = os.Remove(path) }(f.Name())
 
 	if _, err := f.WriteString(ruleset); err != nil {
-		f.Close()
+		_ = f.Close()
 		return "", err
 	}
 
-	f.Close()
+	_ = f.Close()
 
 	out, runErr := runCombined([]string{"nft", "-c", "-f", f.Name()}, 10*time.Second)
 	return string(out), runErr

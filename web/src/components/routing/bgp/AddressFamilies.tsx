@@ -1,28 +1,21 @@
-import { Fragment, useState } from 'react'
 import { checkCIDR } from '@/lib/validate'
-import { NumberInput } from 'cheval-ui'
-import { Input } from 'cheval-ui'
-import { Label } from 'cheval-ui'
-import { Button } from 'cheval-ui'
-import { Switch } from 'cheval-ui'
-import { Badge } from 'cheval-ui'
-import { TagInput } from 'cheval-ui'
-import { Card } from 'cheval-ui'
-import { Sheet } from 'cheval-ui'
+import { Badge, Button, Card, Input, Label, NumberInput, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Sheet, Switch, TagInput } from 'cheval-ui'
 import { Plus, Trash2 } from 'lucide-react'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from 'cheval-ui'
-import { BGPAddressFamily, STANDARD_AFS } from '../types'
+import { Fragment, useState } from 'react'
 import { NameSelect } from '../shared'
+import { BGPAddressFamily, STANDARD_AFS } from '../types'
 
-export function BGPAddressFamiliesPanel({
-  afs, onChange, routeMapNames, vrfNames, onDirty,
-}: {
+type BGPAddressFamiliesPanelShape = {
   afs: Record<string, BGPAddressFamily>
   onChange: (v: Record<string, BGPAddressFamily>) => void
   routeMapNames: string[]
   vrfNames: string[]
   onDirty: () => void
-}) {
+}
+
+export function BGPAddressFamiliesPanel({
+  afs, onChange, routeMapNames, vrfNames, onDirty,
+}: BGPAddressFamiliesPanelShape) {
   const [adding, setAdding] = useState('')
   const [openName, setOpenName] = useState<string | null>(null)
   const configured = Object.keys(afs)
@@ -113,14 +106,6 @@ export function BGPAddressFamiliesPanel({
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Route map in</Label>
-                    <NameSelect value={af.route_map_in} onChange={(v) => upd(afName, { route_map_in: v })} names={routeMapNames} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Route map out</Label>
-                    <NameSelect value={af.route_map_out} onChange={(v) => upd(afName, { route_map_out: v })} names={routeMapNames} />
-                  </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs text-muted-foreground">Maximum paths</Label>
                     <NumberInput

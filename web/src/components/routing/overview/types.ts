@@ -1,5 +1,7 @@
 import '@xyflow/react/dist/style.css'
 
+type AnycastShape = { services?: AnycastService[] }
+
 export interface StaticRoute { destination: string; via?: string; dev?: string; metric?: number }
 export interface BGPNeighbor { address: string; remote_asn: number; description?: string }
 export interface BGP { asn?: number; router_id?: string; neighbors?: BGPNeighbor[] }
@@ -14,7 +16,7 @@ export interface RoutingConfig {
   bgp?: BGP
   ospf?: OSPF
   ospf6?: OSPF6
-  anycast?: { services?: AnycastService[] }
+  anycast?: AnycastShape
   vrfs?: Record<string, VRFRouting>
 }
 export interface Tunnel { mode: string; local?: string; remote?: string }

@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ChevalRouting/routier/pkg/server/api"
 	"github.com/ChevalRouting/routier/pkg/config"
+	"github.com/ChevalRouting/routier/pkg/server/api"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -212,7 +212,7 @@ func (n *Node) Do(t *testing.T, method, path string, body any) (int, []byte) {
 		t.Fatalf("%s %s: %v", method, path, err)
 	}
 
-	defer resp.Body.Close()
+	defer func(action func() error) { _ = action() }(resp.Body.Close)
 
 	data, _ := io.ReadAll(resp.Body)
 	return resp.StatusCode, data
@@ -221,9 +221,7 @@ func (n *Node) Do(t *testing.T, method, path string, body any) (int, []byte) {
 func DecodeData[T any](t *testing.T, raw []byte) T {
 	t.Helper()
 
-	var wrapped struct {
-		Result T `json:"result"`
-	}
+	var wrapped responseData[T]
 	if err := json.Unmarshal(raw, &wrapped); err != nil {
 		t.Fatalf("decode response %s: %v", string(raw), err)
 	}
@@ -248,4 +246,8 @@ func RunCLI(t *testing.T, bin string, args ...string) (string, error) {
 
 	out, err := exec.Command(bin, args...).CombinedOutput()
 	return string(out), err
+}
+
+type responseData[T any] struct {
+	Result T `json:"result"`
 }

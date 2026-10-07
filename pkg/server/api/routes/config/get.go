@@ -5,15 +5,14 @@ import (
 	"fmt"
 	"net/http"
 
-	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
-	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
 	cfgpkg "github.com/ChevalRouting/routier/pkg/config"
 	friendspkg "github.com/ChevalRouting/routier/pkg/friends"
+	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
+	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/rs/zerolog/log"
 )
 
-// GetConfig godoc
 // @Summary  Get the staged config
 // @Tags config
 // @Produce json
@@ -49,7 +48,7 @@ func GetConfig(w http.ResponseWriter, r *http.Request) {
 		}
 
 		w.Header().Set("Content-Type", types.SealedContentType)
-		w.Write(sealed)
+		_, _ = w.Write(sealed)
 		return
 	}
 

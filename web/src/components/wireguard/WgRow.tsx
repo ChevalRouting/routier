@@ -1,5 +1,4 @@
-import { Button } from 'cheval-ui'
-import { Badge } from 'cheval-ui'
+import { Badge, Button } from 'cheval-ui'
 import { Trash2 } from 'lucide-react'
 import { WgIface } from './shared'
 

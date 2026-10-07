@@ -192,12 +192,14 @@ func FormatBinary(raw string, prefix int, is4 bool) string {
 	var sb strings.Builder
 	for i, c := range raw {
 		if i > 0 && i%group == 0 {
-			sb.WriteByte('.')
+			_ = sb.WriteByte('.')
 		}
+
 		if i == prefix {
-			sb.WriteByte(' ')
+			_ = sb.WriteByte(' ')
 		}
-		sb.WriteRune(c)
+
+		_, _ = sb.WriteRune(c)
 	}
 
 	return sb.String()
@@ -253,9 +255,9 @@ func bits(n *big.Int, width int) string {
 	var sb strings.Builder
 	for i := width - 1; i >= 0; i-- {
 		if n.Bit(i) == 1 {
-			sb.WriteByte('1')
+			_ = sb.WriteByte('1')
 		} else {
-			sb.WriteByte('0')
+			_ = sb.WriteByte('0')
 		}
 	}
 

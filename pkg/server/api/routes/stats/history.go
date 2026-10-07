@@ -6,15 +6,14 @@ import (
 	"strings"
 	"time"
 
-	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	webdb "github.com/ChevalRouting/routier/pkg/db"
+	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	sysstats "github.com/ChevalRouting/routier/pkg/telemetry/stats"
 	"github.com/ChevalRouting/routier/pkg/types"
 )
 
 const historyMaxPoints = 200
 
-// History godoc
 // @Summary  Historical stats
 // @Tags stats
 // @Produce json

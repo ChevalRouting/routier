@@ -56,9 +56,7 @@ func TestRenderKeaLocal(t *testing.T) {
 		t.Fatal("kea-dhcp4.conf not rendered")
 	}
 
-	var wrap4 struct {
-		Dhcp4 map[string]json.RawMessage `json:"Dhcp4"`
-	}
+	var wrap4 renderKeaLocalCase
 	if err := json.Unmarshal([]byte(d4), &wrap4); err != nil {
 		t.Fatalf("dhcp4 is not valid json: %v\n%s", err, d4)
 	}
@@ -111,4 +109,8 @@ func TestRenderKeaDisabled(t *testing.T) {
 	if _, ok := m["/etc/kea/kea-ctrl-agent.conf"]; ok {
 		t.Error("kea rendered while disabled")
 	}
+}
+
+type renderKeaLocalCase struct {
+	Dhcp4 map[string]json.RawMessage `json:"Dhcp4"`
 }

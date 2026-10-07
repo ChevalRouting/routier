@@ -6,12 +6,11 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/ChevalRouting/routier/pkg/host/updates"
+	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/rs/zerolog/log"
 )
 
-// UpgradeStatus godoc
 // @Summary  Current upgrade job status
 // @Tags system
 // @Produce json
@@ -22,7 +21,6 @@ func UpgradeStatus(w http.ResponseWriter, _ *http.Request) {
 	types.OK(w, updates.ReadStatus())
 }
 
-// StartUpgrade godoc
 // @Summary  Start a whole-system upgrade
 // @Tags system
 // @Produce json
@@ -47,7 +45,6 @@ func StartUpgrade(w http.ResponseWriter, _ *http.Request) {
 	types.OK(w, types.StatusResponse{Status: "started"})
 }
 
-// Reboot godoc
 // @Summary  Reboot the appliance
 // @Tags system
 // @Produce json
@@ -63,7 +60,6 @@ func Reboot(w http.ResponseWriter, _ *http.Request) {
 	types.OK(w, types.StatusResponse{Status: "rebooting"})
 }
 
-// Shutdown godoc
 // @Summary  Power off the appliance
 // @Tags system
 // @Produce json

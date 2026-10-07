@@ -63,8 +63,6 @@ func ValidateArtifacts(outputs []render.Output) []types.ArtifactError {
 	return validateArtifacts(outputs, false)
 }
 
-// ValidateArtifactsBeforeApply defers Kea validation until ReloadFromOutputs has
-// configured the network. Kea checks that its configured interfaces exist.
 func ValidateArtifactsBeforeApply(outputs []render.Output) []types.ArtifactError {
 	return validateArtifacts(outputs, true)
 }
@@ -75,7 +73,7 @@ func validateArtifacts(outputs []render.Output, deferKea bool) []types.ArtifactE
 		return []types.ArtifactError{{Message: "staging dir: " + err.Error()}}
 	}
 
-	defer os.RemoveAll(dir)
+	defer func() { _ = os.RemoveAll(dir) }()
 
 	var errs []types.ArtifactError
 	for _, o := range outputs {

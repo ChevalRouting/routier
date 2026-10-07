@@ -3,13 +3,12 @@ package auth
 import (
 	"net/http"
 
+	"github.com/ChevalRouting/routier/pkg/auth/unixauth"
 	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	"github.com/ChevalRouting/routier/pkg/types"
-	"github.com/ChevalRouting/routier/pkg/auth/unixauth"
 	"github.com/rs/zerolog/log"
 )
 
-// HashPassword godoc
 // @Summary  Hash a plaintext password for a config user (sha512-crypt)
 // @Tags auth
 // @Produce json

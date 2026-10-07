@@ -6,16 +6,15 @@ import (
 	"encoding/json"
 	"net/http"
 
-	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
+	"github.com/ChevalRouting/routier/pkg/auth/identity"
 	cfgpkg "github.com/ChevalRouting/routier/pkg/config"
 	friendspkg "github.com/ChevalRouting/routier/pkg/friends"
-	"github.com/ChevalRouting/routier/pkg/auth/identity"
 	"github.com/ChevalRouting/routier/pkg/render"
+	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/rs/zerolog/log"
 )
 
-// Poll godoc
 // @Summary  Batched, shared-key-encrypted friend poll
 // @Tags friends
 // @Produce json
@@ -88,7 +87,7 @@ func Poll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", types.SharedSealedContentType)
-	w.Write(sealed)
+	_, _ = w.Write(sealed)
 }
 
 func exportVars(cfg *cfgpkg.Config) []types.FriendVar {

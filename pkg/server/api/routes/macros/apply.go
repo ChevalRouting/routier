@@ -7,21 +7,20 @@ import (
 	"path/filepath"
 	"strings"
 
-	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
-	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
-	"github.com/ChevalRouting/routier/pkg/server/api/friendcache"
-	"github.com/ChevalRouting/routier/pkg/server/api/requests"
 	"github.com/ChevalRouting/routier/pkg/config"
 	webdb "github.com/ChevalRouting/routier/pkg/db"
 	"github.com/ChevalRouting/routier/pkg/macro"
 	"github.com/ChevalRouting/routier/pkg/managers"
+	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
+	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
+	"github.com/ChevalRouting/routier/pkg/server/api/friendcache"
+	"github.com/ChevalRouting/routier/pkg/server/api/requests"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
 	"gopkg.in/yaml.v3"
 )
 
-// Apply godoc
 // @Summary  Apply a macro to the live config
 // @Tags macros
 // @Produce json
@@ -39,6 +38,7 @@ func Apply(w http.ResponseWriter, r *http.Request) {
 		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "read staging owner"))
 		return
 	}
+
 	if staged {
 		types.Err(http.StatusConflict, "configuration changes belong to the "+owner+" layer").Write(w)
 		return

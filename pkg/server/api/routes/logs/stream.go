@@ -10,7 +10,6 @@ import (
 	"github.com/ChevalRouting/routier/pkg/types"
 )
 
-// Stream godoc
 // @Summary  Stream system logs (SSE)
 // @Tags logs
 // @Produce text/event-stream
@@ -27,12 +26,7 @@ func Stream(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Accel-Buffering", "no")
 	flusher, hasFlusher := w.(http.Flusher)
 
-	send := func(line string) {
-		fmt.Fprintf(w, "data: %s\n\n", strings.ReplaceAll(line, "\n", " "))
-		if hasFlusher {
-			flusher.Flush()
-		}
-	}
+	send := func(line string) { streamCallback(w, flusher, hasFlusher, line) }
 
 	switch source {
 	case "messages":
@@ -75,4 +69,11 @@ func streamLines(cmd *exec.Cmd, stripPriority bool, send func(string)) {
 	}
 
 	_ = cmd.Wait()
+}
+
+func streamCallback(w http.ResponseWriter, flusher http.Flusher, hasFlusher bool, line string) {
+	_, _ = fmt.Fprintf(w, "data: %s\n\n", strings.ReplaceAll(line, "\n", " "))
+	if hasFlusher {
+		flusher.Flush()
+	}
 }

@@ -7,9 +7,6 @@ func TestParseExecOutputExtractsBetweenMarkers(t *testing.T) {
 	start := marker + "START"
 	end := marker + "END"
 
-	// Simulated interactive PTY stream: bracketed-paste ANSI, an echoed input
-	// line (which contains the printf template and the quoted marker but never
-	// the concatenated token), then the executed output with CRs.
 	raw := "\x1b[?2004hrouter:~# printf '%sSTART\\n' '" + marker + "'; echo hello; printf '%sEND %d\\n' '" + marker + "' \"$?\"; exit\r\n" +
 		"\x1b[?2004l\r" + start + "\r\n" +
 		"hello\r\n" +

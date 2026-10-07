@@ -3,12 +3,11 @@ package stats
 import (
 	"net/http"
 
-	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	webdb "github.com/ChevalRouting/routier/pkg/db"
+	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	"github.com/ChevalRouting/routier/pkg/types"
 )
 
-// LLDP godoc
 // @Summary  Latest stored LLDP/CDP neighbors
 // @Tags stats
 // @Produce json

@@ -1,30 +1,23 @@
+import type { TypesAnnouncement as Announcement, TypesAnnouncementLevelEnum as AnnouncementLevel } from '@/api'
+import { api } from '@/lib/client'
+import { useFetch } from '@/lib/useFetch'
+import { Textarea, Badge, Button, EmptyState, Label, PageHeader, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Spinner, Switch } from 'cheval-ui'
+import { Megaphone, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { api } from '@/lib/client'
-import type { TypesAnnouncement as Announcement, TypesAnnouncementLevelEnum as AnnouncementLevel } from '@/api'
-import { useFetch } from '@/lib/useFetch'
-import { PageHeader } from 'cheval-ui'
-import { Spinner } from 'cheval-ui'
-import { EmptyState } from 'cheval-ui'
-import { Button } from 'cheval-ui'
-import { Switch } from 'cheval-ui'
-import { Label } from 'cheval-ui'
-import { Badge } from 'cheval-ui'
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from 'cheval-ui'
-import { Plus, Trash2, Megaphone } from 'lucide-react'
+
+type AnnouncementFormShape = {
+  initial?: Announcement
+  submitLabel: string
+  onSubmit: (input: AnnouncementInput) => Promise<void>
+  onCancel?: () => void
+}
 
 const LEVELS: AnnouncementLevel[] = ['info', 'warning', 'danger']
 
 type AnnouncementInput = Pick<Announcement, 'message' | 'level' | 'enabled' | 'dismissible'>
 
-function AnnouncementForm({ initial, submitLabel, onSubmit, onCancel }: {
-  initial?: Announcement
-  submitLabel: string
-  onSubmit: (input: AnnouncementInput) => Promise<void>
-  onCancel?: () => void
-}) {
+function AnnouncementForm({ initial, submitLabel, onSubmit, onCancel }: AnnouncementFormShape) {
   const [message, setMessage] = useState(initial?.message ?? '')
   const [level, setLevel] = useState<AnnouncementLevel>(initial?.level ?? 'info')
   const [enabled, setEnabled] = useState(initial?.enabled ?? true)
@@ -43,7 +36,7 @@ function AnnouncementForm({ initial, submitLabel, onSubmit, onCancel }: {
 
   return (
     <div className="space-y-3 rounded-md bg-card p-3 shadow-[var(--card-shadow)]">
-      <textarea
+      <Textarea
         value={message}
         onChange={(e) => setMessage(e.target.value)}
         placeholder="Maintenance window tonight 22:00-23:00 UTC"

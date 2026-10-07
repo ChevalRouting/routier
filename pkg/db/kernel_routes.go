@@ -22,7 +22,7 @@ func ReplaceKernelRoutes(ctx context.Context, db *DB, routes []types.KernelRoute
 		return err
 	}
 
-	defer tx.Rollback()
+	defer func(action func() error) { _ = action() }(tx.Rollback)
 
 	queries := generated.New(tx)
 	if err := queries.DeleteKernelRoutes(ctx); err != nil {

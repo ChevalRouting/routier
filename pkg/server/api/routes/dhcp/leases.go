@@ -28,7 +28,6 @@ func leaseMatches(l kea.Lease, q string) bool {
 		strings.Contains(strings.ToLower(l.Hostname), q)
 }
 
-// Leases godoc
 // @Summary  List active DHCP leases, optionally filtered
 // @Tags dhcp
 // @Produce json
@@ -59,6 +58,7 @@ func Leases(w http.ResponseWriter, r *http.Request) {
 			types.Error(log.Logger, w, types.Wrap(http.StatusBadGateway, err, "failed to read DHCP lease"))
 			return
 		}
+
 		if l != nil {
 			out = append(out, leaseView{Service: service, Reserved: reserved[l.IPAddress], Lease: *l})
 		}
@@ -76,8 +76,10 @@ func Leases(w http.ResponseWriter, r *http.Request) {
 			if firstErr == nil {
 				firstErr = err
 			}
+
 			continue
 		}
+
 		successful = true
 
 		for _, l := range leases {
@@ -91,10 +93,10 @@ func Leases(w http.ResponseWriter, r *http.Request) {
 		types.Error(log.Logger, w, types.Wrap(http.StatusBadGateway, firstErr, "failed to read DHCP leases"))
 		return
 	}
+
 	types.OK(w, out)
 }
 
-// FreeIP godoc
 // @Summary  Suggest a free address in a subnet's pools
 // @Tags dhcp
 // @Produce json

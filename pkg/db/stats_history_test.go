@@ -1,5 +1,7 @@
 package db
 
+import context "context"
+
 import (
 	"errors"
 	"math"
@@ -17,7 +19,7 @@ func testDB(t *testing.T) *DB {
 		t.Fatal(err)
 	}
 
-	t.Cleanup(func() { db.Close() })
+	t.Cleanup(func() { _ = db.Close() })
 	return db
 }
 
@@ -69,11 +71,7 @@ func TestBGPHistoryUsesLatestRowPerBucket(t *testing.T) {
 	ctx := t.Context()
 
 	insert := func(ts int64, state string, msgRcvd int) {
-		if err := InsertBGPStats(ctx, db, ts, &types.BGPStats{Peers: []types.BGPPeerSummary{
-			{Address: "10.0.0.1", State: state, MsgRcvd: msgRcvd},
-		}}); err != nil {
-			t.Fatal(err)
-		}
+		testBGPHistoryUsesLatestRowPerBucketCallback(t, db, ctx, ts, state, msgRcvd)
 	}
 
 	insert(1000, "Idle", 500)
@@ -135,5 +133,13 @@ func TestAnnouncementUpdateDeleteReportMissing(t *testing.T) {
 
 	if err := DeleteAnnouncement(ctx, db, id); err != nil {
 		t.Errorf("delete existing: %v", err)
+	}
+}
+
+func testBGPHistoryUsesLatestRowPerBucketCallback(t *testing.T, db *DB, ctx context.Context, ts int64, state string, msgRcvd int) {
+	if err := InsertBGPStats(ctx, db, ts, &types.BGPStats{Peers: []types.BGPPeerSummary{
+		{Address: "10.0.0.1", State: state, MsgRcvd: msgRcvd},
+	}}); err != nil {
+		t.Fatal(err)
 	}
 }

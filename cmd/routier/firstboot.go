@@ -31,7 +31,7 @@ func runFirstboot(command *cobra.Command, _ []string) error {
 
 	nics := usableNICs()
 	if len(nics) == 0 {
-		fmt.Fprintln(os.Stderr, "routier firstboot: no usable ethernet interfaces found; skipping")
+		_, _ = fmt.Fprintln(os.Stderr, "routier firstboot: no usable ethernet interfaces found; skipping")
 		return nil
 	}
 
@@ -49,12 +49,14 @@ func runFirstboot(command *cobra.Command, _ []string) error {
 	if hostname == "" {
 		hostname = "routier"
 	}
+
 	cfg.Hostname = hostname
 
 	ifaces := make(map[string]*config.Interface, len(nics))
 	for _, nic := range nics {
 		ifaces[nic] = &config.Interface{Select: nic, Addresses: []string{"dhcp"}}
 	}
+
 	cfg.Interfaces = ifaces
 
 	if err := os.MkdirAll("/etc/routier", 0750); err != nil {
@@ -87,7 +89,7 @@ func runFirstboot(command *cobra.Command, _ []string) error {
 	motd.WriteIssue(VERSION)
 	motd.Write(command.Context(), "routier", firstbootPass)
 
-	fmt.Printf("routier firstboot: generated %s (DHCP on: %s)\n", defaultConfigPath, strings.Join(nics, " "))
+	_, _ = fmt.Printf("routier firstboot: generated %s (DHCP on: %s)\n", defaultConfigPath, strings.Join(nics, " "))
 	return nil
 }
 

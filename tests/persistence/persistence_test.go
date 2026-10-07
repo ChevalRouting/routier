@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/state/applylog"
 	"github.com/ChevalRouting/routier/pkg/state/backup"
-	"github.com/ChevalRouting/routier/pkg/config"
 )
 
 func TestApplyLogRecordLifecycle(t *testing.T) {

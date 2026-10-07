@@ -24,24 +24,26 @@ func newSnapshotsListCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
 		Short: "list available snapshots",
-		RunE: func(_ *cobra.Command, _ []string) error {
-			infos, err := apply.ListSnapshotInfos()
-			if err != nil {
-				return err
-			}
-
-			if len(infos) == 0 {
-				fmt.Println("no snapshots")
-				return nil
-			}
-
-			tw := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
-			fmt.Fprintln(tw, "ID\tTIME\tFILES")
-			for _, s := range infos {
-				fmt.Fprintf(tw, "%s\t%s\t%d\n", s.ID, s.Time.Format(time.RFC3339), len(s.Files))
-			}
-
-			return tw.Flush()
-		},
+		RunE:  newSnapshotsListCommandHandler,
 	}
+}
+
+func newSnapshotsListCommandHandler(_ *cobra.Command, _ []string) error {
+	infos, err := apply.ListSnapshotInfos()
+	if err != nil {
+		return err
+	}
+
+	if len(infos) == 0 {
+		_, _ = fmt.Println("no snapshots")
+		return nil
+	}
+
+	tw := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
+	_, _ = fmt.Fprintln(tw, "ID\tTIME\tFILES")
+	for _, s := range infos {
+		_, _ = fmt.Fprintf(tw, "%s\t%s\t%d\n", s.ID, s.Time.Format(time.RFC3339), len(s.Files))
+	}
+
+	return tw.Flush()
 }

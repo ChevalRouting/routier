@@ -1,9 +1,10 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
-import { Card, CardContent, Button, Input } from 'cheval-ui'
-import { cn } from 'cheval-ui'
 import { activeBaseUrl } from '@/lib/instance'
 import { getToken } from '@/lib/utils'
-import { Search, Trash2, ChevronRight, ChevronDown } from 'lucide-react'
+import { Button, Card, CardContent, cn, Input } from 'cheval-ui'
+import { ChevronDown, ChevronRight, Search, Trash2 } from 'lucide-react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+
+type RowShape = { id: number }
 
 interface DnsQuery {
   time: string
@@ -17,7 +18,7 @@ interface DnsQuery {
   raw: string
 }
 
-type Row = DnsQuery & { id: number }
+type Row = DnsQuery & RowShape
 
 const FLAG_MEANINGS: Record<string, string> = {
   '+': 'recursion desired',
@@ -69,7 +70,7 @@ export function DnsQueriesPanel() {
     const run = async () => {
       setStatus('Connecting…')
       try {
-        const res = await fetch(`${activeBaseUrl()}/api/dns/queries/stream${connectedRef.current ? "?history=0" : ""}`, {
+        const res = await fetch(`${activeBaseUrl()}/api/dns/queries/stream${connectedRef.current ? '?history=0' : ''}`, {
           headers: { Authorization: `Bearer ${getToken() ?? ''}` },
           signal: controller.signal,
         })
@@ -95,13 +96,13 @@ export function DnsQueriesPanel() {
                 return next.length > 500 ? next.slice(0, 500) : next
               })
             } catch {
-              /* ignore malformed frame */
+
             }
           }
         }
       } catch (err) {
         if (!controller.signal.aborted) {
-          setStatus(`${err instanceof Error ? err.message : 'Connection failed'} — retrying…`)
+          setStatus(`${err instanceof Error ? err.message : 'Connection failed'}, retrying…`)
           retry = setTimeout(run, 3000)
         }
       }

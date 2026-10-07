@@ -142,14 +142,49 @@ tasks:
         set -e
         {{.TOOL_RUN}} go vet ./...
         {{.TOOL_RUN}} go test ./...
-  lint:
-    desc: 'Lint Go and frontend code'
+  prepare-lint-web:
+    internal: true
+    run: 'once'
     cmds:
       - task: 'tools'
       - |
-        set -e
-        {{.TOOL_RUN}} golangci-lint run ./...
-        {{.TOOL_RUN}} sh -c 'cd web && npm install && npx eslint src'
+        {{.TOOL_RUN}} sh -c 'cd web && if [ ! -x node_modules/.bin/eslint ] || [ ! -d node_modules/@stylistic/eslint-plugin ] || [ ! -d node_modules/@typescript-eslint/parser ]; then npm ci; fi'
+  check-style:
+    desc: 'Check Go, frontend formatting and repository style'
+    cmds:
+      - task: prepare-lint-web
+      - '{{.TOOL_RUN}} go run ./cmd/stylecheck'
+  lint:
+    desc: 'Alias for the repository style check'
+    cmds:
+      - task: check-style
+  lint-go:
+    desc: 'Lint Go code'
+    cmds:
+      - task: 'tools'
+      - '{{.TOOL_RUN}} go run ./cmd/stylecheck --only go'
+  lint-style:
+    desc: 'Check Go syntax and repository text'
+    cmds:
+      - task: 'tools'
+      - '{{.TOOL_RUN}} go run ./cmd/stylecheck --only style'
+  lint-web:
+    desc: 'Check handwritten frontend code'
+    cmds:
+      - task: prepare-lint-web
+      - '{{.TOOL_RUN}} npm --prefix web run lint'
+  test-lint:
+    desc: 'Test repository-specific lint rules'
+    cmds:
+      - task: prepare-lint-web
+      - '{{.TOOL_RUN}} go test ./cmd/stylecheck'
+      - '{{.TOOL_RUN}} npm --prefix web run test:lint'
+  format:
+    desc: 'Apply safe Go and frontend formatting fixes'
+    cmds:
+      - task: prepare-lint-web
+      - '{{.TOOL_RUN}} golangci-lint fmt'
+      - '{{.TOOL_RUN}} npm --prefix web run lint:fix'
   cheval-ui:
     desc: 'Import the local cheval-ui package'
     cmds:

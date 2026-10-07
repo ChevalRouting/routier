@@ -1,14 +1,15 @@
-import { Link } from 'react-router-dom'
-import { ArrowRightLeft, Globe, Network, Search, Server, Activity } from 'lucide-react'
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle, PageHeader, Spinner } from 'cheval-ui'
-import { api, configLayerRequest } from '@/lib/client'
-import { useFetch } from '@/lib/useFetch'
-import { SystemOverview } from '@/components/SystemOverview'
+import type { KeaSubnetView, TypesSystemNic as SystemNic } from '@/api'
 import { NeighborsPanel } from '@/components/monitor/NeighborsPanel'
 import { ProbePanel } from '@/components/ProbePanel'
 import type { SimpleProjection } from '@/components/simple/types'
-import type { TypesSystemNic as SystemNic } from '@/api'
-import type { KeaSubnetView } from '@/api'
+import { SystemOverview } from '@/components/SystemOverview'
+import { api, configLayerRequest } from '@/lib/client'
+import { useFetch } from '@/lib/useFetch'
+import { Badge, Button, Card, CardContent, CardHeader, CardTitle, PageHeader, Spinner } from 'cheval-ui'
+import { Activity, ArrowRightLeft, Globe, Network, Search, Server } from 'lucide-react'
+import { Link } from 'react-router-dom'
+
+type EditLinkShape = { to: string }
 
 function matchingNic(nics: SystemNic[], selector: string): SystemNic | undefined {
   const mac = selector.match(/^mac\((.+)\)$/)?.[1]
@@ -16,7 +17,7 @@ function matchingNic(nics: SystemNic[], selector: string): SystemNic | undefined
   return nics.find((nic) => mac ? nic.mac?.toLowerCase() === mac.toLowerCase() : nic.name === name)
 }
 
-function EditLink({ to }: { to: string }) {
+function EditLink({ to }: EditLinkShape) {
   return <Button asChild variant="ghost" size="sm"><Link to={to}>Configure</Link></Button>
 }
 

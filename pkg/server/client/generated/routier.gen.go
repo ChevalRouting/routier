@@ -1267,6 +1267,7 @@ type TypesApplyPendingResponse struct {
 type TypesApplyResult struct {
 	BundleID *string               `json:"bundleID,omitempty"`
 	Errors   *[]TypesArtifactError `json:"errors,omitempty"`
+	LogID    *string               `json:"logID,omitempty"`
 	SnapID   *string               `json:"snapID,omitempty"`
 	Status   string                `json:"status"`
 	Warning  *string               `json:"warning,omitempty"`
@@ -14966,6 +14967,7 @@ type PostApiConfigApplyResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *TypesResponseTypesApplyResult
+	JSON500      *TypesResponseTypesApplyResult
 }
 
 // Status returns HTTPResponse.Status
@@ -21286,6 +21288,13 @@ func ParsePostApiConfigApplyResponse(rsp *http.Response) (*PostApiConfigApplyRes
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest TypesResponseTypesApplyResult
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
 
 	}
 

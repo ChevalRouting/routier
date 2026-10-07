@@ -32,6 +32,7 @@ func (c *Client) Zones(zones []ZoneInput) []ZoneView {
 			done <- index
 		}()
 	}
+
 	for range zones {
 		<-done
 	}

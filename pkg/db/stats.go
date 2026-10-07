@@ -40,7 +40,7 @@ func PruneStats(ctx context.Context, db *DB, cutoff int64) error {
 		return err
 	}
 
-	defer tx.Rollback()
+	defer func(action func() error) { _ = action() }(tx.Rollback)
 
 	queries := db.queries.WithTx(tx)
 	if err := queries.PruneIfaceStats(ctx, cutoff); err != nil {

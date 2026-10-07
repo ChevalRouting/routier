@@ -7,7 +7,6 @@ import (
 	"github.com/ChevalRouting/routier/pkg/types"
 )
 
-// Subnet godoc
 // @Summary  Compute an ipcalc-style subnet breakdown for an address or CIDR
 // @Tags tools
 // @Produce json

@@ -14,10 +14,10 @@ func friendStub(t *testing.T) *httptest.Server {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/friends/hello", func(w http.ResponseWriter, _ *http.Request) {
-		w.Write([]byte(`{"result":{"hostname":"peer","identity_fingerprint":"SHA256:stubfingerprint","identity_public_key":"c3R1Yg==","version":"test"}}`))
+		_, _ = w.Write([]byte(`{"result":{"hostname":"peer","identity_fingerprint":"SHA256:stubfingerprint","identity_public_key":"c3R1Yg==","version":"test"}}`))
 	})
 	mux.HandleFunc("/api/friends/interfaces", func(w http.ResponseWriter, _ *http.Request) {
-		w.Write([]byte(`{"result":[{"name":"wan","addresses":["198.51.100.9"]}]}`))
+		_, _ = w.Write([]byte(`{"result":[{"name":"wan","addresses":["198.51.100.9"]}]}`))
 	})
 
 	ts := httptest.NewServer(mux)

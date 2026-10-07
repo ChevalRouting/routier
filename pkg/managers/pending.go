@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ChevalRouting/routier/pkg/state/applylog"
 	"github.com/ChevalRouting/routier/pkg/config"
+	"github.com/ChevalRouting/routier/pkg/state/applylog"
 	anyk "github.com/m-vinc/anyk"
 	"github.com/rs/zerolog/log"
 )

@@ -134,16 +134,7 @@ func randomPort() (int, error) {
 }
 
 func wgInterfaceName(friendName string) string {
-	clean := strings.Map(func(r rune) rune {
-		switch {
-		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
-			return r
-		case r >= 'A' && r <= 'Z':
-			return r + ('a' - 'A')
-		default:
-			return '-'
-		}
-	}, friendName)
+	clean := strings.Map(wgInterfaceNameHandler, friendName)
 
 	name := "wg-fr-" + clean
 	if len(name) > 15 {
@@ -270,4 +261,15 @@ func DeriveWireguard(p WGDeriveParams) (*WGDeriveResult, error) {
 	}
 
 	return &WGDeriveResult{InterfaceName: name, Local: local, Counterpart: counterpart}, nil
+}
+
+func wgInterfaceNameHandler(r rune) rune {
+	switch {
+	case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+		return r
+	case r >= 'A' && r <= 'Z':
+		return r + ('a' - 'A')
+	default:
+		return '-'
+	}
 }

@@ -77,10 +77,31 @@ Lowercase imperative subject, optionally prefixed by the touched area (`bgp: ...
 
 ## Linting
 
-Run `task lint` before pushing: `golangci-lint` (config in `.golangci.yml`) for
-Go and ESLint (`web/eslint.config.js`) for the frontend. CI runs both on every
-push and blocks packaging on failures. Intentionally ignored errors are written
-as explicit `_ =` assignments, never left bare.
+Run `task check-style` before building or committing. `task lint` is an alias
+for the same gate. It checks all handwritten Go and frontend code, including
+existing violations, and fails on frontend warnings. Generated and vendored
+code is excluded.
+
+The Go checker in `cmd/stylecheck/`, adapted from Maco, orchestrates
+`golangci-lint`, repository syntax and text checks, and frontend lint. The Go
+configuration enforces formatting, control-block spacing, adjacent error
+checks, and explicit ignored errors, including tests. Compiler directives,
+Swagger annotations, and cgo preambles are preserved.
+
+Frontend lint combines the existing React and TypeScript checks with Maco's
+named-type, named-handler, shared-control, and comment rules. Formatting uses
+single quotes, no semicolons, no trailing spaces, and a final newline. The
+independent comment check cannot be suppressed with a blanket ESLint directive.
+Maco-specific color and table-action policies are not enabled in Routier.
+
+Use `task format` for safe Go and frontend formatting fixes. Use `task lint-go`,
+`task lint-style`, or `task lint-web` for focused checks. Run `task test-lint`
+after changing custom rules or their configuration. These tasks use the same
+native or container tooling as the existing build tasks.
+
+Page boundaries, preference-row alignment, grouping statements by intent, and
+commit grammar still need review. Do not weaken checks or add broad exclusions
+to conceal existing violations.
 
 ## AI usage
 

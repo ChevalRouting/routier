@@ -3,17 +3,16 @@ package friends
 import (
 	"net/http"
 
-	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
-	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
+	"github.com/ChevalRouting/routier/pkg/auth/identity"
 	cfgpkg "github.com/ChevalRouting/routier/pkg/config"
 	friendspkg "github.com/ChevalRouting/routier/pkg/friends"
-	"github.com/ChevalRouting/routier/pkg/auth/identity"
+	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
+	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
 )
 
-// PairFriend godoc
 // @Summary  Validate a friend's fingerprint and complete pairing
 // @Tags     friends
 // @Produce  json

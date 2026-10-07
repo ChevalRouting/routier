@@ -12,8 +12,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ChevalRouting/routier/pkg/host/boot"
 	"github.com/ChevalRouting/routier/pkg/config"
+	"github.com/ChevalRouting/routier/pkg/host/boot"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
@@ -39,11 +39,11 @@ type installer struct {
 }
 
 func (s *installer) msg(format string, args ...any) {
-	fmt.Fprintf(s.tty, "\n\033[1;34m==> %s\033[0m\n", fmt.Sprintf(format, args...))
+	_, _ = fmt.Fprintf(s.tty, "\n\033[1;34m==> %s\033[0m\n", fmt.Sprintf(format, args...))
 }
 
 func (s *installer) ask(prompt, def string) string {
-	fmt.Fprint(s.tty, prompt)
+	_, _ = fmt.Fprint(s.tty, prompt)
 	if s.scanner.Scan() {
 		if line := strings.TrimSpace(s.scanner.Text()); line != "" {
 			return line
@@ -54,7 +54,7 @@ func (s *installer) ask(prompt, def string) string {
 }
 
 func (s *installer) confirm(prompt string) bool {
-	fmt.Fprintf(s.tty, "%s [y/N] ", prompt)
+	_, _ = fmt.Fprintf(s.tty, "%s [y/N] ", prompt)
 	if s.scanner.Scan() {
 		r := strings.TrimSpace(s.scanner.Text())
 		return r == "y" || r == "Y"
@@ -137,6 +137,7 @@ func (s *installer) askInterfaces(nics []string) (map[string]*config.Interface, 
 			if addr := s.ask("    Router address (CIDR, e.g. 192.168.1.1/24): ", ""); addr != "" {
 				iface.Addresses = []string{addr}
 			}
+
 			ifaces[nic] = iface
 			continue
 		}
@@ -147,6 +148,7 @@ func (s *installer) askInterfaces(nics []string) (map[string]*config.Interface, 
 				ifaces[nic] = &config.Interface{Select: nic}
 				continue
 			}
+
 			hasInternet = true
 			ifaces[nic] = &config.Interface{Select: nic, Addresses: []string{"dhcp", "slaac"}}
 			continue
@@ -159,11 +161,6 @@ func (s *installer) askInterfaces(nics []string) (map[string]*config.Interface, 
 	return ifaces, ""
 }
 
-// bootstrapPackages returns the package set installed onto the target system:
-// everything the live image declares in /etc/apk/world, keeping the installed
-// system at parity with the ISO, plus a few install-only extras that world does
-// not carry. A small essential set is always included so the target stays
-// bootable even if world cannot be read.
 func bootstrapPackages() []string {
 	pkgs := []string{
 		"alpine-base", "grub-efi", "efibootmgr",
@@ -212,7 +209,7 @@ func runSetup(_ *cobra.Command, _ []string) error {
 		return fmt.Errorf("open /dev/tty: %w", err)
 	}
 
-	defer tty.Close()
+	defer func(action func() error) { _ = action() }(tty.Close)
 
 	s := &installer{tty: tty, scanner: bufio.NewScanner(tty)}
 
@@ -220,8 +217,8 @@ func runSetup(_ *cobra.Command, _ []string) error {
 
 	hostname := "routier"
 
-	fmt.Fprintln(s.tty, "Common timezones: UTC, America/New_York, America/Chicago, America/Los_Angeles,")
-	fmt.Fprintln(s.tty, "  Europe/London, Europe/Paris, Europe/Berlin, Asia/Tokyo, Asia/Shanghai")
+	_, _ = fmt.Fprintln(s.tty, "Common timezones: UTC, America/New_York, America/Chicago, America/Los_Angeles,")
+	_, _ = fmt.Fprintln(s.tty, "  Europe/London, Europe/Paris, Europe/Berlin, Asia/Tokyo, Asia/Shanghai")
 	timezone := s.ask("Timezone [UTC]: ", "UTC")
 	if _, err := os.Stat("/usr/share/zoneinfo/" + timezone); err != nil {
 		return fmt.Errorf("unknown timezone: %s (check /usr/share/zoneinfo/)", timezone)
@@ -245,7 +242,7 @@ func runSetup(_ *cobra.Command, _ []string) error {
 	}
 
 	diskSize, _ := s.output("lsblk", "-d", "-n", "-o", "SIZE", disk)
-	fmt.Fprintf(s.tty, "\n\033[1;31mWARNING:\033[0m all data on %s (%s) will be permanently erased.\n", disk, diskSize)
+	_, _ = fmt.Fprintf(s.tty, "\n\033[1;31mWARNING:\033[0m all data on %s (%s) will be permanently erased.\n", disk, diskSize)
 	if !s.confirm("Continue?") {
 		return nil
 	}
@@ -404,7 +401,7 @@ func runSetup(_ *cobra.Command, _ []string) error {
 	}
 
 	_ = os.WriteFile("/mnt/etc/apk/repositories.install", []byte(installRepos), 0644)
-	defer os.Remove("/mnt/etc/apk/repositories.install")
+	defer func(path string) { _ = os.Remove(path) }("/mnt/etc/apk/repositories.install")
 
 	args := append([]string{
 		"-p", "/mnt",
@@ -498,7 +495,7 @@ func runSetup(_ *cobra.Command, _ []string) error {
 	}
 
 	for _, rl := range []string{"sysinit", "boot", "default", "shutdown"} {
-		os.MkdirAll("/mnt/etc/runlevels/"+rl, 0755)
+		_ = os.MkdirAll("/mnt/etc/runlevels/"+rl, 0755)
 	}
 
 	for rl, svcs := range map[string][]string{
@@ -509,7 +506,7 @@ func runSetup(_ *cobra.Command, _ []string) error {
 	} {
 		for _, svc := range svcs {
 			link := "/mnt/etc/runlevels/" + rl + "/" + svc
-			os.Remove(link)
+			_ = os.Remove(link)
 			if err := os.Symlink("/etc/init.d/"+svc, link); err != nil {
 				return fmt.Errorf("symlink %s: %w", link, err)
 			}
@@ -541,7 +538,7 @@ func runSetup(_ *cobra.Command, _ []string) error {
 		return fmt.Errorf("write config.yml: %w", err)
 	}
 
-	fmt.Fprintln(s.tty, "  config.yml")
+	_, _ = fmt.Fprintln(s.tty, "  config.yml")
 
 	for _, f := range []copyEntry{
 		{"/etc/motd", "/mnt/etc/motd", 0644},
@@ -549,7 +546,7 @@ func runSetup(_ *cobra.Command, _ []string) error {
 	} {
 		if data, err := os.ReadFile(f.src); err == nil {
 			if os.WriteFile(f.dst, data, f.mode) == nil {
-				fmt.Fprintln(s.tty, " ", f.src)
+				_, _ = fmt.Fprintln(s.tty, " ", f.src)
 			}
 		}
 	}
@@ -598,7 +595,7 @@ func runSetup(_ *cobra.Command, _ []string) error {
 		return fmt.Errorf("mkinitfs: %w", err)
 	}
 
-	os.Remove("/mnt/boot/vmlinuz")
+	_ = os.Remove("/mnt/boot/vmlinuz")
 	_ = exec.Command("umount", "/mnt/proc").Run()
 
 	s.msg("Installing GRUB...")
@@ -634,11 +631,11 @@ func runSetup(_ *cobra.Command, _ []string) error {
 
 	s.msg("Checking for an internet connection...")
 	if err := s.run("apk", "-p", "/mnt", "update"); err != nil {
-		fmt.Fprintln(s.tty, "  No connection; keeping the packages shipped on the media.")
+		_, _ = fmt.Fprintln(s.tty, "  No connection; keeping the packages shipped on the media.")
 	} else if s.confirm("Internet detected. Upgrade the installed packages to the latest now?") {
 		s.msg("Upgrading packages...")
 		if err := s.run("apk", "-p", "/mnt", "upgrade", "--available"); err != nil {
-			fmt.Fprintf(s.tty, "  upgrade failed: %v\n", err)
+			_, _ = fmt.Fprintf(s.tty, "  upgrade failed: %v\n", err)
 		}
 	}
 

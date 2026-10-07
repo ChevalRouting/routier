@@ -152,12 +152,7 @@ func logicalLines(content string) []logicalLine {
 		blank bool
 	)
 
-	flush := func() {
-		if buf.Len() > 0 {
-			out = append(out, logicalLine{text: buf.String(), ownerBlank: blank})
-			buf.Reset()
-		}
-	}
+	flush := func() { logicalLinesCallback(&out, &buf, blank) }
 
 	for _, line := range strings.Split(content, "\n") {
 		stripped := stripComment(line)
@@ -178,10 +173,10 @@ func logicalLines(content string) []logicalLine {
 		}
 
 		if buf.Len() > 0 {
-			buf.WriteByte(' ')
+			_ = buf.WriteByte(' ')
 		}
 
-		buf.WriteString(strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(stripped, "(", " "), ")", " ")))
+		_, _ = buf.WriteString(strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(stripped, "(", " "), ")", " ")))
 
 		if depth == 0 {
 			flush()
@@ -206,7 +201,7 @@ func stripComment(line string) string {
 			}
 		}
 
-		b.WriteRune(r)
+		_, _ = b.WriteRune(r)
 	}
 
 	return b.String()
@@ -241,4 +236,11 @@ func relativeOwner(absolute, origin string) string {
 	}
 
 	return strings.TrimSuffix(absolute, ".")
+}
+
+func logicalLinesCallback(out *[]logicalLine, buf *strings.Builder, blank bool) {
+	if (*buf).Len() > 0 {
+		(*out) = append((*out), logicalLine{text: (*buf).String(), ownerBlank: blank})
+		(*buf).Reset()
+	}
 }

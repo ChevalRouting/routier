@@ -5,15 +5,14 @@ import (
 	"errors"
 	"net/http"
 
+	webdb "github.com/ChevalRouting/routier/pkg/db"
 	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	"github.com/ChevalRouting/routier/pkg/server/api/requests"
-	webdb "github.com/ChevalRouting/routier/pkg/db"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
 )
 
-// Delete godoc
 // @Summary  Delete a macro
 // @Tags macros
 // @Produce json

@@ -8,6 +8,23 @@ watchdog is armed, so even a bad firewall rule cannot lock you out of a remote
 box. A web UI and an HTTP API sit on top of the same engine, and everything
 they can do has a CLI equivalent.
 
+## Routier in action
+
+The dashboard brings interface, routing, and firewall status together with live
+CPU, memory, and traffic statistics.
+
+![Routier dashboard showing network configuration, resource usage, and traffic charts](screenshots/routier-dashboard.png)
+
+The interactive topology view connects the router to its BGP neighbor,
+WireGuard peer, and IPv4 and IPv6 default routes.
+
+![Routier routing topology showing BGP, WireGuard, and default routes](screenshots/routier-routing-topology.png)
+
+General settings group hostname, DNS, SSH, users, services, monitoring, and
+backups in one place.
+
+![Routier General settings showing hostname configuration and system settings navigation](screenshots/routier-general-settings.png)
+
 ## Getting started
 
 Turn a fresh Alpine Linux box into a Routier appliance:

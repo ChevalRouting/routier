@@ -18,7 +18,7 @@ func InsertLLDPNeighbors(ctx context.Context, db *DB, ts int64, rows []LLDPNeigh
 		return err
 	}
 
-	defer tx.Rollback()
+	defer func(action func() error) { _ = action() }(tx.Rollback)
 
 	queries := db.queries.WithTx(tx)
 	for _, r := range rows {

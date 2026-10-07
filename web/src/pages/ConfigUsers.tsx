@@ -1,20 +1,20 @@
+import { defaultUser, isAdmin, type UsersMap } from '@/components/users/UserForm'
+import { api } from '@/lib/client'
+import { useFetch } from '@/lib/useFetch'
+import { Badge, Button, EmptyState, Input, PageHeader, Pagination, PreferencesColumns, ReloadButton, Spinner, usePagination } from 'cheval-ui'
+import { ChevronRight, KeyRound, Plus, Users } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { api } from '@/lib/client'
-import { useFetch } from '@/lib/useFetch'
-import { Button, Input, Badge } from 'cheval-ui'
-import { Plus, Users, KeyRound, ChevronRight } from 'lucide-react'
-import { PageHeader, PreferencesColumns, EmptyState } from 'cheval-ui'
-import { Pagination, usePagination } from 'cheval-ui'
-import { ReloadButton } from 'cheval-ui'
-import { Spinner } from 'cheval-ui'
-import { defaultUser, isAdmin, type UsersMap } from '@/components/users/UserForm'
 
-function UserRow({ username, user }: { username: string; user: UsersMap[string] }) {
+type UserRowShape = { username: string; user: UsersMap[string] }
+
+type ConfigUsersShape = { embedded?: boolean }
+
+function UserRow({ username, user }: UserRowShape) {
   const keyCount = (user.ssh_keys ?? []).length
   return (
-    <Link to={`/users/${encodeURIComponent(username)}`} className="flex items-center gap-3 px-4 py-3 hover:bg-accent/50 transition-colors">
+    <Link to={`/system/users/${encodeURIComponent(username)}`} className="flex items-center gap-3 px-4 py-3 hover:bg-accent/50 transition-colors">
       <span className="w-28 shrink-0 truncate font-mono text-sm font-semibold">{username}</span>
       <div className="flex min-w-0 flex-1 flex-wrap gap-1">
         {isAdmin(user) && <Badge variant="default" className="text-xs">admin</Badge>}
@@ -27,7 +27,7 @@ function UserRow({ username, user }: { username: string; user: UsersMap[string] 
   )
 }
 
-export default function ConfigUsers() {
+export default function ConfigUsers({ embedded = false }: ConfigUsersShape = {}) {
   const navigate = useNavigate()
   const { data, isLoading, reload } = useFetch<UsersMap>(() => api.apiConfigSectionGet({ section: 'users' }) as Promise<UsersMap>)
   const [newName, setNewName] = useState('')
@@ -44,7 +44,7 @@ export default function ConfigUsers() {
     setAdding(true)
     try {
       await api.apiConfigSectionPut({ section: 'users', body: { ...current, [name]: defaultUser() } })
-      navigate(`/users/${encodeURIComponent(name)}`)
+      navigate(`/system/users/${encodeURIComponent(name)}`)
     } catch (err: unknown) {
       toast.error((err as Error).message || 'Failed to add user')
       setAdding(false)
@@ -55,9 +55,9 @@ export default function ConfigUsers() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Users" description="System accounts. Admins (wheel) can sign in to this UI and run doas." action={
+      {embedded ? <div className="flex items-center justify-between gap-3"><p className="text-sm text-muted-foreground">System accounts. Admins (wheel) can sign in to this UI and run doas.</p><ReloadButton onClick={() => reload()} /></div> : <PageHeader title="Users" description="System accounts. Admins (wheel) can sign in to this UI and run doas." action={
         <ReloadButton onClick={reload} />
-      } />
+      } />}
 
       <div className="flex max-w-md items-center gap-2">
         <Input value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') add() }} placeholder="new username" className="font-mono" />

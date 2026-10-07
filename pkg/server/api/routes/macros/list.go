@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"time"
 
-	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	webdb "github.com/ChevalRouting/routier/pkg/db"
+	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/rs/zerolog/log"
 )
@@ -33,7 +33,6 @@ func macroToInfo(m *webdb.Macro) types.MacroInfo {
 	return info
 }
 
-// List godoc
 // @Summary  List saved macros
 // @Tags macros
 // @Produce json

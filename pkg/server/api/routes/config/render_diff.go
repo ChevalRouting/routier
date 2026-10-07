@@ -3,17 +3,16 @@ package config
 import (
 	"net/http"
 
-	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
-	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
-	"github.com/ChevalRouting/routier/pkg/server/api/friendcache"
 	cfgpkg "github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/diffutil"
 	"github.com/ChevalRouting/routier/pkg/friends"
 	"github.com/ChevalRouting/routier/pkg/render"
+	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
+	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
+	"github.com/ChevalRouting/routier/pkg/server/api/friendcache"
 	"github.com/ChevalRouting/routier/pkg/types"
 )
 
-// RenderDiff godoc
 // @Summary  Per-rendered-file diff for the pending apply
 // @Tags config
 // @Produce json

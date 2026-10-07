@@ -4,9 +4,9 @@ import (
 	"io"
 	"net/http"
 
+	cfgpkg "github.com/ChevalRouting/routier/pkg/config"
 	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
-	cfgpkg "github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/rs/zerolog/log"
 	"gopkg.in/yaml.v3"
@@ -14,7 +14,6 @@ import (
 
 const maxRequestBodySize = 4 << 20
 
-// PutRaw godoc
 // @Summary  Replace the whole staged config (raw YAML)
 // @Tags config
 // @Accept plain

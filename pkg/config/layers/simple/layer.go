@@ -133,18 +133,22 @@ func applyOnto(next *config.Config, value Config) (*config.Config, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	next, err = replaceNetworks(next, value.Networks)
 	if err != nil {
 		return nil, err
 	}
+
 	next, err = replacePortForwards(next, value.PortForwards)
 	if err != nil {
 		return nil, err
 	}
+
 	next, err = replaceDNS(next, value.DNS)
 	if err != nil {
 		return nil, err
 	}
+
 	syncFirewallDefaults(next, value.Internet, value.Networks)
 
 	return next, nil
@@ -156,11 +160,7 @@ func losses(original *config.Config, projected Config) []layers.Loss {
 		return []layers.Loss{{Path: "configuration", Message: "Simple mode cannot rebuild this configuration: " + err.Error()}}
 	}
 
-	checks := []struct {
-		path          string
-		original      any
-		reconstructed any
-	}{
+	checks := []lossesFields{
 		{"interfaces", original.Interfaces, rebuilt.Interfaces},
 		{"routing", original.Routing, rebuilt.Routing},
 		{"dhcp", original.DHCP, rebuilt.DHCP},
@@ -191,4 +191,10 @@ func losses(original *config.Config, projected Config) []layers.Loss {
 	}
 
 	return result
+}
+
+type lossesFields struct {
+	path          string
+	original      any
+	reconstructed any
 }

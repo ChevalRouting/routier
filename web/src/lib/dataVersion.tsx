@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react'
 
+type DataVersionProviderShape = { children: React.ReactNode }
+
 interface DataVersionContextValue {
   version: number
   bump: () => void
@@ -7,7 +9,7 @@ interface DataVersionContextValue {
 
 const DataVersionContext = createContext<DataVersionContextValue>({ version: 0, bump: () => {} })
 
-export function DataVersionProvider({ children }: { children: React.ReactNode }) {
+export function DataVersionProvider({ children }: DataVersionProviderShape) {
   const [version, setVersion] = useState(0)
   const bump = useCallback(() => setVersion((v) => v + 1), [])
   return (

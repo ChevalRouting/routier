@@ -1,12 +1,26 @@
-import React, { useState } from 'react'
-import { Label } from 'cheval-ui'
-import { Button } from 'cheval-ui'
-import { EmptyState } from 'cheval-ui'
-import { Badge } from 'cheval-ui'
-import { Sheet } from 'cheval-ui'
+import { Badge, Button, EmptyState, EntryRow, Label, PreferencesColumns, PreferencesGroup, Sheet, SwitchRow } from 'cheval-ui'
 import { Plus, Trash2 } from 'lucide-react'
-import { PreferencesGroup, PreferencesColumns, EntryRow, SwitchRow } from 'cheval-ui'
+import React, { useState } from 'react'
 import { BFDProfile } from './types'
+
+type BFDProfileFormShape = {
+  profile: BFDProfile
+  onChange: (v: BFDProfile) => void
+  onAdd?: () => void
+  onDone: () => void
+}
+
+type BFDProfileRowShape = {
+  profile: BFDProfile
+  onEdit: () => void
+  onDelete: () => void
+}
+
+type BFDTabShape = {
+  profiles: BFDProfile[]
+  setProfiles: (v: BFDProfile[]) => void
+  onDirty: () => void
+}
 
 export function emptyBFDProfile(): BFDProfile {
   return { name: '' }
@@ -14,12 +28,7 @@ export function emptyBFDProfile(): BFDProfile {
 
 export function BFDProfileForm({
   profile, onChange, onAdd, onDone,
-}: {
-  profile: BFDProfile
-  onChange: (v: BFDProfile) => void
-  onAdd?: () => void
-  onDone: () => void
-}) {
+}: BFDProfileFormShape) {
   const set = (patch: Partial<BFDProfile>) => onChange({ ...profile, ...patch })
 
   const numField = (v: number | undefined) => v ?? ''
@@ -48,11 +57,7 @@ export function BFDProfileForm({
 
 export function BFDProfileRow({
   profile, onEdit, onDelete,
-}: {
-  profile: BFDProfile
-  onEdit: () => void
-  onDelete: () => void
-}) {
+}: BFDProfileRowShape) {
   const timers: string[] = []
   if (profile.detect_multiplier) timers.push(`×${profile.detect_multiplier}`)
   if (profile.receive_interval) timers.push(`rx ${profile.receive_interval}ms`)
@@ -83,11 +88,7 @@ export function BFDProfileRow({
 
 export function BFDTab({
   profiles, setProfiles, onDirty,
-}: {
-  profiles: BFDProfile[]
-  setProfiles: (v: BFDProfile[]) => void
-  onDirty: () => void
-}) {
+}: BFDTabShape) {
   const [openIdx, setOpenIdx] = useState<number | null>(null)
   const [formDraft, setFormDraft] = useState<BFDProfile | null>(null)
 

@@ -12,7 +12,6 @@ type v1HostnameBody struct {
 	Hostname string `json:"hostname"`
 }
 
-// handleV1GetHostname godoc
 // @Summary  Get session hostname
 // @Tags v1-config
 // @Produce json
@@ -25,7 +24,6 @@ func handleV1GetHostname(w http.ResponseWriter, r *http.Request) {
 	types.OK(w, v1HostnameBody{Hostname: sess.Config.Hostname})
 }
 
-// handleV1PutHostname godoc
 // @Summary  Set session hostname
 // @Tags v1-config
 // @Accept json

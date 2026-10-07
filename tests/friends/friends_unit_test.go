@@ -7,9 +7,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/ChevalRouting/routier/pkg/auth/identity"
 	"github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/friends"
-	"github.com/ChevalRouting/routier/pkg/auth/identity"
 	"github.com/ChevalRouting/routier/pkg/types"
 )
 
@@ -95,28 +95,7 @@ func TestFriendsTaggedSectionsAndRemove(t *testing.T) {
 
 func unitHelloServer(t *testing.T, id *identity.Identity, hostname, token string) *httptest.Server {
 	t.Helper()
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("Authorization") != "Bearer "+token {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-
-		var data any
-		switch {
-		case r.Method == http.MethodGet && r.URL.Path == "/api/friends/hello":
-			data = types.FriendsHello{
-				Hostname:            hostname,
-				IdentityFingerprint: id.Fingerprint(),
-				IdentityPublicKey:   id.PublicKeyBase64(),
-				Version:             "test",
-			}
-		default:
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-
-		_ = json.NewEncoder(w).Encode(types.Response[any]{AppCode: 200, Result: &data})
-	}))
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { unitHelloServerCallback(id, hostname, token, w, r) }))
 }
 
 func mustIdentity(t *testing.T) *identity.Identity {
@@ -168,4 +147,27 @@ func TestFriendsClientBadToken(t *testing.T) {
 	if _, err := client.Hello(context.Background()); err == nil {
 		t.Fatal("expected unauthorized error")
 	}
+}
+
+func unitHelloServerCallback(id *identity.Identity, hostname string, token string, w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get("Authorization") != "Bearer "+token {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	var data any
+	switch {
+	case r.Method == http.MethodGet && r.URL.Path == "/api/friends/hello":
+		data = types.FriendsHello{
+			Hostname:            hostname,
+			IdentityFingerprint: id.Fingerprint(),
+			IdentityPublicKey:   id.PublicKeyBase64(),
+			Version:             "test",
+		}
+	default:
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	_ = json.NewEncoder(w).Encode(types.Response[any]{AppCode: 200, Result: &data})
 }

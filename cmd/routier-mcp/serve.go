@@ -20,20 +20,8 @@ func serveCmd() *cobra.Command {
 		Version:       version(),
 		SilenceUsage:  true,
 		SilenceErrors: true,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			lvl, err := zerolog.ParseLevel(logLevel)
-			if err != nil {
-				return fmt.Errorf("invalid log level %q", logLevel)
-			}
-
-			zerolog.SetGlobalLevel(lvl)
-
-			server, err := mcpserver.New(configPath, version())
-			if err != nil {
-				return err
-			}
-
-			return server.Run(cmd.Context())
+		RunE: func(cmd *cobra.Command, unusedArg3 []string) error {
+			return serveCmdCallback(configPath, logLevel, cmd, unusedArg3)
 		},
 	}
 
@@ -41,4 +29,20 @@ func serveCmd() *cobra.Command {
 	cmd.Flags().StringVar(&logLevel, "log-level", "info", "log level (debug, info, warn, error)")
 
 	return cmd
+}
+
+func serveCmdCallback(configPath string, logLevel string, cmd *cobra.Command, _ []string) error {
+	lvl, err := zerolog.ParseLevel(logLevel)
+	if err != nil {
+		return fmt.Errorf("invalid log level %q", logLevel)
+	}
+
+	zerolog.SetGlobalLevel(lvl)
+
+	server, err := mcpserver.New(configPath, version())
+	if err != nil {
+		return err
+	}
+
+	return server.Run(cmd.Context())
 }

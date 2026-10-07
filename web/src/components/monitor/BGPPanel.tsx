@@ -1,14 +1,13 @@
-import { useState, useEffect, useCallback } from 'react'
+import type { TypesBGPPeerSummary as BGPPeerSummary, TypesStatsResponse as StatsResponse } from '@/api'
 import { api } from '@/lib/client'
-import type { TypesStatsResponse as StatsResponse, TypesBGPPeerSummary as BGPPeerSummary } from '@/api'
-import { StateChip } from 'cheval-ui'
-import { Button } from 'cheval-ui'
+import { Button, EmptyState, Spinner, StateChip } from 'cheval-ui'
 import { RefreshCw } from 'lucide-react'
-import { Spinner } from 'cheval-ui'
-import { EmptyState } from 'cheval-ui'
+import { useCallback, useEffect, useState } from 'react'
 import { OnActionChange } from './shared'
 
-export function BGPPanel({ onActionChange }: { onActionChange: OnActionChange }) {
+type BGPPanelShape = { onActionChange: OnActionChange }
+
+export function BGPPanel({ onActionChange }: BGPPanelShape) {
   const [bgp, setBgp] = useState<StatsResponse['bgp'] | null>(null)
   const [loading, setLoading] = useState(true)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)

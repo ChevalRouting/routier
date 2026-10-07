@@ -33,3 +33,12 @@ func (e *ValidationError) Error() string {
 
 	return "artifact validation failed: " + strings.Join(parts, "; ")
 }
+
+type ApplyError struct {
+	Cause    error
+	LogID    string
+	BundleID string
+}
+
+func (e *ApplyError) Error() string { return e.Cause.Error() }
+func (e *ApplyError) Unwrap() error { return e.Cause }

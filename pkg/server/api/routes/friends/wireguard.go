@@ -3,18 +3,17 @@ package friends
 import (
 	"net/http"
 
-	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
-	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
-	"github.com/ChevalRouting/routier/pkg/server/api/friendcache"
 	cfgpkg "github.com/ChevalRouting/routier/pkg/config"
 	friendspkg "github.com/ChevalRouting/routier/pkg/friends"
 	"github.com/ChevalRouting/routier/pkg/managers"
+	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
+	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
+	"github.com/ChevalRouting/routier/pkg/server/api/friendcache"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
 )
 
-// DeriveWireguard godoc
 // @Summary  Derive a WireGuard tunnel to a friend
 // @Tags friends
 // @Produce json

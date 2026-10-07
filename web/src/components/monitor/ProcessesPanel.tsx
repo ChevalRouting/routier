@@ -1,27 +1,25 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
-import { api } from '@/lib/client'
 import type { TypesProcessInfo as ProcessInfo } from '@/api'
-import { Card, CardContent } from 'cheval-ui'
-import { Input } from 'cheval-ui'
-import { Pagination, usePagination } from 'cheval-ui'
-import { Button } from 'cheval-ui'
-import { RefreshCw, Pause, Play, Search, ArrowUp, ArrowDown } from 'lucide-react'
-import { Spinner } from 'cheval-ui'
-import { fmtBytes } from 'cheval-ui'
-import { cn } from 'cheval-ui'
+import { api } from '@/lib/client'
+import { Button, Card, CardContent, cn, fmtBytes, Input, Pagination, Spinner, usePagination } from 'cheval-ui'
+import { ArrowDown, ArrowUp, Pause, Play, RefreshCw, Search } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { OnActionChange } from './shared'
+
+type SortIconShape = { field: 'cpu_pct' | 'mem_rss'; sortField: string; sortDir: string }
+
+type ProcessesPanelShape = { onActionChange: OnActionChange }
 
 export function procStateLabel(s: string): string {
   const m: Record<string, string> = { R: 'Running', S: 'Sleeping', D: 'Waiting', Z: 'Zombie', T: 'Stopped', I: 'Idle' }
   return m[s] ?? s
 }
 
-function SortIcon({ field, sortField, sortDir }: { field: 'cpu_pct' | 'mem_rss'; sortField: string; sortDir: string }) {
+function SortIcon({ field, sortField, sortDir }: SortIconShape) {
   if (sortField !== field) return <ArrowUp className="h-3 w-3 opacity-30" />
   return sortDir === 'desc' ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />
 }
 
-export function ProcessesPanel({ onActionChange }: { onActionChange: OnActionChange }) {
+export function ProcessesPanel({ onActionChange }: ProcessesPanelShape) {
   const [procs, setProcs] = useState<ProcessInfo[] | null>(null)
   const [paused, setPaused] = useState(false)
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)

@@ -1,11 +1,23 @@
-import type { TypesOSPFNeighborSummary as OSPFNeighbor, TypesKernelRoute as KernelRoute, TypesVRRPInstanceStatus as VRRPInstanceStatus } from '@/api'
+import type { TypesKernelRoute as KernelRoute, TypesOSPFNeighborSummary as OSPFNeighbor, TypesVRRPInstanceStatus as VRRPInstanceStatus } from '@/api'
 import { protoColor } from '@/lib/palette'
-import { type Node, type Edge } from '@xyflow/react'
+import { type Edge, type Node } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { OSPFArea, RoutingConfig, Tunnel, WgIface } from './types'
 import { S } from './nodes'
+import { OSPFArea, RoutingConfig, Tunnel, WgIface } from './types'
 
-export function edgeHandles(from: { x: number; y: number }, to: { x: number; y: number }) {
+type FromShape = { x: number; y: number }
+
+type ToShape = { x: number; y: number }
+
+type VrfDeclarationsShape = { table: number }
+
+type BuildGraphShape = { nodes: Node[]; edges: Edge[] }
+
+type SrcShape = { x: number; y: number }
+
+type DstShape = { x: number; y: number }
+
+export function edgeHandles(from: FromShape, to: ToShape) {
   const dx = to.x - from.x
   const dy = to.y - from.y
   if (Math.abs(dx) >= Math.abs(dy)) {
@@ -49,18 +61,18 @@ export interface GraphInput {
   ospfNeighbors: OSPFNeighbor[]
   vrrpInstances: VRRPInstanceStatus[]
   kernelRoutes: KernelRoute[]
-  vrfDeclarations: Record<string, { table: number }>
+  vrfDeclarations: Record<string, VrfDeclarationsShape>
   selectedProto: string | null
 }
 
-export function buildGraph({ routing, tunnels, wireguard, hostname, ospfNeighbors, vrrpInstances, kernelRoutes, vrfDeclarations, selectedProto }: GraphInput): { nodes: Node[]; edges: Edge[] } {
+export function buildGraph({ routing, tunnels, wireguard, hostname, ospfNeighbors, vrrpInstances, kernelRoutes, vrfDeclarations, selectedProto }: GraphInput): BuildGraphShape {
   const nodes: Node[] = []
   const edges: Edge[] = []
 
   const push = (n: Node) => nodes.push(n)
   const sel  = (id: string) => id === selectedProto
 
-  function connect(id: string, src: { x: number; y: number }, dst: { x: number; y: number }, extra: Partial<Edge> = {}) {
+  function connect(id: string, src: SrcShape, dst: DstShape, extra: Partial<Edge> = {}) {
     const sep = id.indexOf(':')
     const srcId = id.slice(0, sep)
     const dstId = id.slice(sep + 1)

@@ -116,13 +116,7 @@ func MarkConfirmed(snapID string) {
 }
 
 func MarkRolledBack(snapID string) {
-	mark(snapID, func(r *Record) {
-		now := time.Now()
-		r.RolledBackAt = &now
-		if r.Result == "" || r.Result == "applied" {
-			r.Result = "rolledback"
-		}
-	})
+	mark(snapID, markRolledBackHandler)
 }
 
 func mark(snapID string, fn func(*Record)) {
@@ -174,7 +168,7 @@ func Read(id string) (string, error) {
 		return "", fmt.Errorf("invalid id")
 	}
 
-	data, err := os.ReadFile(filepath.Join(dir, id+".log"))
+	data, err := os.ReadFile(Path(id))
 	return string(data), err
 }
 
@@ -187,5 +181,15 @@ func prune() {
 	for _, r := range recs[maxRecords:] {
 		_ = os.Remove(filepath.Join(dir, r.ID+".json"))
 		_ = os.Remove(filepath.Join(dir, r.ID+".log"))
+	}
+}
+
+func Path(id string) string { return filepath.Join(dir, id+".log") }
+
+func markRolledBackHandler(r *Record) {
+	now := time.Now()
+	r.RolledBackAt = &now
+	if r.Result == "" || r.Result == "applied" {
+		r.Result = "rolledback"
 	}
 }

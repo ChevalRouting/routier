@@ -26,6 +26,12 @@ import { getToken, clearToken } from './utils'
 import { activeBaseUrl } from './instance'
 import { withConfigLayer, type ConfigLayer } from './configLayer'
 
+type BodyShape<T> = { result?: T; error?: string }
+
+type FieldsShape = { field?: string; message?: string }
+
+type ResultShape = { result?: unknown }
+
 export interface StagingState {
   pending: boolean
   layer: string | null
@@ -42,6 +48,7 @@ function publishStagingState(state: StagingState): void {
 
 export function addStagingListener(fn: StagingListener): () => void {
   stagingListeners.add(fn)
+  fn(currentStagingState)
   return () => stagingListeners.delete(fn)
 }
 
@@ -114,7 +121,7 @@ export async function configLayerRequest<T>(path: string, init?: RequestInit, la
     const state = { pending: staging === 'true', layer: response.headers.get('X-Staging-Layer') }
     publishStagingState(state)
   }
-  const body = await response.json().catch(() => undefined) as { result?: T; error?: string } | undefined
+  const body = await response.json().catch(() => undefined) as BodyShape<T> | undefined
   if (!response.ok) throw new ApiError(body?.error || `HTTP ${response.status}`, response.status, body)
   return body?.result as T
 }
@@ -123,7 +130,7 @@ type ErrorBody = {
   error?: string
   message?: string
   status?: string
-  fields?: { field?: string; message?: string }[]
+  fields?: FieldsShape[]
 }
 
 async function toApiError(err: unknown): Promise<unknown> {
@@ -168,7 +175,7 @@ function operations(instance: object): Record<string, unknown> {
       } catch (err) {
         throw await toApiError(err)
       }
-      if (res && typeof res === 'object' && 'result' in res) return (res as { result?: unknown }).result
+      if (res && typeof res === 'object' && 'result' in res) return (res as ResultShape).result
       return res
     }
   }

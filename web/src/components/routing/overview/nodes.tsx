@@ -1,7 +1,11 @@
-import { useEffect } from 'react'
 import { TOPO } from '@/lib/palette'
 import { Handle, Position, useReactFlow, type NodeProps } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
+import { useEffect } from 'react'
+
+type DShape = { label: React.ReactNode; style?: string; selected?: boolean }
+
+type FitViewOnChangeShape = { version: number }
 
 export const S: Record<string, React.CSSProperties> = {
   router:    { background: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))', border: 'none', borderRadius: 8, padding: '10px 18px', fontWeight: 700, fontSize: 13 },
@@ -33,7 +37,7 @@ export function RouterNode({ data }: NodeProps) {
 }
 
 export function GroupNode({ data }: NodeProps) {
-  const d = data as { label: React.ReactNode; style?: string; selected?: boolean }
+  const d = data as DShape
   const base = S[d.style ?? ''] ?? S.bgp
   return (
     <div style={{ ...base, outline: d.selected ? '2px solid white' : 'none', outlineOffset: 2, cursor: 'pointer' }}>
@@ -49,7 +53,7 @@ export function GroupNode({ data }: NodeProps) {
 }
 
 export const nodeTypes = { router: RouterNode, group: GroupNode }
-export function FitViewOnChange({ version }: { version: number }) {
+export function FitViewOnChange({ version }: FitViewOnChangeShape) {
   const { fitView } = useReactFlow()
   useEffect(() => {
     fitView({ padding: 0.25, duration: 250 })

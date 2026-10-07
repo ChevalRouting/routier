@@ -7,7 +7,6 @@ import (
 	"github.com/ChevalRouting/routier/pkg/types"
 )
 
-// Reverse godoc
 // @Summary  Resolve the reverse-DNS (PTR) name for an address, plus the delegation zone for a CIDR
 // @Tags tools
 // @Produce json

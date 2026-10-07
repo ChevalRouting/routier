@@ -1,18 +1,14 @@
-import { useTabState } from 'cheval-ui'
-import { SectionNav } from 'cheval-ui'
-import { Label } from 'cheval-ui'
-import { Switch } from 'cheval-ui'
+import { migrateBGPPolicies } from '@/lib/bgpPolicies'
+import { Label, SectionNav, Switch, useTabState } from 'cheval-ui'
+import { useEffect } from 'react'
 import { BGPConfig, BGPSubTab, PrefixEntry, RouteMapEntry } from '../types'
+import { BGPAddressFamiliesPanel } from './AddressFamilies'
 import { BGPGeneralPanel } from './GeneralPanel'
 import { BGPNeighborsPanel } from './Neighbors'
-import { BGPAddressFamiliesPanel } from './AddressFamilies'
 import { BGPPrefixListsPanel } from './PrefixLists'
 import { BGPRouteMapsPanel } from './RouteMaps'
 
-export function BGPTab({
-  bgp, setBGP, enabled, setEnabled, vrfNames, bfdProfileNames, onDirty,
-  prefixLists, setPrefixLists, routeMaps, setRouteMaps,
-}: {
+type BGPTabShape = {
   bgp: BGPConfig
   setBGP: (v: BGPConfig) => void
   enabled: boolean
@@ -24,13 +20,25 @@ export function BGPTab({
   setPrefixLists: (v: Record<string, PrefixEntry[]>) => void
   routeMaps: Record<string, RouteMapEntry[]>
   setRouteMaps: (v: Record<string, RouteMapEntry[]>) => void
-}) {
+}
+
+type SubTabsShape = { key: BGPSubTab; label: string }
+
+export function BGPTab({
+  bgp, setBGP, enabled, setEnabled, vrfNames, bfdProfileNames, onDirty,
+  prefixLists, setPrefixLists, routeMaps, setRouteMaps,
+}: BGPTabShape) {
+  useEffect(() => {
+    const migrated = migrateBGPPolicies(bgp)
+    if (migrated !== bgp) { setBGP(migrated); onDirty() }
+  }, [bgp, setBGP, onDirty])
+
   const [subTab, setSubTab] = useTabState<BGPSubTab>('routing.bgp', 'general')
 
   const prefixListNames = Object.keys(prefixLists)
   const routeMapNames = Object.keys(routeMaps)
 
-  const subTabs: { key: BGPSubTab; label: string }[] = [
+  const subTabs: SubTabsShape[] = [
     { key: 'general', label: 'General' },
     { key: 'neighbors', label: bgp.neighbors.length ? `Neighbors (${bgp.neighbors.length})` : 'Neighbors' },
     { key: 'afs', label: 'Address Families' },

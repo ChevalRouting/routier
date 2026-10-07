@@ -9,21 +9,18 @@ import (
 
 const defaultTSIGAlgorithm = "hmac-sha256"
 
-// ddnsHiddenTypes are infrastructure, DNSSEC, or Kea bookkeeping records that
-// are not user-facing dynamic entries.
 var ddnsHiddenTypes = map[string]bool{
 	"SOA": true, "NS": true, "DHCID": true,
 	"RRSIG": true, "NSEC": true, "NSEC3": true, "NSEC3PARAM": true,
 	"DNSKEY": true, "CDS": true, "CDNSKEY": true, "TYPE65534": true,
 }
 
-// DynamicRecords transfers the live zone over AXFR and returns the user-facing
-// records it currently holds, including any created by DDNS.
 func (c *Client) DynamicRecords(zone string) ([]ZoneRecord, error) {
 	keyFile, cleanup, err := c.writeTSIGKeyFile()
 	if err != nil {
 		return nil, err
 	}
+
 	defer cleanup()
 
 	args := []string{
@@ -51,20 +48,19 @@ func (c *Client) DynamicRecords(zone string) ([]ZoneRecord, error) {
 	return records, nil
 }
 
-// DeleteRecord removes a single dynamic record over an authenticated update.
-// For address records the paired DHCID is cleared too so Kea can recreate the
-// name cleanly for a future client.
 func (c *Client) DeleteRecord(zone, name, rtype, value string) error {
 	keyFile, cleanup, err := c.writeTSIGKeyFile()
 	if err != nil {
 		return err
 	}
+
 	defer cleanup()
 
 	script, cleanupScript, err := writeTempFile("routier-nsupdate-", c.deleteScript(zone, name, rtype, value))
 	if err != nil {
 		return err
 	}
+
 	defer cleanupScript()
 
 	out, err := runner("nsupdate", "-k", keyFile, script)
@@ -79,20 +75,20 @@ func (c *Client) deleteScript(zone, name, rtype, value string) string {
 	rtype = strings.ToUpper(strings.TrimSpace(rtype))
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "server %s %d\n", c.resolverAddr(), c.resolverPort())
-	fmt.Fprintf(&b, "zone %s\n", zone)
+	_, _ = fmt.Fprintf(&b, "server %s %d\n", c.resolverAddr(), c.resolverPort())
+	_, _ = fmt.Fprintf(&b, "zone %s\n", zone)
 
 	if value = strings.TrimSpace(value); value != "" {
-		fmt.Fprintf(&b, "update delete %s %s %s\n", name, rtype, value)
+		_, _ = fmt.Fprintf(&b, "update delete %s %s %s\n", name, rtype, value)
 	} else {
-		fmt.Fprintf(&b, "update delete %s %s\n", name, rtype)
+		_, _ = fmt.Fprintf(&b, "update delete %s %s\n", name, rtype)
 	}
 
 	if rtype == "A" || rtype == "AAAA" {
-		fmt.Fprintf(&b, "update delete %s DHCID\n", name)
+		_, _ = fmt.Fprintf(&b, "update delete %s DHCID\n", name)
 	}
 
-	b.WriteString("send\n")
+	_, _ = b.WriteString("send\n")
 
 	return b.String()
 }

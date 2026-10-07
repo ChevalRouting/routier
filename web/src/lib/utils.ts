@@ -1,6 +1,10 @@
 import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
+type AShape = { dst: string; family: string }
+
+type BShape = { dst: string; family: string }
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
@@ -90,8 +94,8 @@ function parseCIDR(cidr: string, family: string): [number[], number] {
 }
 
 export function compareIPRoutes(
-  a: { dst: string; family: string },
-  b: { dst: string; family: string },
+  a: AShape,
+  b: BShape,
 ): number {
   if (a.family !== b.family) return a.family === 'ipv4' ? -1 : 1
   const [aBytes, aPfx] = parseCIDR(a.dst, a.family)

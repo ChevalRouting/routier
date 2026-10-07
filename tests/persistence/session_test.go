@@ -16,7 +16,7 @@ func TestSessionCRUD(t *testing.T) {
 		t.Fatalf("init db: %v", err)
 	}
 
-	defer db.Close()
+	defer func(action func() error) { _ = action() }(db.Close)
 
 	cfg := testkit.LoadCfg(t, testkit.MinimalConfig)
 

@@ -18,16 +18,20 @@ func TestReplaceNetworksBuildsDualStackDHCPAndRADVD(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if got.DHCP == nil || len(got.DHCP.Subnets4) != 1 || len(got.DHCP.Subnets6) != 1 {
 		t.Fatalf("unexpected DHCP config: %#v", got.DHCP)
 	}
+
 	if got.DHCP.Subnets6[0].Subnet != "fd00:1::/64" {
 		t.Fatalf("unexpected DHCPv6 subnet: %q", got.DHCP.Subnets6[0].Subnet)
 	}
+
 	ra := got.Routing.RADVD.Interfaces["lan"]
 	if ra == nil || !ra.AdvManagedFlag || len(ra.Prefixes) != 1 || ra.Prefixes[0].Prefix != "fd00:1::/64" {
 		t.Fatalf("unexpected RADVD config: %#v", ra)
 	}
+
 	if projected := inspect(got).Networks[0]; !projected.ManageDHCP || !projected.ManageDHCP6 {
 		t.Fatalf("dual-stack DHCP did not round trip: %#v", projected)
 	}
@@ -40,9 +44,11 @@ func TestSimpleDNSPreservesHostedZones(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if len(got.DNS.Server.Zones) != 1 || got.DNS.Server.Zones[0].Name != zone.Name {
 		t.Fatalf("zone was not written: %#v", got.DNS.Server.Zones)
 	}
+
 	projected := inspectDNS(got, []Network{{Name: "lan", Addresses: []string{"192.168.1.1/24"}}})
 	if len(projected.Zones) != 1 || projected.Zones[0].Records[0].Value != "192.168.1.1" {
 		t.Fatalf("zone did not round trip: %#v", projected.Zones)
@@ -55,6 +61,7 @@ func TestSimpleConfigPreservesMonitoringProbes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if got.Monitoring == nil || len(got.Monitoring.Probes) != 1 || got.Monitoring.Probes[0].Target != "1.1.1.1" {
 		t.Fatalf("probe was not preserved: %#v", got.Monitoring)
 	}

@@ -16,13 +16,7 @@ const rtprotKeepalived = 18
 
 func reconcileAddrs(cfg *config.Config, dryRun bool) error {
 	wantByDev := map[string][]string{}
-	addWant := func(dev string, addrs []string) {
-		if dev == "" {
-			return
-		}
-
-		wantByDev[dev] = append(wantByDev[dev], addrs...)
-	}
+	addWant := func(dev string, addrs []string) { reconcileAddrsCallback(wantByDev, dev, addrs) }
 
 	for _, iface := range cfg.Interfaces {
 		addWant(iface.Device, iface.Addresses)
@@ -139,4 +133,12 @@ func keepAddr(a vnl.Addr, dev string) bool {
 	}
 
 	return false
+}
+
+func reconcileAddrsCallback(wantByDev map[string][]string, dev string, addrs []string) {
+	if dev == "" {
+		return
+	}
+
+	wantByDev[dev] = append(wantByDev[dev], addrs...)
 }

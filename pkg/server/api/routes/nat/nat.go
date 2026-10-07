@@ -5,16 +5,15 @@ import (
 	"io"
 	"net/http"
 
+	natpkg "github.com/ChevalRouting/routier/pkg/nftables/nat"
 	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
-	natpkg "github.com/ChevalRouting/routier/pkg/nftables/nat"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/rs/zerolog/log"
 )
 
 const maxRequestBodySize = 1 << 20
 
-// List godoc
 // @Summary  List NAT shortcut rules (masquerade/snat/dnat)
 // @Tags nat
 // @Produce json
@@ -37,7 +36,6 @@ func List(w http.ResponseWriter, r *http.Request) {
 	types.OK(w, specs)
 }
 
-// Replace godoc
 // @Summary  Replace all NAT shortcut rules
 // @Tags nat
 // @Produce json

@@ -1,8 +1,8 @@
+import { configLayerRequest } from '@/lib/client'
+import { AlertDialog, Button } from 'cheval-ui'
+import { Power, RotateCcw } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { Button, AlertDialog } from 'cheval-ui'
-import { Power, RotateCcw } from 'lucide-react'
-import { configLayerRequest } from '@/lib/client'
 
 type PendingAction = 'reboot' | 'shutdown' | null
 

@@ -47,18 +47,18 @@ func InitDB(ctx context.Context, path string) (*DB, error) {
 
 	migrationFS, err := fs.Sub(migrations, "migrations")
 	if err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("open migrations: %w", err)
 	}
 
 	provider, err := goose.NewProvider(goose.DialectSQLite3, db.DB, migrationFS)
 	if err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("create migration provider: %w", err)
 	}
 
 	if _, err := provider.Up(ctx); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("migrate db: %w", err)
 	}
 

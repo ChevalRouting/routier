@@ -1,9 +1,10 @@
-import { useState } from 'react'
-import { toast } from 'sonner'
 import { activeBaseUrl } from '@/lib/instance'
 import { getToken } from '@/lib/utils'
-import { Button, Input, TagInput } from 'cheval-ui'
-import { PreferencesGroup, EntryRow, SwitchRow } from 'cheval-ui'
+import { Button, EntryRow, Input, PreferencesGroup, SwitchRow, TagInput } from 'cheval-ui'
+import { useState } from 'react'
+import { toast } from 'sonner'
+
+type UserFieldsShape = { user: UserConfig; onChange: (u: UserConfig) => void }
 
 export interface UserConfig {
   uid: number
@@ -36,7 +37,7 @@ async function hashPassword(password: string): Promise<string> {
   return data.result?.hash ?? data.hash
 }
 
-export function UserFields({ user, onChange }: { user: UserConfig; onChange: (u: UserConfig) => void }) {
+export function UserFields({ user, onChange }: UserFieldsShape) {
   const [pw, setPw] = useState('')
   const [hashing, setHashing] = useState(false)
 

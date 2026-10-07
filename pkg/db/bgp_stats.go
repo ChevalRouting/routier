@@ -13,7 +13,7 @@ func InsertBGPStats(ctx context.Context, db *DB, ts int64, b *types.BGPStats) er
 		return err
 	}
 
-	defer tx.Rollback()
+	defer func(action func() error) { _ = action() }(tx.Rollback)
 
 	queries := db.queries.WithTx(tx)
 	for _, p := range b.Peers {

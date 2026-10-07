@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
-import { toast } from 'sonner'
-import { Button, EntryRow, PageHeader, PreferencesGroup, Spinner } from 'cheval-ui'
 import { api } from '@/lib/client'
 import { useFetch } from '@/lib/useFetch'
+import ConfigUsers from '@/pages/ConfigUsers'
+import { Button, EntryRow, PageHeader, PreferencesGroup, Spinner } from 'cheval-ui'
+import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 
 interface System {
   hostname: string
@@ -43,6 +44,7 @@ export default function SimpleSystem() {
         </PreferencesGroup>
         <div className="flex justify-end"><Button onClick={save} disabled={saving || !hostname.trim()}>{saving ? 'Saving…' : 'Save'}</Button></div>
       </div>
+      <section className="space-y-3"><h2 className="text-sm font-semibold">Users</h2><ConfigUsers embedded /></section>
     </div>
   )
 }

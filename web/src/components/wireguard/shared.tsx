@@ -1,8 +1,14 @@
-import { useState } from 'react'
-import { Input } from 'cheval-ui'
-import { Label } from 'cheval-ui'
+import { CopyButton, Input, Label } from 'cheval-ui'
 import { Eye, EyeOff } from 'lucide-react'
-import { CopyButton } from 'cheval-ui'
+import { useState } from 'react'
+
+type KeyFieldShape = {
+  value: string
+  onChange: (v: string) => void
+  placeholder?: string
+  label?: string
+  mono?: boolean
+}
 
 export interface WgPeer {
   name: string
@@ -60,13 +66,7 @@ export function truncateKey(key: string): string {
 
 export function KeyField({
   value, onChange, placeholder, label, mono = true,
-}: {
-  value: string
-  onChange: (v: string) => void
-  placeholder?: string
-  label?: string
-  mono?: boolean
-}) {
+}: KeyFieldShape) {
   const [show, setShow] = useState(false)
   return (
     <div className="relative">

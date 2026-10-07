@@ -6,14 +6,13 @@ import (
 	"sort"
 	"time"
 
-	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	cfgpkg "github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/daemon/keepalived"
+	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	"github.com/ChevalRouting/routier/pkg/svc"
 	"github.com/ChevalRouting/routier/pkg/types"
 )
 
-// Hello godoc
 // @Summary  Friend hello/handshake
 // @Tags     friends
 // @Produce  json

@@ -12,7 +12,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// Export godoc
 // @Summary  Download an encrypted config backup
 // @Tags backup
 // @Produce octet-stream

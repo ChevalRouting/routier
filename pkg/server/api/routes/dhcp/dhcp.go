@@ -7,10 +7,10 @@ import (
 	"net/netip"
 	"strings"
 
-	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
-	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
 	"github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/daemon/kea"
+	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
+	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/rs/zerolog/log"
 )
@@ -107,7 +107,6 @@ func decode(w http.ResponseWriter, r *http.Request, dst any) bool {
 	return true
 }
 
-// Overview godoc
 // @Summary  DHCP subnets with their leases and reservations
 // @Tags dhcp
 // @Produce json
@@ -134,7 +133,6 @@ func Overview(w http.ResponseWriter, r *http.Request) {
 	types.OK(w, views)
 }
 
-// Subnets godoc
 // @Summary  List configured DHCP subnets
 // @Tags dhcp
 // @Produce json
@@ -165,7 +163,6 @@ func Subnets(w http.ResponseWriter, r *http.Request) {
 	types.OK(w, all)
 }
 
-// AddReservation godoc
 // @Summary  Reserve an address for a MAC/DUID
 // @Tags dhcp
 // @Produce json
@@ -194,7 +191,6 @@ func AddReservation(w http.ResponseWriter, r *http.Request) {
 	types.OK(w, types.StatusResponse{Status: ip})
 }
 
-// DelReservation godoc
 // @Summary  Delete a reservation
 // @Tags dhcp
 // @Produce json
@@ -222,7 +218,6 @@ func DelReservation(w http.ResponseWriter, r *http.Request) {
 	types.OK(w, types.StatusResponse{Status: "ok"})
 }
 
-// PersistLease godoc
 // @Summary  Promote an active lease to a reservation
 // @Tags dhcp
 // @Produce json
@@ -251,7 +246,6 @@ func PersistLease(w http.ResponseWriter, r *http.Request) {
 	types.OK(w, types.StatusResponse{Status: ip})
 }
 
-// ClearLease godoc
 // @Summary  Delete an active lease
 // @Tags dhcp
 // @Produce json

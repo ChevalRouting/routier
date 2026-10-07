@@ -110,47 +110,51 @@ func Interpolate(raw string, data map[string]Vars) (string, error) {
 	}
 
 	funcs := template.FuncMap{
-		"friend": func(name, path string) (string, error) {
-			v, ok := data[name]
-			if !ok {
-				return "", fmt.Errorf("unknown friend %q", name)
-			}
-
-			return resolvePath(v, path)
-		},
+		"friend": func(name, path string) (string, error) { return interpolateCallback(data, name, path) },
 	}
 
 	var firstErr error
-	out := actionRE.ReplaceAllStringFunc(raw, func(action string) string {
-		inner := actionRE.FindStringSubmatch(action)[1]
-		if fields := strings.Fields(inner); len(fields) == 0 || fields[0] != "friend" {
-			return action
-		}
-
-		t, err := template.New("friend").Funcs(funcs).Parse(action)
-		if err != nil {
-			if firstErr == nil {
-				firstErr = fmt.Errorf("parse friend template: %w", err)
-			}
-
-			return action
-		}
-
-		var b bytes.Buffer
-		if err := t.Execute(&b, nil); err != nil {
-			if firstErr == nil {
-				firstErr = fmt.Errorf("interpolate config: %w", err)
-			}
-
-			return action
-		}
-
-		return b.String()
-	})
+	out := actionRE.ReplaceAllStringFunc(raw, func(action string) string { return interpolateCallback2(funcs, &firstErr, action) })
 
 	if firstErr != nil {
 		return "", firstErr
 	}
 
 	return out, nil
+}
+
+func interpolateCallback(data map[string]Vars, name, path string) (string, error) {
+	v, ok := data[name]
+	if !ok {
+		return "", fmt.Errorf("unknown friend %q", name)
+	}
+
+	return resolvePath(v, path)
+}
+
+func interpolateCallback2(funcs template.FuncMap, firstErr *error, action string) string {
+	inner := actionRE.FindStringSubmatch(action)[1]
+	if fields := strings.Fields(inner); len(fields) == 0 || fields[0] != "friend" {
+		return action
+	}
+
+	t, err := template.New("friend").Funcs(funcs).Parse(action)
+	if err != nil {
+		if (*firstErr) == nil {
+			(*firstErr) = fmt.Errorf("parse friend template: %w", err)
+		}
+
+		return action
+	}
+
+	var b bytes.Buffer
+	if err := t.Execute(&b, nil); err != nil {
+		if (*firstErr) == nil {
+			(*firstErr) = fmt.Errorf("interpolate config: %w", err)
+		}
+
+		return action
+	}
+
+	return b.String()
 }

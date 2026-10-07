@@ -138,38 +138,14 @@ func All(cfg *config.Config, opts ...Option) ([]Output, error) {
 
 func collectTemplates() (map[string]string, error) {
 	tpls := make(map[string]string)
-	err := fs.WalkDir(embedded, "defaults", func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
-			return err
-		}
-
-		data, err := embedded.ReadFile(path)
-		if err != nil {
-			return err
-		}
-
-		tpls[strings.TrimPrefix(path, "defaults/")] = string(data)
-		return nil
-	})
+	err := fs.WalkDir(embedded, "defaults", func(path string, d fs.DirEntry, err error) error { return collectTemplatesCallback(tpls, path, d, err) })
 	if err != nil {
 		return nil, err
 	}
 
 	if info, e := os.Stat(UserDir); e == nil && info.IsDir() {
 		err = filepath.WalkDir(UserDir, func(path string, d fs.DirEntry, err error) error {
-			if err != nil || d.IsDir() {
-				return err
-			}
-
-			fileData, err := os.ReadFile(path)
-			if err != nil {
-				log.Warn().Err(err).Str("path", path).Msg("user template: skipping unreadable file")
-				return nil
-			}
-
-			name, _ := filepath.Rel(UserDir, path)
-			tpls[name] = string(fileData)
-			return nil
+			return collectTemplatesCallback2(tpls, path, d, err)
 		})
 		if err != nil {
 			return nil, err
@@ -273,4 +249,34 @@ func destFor(name string) string {
 	}
 
 	return "/etc/routier/out/" + name
+}
+
+func collectTemplatesCallback(tpls map[string]string, path string, d fs.DirEntry, err error) error {
+	if err != nil || d.IsDir() {
+		return err
+	}
+
+	data, err := embedded.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	tpls[strings.TrimPrefix(path, "defaults/")] = string(data)
+	return nil
+}
+
+func collectTemplatesCallback2(tpls map[string]string, path string, d fs.DirEntry, err error) error {
+	if err != nil || d.IsDir() {
+		return err
+	}
+
+	fileData, err := os.ReadFile(path)
+	if err != nil {
+		log.Warn().Err(err).Str("path", path).Msg("user template: skipping unreadable file")
+		return nil
+	}
+
+	name, _ := filepath.Rel(UserDir, path)
+	tpls[name] = string(fileData)
+	return nil
 }

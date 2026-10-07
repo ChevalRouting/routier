@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"net/http"
 
-	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
-	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
 	"github.com/ChevalRouting/routier/pkg/config"
 	webdb "github.com/ChevalRouting/routier/pkg/db"
 	"github.com/ChevalRouting/routier/pkg/diffutil"
 	"github.com/ChevalRouting/routier/pkg/macro"
+	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
+	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
@@ -30,7 +30,6 @@ func parseMacroConfigs(m *webdb.Macro) (base, mod *config.Config, err error) {
 	return base, mod, nil
 }
 
-// Diff godoc
 // @Summary  Diff a macro against the live config
 // @Tags macros
 // @Produce json

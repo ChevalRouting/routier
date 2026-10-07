@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "lint": "eslint src"
+    "lint": "node lint/check-comments.mjs && eslint src --max-warnings 0",
+    "lint:fix": "node lint/check-comments.mjs && eslint src --fix --max-warnings 0",
+    "test:lint": "node --test lint/rules.test.mjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",
@@ -37,9 +39,11 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@stylistic/eslint-plugin": "5.10.0",
     "@types/node": "^25.5.2",
     "@types/react": "^18.3.7",
     "@types/react-dom": "^18.3.0",
+    "@typescript-eslint/parser": "^8.71.1",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.20",
     "eslint": "^10.7.0",

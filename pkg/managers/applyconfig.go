@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"github.com/ChevalRouting/routier/pkg/apply"
-	"github.com/ChevalRouting/routier/pkg/state/applylog"
 	"github.com/ChevalRouting/routier/pkg/config"
-	"github.com/ChevalRouting/routier/pkg/state/failures"
 	"github.com/ChevalRouting/routier/pkg/render"
+	"github.com/ChevalRouting/routier/pkg/state/applylog"
+	"github.com/ChevalRouting/routier/pkg/state/failures"
 	"github.com/ChevalRouting/routier/pkg/svc"
 	"github.com/ChevalRouting/routier/pkg/types"
 	anyk "github.com/m-vinc/anyk"
@@ -64,14 +64,14 @@ func acquireApplyLock(ctx context.Context) (func(), error) {
 		if ferr := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); ferr == nil {
 			break
 		} else if ferr != syscall.EWOULDBLOCK {
-			f.Close()
+			_ = f.Close()
 			applyMu.Unlock()
 			return nil, fmt.Errorf("acquire apply lock: %w", ferr)
 		}
 
 		select {
 		case <-ctx.Done():
-			f.Close()
+			_ = f.Close()
 			applyMu.Unlock()
 			return nil, fmt.Errorf("waiting for apply lock: %w", ctx.Err())
 		case <-time.After(250 * time.Millisecond):
@@ -80,7 +80,7 @@ func acquireApplyLock(ctx context.Context) (func(), error) {
 
 	return func() {
 		_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
-		f.Close()
+		_ = f.Close()
 		applyMu.Unlock()
 	}, nil
 }
@@ -110,27 +110,12 @@ func ApplyConfig(ctx context.Context, cfg *config.Config, outputs []render.Outpu
 		defer release()
 
 		rec = applylog.Start(source, opts.ConfigPath)
-		defer func() {
-			result := "applied"
-			if err != nil {
-				result = "failed"
-				if snapID != "" {
-					_ = failures.Save(rec.ID(), source, snapID, cfg, outputs, rawArtifactErrors(err))
-					rec.MarkBundle()
-					log.Warn().Str("bundle", rec.ID()).Msg("apply failed, saved rendered artifacts")
-				}
-			}
-
-			rec.Finish(snapID, result)
-		}()
+		defer func() { applyConfigCallback(cfg, outputs, snapID, &err, source, rec) }()
 	}
 
 	if !opts.DryRun {
 		if verrs := svc.ValidateArtifactsBeforeApply(outputs); len(verrs) > 0 {
-			_ = failures.Save(rec.ID(), source, "", cfg, outputs, verrs)
-			rec.MarkBundle()
 			ve := failures.NewValidationError(verrs)
-			ve.BundleID = rec.ID()
 			return "", nil, ve
 		}
 	}
@@ -238,4 +223,31 @@ func toAnykServices(services []config.AnycastService) []anyk.AnykService {
 	}
 
 	return out
+}
+
+func preserveApplyFailure(rec *applylog.Recorder, source, snapID string, cfg *config.Config, outputs []render.Output, cause error) error {
+	diagnostic := &failures.ApplyError{Cause: cause, LogID: rec.ID()}
+	log.Error().Err(cause).Msg("configuration apply failed")
+	if saveErr := failures.Save(rec.ID(), source, snapID, cfg, outputs, rawArtifactErrors(cause)); saveErr != nil {
+		log.Warn().Err(saveErr).Msg("failed to preserve rendered artifacts")
+	} else {
+		diagnostic.BundleID = rec.ID()
+		rec.MarkBundle()
+		var ve *failures.ValidationError
+		if errors.As(cause, &ve) {
+			ve.BundleID = rec.ID()
+		}
+	}
+
+	return diagnostic
+}
+
+func applyConfigCallback(cfg *config.Config, outputs []render.Output, snapID string, err *error, source string, rec *applylog.Recorder) {
+	result := "applied"
+	if (*err) != nil {
+		result = "failed"
+		(*err) = preserveApplyFailure(rec, source, snapID, cfg, outputs, (*err))
+	}
+
+	rec.Finish(snapID, result)
 }

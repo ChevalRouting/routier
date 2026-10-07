@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
+	webdb "github.com/ChevalRouting/routier/pkg/db"
 	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	"github.com/ChevalRouting/routier/pkg/server/api/requests"
-	webdb "github.com/ChevalRouting/routier/pkg/db"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
@@ -33,7 +33,6 @@ func randomAPIKey() (string, string, error) {
 	return hex.EncodeToString(idBytes), apiKeyTokenPrefix + base64.RawURLEncoding.EncodeToString(secret), nil
 }
 
-// ListAPIKeys godoc
 // @Summary List application API keys
 // @Tags auth
 // @Produce json
@@ -51,7 +50,6 @@ func ListAPIKeys(w http.ResponseWriter, r *http.Request) {
 	types.OK(w, keys)
 }
 
-// CreateAPIKey godoc
 // @Summary Create an application API key
 // @Tags auth
 // @Produce json
@@ -91,7 +89,6 @@ func CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 	types.OK(w, types.CreateAPIKeyResponse{APIKey: key, Token: token})
 }
 
-// RevokeAPIKey godoc
 // @Summary Revoke an application API key
 // @Tags auth
 // @Produce json

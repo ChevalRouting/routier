@@ -9,7 +9,6 @@ import (
 	"golang.org/x/crypto/curve25519"
 )
 
-// Pubkey godoc
 // @Summary  Derive the public key for a private key
 // @Tags wireguard
 // @Accept plain

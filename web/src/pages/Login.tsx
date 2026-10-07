@@ -1,8 +1,8 @@
-import { useNavigate } from 'react-router-dom'
 import { selfApi } from '@/lib/client'
+import { SELF, switchInstance } from '@/lib/instance'
 import { setToken } from '@/lib/utils'
-import { switchInstance, SELF } from '@/lib/instance'
 import { LoginForm } from 'cheval-ui'
+import { useNavigate } from 'react-router-dom'
 
 export default function Login() {
   const navigate = useNavigate()

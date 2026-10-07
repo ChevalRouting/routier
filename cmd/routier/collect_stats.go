@@ -12,17 +12,21 @@ func newCollectStatsCommand() *cobra.Command {
 		Use:    "collect-stats",
 		Short:  "collect interface, BGP, protocol, neighbor and LLDP stats into the database",
 		Hidden: true,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			if err := collect.Run(cmd.Context(), dbPath, configPath); err != nil {
-				return err
-			}
-
-			log.Info().Str("db", dbPath).Msg("stats collected")
-			return nil
+		RunE: func(cmd *cobra.Command, unusedArg3 []string) error {
+			return newCollectStatsCommandCallback(dbPath, configPath, cmd, unusedArg3)
 		},
 	}
 
 	cmd.Flags().StringVar(&dbPath, "db", "/var/lib/routier/web.db", "path to SQLite database")
 	cmd.Flags().StringVar(&configPath, "config", "/etc/routier/config.yml", "path to routier config for collection intervals")
 	return cmd
+}
+
+func newCollectStatsCommandCallback(dbPath string, configPath string, cmd *cobra.Command, _ []string) error {
+	if err := collect.Run(cmd.Context(), dbPath, configPath); err != nil {
+		return err
+	}
+
+	log.Info().Str("db", dbPath).Msg("stats collected")
+	return nil
 }

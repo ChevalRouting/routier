@@ -32,35 +32,7 @@ func Export(id string, w io.Writer, redact bool) error {
 	tw := tar.NewWriter(gz)
 
 	walkErr := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if d.IsDir() {
-			return nil
-		}
-
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-
-		if redact {
-			data = redactBytes(data)
-		}
-
-		rel, err := filepath.Rel(filepath.Dir(root), path)
-		if err != nil {
-			return err
-		}
-
-		hdr := &tar.Header{Name: filepath.ToSlash(rel), Mode: 0600, Size: int64(len(data)), ModTime: time.Now()}
-		if err := tw.WriteHeader(hdr); err != nil {
-			return err
-		}
-
-		_, err = tw.Write(data)
-		return err
+		return exportCallback(redact, root, tw, path, d, err)
 	})
 	if walkErr != nil {
 		_ = tw.Close()
@@ -74,4 +46,36 @@ func Export(id string, w io.Writer, redact bool) error {
 	}
 
 	return gz.Close()
+}
+
+func exportCallback(redact bool, root string, tw *tar.Writer, path string, d fs.DirEntry, err error) error {
+	if err != nil {
+		return err
+	}
+
+	if d.IsDir() {
+		return nil
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	if redact {
+		data = redactBytes(data)
+	}
+
+	rel, err := filepath.Rel(filepath.Dir(root), path)
+	if err != nil {
+		return err
+	}
+
+	hdr := &tar.Header{Name: filepath.ToSlash(rel), Mode: 0600, Size: int64(len(data)), ModTime: time.Now()}
+	if err := tw.WriteHeader(hdr); err != nil {
+		return err
+	}
+
+	_, err = tw.Write(data)
+	return err
 }

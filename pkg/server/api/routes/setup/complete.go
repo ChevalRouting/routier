@@ -4,15 +4,14 @@ import (
 	"net/http"
 	"os"
 
-	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
-	"github.com/ChevalRouting/routier/pkg/server/api/requests"
 	"github.com/ChevalRouting/routier/pkg/config"
 	webdb "github.com/ChevalRouting/routier/pkg/db"
+	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
+	"github.com/ChevalRouting/routier/pkg/server/api/requests"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/rs/zerolog/log"
 )
 
-// Complete godoc
 // @Summary  Mark onboarding complete
 // @Tags setup
 // @Produce json

@@ -5,10 +5,10 @@ import (
 	"sync"
 	"time"
 
-	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
-	"github.com/ChevalRouting/routier/pkg/config"
-	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/ChevalRouting/routier/pkg/auth/unixauth"
+	"github.com/ChevalRouting/routier/pkg/config"
+	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
+	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/rs/zerolog/log"
 	"slices"
@@ -52,7 +52,6 @@ func recordLoginSuccess(username string) {
 	delete(loginLimiter.lockedUntil, username)
 }
 
-// Login godoc
 // @Summary  Authenticate and obtain a token
 // @Tags auth
 // @Produce json
@@ -94,6 +93,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "failed to verify password"))
 		return
 	}
+
 	if !ok {
 		recordLoginFailure(req.Username)
 		log.Warn().Str("user", req.Username).Msg("login rejected because password did not verify")

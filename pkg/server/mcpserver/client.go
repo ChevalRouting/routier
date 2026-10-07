@@ -32,7 +32,7 @@ func (i *instance) request(ctx context.Context, method, path, contentType string
 		return nil, fmt.Errorf("%s: %w", i.name, err)
 	}
 
-	defer resp.Body.Close()
+	defer func(action func() error) { _ = action() }(resp.Body.Close)
 	data, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes+1))
 	if err != nil {
 		return nil, err

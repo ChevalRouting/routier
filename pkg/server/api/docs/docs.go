@@ -3584,6 +3584,9 @@ const docTemplate = `{
                         "type": "array",
                         "uniqueItems": false
                     },
+                    "logID": {
+                        "type": "string"
+                    },
                     "snapID": {
                         "type": "string"
                     },
@@ -7473,6 +7476,16 @@ const docTemplate = `{
                             }
                         },
                         "description": "OK"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-types_ApplyResult"
+                                }
+                            }
+                        },
+                        "description": "Internal Server Error"
                     }
                 },
                 "security": [

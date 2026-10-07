@@ -10,10 +10,12 @@ import (
 const friendPollInterval = 10 * time.Second
 
 func StartFriendPoll(configPath string) {
-	go func() {
-		for {
-			friendcache.Poll(configPath)
-			time.Sleep(friendPollInterval + time.Duration(rand.Int63n(int64(3*time.Second))))
-		}
-	}()
+	go func() { startFriendPollCallback(configPath) }()
+}
+
+func startFriendPollCallback(configPath string) {
+	for {
+		friendcache.Poll(configPath)
+		time.Sleep(friendPollInterval + time.Duration(rand.Int63n(int64(3*time.Second))))
+	}
 }

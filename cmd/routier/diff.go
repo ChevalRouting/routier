@@ -32,32 +32,8 @@ func newDiffCommand() *cobra.Command {
 		Use:   "diff [config]",
 		Short: "show what would change to converge the live system to the config",
 		Args:  cobra.MaximumNArgs(1),
-		RunE: func(_ *cobra.Command, args []string) error {
-			cfg, err := config.LoadAndValidate(configArg(args), true)
-			if err != nil {
-				return err
-			}
-
-			changes, err := computeDiff(cfg)
-			if err != nil {
-				return err
-			}
-
-			if asJSON {
-				enc := json.NewEncoder(os.Stdout)
-				enc.SetIndent("", "  ")
-				if err := enc.Encode(map[string]any{"in_sync": len(changes) == 0, "changes": changes}); err != nil {
-					return err
-				}
-			} else {
-				printDiff(changes)
-			}
-
-			if exitCode && len(changes) > 0 {
-				os.Exit(1)
-			}
-
-			return nil
+		RunE: func(unusedArg2 *cobra.Command, args []string) error {
+			return newDiffCommandCallback(asJSON, exitCode, unusedArg2, args)
 		},
 	}
 
@@ -98,13 +74,7 @@ func computeDiff(cfg *config.Config) ([]diffChange, error) {
 	}
 
 	changes = append(changes, netlinkChanges(cfg)...)
-	sort.Slice(changes, func(i, j int) bool {
-		if changes[i].Kind != changes[j].Kind {
-			return changes[i].Kind < changes[j].Kind
-		}
-
-		return changes[i].Target < changes[j].Target
-	})
+	sort.Slice(changes, func(i, j int) bool { return computeDiffCallback(changes, i, j) })
 	return changes, nil
 }
 
@@ -153,7 +123,7 @@ func normalize(s string) string { return strings.TrimRight(s, "\n") }
 
 func printDiff(changes []diffChange) {
 	if len(changes) == 0 {
-		fmt.Println("in sync")
+		_, _ = fmt.Println("in sync")
 		return
 	}
 
@@ -163,9 +133,9 @@ func printDiff(changes []diffChange) {
 			target = " " + target
 		}
 
-		fmt.Printf("%-8s %s%s\n", c.Kind, c.Detail, target)
+		_, _ = fmt.Printf("%-8s %s%s\n", c.Kind, c.Detail, target)
 		for _, line := range diffBody(c.Diff) {
-			fmt.Println(line)
+			_, _ = fmt.Println(line)
 		}
 	}
 }
@@ -217,4 +187,40 @@ func diffBody(lines []types.DiffLine) []string {
 	}
 
 	return out
+}
+
+func newDiffCommandCallback(asJSON bool, exitCode bool, _ *cobra.Command, args []string) error {
+	cfg, err := config.LoadAndValidate(configArg(args), true)
+	if err != nil {
+		return err
+	}
+
+	changes, err := computeDiff(cfg)
+	if err != nil {
+		return err
+	}
+
+	if asJSON {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		if err := enc.Encode(map[string]any{"in_sync": len(changes) == 0, "changes": changes}); err != nil {
+			return err
+		}
+	} else {
+		printDiff(changes)
+	}
+
+	if exitCode && len(changes) > 0 {
+		os.Exit(1)
+	}
+
+	return nil
+}
+
+func computeDiffCallback(changes []diffChange, i, j int) bool {
+	if changes[i].Kind != changes[j].Kind {
+		return changes[i].Kind < changes[j].Kind
+	}
+
+	return changes[i].Target < changes[j].Target
 }

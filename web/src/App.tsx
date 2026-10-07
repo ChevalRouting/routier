@@ -1,6 +1,7 @@
 import { lazy } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { isAuthenticated } from '@/lib/utils'
+import { getConfigLayer } from '@/lib/configLayer'
 import { api } from '@/lib/client'
 import { useFetch } from '@/lib/useFetch'
 import { DataVersionProvider } from '@/lib/dataVersion'
@@ -8,6 +9,10 @@ import { Spinner } from 'cheval-ui'
 import { useActiveInstance } from '@/components/InstanceSwitcher'
 import LoginLayout from '@/layouts/LoginLayout'
 import MainLayout from '@/layouts/MainLayout'
+
+type RequireAuthShape = { children: React.ReactNode }
+
+type RequireSetupShape = { children: React.ReactNode }
 
 const Login = lazy(() => import('@/pages/Login'))
 const Dashboard = lazy(() => import('@/pages/Dashboard'))
@@ -17,9 +22,7 @@ const Routing = lazy(() => import('@/pages/Routing'))
 const Vpn = lazy(() => import('@/pages/Vpn'))
 const HA = lazy(() => import('@/pages/HA'))
 const Firewall = lazy(() => import('@/pages/Firewall'))
-const ConfigUsers = lazy(() => import('@/pages/ConfigUsers'))
 const UserDetail = lazy(() => import('@/pages/UserDetail'))
-const Services = lazy(() => import('@/pages/Services'))
 const Settings = lazy(() => import('@/pages/Settings'))
 const ConfigBrowser = lazy(() => import('@/pages/ConfigBrowser'))
 const Anycast = lazy(() => import('@/pages/Anycast'))
@@ -40,18 +43,18 @@ const SimpleDns = lazy(() => import('@/pages/SimpleDns'))
 const SimplePortForwards = lazy(() => import('@/pages/SimplePortForwards'))
 const SimpleSystem = lazy(() => import('@/pages/SimpleSystem'))
 
-function RequireAuth({ children }: { children: React.ReactNode }) {
+function RequireAuth({ children }: RequireAuthShape) {
   if (!isAuthenticated()) {
     return <Navigate to="/login" replace />
   }
   return <>{children}</>
 }
 
-function RequireSetup({ children }: { children: React.ReactNode }) {
+function RequireSetup({ children }: RequireSetupShape) {
   const active = useActiveInstance()
-  const { data, isLoading, error } = useFetch(() => api.apiSetupStatusGet())
+  const { data, hasData, isLoading, error } = useFetch(() => api.apiSetupStatusGet())
   if (active.id !== 'self') return <>{children}</>
-  if (isLoading) return <Spinner />
+  if (isLoading && !hasData) return <Spinner />
   if (error && !isAuthenticated()) return <Spinner />
   if (data && (data.needs_password_change || !data.onboarding_complete)) {
     return <Navigate to="/onboarding" replace />
@@ -98,9 +101,10 @@ export default function App() {
           <Route path="/dns"      element={<Navigate to="/system" replace />} />
           <Route path="/ssh"      element={<Navigate to="/system" replace />} />
           <Route path="/sysctl"   element={<Navigate to="/system" replace />} />
-          <Route path="/users"    element={<ConfigUsers />} />
+          <Route path="/users" element={<Navigate to={getConfigLayer() === 'simple' ? '/simple/system' : '/system?system-config=users'} replace />} />
+          <Route path="/system/users/:name" element={<UserDetail />} />
           <Route path="/users/:name" element={<UserDetail />} />
-          <Route path="/services" element={<Services />} />
+          <Route path="/services" element={<Navigate to="/system?system-config=services" replace />} />
           <Route path="/friends"  element={<Friends />} />
 
           <Route path="/monitor"    element={<Monitor />} />

@@ -6,11 +6,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/ChevalRouting/routier/pkg/daemon/vtysh"
+	"github.com/ChevalRouting/routier/pkg/types"
 )
 
-// Learned godoc
 // @Summary  Learned OSPF/BGP routes
 // @Tags routing
 // @Produce json

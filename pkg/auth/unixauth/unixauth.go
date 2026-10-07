@@ -69,6 +69,7 @@ func Verify(user, password string) (bool, error) {
 		log.Warn().Str("user", user).Msg("Unix account has no usable password hash")
 		return false, nil
 	}
+
 	if !strings.HasPrefix(hash, "$") {
 		log.Warn().Str("user", user).Msg("Unix account uses an unsupported password hash format")
 		return false, nil
@@ -99,7 +100,7 @@ func shadowHash(user string) (string, error) {
 		return "", err
 	}
 
-	defer f.Close()
+	defer func(action func() error) { _ = action() }(f.Close)
 
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
@@ -108,6 +109,7 @@ func shadowHash(user string) (string, error) {
 			return fields[1], nil
 		}
 	}
+
 	if err := scanner.Err(); err != nil {
 		return "", err
 	}

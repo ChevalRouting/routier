@@ -1,3 +1,5 @@
+import routier from './lint/rules.mjs'
+import stylistic from '@stylistic/eslint-plugin'
 import js from '@eslint/js'
 import globals from 'globals'
 import tseslint from 'typescript-eslint'
@@ -13,11 +15,22 @@ export default tseslint.config(
       ecmaVersion: 2022,
       globals: globals.browser,
     },
+    linterOptions: { reportUnusedDisableDirectives: 'error' },
     plugins: {
+      routier,
+      stylistic,
       'react-hooks': reactHooks,
       'react-refresh': reactRefresh,
     },
     rules: {
+      'routier/no-comments': 'error',
+      'routier/shared-controls': 'error',
+      'routier/named-handlers': 'error',
+      'routier/named-types': 'error',
+      'stylistic/no-trailing-spaces': 'error',
+      'stylistic/eol-last': ['error', 'always'],
+      'stylistic/semi': ['error', 'never'],
+      'stylistic/quotes': ['error', 'single', { avoidEscape: true }],
       ...reactHooks.configs.recommended.rules,
       'react-refresh/only-export-components': 'off',
       'react-hooks/set-state-in-effect': 'off',

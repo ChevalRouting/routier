@@ -63,7 +63,7 @@ func (i *instance) debugExec(ctx context.Context, command string, timeout time.D
 		return execResult{}, fmt.Errorf("%s: debug console dial: %w", i.name, err)
 	}
 
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	marker := execMarker()
 	start := marker + "START"
@@ -84,7 +84,7 @@ func (i *instance) debugExec(ctx context.Context, command string, timeout time.D
 		}
 
 		if len(data) > 0 {
-			buf.Write(data)
+			_, _ = buf.Write(data)
 			if buf.Len() > maxExecOutput || strings.Contains(buf.String(), end) {
 				break
 			}

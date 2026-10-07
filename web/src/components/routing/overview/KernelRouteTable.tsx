@@ -1,17 +1,20 @@
-import { PROTO_FILTER } from './graph'
-import { useState, useEffect } from 'react'
-import { api } from '@/lib/client'
 import type { TypesKernelRoute as KernelRoute } from '@/api'
+import { api } from '@/lib/client'
 import { protoColor } from '@/lib/palette'
-import { cn } from 'cheval-ui'
-import { Pagination } from 'cheval-ui'
 import '@xyflow/react/dist/style.css'
+import { cn, Pagination } from 'cheval-ui'
+import { useEffect, useState } from 'react'
+import { PROTO_FILTER } from './graph'
+
+type KernelRouteTableShape2 = { proto: string }
+
+type KernelRouteTableShape = { routes: KernelRoute[]; total: number }
 
 export const ROUTE_PAGE_SIZE = 100
 
-export function KernelRouteTable({ proto }: { proto: string }) {
+export function KernelRouteTable({ proto }: KernelRouteTableShape2) {
   const [page, setPage] = useState(0)
-  const [data, setData] = useState<{ routes: KernelRoute[]; total: number }>({ routes: [], total: 0 })
+  const [data, setData] = useState<KernelRouteTableShape>({ routes: [], total: 0 })
   const [loading, setLoading] = useState(true)
   const protoParam = (PROTO_FILTER[proto] ?? []).join(',')
 

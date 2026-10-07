@@ -1,6 +1,6 @@
-import { TerminalPane } from 'cheval-ui/terminal'
-import { PageHeader } from 'cheval-ui'
 import { getToken } from '@/lib/utils'
+import { PageHeader } from 'cheval-ui'
+import { TerminalPane } from 'cheval-ui/terminal'
 
 export default function Debug() {
   return (

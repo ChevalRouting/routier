@@ -8,9 +8,9 @@ import (
 	"strconv"
 	"strings"
 
+	webdb "github.com/ChevalRouting/routier/pkg/db"
 	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	"github.com/ChevalRouting/routier/pkg/server/api/requests"
-	webdb "github.com/ChevalRouting/routier/pkg/db"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
@@ -20,7 +20,6 @@ const maxBodySize = 1 << 16
 
 var validLevels = map[string]bool{"info": true, "warning": true, "danger": true}
 
-// List godoc
 // @Summary  List all announcements
 // @Tags announcements
 // @Produce json
@@ -38,7 +37,6 @@ func List(w http.ResponseWriter, r *http.Request) {
 	types.OK(w, items)
 }
 
-// Active godoc
 // @Summary  List enabled announcements (for the banner)
 // @Tags announcements
 // @Produce json
@@ -56,7 +54,6 @@ func Active(w http.ResponseWriter, r *http.Request) {
 	types.OK(w, items)
 }
 
-// Create godoc
 // @Summary  Create an announcement
 // @Tags announcements
 // @Produce json
@@ -83,7 +80,6 @@ func Create(w http.ResponseWriter, r *http.Request) {
 	types.OK(w, a)
 }
 
-// Update godoc
 // @Summary  Update an announcement
 // @Tags announcements
 // @Produce json
@@ -121,7 +117,6 @@ func Update(w http.ResponseWriter, r *http.Request) {
 	types.OK(w, a)
 }
 
-// Delete godoc
 // @Summary  Delete an announcement
 // @Tags announcements
 // @Produce json

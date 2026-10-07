@@ -1,16 +1,17 @@
-import { PreferencesGroup, EntryRow, SwitchRow } from 'cheval-ui'
-import { TagInput } from 'cheval-ui'
-import { checkIP } from '@/lib/validate'
 import { Conntrackd } from '@/components/ha/types'
+import { checkIP } from '@/lib/validate'
+import { EntryRow, PreferencesGroup, SwitchRow, TagInput } from 'cheval-ui'
+
+type ConntrackdConfigShape = {
+  cfg: Conntrackd | null
+  onChange: (next: Conntrackd | null) => void
+}
 
 function emptyConntrackd(): Conntrackd {
   return { interface: '', address: '', peer_ips: [] }
 }
 
-export function ConntrackdConfig({ cfg, onChange }: {
-  cfg: Conntrackd | null
-  onChange: (next: Conntrackd | null) => void
-}) {
+export function ConntrackdConfig({ cfg, onChange }: ConntrackdConfigShape) {
   const enabled = cfg !== null
 
   const set = <K extends keyof Conntrackd>(key: K, val: Conntrackd[K]) =>

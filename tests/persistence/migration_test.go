@@ -53,5 +53,5 @@ func TestInitDBAdoptsExistingSchema(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	database.Close()
+	_ = database.Close()
 }

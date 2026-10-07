@@ -1,8 +1,8 @@
 package app
 
 import (
-	webdb "github.com/ChevalRouting/routier/pkg/db"
 	"github.com/ChevalRouting/routier/pkg/auth/identity"
+	webdb "github.com/ChevalRouting/routier/pkg/db"
 	"github.com/go-playground/validator/v10"
 )
 

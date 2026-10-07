@@ -11,9 +11,9 @@ import (
 	"os"
 	"strings"
 
+	webdb "github.com/ChevalRouting/routier/pkg/db"
 	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
-	webdb "github.com/ChevalRouting/routier/pkg/db"
 	"github.com/ChevalRouting/routier/pkg/types"
 
 	"github.com/ChevalRouting/routier/pkg/config"
@@ -23,34 +23,11 @@ import (
 type ctxQueryTokenKey struct{}
 
 func redactTokenQueryParam(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if tok := r.URL.Query().Get("token"); tok != "" {
-			ctx := context.WithValue(r.Context(), ctxQueryTokenKey{}, tok)
-			q := r.URL.Query()
-			q.Set("token", "REDACTED")
-			r2 := r.Clone(ctx)
-			r2.URL.RawQuery = q.Encode()
-			next.ServeHTTP(w, r2)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { redactTokenQueryParamCallback(next, w, r) })
 }
 
 func corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { corsMiddlewareCallback(next, w, r) })
 }
 
 type stagingWriter struct {
@@ -74,6 +51,7 @@ func (sw *stagingWriter) setStagingHeader() {
 		if !bytes.Equal(staged, committed) {
 			pending = "true"
 		}
+
 		layer, _, _ = cfgstore.StagingLayer(sw.configPath, sw.username)
 	}
 
@@ -109,80 +87,11 @@ func (sw *stagingWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 }
 
 func stagingHeaderMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		app := appctx.FromContext(r.Context())
-		if username := appctx.UsernameFromContext(r.Context()); username != "" && app != nil {
-			next.ServeHTTP(&stagingWriter{ResponseWriter: w, configPath: app.ConfigPath, username: username}, r)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { stagingHeaderMiddlewareCallback(next, w, r) })
 }
 
 func jwtMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		app := appctx.FromContext(r.Context())
-		if app == nil {
-			types.Err(http.StatusInternalServerError, "missing app context").Write(w)
-			return
-		}
-
-		var tokenStr string
-		if authHeader := r.Header.Get("Authorization"); strings.HasPrefix(authHeader, "Bearer ") {
-			tokenStr = strings.TrimPrefix(authHeader, "Bearer ")
-		} else if q, _ := r.Context().Value(ctxQueryTokenKey{}).(string); q != "" {
-			tokenStr = q
-		} else {
-			types.Err(http.StatusUnauthorized, "unauthorized").Write(w)
-			return
-		}
-
-		token, err := jwt.Parse(tokenStr, appctx.JWTKeyFunc(app.JWTSecret))
-		if err == nil && token.Valid {
-			claims, _ := token.Claims.(jwt.MapClaims)
-			username, _ := claims["sub"].(string)
-			ctx := appctx.WithUsername(r.Context(), username)
-			next.ServeHTTP(w, r.WithContext(ctx))
-			return
-		}
-
-		if strings.HasPrefix(tokenStr, "rtr_api_") {
-			key, keyErr := webdb.AuthenticateAPIKey(r.Context(), app.DB, tokenStr)
-			if keyErr == nil {
-				if strings.HasPrefix(r.URL.Path, "/api/auth/") {
-					types.Err(http.StatusForbidden, "API keys cannot manage authentication credentials").Write(w)
-					return
-				}
-
-				ctx := appctx.WithUsername(r.Context(), "apikey_"+key.ID)
-				next.ServeHTTP(w, r.WithContext(ctx))
-				return
-			}
-		}
-
-		if cfg, cfgErr := config.Load(app.ConfigPath); cfgErr == nil {
-			for _, f := range cfg.Friends {
-				if f.IsEnabled() && f.Token != "" && subtle.ConstantTimeCompare([]byte(f.Token), []byte(tokenStr)) == 1 {
-					if strings.HasPrefix(r.URL.Path, "/api/auth/") {
-						types.Err(http.StatusForbidden, "friend tokens cannot manage authentication credentials").Write(w)
-						return
-					}
-
-					if !friendTokenAllowed(f, r.Method, r.URL.Path) {
-						types.Err(http.StatusForbidden, "friend token not permitted for this endpoint").Write(w)
-						return
-					}
-
-					ctx := appctx.WithUsername(r.Context(), appctx.FriendUserPrefix+f.Name)
-					next.ServeHTTP(w, r.WithContext(ctx))
-					return
-				}
-			}
-		}
-
-		types.Err(http.StatusUnauthorized, "unauthorized").Write(w)
-	})
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { jwtMiddlewareCallback(next, w, r) })
 }
 
 func friendTokenAllowed(f *config.Friend, method, path string) bool {
@@ -212,4 +121,105 @@ func friendTokenAllowed(f *config.Friend, method, path string) bool {
 	}
 
 	return false
+}
+
+func redactTokenQueryParamCallback(next http.Handler, w http.ResponseWriter, r *http.Request) {
+	if tok := r.URL.Query().Get("token"); tok != "" {
+		ctx := context.WithValue(r.Context(), ctxQueryTokenKey{}, tok)
+		q := r.URL.Query()
+		q.Set("token", "REDACTED")
+		r2 := r.Clone(ctx)
+		r2.URL.RawQuery = q.Encode()
+		next.ServeHTTP(w, r2)
+		return
+	}
+
+	next.ServeHTTP(w, r)
+}
+
+func corsMiddlewareCallback(next http.Handler, w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+	w.Header().Set("Access-Control-Expose-Headers", "X-Staging-Pending, X-Staging-Layer")
+
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	next.ServeHTTP(w, r)
+}
+
+func stagingHeaderMiddlewareCallback(next http.Handler, w http.ResponseWriter, r *http.Request) {
+	app := appctx.FromContext(r.Context())
+	if username := appctx.UsernameFromContext(r.Context()); username != "" && app != nil {
+		next.ServeHTTP(&stagingWriter{ResponseWriter: w, configPath: app.ConfigPath, username: username}, r)
+		return
+	}
+
+	next.ServeHTTP(w, r)
+}
+
+func jwtMiddlewareCallback(next http.Handler, w http.ResponseWriter, r *http.Request) {
+	app := appctx.FromContext(r.Context())
+	if app == nil {
+		types.Err(http.StatusInternalServerError, "missing app context").Write(w)
+		return
+	}
+
+	var tokenStr string
+	if authHeader := r.Header.Get("Authorization"); strings.HasPrefix(authHeader, "Bearer ") {
+		tokenStr = strings.TrimPrefix(authHeader, "Bearer ")
+	} else if q, _ := r.Context().Value(ctxQueryTokenKey{}).(string); q != "" {
+		tokenStr = q
+	} else {
+		types.Err(http.StatusUnauthorized, "unauthorized").Write(w)
+		return
+	}
+
+	token, err := jwt.Parse(tokenStr, appctx.JWTKeyFunc(app.JWTSecret))
+	if err == nil && token.Valid {
+		claims, _ := token.Claims.(jwt.MapClaims)
+		username, _ := claims["sub"].(string)
+		ctx := appctx.WithUsername(r.Context(), username)
+		next.ServeHTTP(w, r.WithContext(ctx))
+		return
+	}
+
+	if strings.HasPrefix(tokenStr, "rtr_api_") {
+		key, keyErr := webdb.AuthenticateAPIKey(r.Context(), app.DB, tokenStr)
+		if keyErr == nil {
+			if strings.HasPrefix(r.URL.Path, "/api/auth/") {
+				types.Err(http.StatusForbidden, "API keys cannot manage authentication credentials").Write(w)
+				return
+			}
+
+			ctx := appctx.WithUsername(r.Context(), "apikey_"+key.ID)
+			next.ServeHTTP(w, r.WithContext(ctx))
+			return
+		}
+	}
+
+	if cfg, cfgErr := config.Load(app.ConfigPath); cfgErr == nil {
+		for _, f := range cfg.Friends {
+			if f.IsEnabled() && f.Token != "" && subtle.ConstantTimeCompare([]byte(f.Token), []byte(tokenStr)) == 1 {
+				if strings.HasPrefix(r.URL.Path, "/api/auth/") {
+					types.Err(http.StatusForbidden, "friend tokens cannot manage authentication credentials").Write(w)
+					return
+				}
+
+				if !friendTokenAllowed(f, r.Method, r.URL.Path) {
+					types.Err(http.StatusForbidden, "friend token not permitted for this endpoint").Write(w)
+					return
+				}
+
+				ctx := appctx.WithUsername(r.Context(), appctx.FriendUserPrefix+f.Name)
+				next.ServeHTTP(w, r.WithContext(ctx))
+				return
+			}
+		}
+	}
+
+	types.Err(http.StatusUnauthorized, "unauthorized").Write(w)
 }

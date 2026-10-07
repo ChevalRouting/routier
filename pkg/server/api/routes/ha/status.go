@@ -5,16 +5,15 @@ import (
 	"net/http"
 	"sort"
 
-	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	"github.com/ChevalRouting/routier/pkg/config"
-	"github.com/ChevalRouting/routier/pkg/telemetry/conntrack"
 	"github.com/ChevalRouting/routier/pkg/daemon/keepalived"
+	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	"github.com/ChevalRouting/routier/pkg/svc"
+	"github.com/ChevalRouting/routier/pkg/telemetry/conntrack"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/rs/zerolog/log"
 )
 
-// Status godoc
 // @Summary  VRRP / conntrackd HA status
 // @Tags ha
 // @Produce json
@@ -40,13 +39,7 @@ func Status(w http.ResponseWriter, r *http.Request) {
 		instances = append(instances, cfg.HA.VRRP...)
 	}
 
-	sort.Slice(instances, func(i, j int) bool {
-		if instances[i].Interface != instances[j].Interface {
-			return instances[i].Interface < instances[j].Interface
-		}
-
-		return instances[i].ID < instances[j].ID
-	})
+	sort.Slice(instances, func(i, j int) bool { return statusCallback(instances, i, j) })
 
 	for _, v := range instances {
 		instanceName := fmt.Sprintf("VI_%s_%d", v.Interface, v.ID)
@@ -98,4 +91,12 @@ func conntrackdStatus() *types.ConntrackdStatus {
 	}
 
 	return st
+}
+
+func statusCallback(instances []*config.VRRPInstance, i, j int) bool {
+	if instances[i].Interface != instances[j].Interface {
+		return instances[i].Interface < instances[j].Interface
+	}
+
+	return instances[i].ID < instances[j].ID
 }

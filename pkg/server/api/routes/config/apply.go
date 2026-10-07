@@ -5,22 +5,22 @@ import (
 	"net/http"
 	"strings"
 
+	cfgpkg "github.com/ChevalRouting/routier/pkg/config"
+	"github.com/ChevalRouting/routier/pkg/managers"
 	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
 	"github.com/ChevalRouting/routier/pkg/server/api/friendcache"
-	cfgpkg "github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/state/failures"
-	"github.com/ChevalRouting/routier/pkg/managers"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/rs/zerolog/log"
 )
 
-// Apply godoc
 // @Summary  Apply the staged config
 // @Tags config
 // @Produce json
 // @Param layer query string false "configuration layer" Enums(advanced, simple)
 // @Success 200 {object} types.Response[types.ApplyResult]
+// @Failure 500 {object} types.Response[types.ApplyResult]
 // @Security BearerAuth
 // @Router /api/config/apply [post]
 func Apply(w http.ResponseWriter, r *http.Request) {
@@ -31,11 +31,13 @@ func Apply(w http.ResponseWriter, r *http.Request) {
 		types.Error(log.Logger, w, appErr)
 		return
 	}
+
 	owner, exists, err := cfgstore.StagingLayer(app.ConfigPath, username)
 	if err != nil {
 		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "failed to read staging owner"))
 		return
 	}
+
 	if exists && owner != layer.Name() {
 		types.Err(http.StatusConflict, "configuration changes belong to the "+owner+" layer").Write(w)
 		return
@@ -66,13 +68,13 @@ func Apply(w http.ResponseWriter, r *http.Request) {
 	res, err := managers.Apply(r.Context(), cfg, friendcache.InterpolationVars(),
 		managers.ApplyOptions{Source: "web", ConfigPath: app.ConfigPath}, managers.WatchdogTimeout)
 	if err != nil {
-		var ve *failures.ValidationError
-		if errors.As(err, &ve) {
-			types.OK(w, types.ApplyResult{Status: "validation_failed", BundleID: ve.BundleID, Errors: ve.Errors})
-			return
+		result := applyFailureResult(err)
+		if result.Status == "validation_failed" {
+			types.OK(w, result)
+		} else {
+			(&types.Response[types.ApplyResult]{HTTPStatusCode: http.StatusInternalServerError, ErrorText: err.Error(), Result: &result}).Write(w)
 		}
 
-		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "apply failed (rolled back)"))
 		return
 	}
 
@@ -97,4 +99,22 @@ func carryDDNSKey(cfg, staged *cfgpkg.Config) {
 
 	staged.DHCP.DDNS.Key = cfg.DHCP.DDNS.Key
 	staged.DHCP.DDNS.Algorithm = cfg.DHCP.DDNS.Algorithm
+}
+
+func applyFailureResult(err error) types.ApplyResult {
+	result := types.ApplyResult{Status: "apply_failed", Errors: []types.ArtifactError{{Message: err.Error()}}}
+	var diagnostic *failures.ApplyError
+	if errors.As(err, &diagnostic) {
+		result.BundleID = diagnostic.BundleID
+		result.LogID = diagnostic.LogID
+	}
+
+	var ve *failures.ValidationError
+	if errors.As(err, &ve) {
+		result.Status = "validation_failed"
+		result.Errors = ve.Errors
+		result.BundleID = ve.BundleID
+	}
+
+	return result
 }

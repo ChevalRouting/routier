@@ -1,35 +1,55 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { api } from '@/lib/client'
 import type { TypesFriendStatus as FriendStatus } from '@/api'
-import { useFetch } from '@/lib/useFetch'
-import { Card, CardContent, CardHeader, CardTitle } from 'cheval-ui'
-import { Button } from 'cheval-ui'
-import { cn } from 'cheval-ui'
 import { ApplyStreamModal } from '@/components/ApplyStreamModal'
+import { ProbePanel } from '@/components/ProbePanel'
 import { PowerControls } from '@/components/system/PowerControls'
 import { SystemOverview } from '@/components/SystemOverview'
-import { ProbePanel } from '@/components/ProbePanel'
+import { api } from '@/lib/client'
+import { useFetch } from '@/lib/useFetch'
+import { Button, Card, CardContent, CardHeader, CardTitle, cn, PageHeader } from 'cheval-ui'
 import {
-  Network, GitBranch, Lock, Server,
-  Activity, Shield, Users,
-  RefreshCw, Handshake,
+  Activity,
+  GitBranch,
+  Handshake,
+  Lock,
+  Network,
+  RefreshCw,
+  Server,
+  Shield, Users,
 } from 'lucide-react'
-import { PageHeader } from 'cheval-ui'
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
+
+type RoutingShape = { bgp?: BgpShape }
+
+type BgpShape = { asn?: number; neighbors?: unknown[] }
+
+type SkeletonBoxShape = { className?: string }
+
+type StatCardShape = {
+  to?: string
+  title: string
+  icon: React.ComponentType<IconShape>
+  value: React.ReactNode
+  sub?: string
+  linkable?: boolean
+  className?: string
+}
+
+type IconShape = { className?: string }
 
 interface Config {
   hostname?: string
   interfaces?: Record<string, unknown>
   tunnels?: Record<string, unknown>
   wireguard?: Record<string, unknown>
-  routing?: { bgp?: { asn?: number; neighbors?: unknown[] } }
+  routing?: RoutingShape
   nftables?: unknown[]
   users?: Record<string, unknown>
   services?: Record<string, unknown>
   friends?: unknown[]
 }
 
-function SkeletonBox({ className }: { className?: string }) {
+function SkeletonBox({ className }: SkeletonBoxShape) {
   return <div className={`animate-pulse rounded-md bg-muted ${className ?? ''}`} />
 }
 
@@ -64,15 +84,7 @@ function DashboardSkeleton() {
 
 function StatCard({
   to, title, icon: Icon, value, sub, linkable = false, className,
-}: {
-  to?: string
-  title: string
-  icon: React.ComponentType<{ className?: string }>
-  value: React.ReactNode
-  sub?: string
-  linkable?: boolean
-  className?: string
-}) {
+}: StatCardShape) {
   const inner = (
     <Card className={`min-h-28 ${linkable ? 'hover:bg-muted/50 transition-colors cursor-pointer' : ''}`}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

@@ -1,20 +1,22 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
-import { InterfaceDetails } from './InterfaceDetails'
-import { api } from '@/lib/client'
 import type {
-  TypesHAStatusResponse as HAStatusResponse, TypesStatsResponse as StatsResponse,
-  TypesSystemHistoryPoint as SystemHistoryPoint, TypesNeighborStat as NeighborStat,
+  TypesHAStatusResponse as HAStatusResponse,
+  TypesNeighborStat as NeighborStat,
+  TypesStatsResponse as StatsResponse,
+  TypesSystemHistoryPoint as SystemHistoryPoint,
 } from '@/api'
-import { Card, CardContent, CardHeader, CardTitle } from 'cheval-ui'
-import { StateChip } from 'cheval-ui'
-import { Button } from 'cheval-ui'
-import { RefreshCw, Pause, Play, Cpu, MemoryStick, Network } from 'lucide-react'
-import { Spinner } from 'cheval-ui'
+import { api } from '@/lib/client'
+import { Button, Card, CardContent, CardHeader, CardTitle, fmtBytes, fmtUptime, Spinner, StateChip } from 'cheval-ui'
 import { TimeSeriesChart } from 'cheval-ui/charts'
-import { fmtBytes, fmtUptime } from 'cheval-ui'
+import { Cpu, MemoryStick, Network, Pause, Play, RefreshCw } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { InterfaceDetails } from './InterfaceDetails'
 import { OnActionChange, VRRPState } from './shared'
 
-export function SystemPanel({ onActionChange }: { onActionChange: OnActionChange }) {
+type SystemPanelShape = { onActionChange: OnActionChange }
+
+type RatesShape = { rx: number; tx: number }
+
+export function SystemPanel({ onActionChange }: SystemPanelShape) {
   const [selectedInterface, setSelectedInterface] = useState<string | null>(null)
   const [stats, setStats] = useState<StatsResponse | null>(null)
   const [prev, setPrev] = useState<StatsResponse | null>(null)
@@ -33,7 +35,7 @@ export function SystemPanel({ onActionChange }: { onActionChange: OnActionChange
     } catch {}
   }, [stats])
 
-  useEffect(() => { fetchStats() }, [])
+  useEffect(() => { fetchStats() }, [fetchStats])
   useEffect(() => {
     if (paused) return
     const id = setInterval(fetchStats, 2000)
@@ -76,7 +78,7 @@ export function SystemPanel({ onActionChange }: { onActionChange: OnActionChange
     return map
   }, [haStatus])
 
-  const rates: Record<string, { rx: number; tx: number }> = {}
+  const rates: Record<string, RatesShape> = {}
   if (prev && stats) {
     for (const iface of Object.keys(stats.interfaces ?? {})) {
       const cur = stats.interfaces![iface]

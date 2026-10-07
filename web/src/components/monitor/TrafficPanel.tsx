@@ -1,20 +1,18 @@
-import { useState, useEffect, useMemo } from 'react'
-import { api } from '@/lib/client'
 import type { TypesStatsHistoryResponse as StatsHistoryResponse } from '@/api'
-import { Card, CardContent, CardHeader, CardTitle } from 'cheval-ui'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from 'cheval-ui'
-import { Spinner } from 'cheval-ui'
-import { TimeSeriesChart } from 'cheval-ui/charts'
-import { fmtBitrate, fmtPps } from 'cheval-ui'
-import { cn } from 'cheval-ui'
+import { api } from '@/lib/client'
 import { useIfaceLabels } from '@/lib/ifaceNames'
-import { PERIODS, C, Legend } from './shared'
+import { Card, CardContent, CardHeader, CardTitle, cn, fmtBitrate, fmtPps, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Spinner } from 'cheval-ui'
+import { TimeSeriesChart } from 'cheval-ui/charts'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { C, Legend, PERIODS } from './shared'
 
 export function TrafficPanel() {
   const [history, setHistory] = useState<StatsHistoryResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [periodIdx, setPeriodIdx] = useState(0)
   const [selectedIface, setSelectedIface] = useState<string>('__all__')
+  const selectedIfaceRef = useRef(selectedIface)
+  useEffect(() => { selectedIfaceRef.current = selectedIface }, [selectedIface])
   const [ifaceNames, setIfaceNames] = useState<string[]>([])
   const ifaceLabel = useIfaceLabels()
   const period = PERIODS[periodIdx]
@@ -30,7 +28,7 @@ export function TrafficPanel() {
       })
       .catch(() => {}).finally(() => setLoading(false))
     const id = setInterval(() => {
-      if (selectedIface === '__all__') api.apiStatsHistoryGet({ minutes: period.minutes }).then(setHistory).catch(() => {})
+      if (selectedIfaceRef.current === '__all__') api.apiStatsHistoryGet({ minutes: period.minutes }).then(setHistory).catch(() => {})
     }, 60_000)
     return () => clearInterval(id)
   }, [period.minutes])

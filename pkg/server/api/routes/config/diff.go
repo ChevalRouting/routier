@@ -4,14 +4,13 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/ChevalRouting/routier/pkg/diffutil"
 	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
-	"github.com/ChevalRouting/routier/pkg/diffutil"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/rs/zerolog/log"
 )
 
-// GetDiff godoc
 // @Summary  Diff staged vs live config
 // @Tags config
 // @Produce json

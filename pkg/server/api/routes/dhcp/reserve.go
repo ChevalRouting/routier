@@ -8,12 +8,12 @@ import (
 	"os"
 	"strings"
 
+	"github.com/ChevalRouting/routier/pkg/config"
+	"github.com/ChevalRouting/routier/pkg/managers"
+	"github.com/ChevalRouting/routier/pkg/net/ipcalc"
 	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
 	"github.com/ChevalRouting/routier/pkg/server/api/friendcache"
-	"github.com/ChevalRouting/routier/pkg/config"
-	"github.com/ChevalRouting/routier/pkg/net/ipcalc"
-	"github.com/ChevalRouting/routier/pkg/managers"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/rs/zerolog/log"
 )
@@ -26,9 +26,6 @@ type reserveFromLeaseRequest struct {
 	DNSName  string `json:"dns_name,omitempty" validate:"optional"`
 }
 
-// ReserveFromLease adds a reservation for a leased host, applies it, then clears
-// the lease so the client picks up its reserved address on its next request.
-//
 // @Summary  Reserve a host from a dynamic lease
 // @Tags dhcp
 // @Produce json

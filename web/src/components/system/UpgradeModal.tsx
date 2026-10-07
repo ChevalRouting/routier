@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
-import { X, AlertTriangle, CheckCircle2, RefreshCw } from 'lucide-react'
-import { Button } from 'cheval-ui'
-import { TerminalPane } from 'cheval-ui/terminal'
-import { toast } from 'sonner'
 import { configLayerRequest } from '@/lib/client'
 import { getToken } from '@/lib/utils'
+import { Button } from 'cheval-ui'
+import { TerminalPane } from 'cheval-ui/terminal'
+import { AlertTriangle, CheckCircle2, RefreshCw, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { toast } from 'sonner'
 
 interface UpgradeStatus {
   state: 'idle' | 'running' | 'done' | 'failed'

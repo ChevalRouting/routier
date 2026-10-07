@@ -38,7 +38,8 @@ func apiKeyRequest(t *testing.T, token, method, url string, body any) (int, []by
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer response.Body.Close()
+
+	defer func(action func() error) { _ = action() }(response.Body.Close)
 
 	data, err := io.ReadAll(response.Body)
 	if err != nil {

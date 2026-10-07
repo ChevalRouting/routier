@@ -27,25 +27,7 @@ func renderFrr(t *testing.T, cfg *config.Config) string {
 }
 
 func TestBGPNeighborAFDisableActivate(t *testing.T) {
-	mkCfg := func(disabled bool) *config.Config {
-		return &config.Config{
-			Hostname: "rtr",
-			Routing: &config.Routing{
-				BGP: &config.BGP{
-					ASN: 65010,
-					Neighbors: []config.BGPNeighbor{
-						{
-							Address:   "198.51.100.1",
-							RemoteASN: 65020,
-							AddressFamilies: map[string]*config.BGPNeighborAF{
-								"ipv4-unicast": {Disabled: disabled},
-							},
-						},
-					},
-				},
-			},
-		}
-	}
+	mkCfg := bGPNeighborAFDisableActivateHandler
 
 	enabled := renderFrr(t, mkCfg(false))
 	if !strings.Contains(enabled, "neighbor 198.51.100.1 activate") || strings.Contains(enabled, "no neighbor 198.51.100.1 activate") {
@@ -142,16 +124,7 @@ func TestRenderBGPVPNRouteLeak(t *testing.T) {
 }
 
 func TestRenderBGPNoRIB(t *testing.T) {
-	mkCfg := func(noRIB bool) *config.Config {
-		return &config.Config{
-			Hostname: "rr",
-			Routing: &config.Routing{BGP: &config.BGP{
-				ASN:      65000,
-				RouterID: "10.0.0.1",
-				NoRIB:    noRIB,
-			}},
-		}
-	}
+	mkCfg := renderBGPNoRIBHandler
 
 	on := renderFrr(t, mkCfg(true))
 	if !strings.Contains(on, "\nbgp no-rib\n") {
@@ -208,5 +181,77 @@ func TestRenderBGPL2VPNEVPN(t *testing.T) {
 		if !strings.Contains(out, want) {
 			t.Errorf("FRR config missing %q:\n%s", want, out)
 		}
+	}
+}
+
+func TestBGPFamilyRouteMapDefaultsApplyToNeighbors(t *testing.T) {
+	for _, vrf := range []bool{false, true} {
+		name := "global"
+		if vrf {
+			name = "vrf"
+		}
+
+		t.Run(name, func(t *testing.T) { testBGPFamilyRouteMapDefaults(t, vrf) })
+	}
+}
+
+func testBGPFamilyRouteMapDefaults(t *testing.T, vrf bool) {
+	t.Helper()
+	bgp := &config.BGP{ASN: 65000,
+		AddressFamilies: map[string]*config.BGPAddressFamily{"ipv4-unicast": {RouteMapIn: "EXTERNAL", RouteMapOut: "EXTERNAL"}},
+		Neighbors: []config.BGPNeighbor{
+			{Address: "192.0.2.1", RemoteASN: 65001},
+			{Address: "192.0.2.2", RemoteASN: 65002, AddressFamilies: map[string]*config.BGPNeighborAF{"ipv4-unicast": {RouteMapIn: "CUSTOM"}}},
+			{Address: "2001:db8::1", RemoteASN: 65003},
+		},
+	}
+
+	cfg := &config.Config{Hostname: "rtr", Routing: &config.Routing{BGP: bgp}}
+	if vrf {
+		cfg.Routing = &config.Routing{VRFs: map[string]*config.VRFRouting{"blue": {BGP: bgp}}}
+	}
+
+	out := renderFrr(t, cfg)
+	for _, want := range []string{"neighbor 192.0.2.1 route-map EXTERNAL in", "neighbor 192.0.2.1 route-map EXTERNAL out", "neighbor 192.0.2.2 route-map CUSTOM in", "neighbor 192.0.2.2 route-map EXTERNAL out"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("missing %q:\n%s", want, out)
+		}
+	}
+
+	for _, bad := range []string{"\n  route-map EXTERNAL in", "\n  route-map EXTERNAL out", "neighbor 192.0.2.2 route-map EXTERNAL in", "neighbor 2001:db8::1 route-map EXTERNAL"} {
+		if strings.Contains(out, bad) {
+			t.Fatalf("unexpected %q:\n%s", bad, out)
+		}
+	}
+}
+
+func bGPNeighborAFDisableActivateHandler(disabled bool) *config.Config {
+	return &config.Config{
+		Hostname: "rtr",
+		Routing: &config.Routing{
+			BGP: &config.BGP{
+				ASN: 65010,
+				Neighbors: []config.BGPNeighbor{
+					{
+						Address:   "198.51.100.1",
+						RemoteASN: 65020,
+						AddressFamilies: map[string]*config.BGPNeighborAF{
+							"ipv4-unicast": {Disabled: disabled},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func renderBGPNoRIBHandler(noRIB bool) *config.Config {
+	return &config.Config{
+		Hostname: "rr",
+		Routing: &config.Routing{BGP: &config.BGP{
+			ASN:      65000,
+			RouterID: "10.0.0.1",
+			NoRIB:    noRIB,
+		}},
 	}
 }

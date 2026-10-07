@@ -1,10 +1,8 @@
-import { useEffect, useState } from 'react'
-import { api } from '@/lib/client'
 import type { TypesDiffLine as DiffLine, TypesFileDiff as FileDiff } from '@/api'
-import { Button } from 'cheval-ui'
-import { DiffCard } from 'cheval-ui'
-import { Dialog } from 'cheval-ui'
+import { api } from '@/lib/client'
+import { Button, Dialog, DiffCard } from 'cheval-ui'
 import { RefreshCw } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 interface DiffModalProps {
   onApply: () => void

@@ -3,16 +3,15 @@ package friends
 import (
 	"net/http"
 
-	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
-	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
+	"github.com/ChevalRouting/routier/pkg/auth/identity"
 	cfgpkg "github.com/ChevalRouting/routier/pkg/config"
 	friendspkg "github.com/ChevalRouting/routier/pkg/friends"
-	"github.com/ChevalRouting/routier/pkg/auth/identity"
+	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
+	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/rs/zerolog/log"
 )
 
-// Add godoc
 // @Summary  Add a friend
 // @Tags friends
 // @Produce json

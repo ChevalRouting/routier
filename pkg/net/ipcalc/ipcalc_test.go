@@ -42,9 +42,11 @@ func TestSubnetIpcalcExample(t *testing.T) {
 	if FormatBinary(info.AddressBits, info.Prefix, true) != "01100100.01000000.00001100.110 00000" {
 		t.Errorf("address bits = %q", FormatBinary(info.AddressBits, info.Prefix, true))
 	}
+
 	if FormatBinary(info.NetmaskBits, info.Prefix, true) != "11111111.11111111.11111111.111 00000" {
 		t.Errorf("netmask bits = %q", FormatBinary(info.NetmaskBits, info.Prefix, true))
 	}
+
 	if FormatBinary(info.BroadcastBits, info.Prefix, true) != "01100100.01000000.00001100.110 11111" {
 		t.Errorf("broadcast bits = %q", FormatBinary(info.BroadcastBits, info.Prefix, true))
 	}
@@ -76,12 +78,15 @@ func TestSubnetV6(t *testing.T) {
 	if info.Family != "v6" || info.Network != "2001:db8:abcd:12::/64" {
 		t.Errorf("network = %q", info.Network)
 	}
+
 	if info.HostMax != "2001:db8:abcd:12:ffff:ffff:ffff:ffff" {
 		t.Errorf("host max = %q", info.HostMax)
 	}
+
 	if info.Class != "" || info.Broadcast != "" {
 		t.Errorf("v6 should have no class/broadcast: %+v", info)
 	}
+
 	if info.Hosts != "18446744073709551616" {
 		t.Errorf("hosts = %q", info.Hosts)
 	}

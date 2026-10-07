@@ -24,7 +24,6 @@ type statsResponse struct {
 	Stats6   []kea.Stat     `json:"stats6,omitempty" validate:"optional"`
 }
 
-// Stats godoc
 // @Summary  DHCP server state and Kea statistics
 // @Tags dhcp
 // @Produce json
@@ -53,7 +52,6 @@ func Stats(w http.ResponseWriter, r *http.Request) {
 	types.OK(w, resp)
 }
 
-// LeaseStream godoc
 // @Summary  Tail Kea DHCP daemon logs (SSE)
 // @Tags dhcp
 // @Produce text/event-stream
@@ -74,12 +72,7 @@ func LeaseStream(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Accel-Buffering", "no")
 
 	flusher, hasFlusher := w.(http.Flusher)
-	send := func(line string) {
-		fmt.Fprintf(w, "data: %s\n\n", strings.ReplaceAll(line, "\n", " "))
-		if hasFlusher {
-			flusher.Flush()
-		}
-	}
+	send := func(line string) { leaseStreamCallback(w, flusher, hasFlusher, line) }
 
 	args := append([]string{"-n", "50", "-F"}, files...)
 	cmd := exec.CommandContext(r.Context(), "tail", args...)
@@ -99,9 +92,9 @@ func LeaseStream(w http.ResponseWriter, r *http.Request) {
 		_ = cmd.Process.Kill()
 		_ = cmd.Wait()
 	}()
-	// Establish the stream even when this daemon has not written any logs yet.
+
 	if hasFlusher {
-		fmt.Fprint(w, ": connected\n\n")
+		_, _ = fmt.Fprint(w, ": connected\n\n")
 		flusher.Flush()
 	}
 
@@ -114,5 +107,12 @@ func LeaseStream(w http.ResponseWriter, r *http.Request) {
 		}
 
 		send(line)
+	}
+}
+
+func leaseStreamCallback(w http.ResponseWriter, flusher http.Flusher, hasFlusher bool, line string) {
+	_, _ = fmt.Fprintf(w, "data: %s\n\n", strings.ReplaceAll(line, "\n", " "))
+	if hasFlusher {
+		flusher.Flush()
 	}
 }

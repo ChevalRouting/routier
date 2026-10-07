@@ -316,6 +316,17 @@ func TestValidateDNSServer(t *testing.T) {
 `,
 			wantErr: "is not an IPv6 address",
 		},
+		"multiple cname targets for one owner": {
+			yaml: dnsServerBase + `    zones:
+      - name: home.arpa
+        nameservers: [ns1.home.arpa.]
+        soa: { email: hostmaster@home.arpa }
+        records:
+          - { name: lb, type: CNAME, value: lb-1.home.arpa. }
+          - { name: lb, type: CNAME, value: lb-2.home.arpa. }
+`,
+			wantErr: "only one CNAME target is allowed per owner",
+		},
 		"cname colliding with an a record": {
 			yaml: dnsServerBase + `    zones:
       - name: home.arpa
@@ -363,12 +374,7 @@ func TestValidateDNSServer(t *testing.T) {
 	}
 
 	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			msg := validateErr(t, tc.yaml)
-			if !strings.Contains(msg, tc.wantErr) {
-				t.Fatalf("expected an error containing %q, got: %q", tc.wantErr, msg)
-			}
-		})
+		t.Run(name, func(t *testing.T) { testValidateDNSServerCallback(&tc, t) })
 	}
 }
 
@@ -520,16 +526,7 @@ func TestValidateDNSMode(t *testing.T) {
 	}
 
 	for name, c := range cases {
-		t.Run(name, func(t *testing.T) {
-			msg := validateErr(t, c.yaml)
-			if msg == "" {
-				t.Fatal("expected a validation error")
-			}
-
-			if !strings.Contains(msg, c.wantErr) {
-				t.Fatalf("expected %q in: %s", c.wantErr, msg)
-			}
-		})
+		t.Run(name, func(t *testing.T) { testValidateDNSModeCallback(&c, t) })
 	}
 }
 
@@ -682,16 +679,7 @@ func TestValidateDNSViews(t *testing.T) {
 	}
 
 	for name, c := range cases {
-		t.Run(name, func(t *testing.T) {
-			msg := validateErr(t, c.yaml)
-			if msg == "" {
-				t.Fatal("expected a validation error")
-			}
-
-			if !strings.Contains(msg, c.wantErr) {
-				t.Fatalf("expected %q in: %s", c.wantErr, msg)
-			}
-		})
+		t.Run(name, func(t *testing.T) { testValidateDNSViewsCallback(&c, t) })
 	}
 }
 
@@ -723,5 +711,34 @@ func TestValidateDNSViewsAccepted(t *testing.T) {
 
 	if msg := validateErr(t, yaml); msg != "" {
 		t.Fatalf("valid views config rejected: %s", msg)
+	}
+}
+
+func testValidateDNSServerCallback(tc *dnsCase, t *testing.T) {
+	msg := validateErr(t, (*tc).yaml)
+	if !strings.Contains(msg, (*tc).wantErr) {
+		t.Fatalf("expected an error containing %q, got: %q", (*tc).wantErr, msg)
+	}
+}
+
+func testValidateDNSModeCallback(c *dnsCase, t *testing.T) {
+	msg := validateErr(t, (*c).yaml)
+	if msg == "" {
+		t.Fatal("expected a validation error")
+	}
+
+	if !strings.Contains(msg, (*c).wantErr) {
+		t.Fatalf("expected %q in: %s", (*c).wantErr, msg)
+	}
+}
+
+func testValidateDNSViewsCallback(c *dnsCase, t *testing.T) {
+	msg := validateErr(t, (*c).yaml)
+	if msg == "" {
+		t.Fatal("expected a validation error")
+	}
+
+	if !strings.Contains(msg, (*c).wantErr) {
+		t.Fatalf("expected %q in: %s", (*c).wantErr, msg)
 	}
 }

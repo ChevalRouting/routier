@@ -40,7 +40,7 @@ func TestAPIDNSRequiresAuth(t *testing.T) {
 		t.Fatalf("get: %v", err)
 	}
 
-	defer resp.Body.Close()
+	defer func(action func() error) { _ = action() }(resp.Body.Close)
 
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("expected 401 without token, got %d", resp.StatusCode)
