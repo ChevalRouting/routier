@@ -1,14 +1,9 @@
-import { useState, useEffect } from 'react'
 import { api } from '@/lib/client'
+import { useDataRefresh } from '@/lib/dataVersion'
 import { useFetch } from '@/lib/useFetch'
 import { usePageSave } from '@/lib/usePageSave'
-import { SaveButton } from 'cheval-ui'
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from 'cheval-ui'
-import { PageHeader } from 'cheval-ui'
-import { PreferencesGroup, ComboRow, EntryRow } from 'cheval-ui'
-import { Spinner } from 'cheval-ui'
+import { ComboRow, EntryRow, PageHeader, PreferencesGroup, SaveButton, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Spinner } from 'cheval-ui'
+import { useEffect, useState } from 'react'
 
 interface LoggingConfig {
   target?: string
@@ -20,12 +15,13 @@ const LOG_LEVELS = ['debug', 'info', 'warn', 'error']
 const LOG_TARGETS = ['', 'syslog', 'file', 'stdout', 'stderr']
 
 export default function Logging() {
-  const { data, isLoading } = useFetch<LoggingConfig>(() => api.apiConfigSectionGet({ section: 'logging' }) as Promise<LoggingConfig>)
+  const { data, isLoading, reload } = useFetch<LoggingConfig>(() => api.apiConfigSectionGet({ section: 'logging' }) as Promise<LoggingConfig>)
   const [target, setTarget] = useState('')
   const [file, setFile] = useState('')
   const [level, setLevel] = useState('')
   const [initialized, setInitialized] = useState(false)
   const { isDirty, markDirty, save, saving, reset } = usePageSave('logging')
+  useDataRefresh(() => setInitialized(false))
 
   useEffect(() => {
     if (data && !initialized) {
@@ -50,10 +46,12 @@ export default function Logging() {
     )
   }
 
+  const handleCancel = () => { setInitialized(false); reset(); reload(true) }
+
   return (
     <div className="space-y-6">
       <PageHeader title="Logging" description="Configure log output target and verbosity" action={
-        <SaveButton isDirty={isDirty} saving={saving} onClick={() => save(buildPayload(target, file, level))} onCancel={() => { setInitialized(false); reset() }} />
+        <SaveButton isDirty={isDirty} saving={saving} onClick={() => save(buildPayload(target, file, level))} onCancel={handleCancel} />
       } />
 
       <div className="max-w-xl">

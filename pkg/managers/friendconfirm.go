@@ -46,7 +46,7 @@ func friendConfirm(client *http.Client, baseURL, token string) error {
 	}
 
 	_, _ = io.Copy(io.Discard, resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("confirm: HTTP %d", resp.StatusCode)
 	}

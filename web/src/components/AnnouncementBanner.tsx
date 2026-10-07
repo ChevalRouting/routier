@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
-import { X } from 'lucide-react'
-import { api } from '@/lib/client'
 import type { TypesAnnouncement as Announcement, TypesAnnouncementLevelEnum as AnnouncementLevel } from '@/api'
+import { api } from '@/lib/client'
 import { useDataVersion } from '@/lib/dataVersion'
+import { X } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 const DISMISS_KEY = 'routier:dismissed-announcements'
 
@@ -32,7 +32,7 @@ export function AnnouncementBanner() {
   const dismiss = (a: Announcement) => {
     const next = { ...dismissed, [a.id]: a.updated_at }
     setDismissed(next)
-    try { localStorage.setItem(DISMISS_KEY, JSON.stringify(next)) } catch { /* ignore */ }
+    try { localStorage.setItem(DISMISS_KEY, JSON.stringify(next)) } catch {  }
   }
 
   const visible = items.filter((a) => !(a.dismissible && dismissed[a.id] === a.updated_at))

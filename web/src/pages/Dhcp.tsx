@@ -1,6 +1,6 @@
-import { FeaturePage } from 'cheval-ui'
 import { DhcpPanel } from '@/components/monitor/DhcpPanel'
 import { DhcpConfig } from '@/pages/DhcpConfig'
+import { FeaturePage } from 'cheval-ui'
 
 export default function DhcpPage() {
   return (

@@ -8,7 +8,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// Pending godoc
 // @Summary  Pending apply awaiting confirmation
 // @Tags apply
 // @Produce json

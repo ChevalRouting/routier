@@ -10,7 +10,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// Check godoc
 // @Summary  Force a health check + info refresh for one friend
 // @Tags     friends
 // @Produce  json

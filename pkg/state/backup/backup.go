@@ -31,12 +31,7 @@ func Create(outputPath, configPath string, cfg *config.Config) error {
 	}
 
 	removeOnErr := true
-	defer func() {
-		out.Close()
-		if removeOnErr {
-			os.Remove(outputPath)
-		}
-	}()
+	defer func() { createCallback(outputPath, out, removeOnErr) }()
 
 	if err := Write(out, configPath, cfg); err != nil {
 		return err
@@ -73,14 +68,14 @@ func Write(w io.Writer, configPath string, cfg *config.Config) error {
 	}
 
 	if err := writeJSON(tw, "manifest.json", m); err != nil {
-		pw.CloseWithError(err)
+		_ = pw.CloseWithError(err)
 		_ = zstdCmd.Wait()
 		return err
 	}
 
 	for _, path := range files {
 		if err := writeFile(tw, path); err != nil {
-			pw.CloseWithError(err)
+			_ = pw.CloseWithError(err)
 			_ = zstdCmd.Wait()
 			return fmt.Errorf("backup %s: %w", path, err)
 		}
@@ -159,7 +154,7 @@ func Restore(archivePath string) (configPath string, err error) {
 		}
 
 		_, copyErr := io.Copy(f, tr)
-		f.Close()
+		_ = f.Close()
 		if copyErr != nil {
 			_ = zstdCmd.Wait()
 			return "", fmt.Errorf("extracting %s: %w", dest, copyErr)
@@ -185,28 +180,9 @@ func collectFiles(configPath string, cfg *config.Config) ([]string, error) {
 	seen := map[string]bool{}
 	var paths []string
 
-	add := func(p string) {
-		abs := filepath.Clean(p)
-		if seen[abs] {
-			return
-		}
+	add := func(p string) { collectFilesCallback(seen, &paths, p) }
 
-		if _, err := os.Stat(abs); err != nil {
-			log.Warn().Str("file", abs).Msg("backup: skipping missing file")
-			return
-		}
-
-		seen[abs] = true
-		paths = append(paths, abs)
-	}
-
-	resolve := func(p string) string {
-		if filepath.IsAbs(p) {
-			return p
-		}
-
-		return filepath.Join(cfg.BaseDir, p)
-	}
+	resolve := func(p string) string { return collectFilesCallback2(cfg, p) }
 
 	absConfig, err := filepath.Abs(configPath)
 	if err != nil {
@@ -253,14 +229,7 @@ func collectFiles(configPath string, cfg *config.Config) ([]string, error) {
 		}
 	}
 
-	_ = filepath.WalkDir(userTemplatesDir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
-			return nil
-		}
-
-		add(path)
-		return nil
-	})
+	_ = filepath.WalkDir(userTemplatesDir, func(path string, d fs.DirEntry, err error) error { return collectFilesCallback3(add, path, d, err) })
 
 	return paths, nil
 }
@@ -290,7 +259,7 @@ func writeFile(tw *tar.Writer, absPath string) error {
 		return err
 	}
 
-	defer f.Close()
+	defer func(action func() error) { _ = action() }(f.Close)
 
 	info, err := f.Stat()
 	if err != nil {
@@ -317,4 +286,43 @@ func safePath(name string) (string, error) {
 	}
 
 	return cleaned, nil
+}
+
+func createCallback(outputPath string, out *os.File, removeOnErr bool) {
+	_ = out.Close()
+	if removeOnErr {
+		_ = os.Remove(outputPath)
+	}
+}
+
+func collectFilesCallback(seen map[string]bool, paths *[]string, p string) {
+	abs := filepath.Clean(p)
+	if seen[abs] {
+		return
+	}
+
+	if _, err := os.Stat(abs); err != nil {
+		log.Warn().Str("file", abs).Msg("backup: skipping missing file")
+		return
+	}
+
+	seen[abs] = true
+	(*paths) = append((*paths), abs)
+}
+
+func collectFilesCallback2(cfg *config.Config, p string) string {
+	if filepath.IsAbs(p) {
+		return p
+	}
+
+	return filepath.Join(cfg.BaseDir, p)
+}
+
+func collectFilesCallback3(add func(p string), path string, d fs.DirEntry, err error) error {
+	if err != nil || d.IsDir() {
+		return nil
+	}
+
+	add(path)
+	return nil
 }

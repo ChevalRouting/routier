@@ -3,10 +3,10 @@ package system
 import (
 	"net/http"
 
-	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	"github.com/ChevalRouting/routier/pkg/host/boot"
-	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/ChevalRouting/routier/pkg/host/updates"
+	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
+	"github.com/ChevalRouting/routier/pkg/types"
 )
 
 type VersionResponse struct {
@@ -17,7 +17,6 @@ type VersionResponse struct {
 	Live          bool   `json:"live"`
 }
 
-// Version godoc
 // @Summary  Current software and kernel version
 // @Tags system
 // @Produce json

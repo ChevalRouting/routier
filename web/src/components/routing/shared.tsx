@@ -1,5 +1,14 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from 'cheval-ui'
 
+type NameSelectShape = {
+  value?: string
+  onChange: (v: string | undefined) => void
+  names: string[]
+  placeholder?: string
+}
+
+type TABSShape = { key: Tab; label: string }
+
 let nextId = 1
 
 export function newId(): number {
@@ -8,12 +17,7 @@ export function newId(): number {
 
 export function NameSelect({
   value, onChange, names, placeholder = '- none -',
-}: {
-  value?: string
-  onChange: (v: string | undefined) => void
-  names: string[]
-  placeholder?: string
-}) {
+}: NameSelectShape) {
   return (
     <Select
       value={value ?? '__none__'}
@@ -45,3 +49,17 @@ export function toRecord(pairs: KVPair[]): Record<string, string> {
 export function fromRecord(rec: Record<string, string> | undefined): KVPair[] {
   return Object.entries(rec ?? {}).map(([key, value]) => ({ _id: newId(), key, value }))
 }
+
+export type Tab = 'static' | 'bgp' | 'ospf' | 'ospf6' | 'bfd' | 'radvd' | 'vrfs' | 'pbr' | 'nat'
+
+export const TABS: TABSShape[] = [
+  { key: 'static', label: 'Static Routes' },
+  { key: 'bgp', label: 'BGP' },
+  { key: 'ospf', label: 'OSPF' },
+  { key: 'ospf6', label: 'OSPFv3' },
+  { key: 'bfd', label: 'BFD' },
+  { key: 'radvd', label: 'RADVD' },
+  { key: 'vrfs', label: 'VRFs' },
+  { key: 'pbr', label: 'PBR' },
+  { key: 'nat', label: 'NAT' },
+]

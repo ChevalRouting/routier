@@ -9,11 +9,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
-	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
 	cfgpkg "github.com/ChevalRouting/routier/pkg/config"
 	friendspkg "github.com/ChevalRouting/routier/pkg/friends"
 	"github.com/ChevalRouting/routier/pkg/managers"
+	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
+	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/rs/zerolog/log"
 )
@@ -34,7 +34,6 @@ func validateImportFilePath(path string) error {
 	return fmt.Errorf("path must be under one of: %s", strings.Join(allowedImportPrefixes, ", "))
 }
 
-// Import godoc
 // @Summary  Import a friend-pushed config payload
 // @Tags config
 // @Accept json

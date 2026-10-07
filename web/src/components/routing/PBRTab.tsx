@@ -1,28 +1,36 @@
-import { useState, useEffect } from 'react'
-import { useTabState } from 'cheval-ui'
-import { SectionNav } from 'cheval-ui'
-import { Input } from 'cheval-ui'
-import { Label } from 'cheval-ui'
-import { Button } from 'cheval-ui'
-import { EmptyState } from 'cheval-ui'
-import { Badge } from 'cheval-ui'
-import { Sheet } from 'cheval-ui'
-import { Card } from 'cheval-ui'
-import { Plus, Trash2 } from 'lucide-react'
 import { VarPickerInput } from '@/components/VarPickerInput'
-import { PreferencesColumns } from 'cheval-ui'
-import { PBRNexthop, PBRNexthopGroup, PBRMapEntry, PBRConfig, PBRSubTab } from './types'
+import { Badge, Button, Card, EmptyState, Input, Label, PreferencesColumns, SectionNav, Sheet, useTabState } from 'cheval-ui'
+import { Plus, Trash2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { newId } from './shared'
+import { PBRConfig, PBRMapEntry, PBRNexthop, PBRNexthopGroup, PBRSubTab } from './types'
 
-export interface PBRNexthopGroupRow { _id: number; name: string; nexthops: (PBRNexthop & { _id: number })[] }
-export interface PBRMapRow { _id: number; name: string; entries: (PBRMapEntry & { _id: number })[] }
-export interface PBRPolicyRow { _id: number; iface: string; map: string }
+type NexthopsShape = { _id: number }
 
-export function pbrToRows(pbr: PBRConfig): {
+type EntriesShape = { _id: number }
+
+type PbrToRowsShape = {
   groups: PBRNexthopGroupRow[]
   maps: PBRMapRow[]
   policies: PBRPolicyRow[]
-} {
+}
+
+type PBRTabShape = {
+  pbr: PBRConfig
+  setPBR: (p: PBRConfig) => void
+  vrfNames: string[]
+  onDirty: () => void
+}
+
+type EShape = { _id: number }
+
+type SubTabsShape = { key: PBRSubTab; label: string }
+
+export interface PBRNexthopGroupRow { _id: number; name: string; nexthops: (PBRNexthop & NexthopsShape)[] }
+export interface PBRMapRow { _id: number; name: string; entries: (PBRMapEntry & EntriesShape)[] }
+export interface PBRPolicyRow { _id: number; iface: string; map: string }
+
+export function pbrToRows(pbr: PBRConfig): PbrToRowsShape {
   let id = 0
   const groups: PBRNexthopGroupRow[] = Object.entries(pbr.nexthop_groups ?? {}).map(([name, g]) => ({
     _id: ++id,
@@ -70,12 +78,7 @@ export function rowsToPBR(
 
 export function PBRTab({
   pbr, setPBR, vrfNames, onDirty,
-}: {
-  pbr: PBRConfig
-  setPBR: (p: PBRConfig) => void
-  vrfNames: string[]
-  onDirty: () => void
-}) {
+}: PBRTabShape) {
   const [groups, setGroups] = useState<PBRNexthopGroupRow[]>([])
   const [maps, setMaps] = useState<PBRMapRow[]>([])
   const [policies, setPolicies] = useState<PBRPolicyRow[]>([])
@@ -184,7 +187,7 @@ export function PBRTab({
     if (openMapId === id) { setOpenMapId(null); setPendingMapNew(false) }
   }
   const addEntry = (mid: number) => {
-    const e: PBRMapEntry & { _id: number } = { _id: newId(), seq: 10, match_src: '', match_dst: '', set_nexthop_group: '', set_nexthop: '' }
+    const e: PBRMapEntry & EShape = { _id: newId(), seq: 10, match_src: '', match_dst: '', set_nexthop_group: '', set_nexthop: '' }
     const next = maps.map((m) => m._id === mid ? { ...m, entries: [...m.entries, e] } : m)
     setMaps(next)
     if (!pendingMapNew) sync(groups, next, policies)
@@ -210,7 +213,7 @@ export function PBRTab({
   const openGroup = openGroupId !== null ? groups.find((g) => g._id === openGroupId) ?? null : null
   const openMap = openMapId !== null ? maps.find((m) => m._id === openMapId) ?? null : null
 
-  const subTabs: { key: PBRSubTab; label: string }[] = [
+  const subTabs: SubTabsShape[] = [
     { key: 'nexthop-groups', label: groups.length ? `Nexthop Groups (${groups.length})` : 'Nexthop Groups' },
     { key: 'maps', label: maps.length ? `Maps (${maps.length})` : 'Maps' },
     { key: 'policies', label: policies.length ? `Policies (${policies.length})` : 'Policies' },

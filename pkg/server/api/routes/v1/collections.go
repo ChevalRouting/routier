@@ -14,7 +14,6 @@ func sliceOrEmpty[T any](s []T) []T {
 	return s
 }
 
-// handleV1GetNftables godoc
 // @Summary  Get session nftables
 // @Tags v1-config
 // @Produce json
@@ -26,7 +25,6 @@ func handleV1GetNftables(w http.ResponseWriter, r *http.Request) {
 	v1GetObject(w, r, func(c *config.Config) *config.NftablesConfig { return c.Nftables })
 }
 
-// handleV1PutNftables godoc
 // @Summary  Replace session nftables
 // @Tags v1-config
 // @Accept json
@@ -39,7 +37,6 @@ func handleV1PutNftables(w http.ResponseWriter, r *http.Request) {
 	v1PutObject(w, r, func(c *config.Config, v *config.NftablesConfig) { c.Nftables = v })
 }
 
-// handleV1GetBootModules godoc
 // @Summary  Get session boot modules
 // @Tags v1-config
 // @Produce json
@@ -51,7 +48,6 @@ func handleV1GetBootModules(w http.ResponseWriter, r *http.Request) {
 	v1GetObject(w, r, func(c *config.Config) []string { return sliceOrEmpty(c.BootModules) })
 }
 
-// handleV1PutBootModules godoc
 // @Summary  Replace session boot modules
 // @Tags v1-config
 // @Accept json

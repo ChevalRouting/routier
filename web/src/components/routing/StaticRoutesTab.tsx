@@ -1,22 +1,21 @@
-import React, {} from 'react'
-import { checkIP, checkCIDR } from '@/lib/validate'
-import { Input } from 'cheval-ui'
-import { NumberInput } from 'cheval-ui'
-import { Button } from 'cheval-ui'
-import { EmptyState } from 'cheval-ui'
-import { Plus, Trash2, RouteOff } from 'lucide-react'
-import { StaticRoute } from './types'
+import { checkCIDR, checkIP } from '@/lib/validate'
+import { Button, EmptyState, Input, NumberInput } from 'cheval-ui'
+import { Plus, RouteOff, Trash2 } from 'lucide-react'
+import React from 'react'
 import { newId } from './shared'
+import { StaticRoute } from './types'
+
+type StaticRoutesTabShape = {
+  rows: RouteRow[]
+  setRows: React.Dispatch<React.SetStateAction<RouteRow[]>>
+  onDirty: () => void
+}
 
 export interface RouteRow extends StaticRoute { id: number }
 
 export function StaticRoutesTab({
   rows, setRows, onDirty,
-}: {
-  rows: RouteRow[]
-  setRows: React.Dispatch<React.SetStateAction<RouteRow[]>>
-  onDirty: () => void
-}) {
+}: StaticRoutesTabShape) {
   const add = () => { setRows((p) => [...p, { id: newId(), destination: '', via: '', dev: '', metric: 0 }]); onDirty() }
   const remove = (id: number) => { setRows((p) => p.filter((r) => r.id !== id)); onDirty() }
   const upd = (id: number, patch: Partial<RouteRow>) => { setRows((p) => p.map((r) => (r.id === id ? { ...r, ...patch } : r))); onDirty() }

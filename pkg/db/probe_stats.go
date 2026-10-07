@@ -24,6 +24,7 @@ func ProbeHistory(ctx context.Context, db *DB, cutoff, bucket int64) map[string]
 	if bucket < 1 {
 		bucket = 1
 	}
+
 	rows, err := db.queries.ProbeHistory(ctx, generated.ProbeHistoryParams{Cutoff: cutoff, Bucket: bucket})
 	if err != nil {
 		return out

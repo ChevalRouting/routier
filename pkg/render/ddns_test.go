@@ -8,11 +8,7 @@ import (
 )
 
 func TestReverseZoneName(t *testing.T) {
-	cases := []struct {
-		cidr string
-		want string
-		ok   bool
-	}{
+	cases := []reverseZoneNameCase{
 		{"192.168.10.0/24", "10.168.192.in-addr.arpa", true},
 		{"10.0.0.0/8", "10.in-addr.arpa", true},
 		{"172.16.0.0/16", "16.172.in-addr.arpa", true},
@@ -206,28 +202,34 @@ func TestDDNSReusesExistingZones(t *testing.T) {
 			Records: []config.DNSRecord{{Name: "existing", Type: "TXT", Value: "preserved"}},
 		})
 	}
+
 	out, err := All(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	for _, o := range out {
 		if strings.HasPrefix(o.Dest, NamedZoneDir+"/") {
 			t.Fatalf("dynamic zone would be overwritten: %s", o.Dest)
 		}
+
 		if o.Name == NamedConfName {
 			if got := strings.Count(o.Content, "allow-update { key"); got != 2 {
 				t.Fatalf("got %d DDNS declarations, want 2", got)
 			}
+
 			if got := strings.Count(o.Content, "type primary;"); got != 2 {
 				t.Fatalf("got %d primary zones, want 2", got)
 			}
 		}
 	}
+
 	for _, name := range DDNSZoneNames(cfg) {
 		if content := DDNSBootstrapZoneFile(cfg, name); !strings.Contains(content, "preserved") || !strings.Contains(content, "ns.example.com.") {
 			t.Fatalf("bootstrap lost existing zone data: %s", content)
 		}
 	}
+
 	cfg.DNS.Server.Zones[0].Primaries = []string{"192.0.2.1"}
 	if _, err := All(cfg); err == nil {
 		t.Fatal("DDNS must reject a secondary zone")
@@ -243,16 +245,19 @@ func TestDDNSForwardParentZone(t *testing.T) {
 	if len(zones) != 1 || zones[0] != "home.example" {
 		t.Fatalf("update zones = %v", zones)
 	}
+
 	out, err := All(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	for _, o := range out {
 		switch o.Name {
 		case NamedConfName:
 			if strings.Count(o.Content, `zone "home.example." IN {`) != 1 || strings.Contains(o.Content, `zone "ans.home.example.`) || strings.Contains(o.Content, `zone "iot.home.example.`) {
 				t.Fatalf("unexpected zone declarations: %s", o.Content)
 			}
+
 			if !strings.Contains(o.Content, "file \"/etc/bind/zones/home.example.zone\";\n    allow-update { key \"routier-ddns\"; };") {
 				t.Fatal("parent zone missing update permission")
 			}
@@ -267,6 +272,7 @@ func TestDDNSForwardParentZone(t *testing.T) {
 				}
 			}
 		}
+
 		if strings.HasPrefix(o.Dest, NamedZoneDir+"/") {
 			t.Fatalf("parent zone would be overwritten: %s", o.Dest)
 		}
@@ -274,25 +280,36 @@ func TestDDNSForwardParentZone(t *testing.T) {
 }
 
 func TestDDNSForwardClosestZone(t *testing.T) {
-	for _, tc := range []struct{ domain, want string }{
+	for _, tc := range []dDNSForwardClosestZoneCase{
 		{"host.ANS.home.example.", "ans.home.example"},
 		{"ans.home.example", "ans.home.example"},
 		{"other.home.example", "home.example"},
 		{"nothome.example", "nothome.example"},
 		{"", ""},
 	} {
-		t.Run(tc.domain, func(t *testing.T) {
-			cfg := ddnsCfg()
-			cfg.DNS.Server.Zones = []config.DNSZone{{Name: "ans.home.example."}, {Name: "home.example"}}
-			if got := ddnsForwardUpdateZone(cfg, tc.domain); got != tc.want {
-				t.Fatalf("got %q, want %q", got, tc.want)
-			}
-		})
+		t.Run(tc.domain, func(t *testing.T) { testDDNSForwardClosestZoneCallback(&tc, t) })
 	}
+
 	cfg := ddnsCfg()
 	cfg.DHCP.DDNS.Domain = "host.ans.home.example"
 	cfg.DNS.Server.Zones = []config.DNSZone{{Name: "home.example"}, {Name: "ans.home.example", Primaries: []string{"192.0.2.1"}}}
 	if _, err := All(cfg); err == nil {
 		t.Fatal("must reject a secondary parent instead of updating its ancestor")
+	}
+}
+
+type reverseZoneNameCase struct {
+	cidr string
+	want string
+	ok   bool
+}
+
+type dDNSForwardClosestZoneCase struct{ domain, want string }
+
+func testDDNSForwardClosestZoneCallback(tc *dDNSForwardClosestZoneCase, t *testing.T) {
+	cfg := ddnsCfg()
+	cfg.DNS.Server.Zones = []config.DNSZone{{Name: "ans.home.example."}, {Name: "home.example"}}
+	if got := ddnsForwardUpdateZone(cfg, (*tc).domain); got != (*tc).want {
+		t.Fatalf("got %q, want %q", got, (*tc).want)
 	}
 }

@@ -17,7 +17,6 @@ func rfc3339Ptr(t *time.Time) *string {
 	return &s
 }
 
-// Logs godoc
 // @Summary  List apply-history records
 // @Tags apply
 // @Produce json

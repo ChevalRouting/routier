@@ -44,7 +44,7 @@ func bootHookPre() error {
 
 func bootHookPost() error {
 	before, err := os.ReadFile(kernelStateFile)
-	os.Remove(kernelStateFile)
+	_ = os.Remove(kernelStateFile)
 
 	after := kernelFingerprint()
 	if err == nil && strings.TrimSpace(string(before)) == after {
@@ -66,7 +66,7 @@ func bootHookPost() error {
 		warn("%s", note)
 	}
 
-	fmt.Fprintf(os.Stderr, "routier: bootloader set to boot linux-%s (%s)\n", chosen.Flavor, chosen.Version)
+	_, _ = fmt.Fprintf(os.Stderr, "routier: bootloader set to boot linux-%s (%s)\n", chosen.Flavor, chosen.Version)
 	return nil
 }
 
@@ -85,5 +85,5 @@ func kernelFingerprint() string {
 }
 
 func warn(format string, args ...any) {
-	fmt.Fprintf(os.Stderr, "routier: "+format+"\n", args...)
+	_, _ = fmt.Fprintf(os.Stderr, "routier: "+format+"\n", args...)
 }

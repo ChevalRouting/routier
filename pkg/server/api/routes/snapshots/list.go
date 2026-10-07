@@ -9,7 +9,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// List godoc
 // @Summary  List config snapshots
 // @Tags snapshots
 // @Produce json

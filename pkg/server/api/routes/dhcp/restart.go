@@ -10,7 +10,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// Restart godoc
 // @Summary  Restart the running DHCP servers (Kea)
 // @Tags dhcp
 // @Produce json

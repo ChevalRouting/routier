@@ -3,14 +3,13 @@ package friends
 import (
 	"net/http"
 
+	cfgpkg "github.com/ChevalRouting/routier/pkg/config"
 	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	"github.com/ChevalRouting/routier/pkg/server/api/friendcache"
-	cfgpkg "github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/rs/zerolog/log"
 )
 
-// List godoc
 // @Summary  List configured friends
 // @Tags     friends
 // @Produce  json
@@ -34,7 +33,6 @@ func List(w http.ResponseWriter, r *http.Request) {
 	types.OK(w, out)
 }
 
-// Status godoc
 // @Summary  Friend liveness/status snapshot
 // @Tags     friends
 // @Produce  json

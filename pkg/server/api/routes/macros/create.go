@@ -7,18 +7,17 @@ import (
 	"strings"
 	"time"
 
-	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
-	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
-	"github.com/ChevalRouting/routier/pkg/server/api/requests"
 	"github.com/ChevalRouting/routier/pkg/config"
 	webdb "github.com/ChevalRouting/routier/pkg/db"
 	"github.com/ChevalRouting/routier/pkg/macro"
+	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
+	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
+	"github.com/ChevalRouting/routier/pkg/server/api/requests"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/rs/zerolog/log"
 	"gopkg.in/yaml.v3"
 )
 
-// Create godoc
 // @Summary  Save current staged changes as a macro
 // @Tags macros
 // @Produce json

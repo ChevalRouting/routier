@@ -19,7 +19,6 @@ type queryRequest struct {
 	Type string `json:"type,omitempty" validate:"optional"`
 }
 
-// FlushCache godoc
 // @Summary  Flush the resolver cache, or one name within it
 // @Tags dns
 // @Accept json
@@ -61,7 +60,6 @@ func FlushCache(w http.ResponseWriter, r *http.Request) {
 	types.OK(w, "flushed "+name)
 }
 
-// Restart godoc
 // @Summary  Restart the DNS server (named)
 // @Tags dns
 // @Produce json
@@ -77,7 +75,6 @@ func Restart(w http.ResponseWriter, r *http.Request) {
 	types.OK(w, "restarted")
 }
 
-// Query godoc
 // @Summary  Resolve a name through the local resolver
 // @Tags dns
 // @Accept json

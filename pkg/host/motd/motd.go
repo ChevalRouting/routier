@@ -56,31 +56,31 @@ func RenderIssue(version string) string {
 func Render(version string, ifaces []string, routes RouteSummary, bw *Bandwidth, user, pass string) string {
 	var b strings.Builder
 
-	fmt.Fprintf(&b, "\n%s  %s\n\n", banner, version)
+	_, _ = fmt.Fprintf(&b, "\n%s  %s\n\n", banner, version)
 
 	if len(ifaces) > 0 {
-		fmt.Fprintf(&b, "  Network:\n")
+		_, _ = fmt.Fprintf(&b, "  Network:\n")
 		for _, line := range ifaces {
-			fmt.Fprintf(&b, "    %s\n", line)
+			_, _ = fmt.Fprintf(&b, "    %s\n", line)
 		}
 
-		fmt.Fprintln(&b)
+		_, _ = fmt.Fprintln(&b)
 	}
 
 	if routes.Total > 0 {
-		fmt.Fprintf(&b, "  Routes:  %d total   bgp %d   ospf %d   static %d\n\n",
+		_, _ = fmt.Fprintf(&b, "  Routes:  %d total   bgp %d   ospf %d   static %d\n\n",
 			routes.Total, routes.BGP, routes.OSPF, routes.Static)
 	}
 
 	if bw != nil {
-		fmt.Fprintf(&b, "  Traffic (5m avg):  rx %s   tx %s\n\n", humanBits(bw.RxBytesPS), humanBits(bw.TxBytesPS))
+		_, _ = fmt.Fprintf(&b, "  Traffic (5m avg):  rx %s   tx %s\n\n", humanBits(bw.RxBytesPS), humanBits(bw.TxBytesPS))
 	}
 
 	if user != "" && pass != "" {
-		fmt.Fprintf(&b, "  Initial credentials (change via web UI at https://<ip>:8443):\n")
-		fmt.Fprintf(&b, "    username: %s\n", user)
-		fmt.Fprintf(&b, "    password: %s\n", pass)
-		fmt.Fprintln(&b)
+		_, _ = fmt.Fprintf(&b, "  Initial credentials (change via web UI at https://<ip>:8443):\n")
+		_, _ = fmt.Fprintf(&b, "    username: %s\n", user)
+		_, _ = fmt.Fprintf(&b, "    password: %s\n", pass)
+		_, _ = fmt.Fprintln(&b)
 	}
 
 	return b.String()
@@ -110,7 +110,7 @@ func bandwidth5m(ctx context.Context) *Bandwidth {
 		return nil
 	}
 
-	defer db.Close()
+	defer func(action func() error) { _ = action() }(db.Close)
 
 	window := int64(5 * 60)
 	cutoff := time.Now().Unix() - window

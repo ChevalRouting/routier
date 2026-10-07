@@ -49,17 +49,8 @@ func newOnboardingStatusCommand(dbPath *string) *cobra.Command {
 	return &cobra.Command{
 		Use:   "status",
 		Short: "print whether onboarding is complete",
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			ctx := cmd.Context()
-			db, err := webdb.InitDB(ctx, *dbPath)
-			if err != nil {
-				return err
-			}
-
-			defer db.Close()
-
-			fmt.Fprintln(cmd.OutOrStdout(), webdb.Setting(ctx, db, webdb.SettingOnboardingComplete, "false"))
-			return nil
+		RunE: func(cmd *cobra.Command, unusedArg2 []string) error {
+			return newOnboardingStatusCommandCallback(dbPath, cmd, unusedArg2)
 		},
 	}
 }
@@ -71,12 +62,25 @@ func setOnboardingComplete(cmd *cobra.Command, dbPath, value string) error {
 		return err
 	}
 
-	defer db.Close()
+	defer func(action func() error) { _ = action() }(db.Close)
 
 	if err := webdb.SetSetting(ctx, db, webdb.SettingOnboardingComplete, value); err != nil {
 		return err
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "onboarding_complete=%s\n", value)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "onboarding_complete=%s\n", value)
+	return nil
+}
+
+func newOnboardingStatusCommandCallback(dbPath *string, cmd *cobra.Command, _ []string) error {
+	ctx := cmd.Context()
+	db, err := webdb.InitDB(ctx, *dbPath)
+	if err != nil {
+		return err
+	}
+
+	defer func(action func() error) { _ = action() }(db.Close)
+
+	_, _ = fmt.Fprintln(cmd.OutOrStdout(), webdb.Setting(ctx, db, webdb.SettingOnboardingComplete, "false"))
 	return nil
 }

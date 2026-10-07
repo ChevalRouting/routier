@@ -9,7 +9,6 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-// Log godoc
 // @Summary  Read one apply log
 // @Tags apply
 // @Produce plain

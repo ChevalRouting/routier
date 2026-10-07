@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
-import { toast } from 'sonner'
-import { AccordionList, PageHeader, PreferencesGroup, SaveButton, Spinner, SwitchRow, TagInput } from 'cheval-ui'
+import type { Network, SimpleDNS } from '@/components/simple/types'
 import { api } from '@/lib/client'
 import { useFetch } from '@/lib/useFetch'
-import type { Network, SimpleDNS } from '@/components/simple/types'
 import { ZoneEditor, type DnsZone } from '@/pages/DnsConfig'
+import { AccordionList, PageHeader, PreferencesGroup, SaveButton, Spinner, SwitchRow, TagInput } from 'cheval-ui'
+import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 
 const emptyDNS: SimpleDNS = {
   enabled: false,

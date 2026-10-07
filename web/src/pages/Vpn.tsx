@@ -1,8 +1,6 @@
-import { useState } from 'react'
-import { useTabState } from 'cheval-ui'
-import { PageHeader } from 'cheval-ui'
-import { SectionNav } from 'cheval-ui'
 import { WireGuardPanel } from '@/components/vpn/WireGuardPanel'
+import { PageHeader, SectionNav, useTabState } from 'cheval-ui'
+import { useState } from 'react'
 
 const ITEMS = [{ key: 'wireguard', label: 'WireGuard' }]
 

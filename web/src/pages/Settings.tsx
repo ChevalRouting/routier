@@ -1,17 +1,13 @@
-import { useEffect, useState } from 'react'
-import { toast } from 'sonner'
+import type { SimpleProjection } from '@/components/simple/types'
 import { addStagingListener, api, configLayerRequest, getStagingState } from '@/lib/client'
-import { Button } from 'cheval-ui'
-import { PageHeader } from 'cheval-ui'
-import { AlertDialog } from 'cheval-ui'
-import { PreferencesGroup, EntryRow } from 'cheval-ui'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from 'cheval-ui'
 import {
   getConfigLayer,
   setConfigLayer,
   type ConfigLayer,
 } from '@/lib/configLayer'
-import type { SimpleProjection } from '@/components/simple/types'
+import { AlertDialog, Button, EntryRow, PageHeader, PreferencesGroup, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from 'cheval-ui'
+import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 
 interface LayerSwitchConfirmation {
   next: ConfigLayer

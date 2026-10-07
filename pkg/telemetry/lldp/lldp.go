@@ -31,9 +31,7 @@ type Neighbor struct {
 }
 
 type document struct {
-	LLDP struct {
-		Interface json.RawMessage `json:"interface"`
-	} `json:"lldp"`
+	LLDP documentFields `json:"lldp"`
 }
 
 type ifaceBody struct {
@@ -210,4 +208,8 @@ func parseVLAN(raw json.RawMessage) string {
 	}
 
 	return ""
+}
+
+type documentFields struct {
+	Interface json.RawMessage `json:"interface"`
 }

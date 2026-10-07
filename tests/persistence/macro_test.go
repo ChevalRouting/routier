@@ -19,7 +19,7 @@ func macroDB(t *testing.T) *webdb.DB {
 		t.Fatalf("init db: %v", err)
 	}
 
-	t.Cleanup(func() { db.Close() })
+	t.Cleanup(func() { _ = db.Close() })
 
 	return db
 }

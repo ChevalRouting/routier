@@ -4,23 +4,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ChevalRouting/routier/pkg/telemetry/conntrack"
-	"github.com/ChevalRouting/routier/pkg/net/iproute"
 	"github.com/ChevalRouting/routier/pkg/daemon/keepalived"
 	"github.com/ChevalRouting/routier/pkg/daemon/vtysh"
+	"github.com/ChevalRouting/routier/pkg/net/iproute"
+	"github.com/ChevalRouting/routier/pkg/telemetry/conntrack"
 )
 
 func TestConntrackParsing(t *testing.T) {
-	restore := conntrack.SetCommandRunner(func(name string, args ...string) ([]byte, error) {
-		if len(args) == 1 && args[0] == "-C" {
-			return []byte("42\n"), nil
-		}
-
-		return []byte(
-			"tcp      6 431999 ESTABLISHED src=10.0.0.1 dst=10.0.0.2\n" +
-				"tcp      6 120 TIME_WAIT src=10.0.0.3 dst=10.0.0.4\n" +
-				"udp      17 29 src=10.0.0.5 dst=10.0.0.6\n"), nil
-	})
+	restore := conntrack.SetCommandRunner(conntrackParsingHandler)
 	defer restore()
 
 	count, err := conntrack.Count()
@@ -43,26 +34,7 @@ func TestConntrackParsing(t *testing.T) {
 }
 
 func TestIProuteParsing(t *testing.T) {
-	restore := iproute.SetCommandRunner(func(name string, args ...string) ([]byte, error) {
-		v6 := false
-		for _, a := range args {
-			if a == "-6" {
-				v6 = true
-			}
-		}
-
-		if v6 {
-			return []byte("[]"), nil
-		}
-
-		for _, a := range args {
-			if a == "neighbor" {
-				return []byte(`[{"dst":"10.0.0.2","dev":"eth0","lladdr":"aa:bb:cc:dd:ee:ff","state":["REACHABLE"]}]`), nil
-			}
-		}
-
-		return []byte(`[{"dst":"10.0.0.0/24","dev":"eth0","protocol":"100","metric":100}]`), nil
-	})
+	restore := iproute.SetCommandRunner(iProuteParsingHandler)
 	defer restore()
 
 	routes := iproute.ShowRoutes()
@@ -118,4 +90,36 @@ func TestKeepalivedParseStates(t *testing.T) {
 	if states["VI_wan_20"].State != "BACKUP" {
 		t.Fatalf("VI_wan_20 = %+v", states["VI_wan_20"])
 	}
+}
+
+func conntrackParsingHandler(name string, args ...string) ([]byte, error) {
+	if len(args) == 1 && args[0] == "-C" {
+		return []byte("42\n"), nil
+	}
+
+	return []byte(
+		"tcp      6 431999 ESTABLISHED src=10.0.0.1 dst=10.0.0.2\n" +
+			"tcp      6 120 TIME_WAIT src=10.0.0.3 dst=10.0.0.4\n" +
+			"udp      17 29 src=10.0.0.5 dst=10.0.0.6\n"), nil
+}
+
+func iProuteParsingHandler(name string, args ...string) ([]byte, error) {
+	v6 := false
+	for _, a := range args {
+		if a == "-6" {
+			v6 = true
+		}
+	}
+
+	if v6 {
+		return []byte("[]"), nil
+	}
+
+	for _, a := range args {
+		if a == "neighbor" {
+			return []byte(`[{"dst":"10.0.0.2","dev":"eth0","lladdr":"aa:bb:cc:dd:ee:ff","state":["REACHABLE"]}]`), nil
+		}
+	}
+
+	return []byte(`[{"dst":"10.0.0.0/24","dev":"eth0","protocol":"100","metric":100}]`), nil
 }

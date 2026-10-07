@@ -21,20 +21,8 @@ func newUpdateCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update",
 		Short: "refresh package indexes and list available upgrades",
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			avail, err := updates.Check(cmd.Context())
-			if err != nil {
-				return err
-			}
-
-			if asJSON {
-				enc := json.NewEncoder(cmd.OutOrStdout())
-				enc.SetIndent("", "  ")
-				return enc.Encode(avail)
-			}
-
-			printAvailable(cmd.OutOrStdout(), avail)
-			return nil
+		RunE: func(cmd *cobra.Command, unusedArg2 []string) error {
+			return newUpdateCommandCallback(asJSON, cmd, unusedArg2)
 		},
 	}
 
@@ -74,7 +62,7 @@ func runUpgrade(cmd *cobra.Command, yes, reboot bool, logPath string) error {
 	if logPath != "" {
 		if err := os.MkdirAll(filepath.Dir(logPath), 0755); err == nil {
 			if f, ferr := os.Create(logPath); ferr == nil {
-				defer f.Close()
+				defer func(action func() error) { _ = action() }(f.Close)
 				out = io.MultiWriter(out, f)
 			}
 		}
@@ -108,11 +96,11 @@ func runUpgrade(cmd *cobra.Command, yes, reboot bool, logPath string) error {
 		return upErr
 	}
 
-	fmt.Fprintln(out, "\nupgrade complete.")
+	_, _ = fmt.Fprintln(out, "\nupgrade complete.")
 	if status.RebootRequired {
-		fmt.Fprintln(out, "a reboot is required to activate the new kernel.")
+		_, _ = fmt.Fprintln(out, "a reboot is required to activate the new kernel.")
 		if reboot {
-			fmt.Fprintln(out, "rebooting...")
+			_, _ = fmt.Fprintln(out, "rebooting...")
 			return exec.Command("reboot").Run()
 		}
 	}
@@ -122,31 +110,47 @@ func runUpgrade(cmd *cobra.Command, yes, reboot bool, logPath string) error {
 
 func printAvailable(w io.Writer, avail updates.Available) {
 	if avail.Live {
-		fmt.Fprintln(w, "note: running from the live image, upgrades will not persist across reboots.")
+		_, _ = fmt.Fprintln(w, "note: running from the live image, upgrades will not persist across reboots.")
 	}
 
 	if len(avail.Packages) == 0 {
-		fmt.Fprintln(w, "system is up to date.")
+		_, _ = fmt.Fprintln(w, "system is up to date.")
 		return
 	}
 
-	fmt.Fprintf(w, "%d package(s) can be upgraded:\n", len(avail.Packages))
+	_, _ = fmt.Fprintf(w, "%d package(s) can be upgraded:\n", len(avail.Packages))
 	for _, p := range avail.Packages {
-		fmt.Fprintf(w, "  %s  %s -> %s\n", p.Name, p.Old, p.New)
+		_, _ = fmt.Fprintf(w, "  %s  %s -> %s\n", p.Name, p.Old, p.New)
 	}
 
 	if avail.SelfUpdate {
-		fmt.Fprintln(w, "the web UI will restart during this upgrade.")
+		_, _ = fmt.Fprintln(w, "the web UI will restart during this upgrade.")
 	}
 
 	if avail.RebootRequired {
-		fmt.Fprintln(w, "a reboot will be required to activate the new kernel.")
+		_, _ = fmt.Fprintln(w, "a reboot will be required to activate the new kernel.")
 	}
 }
 
 func confirmUpgrade(cmd *cobra.Command) bool {
-	fmt.Fprint(cmd.OutOrStdout(), "Upgrade all packages now? [y/N] ")
+	_, _ = fmt.Fprint(cmd.OutOrStdout(), "Upgrade all packages now? [y/N] ")
 	line, _ := bufio.NewReader(cmd.InOrStdin()).ReadString('\n')
 	line = strings.TrimSpace(strings.ToLower(line))
 	return line == "y" || line == "yes"
+}
+
+func newUpdateCommandCallback(asJSON bool, cmd *cobra.Command, _ []string) error {
+	avail, err := updates.Check(cmd.Context())
+	if err != nil {
+		return err
+	}
+
+	if asJSON {
+		enc := json.NewEncoder(cmd.OutOrStdout())
+		enc.SetIndent("", "  ")
+		return enc.Encode(avail)
+	}
+
+	printAvailable(cmd.OutOrStdout(), avail)
+	return nil
 }

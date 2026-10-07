@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"strings"
 
-	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
-	"github.com/ChevalRouting/routier/pkg/server/api/requests"
 	"github.com/ChevalRouting/routier/pkg/config"
 	webdb "github.com/ChevalRouting/routier/pkg/db"
+	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
+	"github.com/ChevalRouting/routier/pkg/server/api/requests"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
@@ -25,27 +25,7 @@ func v1MapRoutes(r chi.Router, name string, list, replace, getOne, putOne, delet
 func v1Mutate(r *http.Request, fn func(c *config.Config) error) error {
 	app := appctx.FromContext(r.Context())
 	sess := v1SessionFromCtx(r.Context())
-	return v1WithLock(sess.ID, func() error {
-		s, err := webdb.LoadSession(r.Context(), app.DB, sess.ID)
-		if err != nil || s == nil {
-			return types.NewError(http.StatusNotFound, "session not found")
-		}
-
-		before := validationSet(s.Config)
-		if err := fn(s.Config); err != nil {
-			return err
-		}
-
-		if appErr := newValidationErrors(before, s.Config); appErr != nil {
-			return appErr
-		}
-
-		if err := webdb.UpdateSession(requests.DurableContext(r), app.DB, sess.ID, s.Config); err != nil {
-			return types.Wrap(http.StatusInternalServerError, err, "failed to save session")
-		}
-
-		return nil
-	})
+	return v1WithLock(sess.ID, func() error { return v1MutateCallback(r, fn, app, sess) })
 }
 
 func validationSet(cfg *config.Config) map[string]struct{} {
@@ -122,16 +102,7 @@ func v1MapPutKey[T any](
 		return
 	}
 
-	if err := v1Mutate(r, func(c *config.Config) error {
-		m := get(c)
-		if m == nil {
-			m = make(map[string]T)
-			set(c, m)
-		}
-
-		m[name] = body
-		return nil
-	}); err != nil {
+	if err := v1Mutate(r, func(c *config.Config) error { return v1PutMapValue(c, get, set, name, body) }); err != nil {
 		types.Error(log.Logger, w, err)
 		return
 	}
@@ -141,18 +112,53 @@ func v1MapPutKey[T any](
 
 func v1MapDeleteKey[T any](w http.ResponseWriter, r *http.Request, get func(c *config.Config) map[string]T) {
 	name := chi.URLParam(r, "name")
-	if err := v1Mutate(r, func(c *config.Config) error {
-		m := get(c)
-		if _, ok := m[name]; !ok {
-			return types.Errorf(http.StatusNotFound, "%q not found", name)
-		}
-
-		delete(m, name)
-		return nil
-	}); err != nil {
+	if err := v1Mutate(r, func(c *config.Config) error { return v1DeleteMapValue(c, get, name) }); err != nil {
 		types.Error(log.Logger, w, err)
 		return
 	}
 
 	types.OK(w, types.StatusResponse{Status: "deleted"})
+}
+
+func v1MutateCallback(r *http.Request, fn func(c *config.Config) error, app *appctx.App, sess *v1Session) error {
+	s, err := webdb.LoadSession(r.Context(), app.DB, sess.ID)
+	if err != nil || s == nil {
+		return types.NewError(http.StatusNotFound, "session not found")
+	}
+
+	before := validationSet(s.Config)
+	if err := fn(s.Config); err != nil {
+		return err
+	}
+
+	if appErr := newValidationErrors(before, s.Config); appErr != nil {
+		return appErr
+	}
+
+	if err := webdb.UpdateSession(requests.DurableContext(r), app.DB, sess.ID, s.Config); err != nil {
+		return types.Wrap(http.StatusInternalServerError, err, "failed to save session")
+	}
+
+	return nil
+}
+
+func v1PutMapValue[T any](c *config.Config, get func(*config.Config) map[string]T, set func(*config.Config, map[string]T), name string, body T) error {
+	m := get(c)
+	if m == nil {
+		m = make(map[string]T)
+		set(c, m)
+	}
+
+	m[name] = body
+	return nil
+}
+
+func v1DeleteMapValue[T any](c *config.Config, get func(*config.Config) map[string]T, name string) error {
+	m := get(c)
+	if _, ok := m[name]; !ok {
+		return types.Errorf(http.StatusNotFound, "%q not found", name)
+	}
+
+	delete(m, name)
+	return nil
 }

@@ -1,4 +1,10 @@
 import { SectionCard as SharedSectionCard } from 'cheval-ui'
+
+type ConfigSectionsShape = {
+  data: Record<string, unknown> | null | undefined
+  defaultOpen?: boolean
+}
+
 export { ValueNode } from 'cheval-ui'
 
 export function SectionCard(props: React.ComponentProps<typeof SharedSectionCard>) {
@@ -21,10 +27,7 @@ export function orderedSections(data: Record<string, unknown> | null | undefined
 export function ConfigSections({
   data,
   defaultOpen = true,
-}: {
-  data: Record<string, unknown> | null | undefined
-  defaultOpen?: boolean
-}) {
+}: ConfigSectionsShape) {
   const sections = orderedSections(data)
   if (sections.length === 0) return <div className="text-sm text-muted-foreground">empty</div>
   return (

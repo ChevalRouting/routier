@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	routierclient "github.com/ChevalRouting/routier/pkg/server/client/generated"
 	"github.com/ChevalRouting/routier/pkg/auth/identity"
+	routierclient "github.com/ChevalRouting/routier/pkg/server/client/generated"
 	"github.com/ChevalRouting/routier/pkg/types"
 )
 
@@ -87,7 +87,7 @@ func result[T any](c *Client, resp *http.Response, err error, method, path strin
 		return nil, err
 	}
 
-	defer resp.Body.Close()
+	defer func(action func() error) { _ = action() }(resp.Body.Close)
 
 	data, _ := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes+1))
 	if len(data) > maxResponseBytes {

@@ -1,5 +1,7 @@
 package render
 
+import hash "hash"
+
 import (
 	"bytes"
 	"fmt"
@@ -127,19 +129,7 @@ func DNSListensOnVIP(cfg *config.Config) bool {
 }
 
 func sortIPStrings(addrs []string) {
-	sort.Slice(addrs, func(i, j int) bool {
-		a, b := net.ParseIP(addrs[i]), net.ParseIP(addrs[j])
-		if a == nil || b == nil {
-			return addrs[i] < addrs[j]
-		}
-
-		a4, b4 := a.To4() != nil, b.To4() != nil
-		if a4 != b4 {
-			return a4
-		}
-
-		return bytes.Compare(a.To16(), b.To16()) < 0
-	})
+	sort.Slice(addrs, func(i, j int) bool { return sortIPStringsCallback(addrs, i, j) })
 }
 
 func bindAllowFrom(cfg *config.Config) []string {
@@ -222,8 +212,8 @@ func bindAddressList(addrs []string) string {
 
 	var b strings.Builder
 	for _, addr := range addrs {
-		b.WriteString(addr)
-		b.WriteString("; ")
+		_, _ = b.WriteString(addr)
+		_, _ = b.WriteString("; ")
 	}
 
 	return strings.TrimSpace(b.String())
@@ -237,15 +227,7 @@ func dnsInsecureDomains(cfg *config.Config) []string {
 
 	var names []string
 	seen := make(map[string]bool)
-	collect := func(raw string, signed bool) {
-		name := strings.TrimSuffix(config.NormalizeDNSName(raw), ".")
-		if signed || name == "" || seen[name] {
-			return
-		}
-
-		seen[name] = true
-		names = append(names, name)
-	}
+	collect := func(raw string, signed bool) { dnsInsecureDomainsCallback(&names, seen, raw, signed) }
 
 	for _, f := range s.Forward {
 		collect(f.Domain, f.DNSSEC)
@@ -446,12 +428,7 @@ func zoneSerial(z config.DNSZone, soa soaValues, lines []zoneLine) string {
 	}
 
 	h := fnv.New32a()
-	write := func(parts ...string) {
-		for _, p := range parts {
-			_, _ = h.Write([]byte(p))
-			_, _ = h.Write([]byte{0})
-		}
-	}
+	write := func(parts ...string) { zoneSerialCallback(h, parts...) }
 
 	write(config.NormalizeDNSName(z.Name), strconv.Itoa(zoneTTL(z)), soa.Primary, soa.Email,
 		strconv.Itoa(soa.Refresh), strconv.Itoa(soa.Retry), strconv.Itoa(soa.Expire), strconv.Itoa(soa.Minimum))
@@ -474,12 +451,12 @@ func formatZoneLines(lines []zoneLine) []string {
 	out := make([]string, 0, len(lines))
 	for _, l := range lines {
 		var b strings.Builder
-		fmt.Fprintf(&b, "%-*s ", ownerWidth, l.owner)
+		_, _ = fmt.Fprintf(&b, "%-*s ", ownerWidth, l.owner)
 		if ttlWidth > 0 {
-			fmt.Fprintf(&b, "%-*s ", ttlWidth, l.ttl)
+			_, _ = fmt.Fprintf(&b, "%-*s ", ttlWidth, l.ttl)
 		}
 
-		fmt.Fprintf(&b, "IN %-*s %s", typeWidth, l.rtype, l.data)
+		_, _ = fmt.Fprintf(&b, "IN %-*s %s", typeWidth, l.rtype, l.data)
 		out = append(out, strings.TrimRight(b.String(), " "))
 	}
 
@@ -505,12 +482,12 @@ func renderZoneFileWith(z config.DNSZone, serial string, extra []zoneLine) strin
 	all = append(all, extra...)
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "; routier:%s\n", origin)
-	fmt.Fprintf(&b, "$ORIGIN %s\n", origin)
-	fmt.Fprintf(&b, "$TTL %d\n", zoneTTL(z))
+	_, _ = fmt.Fprintf(&b, "; routier:%s\n", origin)
+	_, _ = fmt.Fprintf(&b, "$ORIGIN %s\n", origin)
+	_, _ = fmt.Fprintf(&b, "$TTL %d\n", zoneTTL(z))
 
 	for _, l := range formatZoneLines(all) {
-		b.WriteString(l + "\n")
+		_, _ = b.WriteString(l + "\n")
 	}
 
 	return b.String()
@@ -574,9 +551,6 @@ func ddnsForwardZone(cfg *config.Config) string {
 	return strings.TrimSuffix(cfg.DHCP.DDNS.Domain, ".")
 }
 
-// ddnsForwardUpdateZone selects the closest existing authority while keeping
-// the configured domain as Kea's hostname suffix. Include secondary zones here
-// so an unsupported update target is rejected rather than bypassed.
 func ddnsForwardUpdateZone(cfg *config.Config, domain string) string {
 	name := strings.TrimSuffix(config.NormalizeDNSName(domain), ".")
 	best := ""
@@ -586,9 +560,11 @@ func ddnsForwardUpdateZone(cfg *config.Config, domain string) string {
 			best = candidate
 		}
 	}
+
 	if best != "" {
 		return best
 	}
+
 	return name
 }
 
@@ -599,15 +575,7 @@ func ddnsForwardZones(cfg *config.Config) []string {
 
 	seen := make(map[string]bool)
 	var names []string
-	add := func(domain string) {
-		name := ddnsForwardUpdateZone(cfg, domain)
-		if name == "" || seen[name] {
-			return
-		}
-
-		seen[name] = true
-		names = append(names, name)
-	}
+	add := func(domain string) { ddnsForwardZonesCallback(cfg, seen, &names, domain) }
 
 	add(cfg.DHCP.DDNS.Domain)
 	for _, list := range [][]config.KeaSubnet{cfg.DHCP.Subnets4, cfg.DHCP.Subnets6} {
@@ -659,13 +627,13 @@ func ddnsZoneNames(cfg *config.Config) []string {
 	return append(fwd, ddnsReverseZoneNames(cfg)...)
 }
 
-// ddnsManagedZone identifies declared zones whose files are owned by BIND.
 func ddnsManagedZone(cfg *config.Config, name string) bool {
 	for _, candidate := range ddnsZoneNames(cfg) {
 		if strings.EqualFold(config.NormalizeDNSName(candidate), config.NormalizeDNSName(name)) {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -679,10 +647,12 @@ func ddnsUndeclaredZones(cfg *config.Config) []string {
 				break
 			}
 		}
+
 		if !declared {
 			names = append(names, name)
 		}
 	}
+
 	return names
 }
 
@@ -728,6 +698,7 @@ func DDNSBootstrapZoneFile(cfg *config.Config, name string) string {
 			return renderZoneFile(zone)
 		}
 	}
+
 	return renderZoneFile(ddnsBootstrapZone(cfg, name))
 }
 
@@ -762,6 +733,7 @@ func renderDNSZones(cfg *config.Config) ([]Output, error) {
 			if len(z.Primaries) > 0 {
 				return nil, fmt.Errorf("DDNS zone %q must be a primary zone", z.Name)
 			}
+
 			if len(s.Views) > 0 {
 				return nil, fmt.Errorf("DDNS zones in DNS views are not supported")
 			}
@@ -776,6 +748,7 @@ func renderDNSZones(cfg *config.Config) ([]Output, error) {
 
 			continue
 		}
+
 		if len(z.Records) == 0 {
 			continue
 		}
@@ -788,4 +761,45 @@ func renderDNSZones(cfg *config.Config) ([]Output, error) {
 	}
 
 	return out, nil
+}
+
+func sortIPStringsCallback(addrs []string, i, j int) bool {
+	a, b := net.ParseIP(addrs[i]), net.ParseIP(addrs[j])
+	if a == nil || b == nil {
+		return addrs[i] < addrs[j]
+	}
+
+	a4, b4 := a.To4() != nil, b.To4() != nil
+	if a4 != b4 {
+		return a4
+	}
+
+	return bytes.Compare(a.To16(), b.To16()) < 0
+}
+
+func dnsInsecureDomainsCallback(names *[]string, seen map[string]bool, raw string, signed bool) {
+	name := strings.TrimSuffix(config.NormalizeDNSName(raw), ".")
+	if signed || name == "" || seen[name] {
+		return
+	}
+
+	seen[name] = true
+	(*names) = append((*names), name)
+}
+
+func zoneSerialCallback(h hash.Hash32, parts ...string) {
+	for _, p := range parts {
+		_, _ = h.Write([]byte(p))
+		_, _ = h.Write([]byte{0})
+	}
+}
+
+func ddnsForwardZonesCallback(cfg *config.Config, seen map[string]bool, names *[]string, domain string) {
+	name := ddnsForwardUpdateZone(cfg, domain)
+	if name == "" || seen[name] {
+		return
+	}
+
+	seen[name] = true
+	(*names) = append((*names), name)
 }

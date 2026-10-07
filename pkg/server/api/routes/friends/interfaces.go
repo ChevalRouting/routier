@@ -3,16 +3,15 @@ package friends
 import (
 	"net/http"
 
-	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
-	"github.com/ChevalRouting/routier/pkg/server/api/friendcache"
 	cfgpkg "github.com/ChevalRouting/routier/pkg/config"
 	friendspkg "github.com/ChevalRouting/routier/pkg/friends"
+	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
+	"github.com/ChevalRouting/routier/pkg/server/api/friendcache"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
 )
 
-// Interfaces godoc
 // @Summary  This node's interface addresses
 // @Tags friends
 // @Produce json
@@ -31,7 +30,6 @@ func Interfaces(w http.ResponseWriter, r *http.Request) {
 	types.OK(w, friendspkg.InterfaceAddresses(cfg))
 }
 
-// RemoteInterfaces godoc
 // @Summary  A friend's interface addresses (cached fallback)
 // @Tags friends
 // @Produce json

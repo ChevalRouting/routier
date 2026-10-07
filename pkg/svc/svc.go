@@ -10,12 +10,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ChevalRouting/routier/pkg/daemon/bind"
 	"github.com/ChevalRouting/routier/pkg/config"
+	"github.com/ChevalRouting/routier/pkg/daemon/bind"
 	"github.com/ChevalRouting/routier/pkg/daemon/kea"
+	"github.com/ChevalRouting/routier/pkg/daemon/vtysh"
 	"github.com/ChevalRouting/routier/pkg/net/netlink"
 	"github.com/ChevalRouting/routier/pkg/render"
-	"github.com/ChevalRouting/routier/pkg/daemon/vtysh"
 	"github.com/rs/zerolog/log"
 )
 
@@ -524,16 +524,7 @@ func syncDDNSZone(client *bind.Client, cfg *config.Config, zone string) error {
 	}
 
 	thawed := false
-	thaw := func() {
-		if thawed {
-			return
-		}
-
-		thawed = true
-		if err := client.Thaw(zone); err != nil {
-			log.Warn().Err(err).Str("zone", zone).Msg("named: thaw failed")
-		}
-	}
+	thaw := func() { syncDDNSZoneCallback(client, zone, &thawed) }
 	defer thaw()
 
 	frozen, err := os.ReadFile(path)
@@ -935,4 +926,15 @@ func inDefaultRunlevel(name string) bool {
 	}
 
 	return false
+}
+
+func syncDDNSZoneCallback(client *bind.Client, zone string, thawed *bool) {
+	if *thawed {
+		return
+	}
+
+	(*thawed) = true
+	if err := client.Thaw(zone); err != nil {
+		log.Warn().Err(err).Str("zone", zone).Msg("named: thaw failed")
+	}
 }

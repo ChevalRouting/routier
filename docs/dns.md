@@ -33,7 +33,7 @@ dns:
 `dns.server` is optional and additive: omit it (or set `enabled: false`) and
 nothing under `/etc/bind/` is rendered, the service is stopped and removed from
 the boot runlevel, and no firewall rules are emitted. No config migration is
-involved — adding `dns.server` to an existing config does not change the schema
+involved, adding `dns.server` to an existing config does not change the schema
 version.
 
 ## Modes
@@ -49,7 +49,7 @@ server performs:
 
 `mode` is optional. When omitted it is inferred: zones with no
 `upstreams`/`forward` is `authoritative`, zones alongside them is `both`, and
-anything else is `forwarder`. Setting it explicitly is worth doing anyway — it
+anything else is `forwarder`. Setting it explicitly is worth doing anyway, it
 turns a silent misconfiguration into a validation error, so
 `mode: authoritative` with an upstream still configured is rejected rather than
 quietly recursing.
@@ -58,7 +58,7 @@ The mode is not cosmetic. `forwarder` and `both` render `recursion yes` plus
 `allow-recursion { routier_clients; }`; `authoritative` renders `recursion no`,
 so a query for anything outside the local zones is answered **REFUSED** and no
 root `forwarders` block is emitted. Without that distinction an authoritative
-server would still recurse from the root hints for any name outside its zones —
+server would still recurse from the root hints for any name outside its zones -
 an open resolver for every client in `allow_from`, which is both a wider
 service than intended and a DNS amplification risk.
 
@@ -141,16 +141,16 @@ cache" in BIND.
 
 A `listen` entry is one of:
 
-- a literal IP — `127.0.0.1`, `0.0.0.0`
-- `iface(<name>)` — the static host addresses of that interface or VLAN
-- `vips(<name>)` — the VRRP virtual addresses associated with that interface
+- a literal IP, `127.0.0.1`, `0.0.0.0`
+- `iface(<name>)`, the static host addresses of that interface or VLAN
+- `vips(<name>)`, the VRRP virtual addresses associated with that interface
 
 The reference forms exist because interfaces are selected by MAC or by index
 (see [interfaces.md](interfaces.md)), so `wan` stays `wan` even when the NIC
 becomes `eth2` on the next box. Literal IPs in the DNS config would silently go
 stale in exactly the situation the rest of the config is designed to survive.
 
-Resolution is pure — it reads the config, never the live system — so
+Resolution is pure, it reads the config, never the live system, so
 `routier plan` stays safe to run anywhere. Addresses are sorted and
 de-duplicated, and split into `listen-on` / `listen-on-v6` by family. An
 interface whose only address is `dhcp` or `slaac` cannot be a listen target
@@ -172,7 +172,7 @@ net.ipv6.ip_nonlocal_bind = 1
 ```
 
 into the rendered sysctl whenever any `listen` entry is a `vips(...)` reference
-— unless you have already set `net.ipv4.ip_nonlocal_bind` yourself, in which
+- unless you have already set `net.ipv4.ip_nonlocal_bind` yourself, in which
 case your value wins. With it, `named` binds the VIP at startup whether or not
 the address is currently present, and no keepalived transition hook is needed.
 
@@ -221,11 +221,11 @@ dns:
 ```
 
 A zone carries either `records` (a primary zone, rendered to a zone file) or
-`primaries` (a secondary zone, transferred in from those addresses) — never
+`primaries` (a secondary zone, transferred in from those addresses), never
 both. Supported record types are `A`, `AAAA`, `CNAME`, `MX`, `TXT`, `SRV`,
 `PTR`, `NS`, `CAA`, `SSHFP` and `TLSA`; `priority` applies to `MX` and `SRV`
-only. `soa.email` is written in either form — `hostmaster@home.arpa` or
-`hostmaster.home.arpa.` — and converted to zone-file form on render.
+only. `soa.email` is written in either form, `hostmaster@home.arpa` or
+`hostmaster.home.arpa.`, and converted to zone-file form on render.
 
 ### Nameservers need address records
 
@@ -245,7 +245,7 @@ and never otherwise.
 This matters because `routier plan` and `GET /api/config/render-diff` diff
 rendered output, and the apply step skips writing files whose content is
 unchanged. A timestamp serial would make every plan show a phantom diff and
-every apply rewrite every zone file — and, because each zone is its own render
+every apply rewrite every zone file, and, because each zone is its own render
 artifact, reload every zone that did not actually change.
 
 ### Reverse zones
@@ -330,13 +330,13 @@ disable-empty-zone "10.in-addr.arpa";
 
 Each addresses a different failure:
 
-1. **`validate-except` — SERVFAIL from DNSSEC validation.** When validation is
+1. **`validate-except`, SERVFAIL from DNSSEC validation.** When validation is
    on, an internal server serving an unsigned zone under a signed parent yields
    a bogus answer, and bogus answers are returned as SERVFAIL rather than as
    data. `validate-except` marks the domain as an island of trust.
    `validate-except` takes a **list**; BIND rejects repeated statements, so all
    exempt domains are emitted in one block.
-2. **`disable-empty-zone` — NXDOMAIN from a built-in empty zone.** With
+2. **`disable-empty-zone`, NXDOMAIN from a built-in empty zone.** With
    `empty-zones-enable` (BIND's default), BIND serves empty zones for the
    RFC 1918 reverse spaces, `home.arpa`, `resolver.arpa`, `service.arpa` and a
    long tail of others. A built-in empty zone **shadows** a `forward` or
@@ -344,13 +344,13 @@ Each addresses a different failure:
    every lookup returns NXDOMAIN with no upstream traffic on the wire.
 
 `disable-empty-zone` is emitted only for names that actually have a built-in
-empty zone — the `in-addr.arpa`, `ip6.arpa`, `home.arpa`, `resolver.arpa`,
+empty zone, the `in-addr.arpa`, `ip6.arpa`, `home.arpa`, `resolver.arpa`,
 `service.arpa` and `empty.arpa` families. Emitting it for an ordinary domain
 like `42.school` would be a no-op that BIND warns about on every apply, so it
 is left out.
 
-Note that `home.arpa` — the conventional choice for an internal zone, and the
-example above — **is** on the empty-zone list. An internal `home.arpa` without
+Note that `home.arpa`, the conventional choice for an internal zone, and the
+example above, **is** on the empty-zone list. An internal `home.arpa` without
 `disable-empty-zone` silently returns NXDOMAIN for everything.
 
 Set `dnssec: true` on a `forward` or `zones` entry when that domain is genuinely
@@ -359,7 +359,7 @@ DNSSEC-signed and you want it validated. Routier then omits it from
 failure mode 1 in full.
 
 `dns.server.dnssec` (the server-level flag) controls whether validation runs at
-all — `dnssec-validation auto` when set, `no` when not. It is off by default.
+all, `dnssec-validation auto` when set, `no` when not. It is off by default.
 
 ## How Routier talks to named
 
@@ -376,7 +376,7 @@ Validation happens in two places, for a reason:
   directory and a bad zone aborts the apply before anything reaches disk.
 - **`named.conf`, after it is written**, with `named-checkconf`. The config
   references its zone files by absolute path, so it can only be validated once
-  those files exist — the same reason Kea's config is validated in place. A
+  those files exist, the same reason Kea's config is validated in place. A
   non-zero exit aborts the apply and the snapshot rollback fires.
 
 Both gates key off the **exit code**. Both tools emit warnings on healthy input
@@ -431,8 +431,8 @@ render.
 
 Two variables are exported for use in your own rules:
 
-- `$dns_allow_from` / `$dns_allow_from6` — the client ACL, split by family.
-- `$dns_listen` / `$dns_listen6` — the resolved listen addresses.
+- `$dns_allow_from` / `$dns_allow_from6`, the client ACL, split by family.
+- `$dns_listen` / `$dns_listen6`, the resolved listen addresses.
 
 See [firewall.md](firewall.md).
 
@@ -472,7 +472,7 @@ is worth checking against the named log.
 
 | VyOS | Routier |
 |------|---------|
-| `listen-address <ip>` | `dns.server.listen` — prefer `iface(...)` / `vips(...)` |
+| `listen-address <ip>` | `dns.server.listen`, prefer `iface(...)` / `vips(...)` |
 | `allow-from <cidr>` | `dns.server.allow_from` |
 | `name-server <ip>` | `dns.server.upstreams` |
 | `domain <d> { name-server <ip> }` | `dns.server.forward[]` |
@@ -480,11 +480,11 @@ is worth checking against the named log.
 | `cache-size <n>` | `dns.server.cache.size` |
 | `negative-ttl <n>` | `dns.server.cache.max_negative_ttl` |
 | `dnssec <mode>` | `dns.server.dnssec` (plus per-domain `dnssec: true`) |
-| `ignore-hosts-file` | no key needed — BIND never reads `/etc/hosts` |
+| `ignore-hosts-file` | no key needed, BIND never reads `/etc/hosts` |
 | `no-serve-rfc1918` | inverted: Routier emits `disable-empty-zone` for the RFC 1918 reverse spaces you actually forward or serve |
 | `port <n>` | `dns.server.port` |
 | `system` | set `dns.server.upstreams` explicitly |
-| — | `dns.server.zones` has no VyOS equivalent; VyOS forwards only |
+|, | `dns.server.zones` has no VyOS equivalent; VyOS forwards only |
 
 ## Not supported
 

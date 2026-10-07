@@ -27,15 +27,7 @@ func newIpcalcSubnetCommand() *cobra.Command {
 		Use:   "subnet <address|cidr>",
 		Short: "show an ipcalc-style subnet breakdown",
 		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			info, err := ipcalc.Subnet(args[0])
-			if err != nil {
-				return err
-			}
-
-			printSubnet(cmd, info)
-			return nil
-		},
+		RunE:  newIpcalcSubnetCommandHandler,
 	}
 }
 
@@ -44,19 +36,7 @@ func newIpcalcReverseCommand() *cobra.Command {
 		Use:   "reverse <address|cidr>",
 		Short: "show the reverse-DNS (PTR) name and delegation zone",
 		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			out, err := ipcalc.Reverse(args[0])
-			if err != nil {
-				return err
-			}
-
-			cmd.Println(out.Name)
-			if out.Zone != "" {
-				cmd.Printf("zone: %s\n", out.Zone)
-			}
-
-			return nil
-		},
+		RunE:  newIpcalcReverseCommandHandler,
 	}
 }
 
@@ -65,30 +45,13 @@ func newIpcalcRangeCommand() *cobra.Command {
 		Use:   "range <start> <end>",
 		Short: "split an inclusive address range into CIDR blocks",
 		Args:  cobra.ExactArgs(2),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			out, err := ipcalc.Range(args[0], args[1])
-			if err != nil {
-				return err
-			}
-
-			for _, c := range out.CIDRs {
-				cmd.Println(c)
-			}
-
-			return nil
-		},
+		RunE:  newIpcalcRangeCommandHandler,
 	}
 }
 
 func printSubnet(cmd *cobra.Command, info *ipcalc.SubnetInfo) {
 	is4 := info.Family == "v4"
-	bin := func(b string) string {
-		if b == "" {
-			return ""
-		}
-
-		return ipcalc.FormatBinary(b, info.Prefix, is4)
-	}
+	bin := func(b string) string { return printSubnetCallback(info, is4, b) }
 
 	row := func(label, value, binary string) {
 		cmd.Printf("%-10s %-22s %s\n", label+":", value, binary)
@@ -114,6 +77,7 @@ func printSubnet(cmd *cobra.Command, info *ipcalc.SubnetInfo) {
 		row("HostMin", info.HostMin, bin(info.HostMinBits))
 		row("HostMax", info.HostMax, bin(info.HostMaxBits))
 	}
+
 	if info.Broadcast != "" {
 		row("Broadcast", info.Broadcast, bin(info.BroadcastBits))
 	}
@@ -122,5 +86,51 @@ func printSubnet(cmd *cobra.Command, info *ipcalc.SubnetInfo) {
 	if info.Class != "" {
 		trailer = fmt.Sprintf("Class %s, %s", info.Class, info.Scope)
 	}
+
 	cmd.Printf("%-10s %-22s %s\n", "Hosts/Net:", info.Hosts, trailer)
+}
+
+func newIpcalcSubnetCommandHandler(cmd *cobra.Command, args []string) error {
+	info, err := ipcalc.Subnet(args[0])
+	if err != nil {
+		return err
+	}
+
+	printSubnet(cmd, info)
+	return nil
+}
+
+func newIpcalcReverseCommandHandler(cmd *cobra.Command, args []string) error {
+	out, err := ipcalc.Reverse(args[0])
+	if err != nil {
+		return err
+	}
+
+	cmd.Println(out.Name)
+	if out.Zone != "" {
+		cmd.Printf("zone: %s\n", out.Zone)
+	}
+
+	return nil
+}
+
+func newIpcalcRangeCommandHandler(cmd *cobra.Command, args []string) error {
+	out, err := ipcalc.Range(args[0], args[1])
+	if err != nil {
+		return err
+	}
+
+	for _, c := range out.CIDRs {
+		cmd.Println(c)
+	}
+
+	return nil
+}
+
+func printSubnetCallback(info *ipcalc.SubnetInfo, is4 bool, b string) string {
+	if b == "" {
+		return ""
+	}
+
+	return ipcalc.FormatBinary(b, info.Prefix, is4)
 }

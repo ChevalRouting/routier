@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/ChevalRouting/routier/pkg/server/client"
-	"github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/auth/identity"
+	"github.com/ChevalRouting/routier/pkg/config"
+	"github.com/ChevalRouting/routier/pkg/server/client"
 	"github.com/ChevalRouting/routier/pkg/types"
 )
 
@@ -112,13 +112,7 @@ func TaggedSections(cfg *config.Config, name string) []types.FriendTaggedSection
 		}
 	}
 
-	sort.Slice(out, func(i, j int) bool {
-		if out[i].Section != out[j].Section {
-			return out[i].Section < out[j].Section
-		}
-
-		return out[i].Key < out[j].Key
-	})
+	sort.Slice(out, func(i, j int) bool { return taggedSectionsCallback(out, i, j) })
 
 	return out
 }
@@ -145,4 +139,12 @@ func PinIdentity(f *config.Friend, fingerprint, publicKey, x25519PublicKey strin
 	f.Identity.X25519PublicKey = x25519PublicKey
 
 	return nil
+}
+
+func taggedSectionsCallback(out []types.FriendTaggedSection, i, j int) bool {
+	if out[i].Section != out[j].Section {
+		return out[i].Section < out[j].Section
+	}
+
+	return out[i].Key < out[j].Key
 }

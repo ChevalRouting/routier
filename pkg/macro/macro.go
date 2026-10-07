@@ -88,20 +88,7 @@ func sectionJSON(cfg *config.Config, section string) string {
 }
 
 func sectionMapKeys(cfg *config.Config, section string) map[string]string {
-	asMap := func(v any) map[string]string {
-		b, _ := json.Marshal(v)
-		var raw map[string]json.RawMessage
-		if json.Unmarshal(b, &raw) != nil {
-			return nil
-		}
-
-		out := make(map[string]string, len(raw))
-		for k, rv := range raw {
-			out[k] = string(rv)
-		}
-
-		return out
-	}
+	asMap := sectionMapKeysHandler
 
 	switch section {
 	case "interfaces":
@@ -254,23 +241,7 @@ func applyObjDeltaJSON(baseR, liveR, modR json.RawMessage) json.RawMessage {
 }
 
 func applyListDeltaJSON(baseR, liveR, modR json.RawMessage, keyField string) json.RawMessage {
-	itemKey := func(raw json.RawMessage) string {
-		var m map[string]json.RawMessage
-		if json.Unmarshal(raw, &m) != nil {
-			return string(raw)
-		}
-
-		if v, ok := m[keyField]; ok {
-			var s string
-			if json.Unmarshal(v, &s) == nil {
-				return s
-			}
-
-			return string(v)
-		}
-
-		return string(raw)
-	}
+	itemKey := func(raw json.RawMessage) string { return applyListDeltaJSONCallback(keyField, raw) }
 
 	baseItems := rawList(baseR)
 	liveItems := rawList(liveR)
@@ -377,4 +348,37 @@ func applyRoutingDeltaJSON(baseR, liveR, modR json.RawMessage) json.RawMessage {
 
 	out, _ := json.Marshal(live)
 	return out
+}
+
+func sectionMapKeysHandler(v any) map[string]string {
+	b, _ := json.Marshal(v)
+	var raw map[string]json.RawMessage
+	if json.Unmarshal(b, &raw) != nil {
+		return nil
+	}
+
+	out := make(map[string]string, len(raw))
+	for k, rv := range raw {
+		out[k] = string(rv)
+	}
+
+	return out
+}
+
+func applyListDeltaJSONCallback(keyField string, raw json.RawMessage) string {
+	var m map[string]json.RawMessage
+	if json.Unmarshal(raw, &m) != nil {
+		return string(raw)
+	}
+
+	if v, ok := m[keyField]; ok {
+		var s string
+		if json.Unmarshal(v, &s) == nil {
+			return s
+		}
+
+		return string(v)
+	}
+
+	return string(raw)
 }

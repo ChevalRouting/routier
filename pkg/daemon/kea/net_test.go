@@ -18,10 +18,7 @@ func TestIPToU32(t *testing.T) {
 }
 
 func TestIPInCIDR(t *testing.T) {
-	cases := []struct {
-		ip, cidr string
-		want     bool
-	}{
+	cases := []iPInCIDRCase{
 		{"10.0.0.5", "10.0.0.0/24", true},
 		{"10.0.1.5", "10.0.0.0/24", false},
 		{"10.0.1.5", "10.0.0.0/16", true},
@@ -55,10 +52,7 @@ func TestIsMAC(t *testing.T) {
 }
 
 func TestParseCIDR(t *testing.T) {
-	cases := []struct {
-		in            string
-		net, hostWant string
-	}{
+	cases := []parseCIDRCase{
 		{"100.64.12.12/24", "100.64.12.0/24", "100.64.12.12"},
 		{"100.64.12.0/24", "100.64.12.0/24", ""},
 		{"100.64.12.12", "", "100.64.12.12"},
@@ -91,4 +85,14 @@ func TestNextAvailableIP(t *testing.T) {
 	if _, err := nextAvailableIP("2001:db8::/64", nil); err == nil {
 		t.Error("expected error for IPv6 auto-selection")
 	}
+}
+
+type iPInCIDRCase struct {
+	ip, cidr string
+	want     bool
+}
+
+type parseCIDRCase struct {
+	in            string
+	net, hostWant string
 }

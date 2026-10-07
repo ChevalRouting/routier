@@ -6,18 +6,17 @@ import (
 	"os/exec"
 	"strings"
 
-	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
+	"github.com/ChevalRouting/routier/pkg/auth/unixauth"
 	"github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/host/motd"
+	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	"github.com/ChevalRouting/routier/pkg/types"
-	"github.com/ChevalRouting/routier/pkg/auth/unixauth"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/rs/zerolog/log"
 )
 
 const seedPasswordFile = "/var/lib/routier/ui-seed-password"
 
-// ChangePassword godoc
 // @Summary  Change the current user's password
 // @Tags auth
 // @Produce json
@@ -56,6 +55,7 @@ func ChangePassword(w http.ResponseWriter, r *http.Request) {
 		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "failed to verify current password"))
 		return
 	}
+
 	if !ok {
 		log.Warn().Str("user", username).Msg("password change rejected because current password did not verify")
 		types.Err(http.StatusUnauthorized, "current password is incorrect").Write(w)
@@ -67,6 +67,7 @@ func ChangePassword(w http.ResponseWriter, r *http.Request) {
 		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "failed to update password"))
 		return
 	}
+
 	log.Info().Str("user", username).Msg("Unix password updated")
 
 	_ = os.Remove(seedPasswordFile)

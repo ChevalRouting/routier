@@ -7,7 +7,6 @@ import (
 	"github.com/ChevalRouting/routier/pkg/types"
 )
 
-// Range godoc
 // @Summary  Split an inclusive address range into the minimal set of CIDR blocks
 // @Tags tools
 // @Produce json

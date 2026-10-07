@@ -17,16 +17,13 @@ func routesDB(t *testing.T) *webdb.DB {
 		t.Fatal(err)
 	}
 
-	t.Cleanup(func() { db.Close() })
+	t.Cleanup(func() { _ = db.Close() })
 
 	if _, err := db.Exec(`CREATE TABLE kernel_routes (dst TEXT, gateway TEXT, dev TEXT, protocol TEXT, metric INTEGER, family TEXT)`); err != nil {
 		t.Fatal(err)
 	}
 
-	rows := []struct {
-		dst, gw, dev, proto, fam string
-		metric                   int
-	}{
+	rows := []routesDBCase{
 		{"10.0.0.0/24", "", "eth0", "kernel", "ipv4", 0},
 		{"0.0.0.0/0", "192.168.1.1", "eth0", "static", "ipv4", 0},
 		{"192.168.1.0/24", "", "eth0", "bgp", "ipv4", 100},
@@ -123,4 +120,9 @@ func TestQueryKernelRoutesDefaultOnly(t *testing.T) {
 	if total != 2 || len(page) != 2 {
 		t.Errorf("defaults total=%d len=%d want 2/2", total, len(page))
 	}
+}
+
+type routesDBCase struct {
+	dst, gw, dev, proto, fam string
+	metric                   int
 }

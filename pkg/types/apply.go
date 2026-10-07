@@ -5,6 +5,7 @@ type StatusResponse struct {
 }
 
 type ApplyResult struct {
+	LogID    string          `json:"logID,omitempty" validate:"optional"`
 	Status   string          `json:"status"`
 	SnapID   string          `json:"snapID,omitempty" validate:"optional"`
 	Warning  string          `json:"warning,omitempty" validate:"optional"`

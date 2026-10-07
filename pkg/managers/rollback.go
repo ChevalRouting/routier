@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/ChevalRouting/routier/pkg/apply"
-	"github.com/ChevalRouting/routier/pkg/state/applylog"
 	"github.com/ChevalRouting/routier/pkg/config"
+	"github.com/ChevalRouting/routier/pkg/state/applylog"
 	"github.com/ChevalRouting/routier/pkg/svc"
 )
 
@@ -29,17 +29,7 @@ func RollbackSource(id, source string) (resolvedID string, err error) {
 	defer release()
 
 	rec := applylog.Start(source, "")
-	defer func() {
-		result := "rolledback"
-		if err != nil {
-			result = "failed"
-		}
-
-		rec.Finish(resolvedID, result)
-		if err == nil {
-			applylog.MarkRolledBack(resolvedID)
-		}
-	}()
+	defer func() { rollbackSourceCallback(resolvedID, err, rec) }()
 
 	if id == "" {
 		if data, err := os.ReadFile(pendingFile); err == nil {
@@ -69,22 +59,35 @@ func RollbackSource(id, source string) (resolvedID string, err error) {
 	if err = svc.ReloadFromOutputs(names, restoredCfg, false, false); err != nil {
 		return id, err
 	}
+
 	_ = os.Remove(pendingFile)
 	return id, nil
 }
 
-// Resolved devices and bridge/bond members are runtime-only fields, omitted
-// from snapshots. Rebuild them before reconciling the restored network.
 func loadRollbackConfig(path string) (*config.Config, error) {
 	cfg, err := config.Load(path)
 	if err != nil {
 		return nil, err
 	}
+
 	config.ResolveInterfaces(cfg)
 	for name, iface := range cfg.Interfaces {
 		if iface.Device == "" {
 			return nil, fmt.Errorf("interface %s: device could not be resolved", name)
 		}
 	}
+
 	return cfg, nil
+}
+
+func rollbackSourceCallback(resolvedID string, err error, rec *applylog.Recorder) {
+	result := "rolledback"
+	if err != nil {
+		result = "failed"
+	}
+
+	rec.Finish(resolvedID, result)
+	if err == nil {
+		applylog.MarkRolledBack(resolvedID)
+	}
 }

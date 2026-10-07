@@ -1,12 +1,13 @@
-import { TagInput } from 'cheval-ui'
-import { Label } from 'cheval-ui'
+import { Label, TagInput } from 'cheval-ui'
 
-export function ExtraDirectives({ label = 'Additional directives', values, onChange, placeholder }: {
+type ExtraDirectivesShape = {
   label?: string
   values?: string[]
   onChange: (v: string[] | undefined) => void
   placeholder?: string
-}) {
+}
+
+export function ExtraDirectives({ label = 'Additional directives', values, onChange, placeholder }: ExtraDirectivesShape) {
   return (
     <div className="space-y-1.5">
       <Label className="text-xs text-muted-foreground">{label}</Label>

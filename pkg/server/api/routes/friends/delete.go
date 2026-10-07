@@ -3,17 +3,16 @@ package friends
 import (
 	"net/http"
 
+	cfgpkg "github.com/ChevalRouting/routier/pkg/config"
+	friendspkg "github.com/ChevalRouting/routier/pkg/friends"
 	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
 	"github.com/ChevalRouting/routier/pkg/server/api/friendcache"
-	cfgpkg "github.com/ChevalRouting/routier/pkg/config"
-	friendspkg "github.com/ChevalRouting/routier/pkg/friends"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
 )
 
-// Delete godoc
 // @Summary  Remove a friend
 // @Tags friends
 // @Produce json

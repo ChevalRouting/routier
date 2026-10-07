@@ -39,10 +39,12 @@ func FriendUsername(ctx context.Context) (string, bool) {
 }
 
 func (a *App) Inject() func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx := context.WithValue(r.Context(), appKey, a)
-			next.ServeHTTP(w, r.WithContext(ctx))
-		})
-	}
+	return func(next http.Handler) http.Handler { return injectCallback(a, next) }
+}
+
+func injectCallback(a *App, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), appKey, a)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
 }

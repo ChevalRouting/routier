@@ -1,14 +1,14 @@
-import { useState, useEffect, useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import type { TypesStatsHistoryResponse as StatsHistoryResponse, TypesStatsResponse as StatsResponse } from '@/api'
 import { api } from '@/lib/client'
-import type { TypesStatsResponse as StatsResponse, TypesStatsHistoryResponse as StatsHistoryResponse } from '@/api'
-import { useFetch } from '@/lib/useFetch'
 import { useDataVersion } from '@/lib/dataVersion'
-import { Card, CardContent, CardHeader, CardTitle } from 'cheval-ui'
+import { useFetch } from '@/lib/useFetch'
+import { Card, CardContent, CardHeader, CardTitle, cn, fmtBitrate, fmtBytes, fmtPps, fmtUptime } from 'cheval-ui'
 import { TimeSeriesChart } from 'cheval-ui/charts'
-import { fmtBitrate, fmtBytes, fmtPps, fmtUptime } from 'cheval-ui'
-import { cn } from 'cheval-ui'
-import { Cpu, MemoryStick, BarChart2, ArrowRight } from 'lucide-react'
+import { ArrowRight, BarChart2, Cpu, MemoryStick } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
+
+type SystemOverviewShape = { trafficHref?: string }
 
 const TRAFFIC_PERIODS = [
   { label: '15m', minutes: 15 },
@@ -19,7 +19,7 @@ const TRAFFIC_PERIODS = [
   { label: '7d',  minutes: 10080 },
 ]
 
-export function SystemOverview({ trafficHref }: { trafficHref?: string }) {
+export function SystemOverview({ trafficHref }: SystemOverviewShape) {
   const { data: stats } = useFetch<StatsResponse>(() => api.apiStatsGet())
   const [history, setHistory] = useState<StatsHistoryResponse | null>(null)
   const [trafficPeriodIdx, setTrafficPeriodIdx] = useState(0)

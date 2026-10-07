@@ -9,9 +9,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ChevalRouting/routier/pkg/server/api/friendcache"
 	"github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/managers"
+	"github.com/ChevalRouting/routier/pkg/server/api/friendcache"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"gopkg.in/yaml.v3"
 )
@@ -137,6 +137,7 @@ func WriteStagingLayer(configPath, username, layer string, cfg *config.Config) e
 	if err != nil {
 		return err
 	}
+
 	if exists && owner != layer {
 		return &LayerConflictError{Owner: owner, Requested: layer}
 	}
@@ -228,6 +229,7 @@ func DiscardLayer(configPath, username, layer string) error {
 	if err != nil {
 		return err
 	}
+
 	if exists && owner != layer {
 		return &LayerConflictError{Owner: owner, Requested: layer}
 	}
@@ -235,6 +237,7 @@ func DiscardLayer(configPath, username, layer string) error {
 	if err := os.Remove(StagingPath(configPath, username)); err != nil && !os.IsNotExist(err) {
 		return err
 	}
+
 	if err := os.Remove(StagingLayerPath(configPath, username)); err != nil && !os.IsNotExist(err) {
 		return err
 	}

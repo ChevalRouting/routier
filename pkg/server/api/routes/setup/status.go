@@ -4,15 +4,14 @@ import (
 	"net/http"
 	"os"
 
-	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	"github.com/ChevalRouting/routier/pkg/config"
 	webdb "github.com/ChevalRouting/routier/pkg/db"
+	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	"github.com/ChevalRouting/routier/pkg/types"
 )
 
 const seedPasswordFile = "/var/lib/routier/ui-seed-password"
 
-// Status godoc
 // @Summary  Onboarding / setup status
 // @Tags setup
 // @Produce json

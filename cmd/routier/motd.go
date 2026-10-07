@@ -30,7 +30,7 @@ func newIssueCommand() *cobra.Command {
 		Short:  "print the console login banner (ascii logo + version)",
 		Hidden: true,
 		Run: func(cmd *cobra.Command, _ []string) {
-			fmt.Fprint(cmd.OutOrStdout(), motd.RenderIssue(VERSION))
+			_, _ = fmt.Fprint(cmd.OutOrStdout(), motd.RenderIssue(VERSION))
 		},
 	}
 }

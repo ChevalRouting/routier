@@ -7,7 +7,6 @@ import (
 	"github.com/ChevalRouting/routier/pkg/types"
 )
 
-// Processes godoc
 // @Summary  Live process list
 // @Tags stats
 // @Produce json

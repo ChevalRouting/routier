@@ -30,22 +30,24 @@ func version() string {
 
 func consoleWriter() zerolog.ConsoleWriter {
 	return zerolog.ConsoleWriter{
-		Out:        os.Stderr,
-		TimeFormat: "15:04:05",
-		FormatErrFieldValue: func(v any) string {
-			s, _ := v.(string)
-			if len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"' {
-				if unquoted, err := strconv.Unquote(s); err == nil {
-					s = unquoted
-				}
-			}
-
-			lines := strings.Split(s, "\n")
-			if len(lines) <= 1 {
-				return s
-			}
-
-			return "\n  " + strings.Join(lines, "\n  ")
-		},
+		Out:                 os.Stderr,
+		TimeFormat:          "15:04:05",
+		FormatErrFieldValue: consoleWriterHandler,
 	}
+}
+
+func consoleWriterHandler(v any) string {
+	s, _ := v.(string)
+	if len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"' {
+		if unquoted, err := strconv.Unquote(s); err == nil {
+			s = unquoted
+		}
+	}
+
+	lines := strings.Split(s, "\n")
+	if len(lines) <= 1 {
+		return s
+	}
+
+	return "\n  " + strings.Join(lines, "\n  ")
 }

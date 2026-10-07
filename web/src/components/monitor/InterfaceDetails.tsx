@@ -1,7 +1,17 @@
-import { Fragment, useEffect, useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, Dialog, Spinner } from 'cheval-ui'
-import { api } from '@/lib/client'
 import type { SystemInterfaceStatus } from '@/api'
+import { api } from '@/lib/client'
+import { Card, CardContent, CardHeader, CardTitle, Dialog, Spinner } from 'cheval-ui'
+import { Fragment, useEffect, useState } from 'react'
+
+type ValueShape = { value: unknown }
+
+type FieldsShape = { fields: Record<string, unknown> }
+
+type SectionShape = { title: string; fields: Record<string, unknown> }
+
+type InterfaceDetailsShape = { name: string; onClose: () => void }
+
+type InterfaceStatusShape = { name: string }
 
 const LABELS: Record<string, string> = {
   ifname: 'Interface', ifindex: 'Index', mtu: 'MTU', operstate: 'Operational state',
@@ -24,7 +34,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
 
-function Value({ value }: { value: unknown }) {
+function Value({ value }: ValueShape) {
   if (isRecord(value)) return <Fields fields={value} />
   if (Array.isArray(value)) {
     if (value.every((item) => !isRecord(item) && !Array.isArray(item))) return <>{value.map(String).join(', ') || '–'}</>
@@ -33,7 +43,7 @@ function Value({ value }: { value: unknown }) {
   return <>{value === null || value === undefined || value === '' ? '–' : typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value)}</>
 }
 
-function Fields({ fields }: { fields: Record<string, unknown> }) {
+function Fields({ fields }: FieldsShape) {
   return <dl className="grid grid-cols-[minmax(7rem,auto)_minmax(0,1fr)] gap-x-4 gap-y-2 text-xs">
     {Object.entries(fields).map(([key, value]) => <Fragment key={key}>
       <dt className="text-muted-foreground break-words">{label(key)}</dt>
@@ -42,20 +52,20 @@ function Fields({ fields }: { fields: Record<string, unknown> }) {
   </dl>
 }
 
-function Section({ title, fields }: { title: string; fields: Record<string, unknown> }) {
+function Section({ title, fields }: SectionShape) {
   if (Object.keys(fields).length === 0) return null
   return <Card><CardHeader><CardTitle className="text-sm">{title}</CardTitle></CardHeader><CardContent><Fields fields={fields} /></CardContent></Card>
 }
 
-export function InterfaceDetails({ name, onClose }: { name: string; onClose: () => void }) {
-  return <Dialog open onClose={onClose} title={`${name} — Interface status`} className="max-w-3xl"
+export function InterfaceDetails({ name, onClose }: InterfaceDetailsShape) {
+  return <Dialog open onClose={onClose} title={`${name}, Interface status`} className="max-w-3xl"
     description="Live kernel state · refreshes every 5 seconds"
   >
     <InterfaceStatus key={name} name={name} />
   </Dialog>
 }
 
-function InterfaceStatus({ name }: { name: string }) {
+function InterfaceStatus({ name }: InterfaceStatusShape) {
   const [data, setData] = useState<SystemInterfaceStatus | null>(null)
   const [error, setError] = useState('')
   useEffect(() => {
@@ -84,7 +94,7 @@ function InterfaceStatus({ name }: { name: string }) {
   const { slaves, ...bondStatus } = bond ?? {}
 
   return <div className="space-y-4">
-      {error && <p role="alert" className="text-sm text-destructive">{error}{data ? ' — showing last successful update.' : ''}</p>}
+      {error && <p role="alert" className="text-sm text-destructive">{error}{data ? ', showing last successful update.' : ''}</p>}
       {!data && !error && <Spinner />}
       {data && <>
         <Section title="Link status" fields={{ ...link, ...kind }} />

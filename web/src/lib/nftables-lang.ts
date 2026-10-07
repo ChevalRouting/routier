@@ -5,6 +5,10 @@ import { StateField, RangeSetBuilder } from '@codemirror/state'
 import { autocompletion, type CompletionContext, type CompletionResult } from '@codemirror/autocomplete'
 import { search } from '@codemirror/search'
 
+type DocShape = { lines: number; line: (n: number) => LineShape }
+
+type LineShape = { from: number }
+
 const KEYWORDS = new Set([
   'table', 'chain', 'type', 'hook', 'priority', 'policy', 'define', 'include',
   'flush', 'ruleset', 'add', 'rule', 'set', 'map', 'element', 'flowtable',
@@ -117,7 +121,7 @@ const errorLineTheme = EditorView.theme({
   '.cm-nft-error-line': { backgroundColor: 'hsl(var(--danger) / 0.18)' },
 })
 
-function buildErrorDeco(doc: { lines: number; line: (n: number) => { from: number } }, lines: number[]): DecorationSet {
+function buildErrorDeco(doc: DocShape, lines: number[]): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>()
   for (const ln of [...lines].sort((a, b) => a - b)) {
     if (ln >= 1 && ln <= doc.lines) {

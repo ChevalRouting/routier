@@ -15,32 +15,13 @@ import (
 )
 
 func TestReadInterfaceLink(t *testing.T) {
-	for _, tc := range []struct{ name, payload string }{
+	for _, tc := range []readInterfaceLinkCase{
 		{"eth0", `[{"ifname":"eth0","flags":["UP","LOWER_UP"],"mtu":1500,"stats64":{"rx":{"bytes":9007199254740993}}}]`},
 		{"vlan10", `[{"ifname":"vlan10","link":"eth0","linkinfo":{"info_kind":"vlan","info_data":{"id":10,"protocol":"802.1Q"}}}]`},
 		{"bond0", `[{"ifname":"bond0","linkinfo":{"info_kind":"bond","info_data":{"mode":"802.3ad","miimon":100}}}]`},
 		{"br0", `[{"ifname":"br0","linkinfo":{"info_kind":"bridge","info_data":{"stp_state":1}}}]`},
 	} {
-		t.Run(tc.name, func(t *testing.T) {
-			link, err := readInterfaceLink(context.Background(), tc.name, func(_ context.Context, args ...string) ([]byte, error) {
-				if !reflect.DeepEqual(args, []string{"-j", "-d", "-s", "link", "show", "dev", tc.name}) {
-					t.Fatalf("arguments: %v", args)
-				}
-				return []byte(tc.payload), nil
-			})
-			if err != nil {
-				t.Fatal(err)
-			}
-			if link["ifname"] != tc.name {
-				t.Fatalf("wrong link: %v", link)
-			}
-			if tc.name == "eth0" && link["stats64"].(map[string]any)["rx"].(map[string]any)["bytes"].(interface{ String() string }).String() != "9007199254740993" {
-				t.Fatal("counter precision lost")
-			}
-			if tc.name != "eth0" && link["linkinfo"] == nil {
-				t.Fatal("type details lost")
-			}
-		})
+		t.Run(tc.name, func(t *testing.T) { testReadInterfaceLinkCallback(&tc, t) })
 	}
 }
 
@@ -50,6 +31,7 @@ func TestReadInterfaceLinkFailures(t *testing.T) {
 			t.Fatalf("accepted %q", payload)
 		}
 	}
+
 	want := errors.New("command failed")
 	if _, err := readInterfaceLink(context.Background(), "eth0", func(context.Context, ...string) ([]byte, error) { return nil, want }); !errors.Is(err, want) {
 		t.Fatalf("error = %v", err)
@@ -75,15 +57,18 @@ func TestInterfaceStatusResponse(t *testing.T) {
 	if err != nil || len(interfaces) == 0 {
 		t.Skip("no interfaces available")
 	}
+
 	name := interfaces[0].Name
 	payload, err := json.Marshal([]map[string]any{{"ifname": name, "mtu": 1500, "linkinfo": map[string]any{"info_kind": "vlan", "info_data": map[string]any{"id": 42}}}})
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "ip"), []byte("#!/bin/sh\nprintf '%s' '"+string(payload)+"'\n"), 0700); err != nil {
 		t.Fatal(err)
 	}
+
 	t.Setenv("PATH", dir)
 	router := chi.NewRouter()
 	Routes(router)
@@ -92,13 +77,48 @@ func TestInterfaceStatusResponse(t *testing.T) {
 	if w.Code != 200 {
 		t.Fatalf("status %d: %s", w.Code, w.Body.String())
 	}
-	var response struct {
-		Result interfaceStatus `json:"result"`
-	}
+
+	var response interfaceStatusResponseCase
 	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
 		t.Fatal(err)
 	}
+
 	if response.Result.Link["ifname"] != name || response.Result.Link["linkinfo"] == nil {
 		t.Fatalf("missing link details: %s", w.Body.String())
 	}
+}
+
+type readInterfaceLinkCase struct{ name, payload string }
+
+type interfaceStatusResponseCase struct {
+	Result interfaceStatus `json:"result"`
+}
+
+func testReadInterfaceLinkCallback(tc *readInterfaceLinkCase, t *testing.T) {
+	link, err := readInterfaceLink(context.Background(), (*tc).name, func(unusedArg2 context.Context, args ...string) ([]byte, error) {
+		return testReadInterfaceLinkCallbackCallback(tc, t, unusedArg2, args...)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if link["ifname"] != (*tc).name {
+		t.Fatalf("wrong link: %v", link)
+	}
+
+	if (*tc).name == "eth0" && link["stats64"].(map[string]any)["rx"].(map[string]any)["bytes"].(interface{ String() string }).String() != "9007199254740993" {
+		t.Fatal("counter precision lost")
+	}
+
+	if (*tc).name != "eth0" && link["linkinfo"] == nil {
+		t.Fatal("type details lost")
+	}
+}
+
+func testReadInterfaceLinkCallbackCallback(tc *readInterfaceLinkCase, t *testing.T, _ context.Context, args ...string) ([]byte, error) {
+	if !reflect.DeepEqual(args, []string{"-j", "-d", "-s", "link", "show", "dev", (*tc).name}) {
+		t.Fatalf("arguments: %v", args)
+	}
+
+	return []byte((*tc).payload), nil
 }

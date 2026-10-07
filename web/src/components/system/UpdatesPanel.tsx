@@ -1,7 +1,7 @@
+import { configLayerRequest } from '@/lib/client'
+import { Badge, Button, PreferencesGroup, Row } from 'cheval-ui'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { Badge, Button, PreferencesGroup, Row } from 'cheval-ui'
-import { configLayerRequest } from '@/lib/client'
 import { UpgradeModal } from './UpgradeModal'
 
 interface SystemVersion {

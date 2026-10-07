@@ -65,6 +65,7 @@ func buildDesiredLinks(cfg *config.Config) map[string]linkSpec {
 			if parent, ok := cfg.Interfaces[iface.Select]; ok {
 				spec.parent = parent.Device
 			}
+
 			if iface.VLAN != nil {
 				spec.vlanID = iface.VLAN.ID
 			}
@@ -162,6 +163,7 @@ func ReconcileLinks(cfg *config.Config, dryRun bool) error {
 			if err := linkDel(l); err != nil {
 				return fmt.Errorf("delete stale link %s: %w", attrs.Name, err)
 			}
+
 			delete(actual, attrs.Name)
 		}
 	}
@@ -798,13 +800,16 @@ func markManagedVXLAN(link vnl.Link, dryRun bool, setAlias func(vnl.Link, string
 	if link.Attrs().Alias == managedAlias {
 		return nil
 	}
+
 	if dryRun {
 		log.Info().Str("link", link.Attrs().Name).Msg("would mark vxlan as managed")
 		return nil
 	}
+
 	if err := setAlias(link, managedAlias); err != nil {
 		return fmt.Errorf("mark vxlan %s as managed: %w", link.Attrs().Name, err)
 	}
+
 	return nil
 }
 
@@ -1041,39 +1046,44 @@ func tunnelChanged(existing vnl.Link, t *config.Tunnel) bool {
 	}
 }
 
-// VLANs must be brought up after their lower devices. Map iteration order is
-// arbitrary, and Linux returns ENETDOWN when a VLAN's parent is still down.
 func bringUpLinks(desired map[string]linkSpec, actual map[string]vnl.Link, dryRun bool, up func(vnl.Link) error) error {
 	state := map[string]int{}
 	var visit func(string) error
-	visit = func(name string) error {
-		if state[name] == 2 {
-			return nil
-		}
-		if state[name] == 1 {
-			return fmt.Errorf("link dependency cycle at %s", name)
-		}
-		state[name] = 1
-		spec := desired[name]
-		if _, managed := desired[spec.parent]; managed && spec.parent != "" {
-			if err := visit(spec.parent); err != nil {
-				return err
-			}
-		}
-		if l, ok := actual[name]; ok && l.Attrs().Flags&net.FlagUp == 0 {
-			if dryRun {
-				log.Info().Str("link", name).Msg("would bring up")
-			} else if err := up(l); err != nil {
-				return fmt.Errorf("bring up link %s: %w", name, err)
-			}
-		}
-		state[name] = 2
-		return nil
-	}
+	visit = func(name string) error { return bringUpLinksCallback(desired, actual, dryRun, up, state, visit, name) }
 	for name := range desired {
 		if err := visit(name); err != nil {
 			return err
 		}
 	}
+
+	return nil
+}
+
+func bringUpLinksCallback(desired map[string]linkSpec, actual map[string]vnl.Link, dryRun bool, up func(vnl.Link) error, state map[string]int, visit func(string) error, name string) error {
+	if state[name] == 2 {
+		return nil
+	}
+
+	if state[name] == 1 {
+		return fmt.Errorf("link dependency cycle at %s", name)
+	}
+
+	state[name] = 1
+	spec := desired[name]
+	if _, managed := desired[spec.parent]; managed && spec.parent != "" {
+		if err := visit(spec.parent); err != nil {
+			return err
+		}
+	}
+
+	if l, ok := actual[name]; ok && l.Attrs().Flags&net.FlagUp == 0 {
+		if dryRun {
+			log.Info().Str("link", name).Msg("would bring up")
+		} else if err := up(l); err != nil {
+			return fmt.Errorf("bring up link %s: %w", name, err)
+		}
+	}
+
+	state[name] = 2
 	return nil
 }

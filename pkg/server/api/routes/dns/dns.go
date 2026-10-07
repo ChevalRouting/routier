@@ -5,11 +5,11 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/ChevalRouting/routier/pkg/config"
+	"github.com/ChevalRouting/routier/pkg/daemon/bind"
+	"github.com/ChevalRouting/routier/pkg/render"
 	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
-	"github.com/ChevalRouting/routier/pkg/daemon/bind"
-	"github.com/ChevalRouting/routier/pkg/config"
-	"github.com/ChevalRouting/routier/pkg/render"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/rs/zerolog/log"
 )
@@ -106,7 +106,6 @@ type overviewResponse struct {
 	Overview  *bind.Overview `json:"overview,omitempty" validate:"optional"`
 }
 
-// Overview godoc
 // @Summary  Resolver state, listen addresses, forward zones and authoritative zones
 // @Tags dns
 // @Produce json

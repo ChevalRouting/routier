@@ -8,7 +8,6 @@ import (
 	"github.com/ChevalRouting/routier/pkg/types"
 )
 
-// Neighbors godoc
 // @Summary  Kernel neighbor (ARP/NDP) table
 // @Tags routing
 // @Produce json

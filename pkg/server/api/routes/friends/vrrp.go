@@ -3,12 +3,12 @@ package friends
 import (
 	"net/http"
 
-	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
-	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
-	"github.com/ChevalRouting/routier/pkg/server/api/friendcache"
 	cfgpkg "github.com/ChevalRouting/routier/pkg/config"
 	friendspkg "github.com/ChevalRouting/routier/pkg/friends"
 	"github.com/ChevalRouting/routier/pkg/managers"
+	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
+	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
+	"github.com/ChevalRouting/routier/pkg/server/api/friendcache"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
@@ -25,7 +25,6 @@ func upsertVRRP(list []*cfgpkg.VRRPInstance, inst *cfgpkg.VRRPInstance) []*cfgpk
 	return append(out, inst)
 }
 
-// ConfigureVRRP godoc
 // @Summary  Configure a VRRP instance shared with a friend (applies on both sides)
 // @Tags friends
 // @Produce json

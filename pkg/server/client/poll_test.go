@@ -20,32 +20,7 @@ func pollServer(t *testing.T, sender, recipient *identity.Identity, hash string)
 		t.Fatalf("SharedKey: %v", err)
 	}
 
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/friends/poll" {
-			t.Errorf("poll requested %q, want /api/friends/poll (no double slash)", r.URL.Path)
-		}
-
-		poll := types.FriendPoll{
-			Hello:      types.FriendsHello{Hostname: "peer"},
-			Interfaces: []types.FriendInterface{{Name: "eth0", Addresses: []string{"10.0.0.1/24"}}},
-			Exports:    []types.FriendVar{{Name: "x", Value: "y"}},
-			ConfigHash: hash,
-		}
-
-		if r.URL.Query().Get("have") != hash {
-			poll.Config = json.RawMessage(`{"hostname":"peer","version":"v3.0.0"}`)
-		}
-
-		env, _ := json.Marshal(types.Response[types.FriendPoll]{Result: &poll})
-		sealed, serr := identity.SealShared(key, env)
-		if serr != nil {
-			http.Error(w, serr.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		w.Header().Set("Content-Type", types.SharedSealedContentType)
-		w.Write(sealed)
-	}))
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { pollServerCallback(t, hash, &key, w, r) }))
 }
 
 func TestPollDecryptsAndGatesConfig(t *testing.T) {
@@ -94,4 +69,31 @@ func TestPollRejectsSharedResponseWithoutKey(t *testing.T) {
 	if _, err := c.Poll(context.Background(), ""); err == nil {
 		t.Fatal("expected error when a shared-sealed response arrives without a shared key")
 	}
+}
+
+func pollServerCallback(t *testing.T, hash string, key *[32]byte, w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/api/friends/poll" {
+		t.Errorf("poll requested %q, want /api/friends/poll (no double slash)", r.URL.Path)
+	}
+
+	poll := types.FriendPoll{
+		Hello:      types.FriendsHello{Hostname: "peer"},
+		Interfaces: []types.FriendInterface{{Name: "eth0", Addresses: []string{"10.0.0.1/24"}}},
+		Exports:    []types.FriendVar{{Name: "x", Value: "y"}},
+		ConfigHash: hash,
+	}
+
+	if r.URL.Query().Get("have") != hash {
+		poll.Config = json.RawMessage(`{"hostname":"peer","version":"v3.0.0"}`)
+	}
+
+	env, _ := json.Marshal(types.Response[types.FriendPoll]{Result: &poll})
+	sealed, serr := identity.SealShared((*key), env)
+	if serr != nil {
+		http.Error(w, serr.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", types.SharedSealedContentType)
+	_, _ = w.Write(sealed)
 }

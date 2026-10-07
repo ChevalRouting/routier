@@ -1,7 +1,14 @@
-import { useEffect, useMemo, useState } from 'react'
 import type { DhcpLeaseView, TypesNeighbor } from '@/api'
-import { api } from '@/lib/client'
 import { AutocompleteInput, type AutocompleteOption } from '@/components/ui/AutocompleteInput'
+import { api } from '@/lib/client'
+import { useEffect, useMemo, useState } from 'react'
+
+type KnownDeviceSelectShape = {
+  value: string
+  devices: KnownDevice[]
+  disabled?: boolean
+  onChange: (value: string) => void
+}
 
 export interface KnownDevice {
   address: string
@@ -23,12 +30,7 @@ export function useKnownDevices(): KnownDevice[] {
   return useMemo(() => mergeDevices(leases, neighbors), [leases, neighbors])
 }
 
-export function KnownDeviceSelect({ value, devices, disabled, onChange }: {
-  value: string
-  devices: KnownDevice[]
-  disabled?: boolean
-  onChange: (value: string) => void
-}) {
+export function KnownDeviceSelect({ value, devices, disabled, onChange }: KnownDeviceSelectShape) {
   const options: AutocompleteOption[] = devices.map((device) => ({
     value: device.address,
     label: device.hostname || device.address,

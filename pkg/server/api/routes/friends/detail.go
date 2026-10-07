@@ -3,17 +3,16 @@ package friends
 import (
 	"net/http"
 
-	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
-	"github.com/ChevalRouting/routier/pkg/server/api/friendcache"
 	cfgpkg "github.com/ChevalRouting/routier/pkg/config"
 	friendspkg "github.com/ChevalRouting/routier/pkg/friends"
 	"github.com/ChevalRouting/routier/pkg/render"
+	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
+	"github.com/ChevalRouting/routier/pkg/server/api/friendcache"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
 )
 
-// RemoteConfig godoc
 // @Summary  Fetch a friend's live config (falls back to cache when down)
 // @Tags     friends
 // @Produce  json
@@ -55,7 +54,6 @@ func RemoteConfig(w http.ResponseWriter, r *http.Request) {
 	types.OK(w, remote)
 }
 
-// Cache godoc
 // @Summary  Cached state we hold for a friend (status, interfaces, config)
 // @Tags     friends
 // @Produce  json
@@ -68,7 +66,6 @@ func Cache(w http.ResponseWriter, r *http.Request) {
 	types.OK(w, friendcache.CacheState(name))
 }
 
-// NftablesImport godoc
 // @Summary  nftables variables imported from a friend
 // @Tags     friends
 // @Produce  json

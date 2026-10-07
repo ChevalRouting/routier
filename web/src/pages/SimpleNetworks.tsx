@@ -1,12 +1,12 @@
-import { useEffect, useState } from 'react'
-import { toast } from 'sonner'
-import { PageHeader, SaveButton, Spinner } from 'cheval-ui'
+import type { TypesSystemNic as SystemNic } from '@/api'
+import { DhcpLeases } from '@/components/monitor/DhcpPanel'
+import { NetworkEditor } from '@/components/simple/NetworkEditor'
+import type { Network } from '@/components/simple/types'
 import { api } from '@/lib/client'
 import { useFetch } from '@/lib/useFetch'
-import type { Network } from '@/components/simple/types'
-import type { TypesSystemNic as SystemNic } from '@/api'
-import { NetworkEditor } from '@/components/simple/NetworkEditor'
-import { DhcpLeases } from '@/components/monitor/DhcpPanel'
+import { PageHeader, SaveButton, Spinner } from 'cheval-ui'
+import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 
 export default function SimpleNetworks() {
   const { data, isLoading, reload } = useFetch<Network[]>(() =>

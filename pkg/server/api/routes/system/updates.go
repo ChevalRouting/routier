@@ -6,17 +6,16 @@ import (
 	"net/http"
 	"time"
 
+	webdb "github.com/ChevalRouting/routier/pkg/db"
+	"github.com/ChevalRouting/routier/pkg/host/updates"
 	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	"github.com/ChevalRouting/routier/pkg/server/api/requests"
-	webdb "github.com/ChevalRouting/routier/pkg/db"
 	"github.com/ChevalRouting/routier/pkg/types"
-	"github.com/ChevalRouting/routier/pkg/host/updates"
 	"github.com/rs/zerolog/log"
 )
 
 const updatesCacheTTL = 30 * time.Minute
 
-// Updates godoc
 // @Summary  List available package upgrades
 // @Tags system
 // @Produce json

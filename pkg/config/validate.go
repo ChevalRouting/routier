@@ -332,22 +332,27 @@ func validateMonitoring(cfg *Config, add addfunc) {
 	if cfg.Monitoring == nil {
 		return
 	}
+
 	seen := map[string]bool{}
 	for index, probe := range cfg.Monitoring.Probes {
 		path := fmt.Sprintf("monitoring.probes[%d]", index)
 		if strings.TrimSpace(probe.Name) == "" {
 			add("%s.name is required", path)
 		}
+
 		if seen[probe.Name] {
 			add("%s.name %q is duplicated", path, probe.Name)
 		}
+
 		seen[probe.Name] = true
 		if !probeTargetPattern.MatchString(probe.Target) {
 			add("%s.target must be an IP address or hostname", path)
 		}
+
 		if probe.Interval != 0 && probe.Interval < 60 {
 			add("%s.interval must be at least 60 seconds", path)
 		}
+
 		if probe.Timeout != 0 && (probe.Timeout < 100 || probe.Timeout > 55000) {
 			add("%s.timeout must be between 100 and 55000 milliseconds", path)
 		}
@@ -1787,7 +1792,18 @@ func validateDNSRecords(z DNSZone, path string, add addfunc) {
 
 	for _, owner := range owners {
 		types := byOwner[owner]
-		if len(types) > 1 && slices.Contains(types, "CNAME") {
+		cnameCount := 0
+		for _, recordType := range types {
+			if recordType == "CNAME" {
+				cnameCount++
+			}
+		}
+
+		if cnameCount > 1 {
+			add("%s: owner %q has multiple CNAME records; only one CNAME target is allowed per owner", path, owner)
+		}
+
+		if cnameCount > 0 && len(types) > cnameCount {
 			add("%s: owner %q has a CNAME alongside other records", path, owner)
 		}
 	}

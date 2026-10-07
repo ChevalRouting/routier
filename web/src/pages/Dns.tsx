@@ -1,30 +1,38 @@
-import { useEffect, useState } from 'react'
-import { api } from '@/lib/client'
-import { useFetch } from '@/lib/useFetch'
-import { usePageSave } from '@/lib/usePageSave'
-import { useTabState } from 'cheval-ui'
-import { SaveButton } from 'cheval-ui'
-import { Spinner } from 'cheval-ui'
-import { PageHeader } from 'cheval-ui'
-import { SectionNav } from 'cheval-ui'
+import { DdnsPanel } from '@/components/monitor/DdnsPanel'
 import { DnsPanel } from '@/components/monitor/DnsPanel'
 import { DnsQueriesPanel } from '@/components/monitor/DnsQueriesPanel'
-import { DdnsPanel } from '@/components/monitor/DdnsPanel'
+import { api } from '@/lib/client'
+import { useDataRefresh } from '@/lib/dataVersion'
+import { useFetch } from '@/lib/useFetch'
+import { usePageSave } from '@/lib/usePageSave'
 import {
-  ResolverSettings, CacheSettings, ZoneEditor,
+  CacheSettings,
+  ResolverSettings,
+  ZoneEditor,
   type DnsServerData, type IfaceData,
 } from '@/pages/DnsConfig'
+import { PageHeader, SaveButton, SectionNav, Spinner, useTabState } from 'cheval-ui'
+import { useEffect, useState } from 'react'
+
+type DnsPageShape2 = { vrrp?: VrrpShape2[] }
+
+type VrrpShape2 = { interface: string; vips?: string[] }
+
+type DnsPageShape = { vrrp?: VrrpShape[] }
+
+type VrrpShape = { interface: string; vips?: string[] }
 
 const ADD_ZONE = '__add_zone__'
 
 export default function DnsPage() {
-  const { data, isLoading } = useFetch<DnsServerData | null>(() => api.apiConfigSectionGet({ section: 'dns_server' }) as Promise<DnsServerData | null>)
+  const { data, isLoading, reload } = useFetch<DnsServerData | null>(() => api.apiConfigSectionGet({ section: 'dns_server' }) as Promise<DnsServerData | null>)
   const { data: ifaces } = useFetch<Record<string, IfaceData>>(() => api.apiConfigSectionGet({ section: 'interfaces' }) as Promise<Record<string, IfaceData>>)
-  const { data: ha } = useFetch<{ vrrp?: { interface: string; vips?: string[] }[] }>(() => api.apiConfigSectionGet({ section: 'ha' }) as Promise<{ vrrp?: { interface: string; vips?: string[] }[] }>)
+  const { data: ha } = useFetch<DnsPageShape2>(() => api.apiConfigSectionGet({ section: 'ha' }) as Promise<DnsPageShape>)
   const [cfg, setCfg] = useState<DnsServerData>({})
   const [initialized, setInitialized] = useState(false)
   const [section, setSection] = useTabState<string>('dns', 'overview')
   const { isDirty, markDirty, save, saving, reset } = usePageSave('dns_server')
+  useDataRefresh(() => setInitialized(false))
 
   useEffect(() => {
     if (!isLoading && !initialized) {
@@ -79,11 +87,13 @@ export default function DnsPage() {
     setSection(key)
   }
 
+  const handleCancel = () => { setInitialized(false); reset(); reload(true) }
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="DNS"
-        action={<SaveButton isDirty={isDirty} saving={saving} onClick={() => save(cfg)} onCancel={() => { setCfg(data ?? {}); reset() }} />}
+        action={<SaveButton isDirty={isDirty} saving={saving} onClick={() => save(cfg)} onCancel={handleCancel} />}
       />
       <SectionNav items={items} active={active} onChange={onChange}>
         {active === 'overview' && <DnsPanel />}

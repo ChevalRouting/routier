@@ -207,12 +207,7 @@ routing:
 	}
 
 	for name, yaml := range cases {
-		t.Run(name, func(t *testing.T) {
-			msg := validateErr(t, yaml)
-			if !strings.Contains(msg, "duplicate seq") {
-				t.Fatalf("expected duplicate seq error, got: %q", msg)
-			}
-		})
+		t.Run(name, func(t *testing.T) { testValidateDuplicateSeqCallback(yaml, t) })
 	}
 }
 
@@ -423,16 +418,7 @@ interfaces:
 	}
 
 	for name, yaml := range cases {
-		t.Run(name, func(t *testing.T) {
-			got := validateErr(t, yaml)
-			if got == "" {
-				t.Fatal("expected validation error")
-			}
-
-			if !strings.Contains(got, "reserved kernel device name") {
-				t.Fatalf("expected reserved-name error, got %q", got)
-			}
-		})
+		t.Run(name, func(t *testing.T) { testValidateRejectsReservedDeviceNamesCallback(yaml, t) })
 	}
 }
 
@@ -488,7 +474,7 @@ interfaces:
 }
 
 func TestValidateVXLANExternalRejected(t *testing.T) {
-	cases := map[string]struct{ yaml, want string }{
+	cases := map[string]validateVXLANExternalRejectedCase{
 		"external with vni": {yaml: `version: v3.0.0
 hostname: gw
 interfaces:
@@ -529,12 +515,7 @@ interfaces:
 	}
 
 	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			msg := validateErr(t, tc.yaml)
-			if !strings.Contains(msg, tc.want) {
-				t.Fatalf("expected error containing %q, got: %s", tc.want, msg)
-			}
-		})
+		t.Run(name, func(t *testing.T) { testValidateVXLANExternalRejectedCallback(&tc, t) })
 	}
 }
 
@@ -583,7 +564,7 @@ interfaces:
 }
 
 func TestValidateBondRejected(t *testing.T) {
-	cases := map[string]struct{ yaml, want string }{
+	cases := map[string]validateBondRejectedCase{
 		"unknown mode": {yaml: `version: v3.0.0
 hostname: gw
 interfaces:
@@ -664,12 +645,7 @@ interfaces:
 	}
 
 	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			msg := validateErr(t, tc.yaml)
-			if !strings.Contains(msg, tc.want) {
-				t.Fatalf("expected error containing %q, got: %s", tc.want, msg)
-			}
-		})
+		t.Run(name, func(t *testing.T) { testValidateBondRejectedCallback(&tc, t) })
 	}
 }
 
@@ -761,7 +737,7 @@ routing:
 		t.Fatalf("vrf bgp referencing a global route-map should be valid, got: %s", msg)
 	}
 
-	cases := map[string]struct{ yaml, want string }{
+	cases := map[string]validateBGPVPNRouteMapsCase{
 		"missing route map": {yaml: `version: v3.0.0
 hostname: gw
 routing:
@@ -789,12 +765,7 @@ routing:
 	}
 
 	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			msg := validateErr(t, tc.yaml)
-			if !strings.Contains(msg, tc.want) {
-				t.Fatalf("expected error containing %q, got: %s", tc.want, msg)
-			}
-		})
+		t.Run(name, func(t *testing.T) { testValidateBGPVPNRouteMapsCallback(&tc, t) })
 	}
 }
 
@@ -814,5 +785,50 @@ interfaces:
 `
 	if err := validateErr(t, yaml); err != "" {
 		t.Fatalf("valid device names rejected: %s", err)
+	}
+}
+
+type validateVXLANExternalRejectedCase struct{ yaml, want string }
+
+type validateBondRejectedCase struct{ yaml, want string }
+
+type validateBGPVPNRouteMapsCase struct{ yaml, want string }
+
+func testValidateDuplicateSeqCallback(yaml string, t *testing.T) {
+	msg := validateErr(t, yaml)
+	if !strings.Contains(msg, "duplicate seq") {
+		t.Fatalf("expected duplicate seq error, got: %q", msg)
+	}
+}
+
+func testValidateRejectsReservedDeviceNamesCallback(yaml string, t *testing.T) {
+	got := validateErr(t, yaml)
+	if got == "" {
+		t.Fatal("expected validation error")
+	}
+
+	if !strings.Contains(got, "reserved kernel device name") {
+		t.Fatalf("expected reserved-name error, got %q", got)
+	}
+}
+
+func testValidateVXLANExternalRejectedCallback(tc *validateVXLANExternalRejectedCase, t *testing.T) {
+	msg := validateErr(t, (*tc).yaml)
+	if !strings.Contains(msg, (*tc).want) {
+		t.Fatalf("expected error containing %q, got: %s", (*tc).want, msg)
+	}
+}
+
+func testValidateBondRejectedCallback(tc *validateBondRejectedCase, t *testing.T) {
+	msg := validateErr(t, (*tc).yaml)
+	if !strings.Contains(msg, (*tc).want) {
+		t.Fatalf("expected error containing %q, got: %s", (*tc).want, msg)
+	}
+}
+
+func testValidateBGPVPNRouteMapsCallback(tc *validateBGPVPNRouteMapsCase, t *testing.T) {
+	msg := validateErr(t, (*tc).yaml)
+	if !strings.Contains(msg, (*tc).want) {
+		t.Fatalf("expected error containing %q, got: %s", (*tc).want, msg)
 	}
 }

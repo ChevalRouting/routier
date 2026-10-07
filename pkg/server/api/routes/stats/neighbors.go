@@ -3,12 +3,11 @@ package stats
 import (
 	"net/http"
 
-	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	webdb "github.com/ChevalRouting/routier/pkg/db"
+	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	"github.com/ChevalRouting/routier/pkg/types"
 )
 
-// Neighbors godoc
 // @Summary  Latest stored neighbor stats
 // @Tags stats
 // @Produce json

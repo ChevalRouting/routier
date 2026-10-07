@@ -1,6 +1,8 @@
 import { activeBaseUrl } from './instance'
 import { getToken } from './utils'
 
+type RecShape = { name: string; type: string; value?: string }
+
 export interface DnsServiceState {
   service: string
   running: boolean
@@ -146,7 +148,7 @@ export function dnsDdns(): Promise<DnsDdnsZoneView[]> {
   return request<DnsDdnsZoneView[]>('/api/dns/ddns')
 }
 
-export function dnsDdnsDelete(zone: string, rec: { name: string; type: string; value?: string }): Promise<string> {
+export function dnsDdnsDelete(zone: string, rec: RecShape): Promise<string> {
   return request<string>(`/api/dns/ddns/${encodeURIComponent(zone)}/records`, {
     method: 'DELETE',
     body: JSON.stringify(rec),

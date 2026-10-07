@@ -15,17 +15,19 @@ func prune(ctx context.Context, db *webdb.DB) {
 }
 
 func StartCleanup(ctx context.Context, db *webdb.DB) {
-	go func() {
-		prune(ctx, db)
-		ticker := time.NewTicker(time.Hour)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				prune(ctx, db)
-			}
+	go func() { startCleanupCallback(ctx, db) }()
+}
+
+func startCleanupCallback(ctx context.Context, db *webdb.DB) {
+	prune(ctx, db)
+	ticker := time.NewTicker(time.Hour)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			prune(ctx, db)
 		}
-	}()
+	}
 }

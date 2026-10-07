@@ -66,21 +66,27 @@ func TestShowNeighbors(t *testing.T) {
 	if eth0.Protocol != "LLDP" {
 		t.Errorf("eth0 protocol = %q, want LLDP", eth0.Protocol)
 	}
+
 	if eth0.ChassisName != "core-sw01" {
 		t.Errorf("eth0 chassis name = %q, want core-sw01", eth0.ChassisName)
 	}
+
 	if eth0.ChassisID != "00:11:22:33:44:55" {
 		t.Errorf("eth0 chassis id = %q", eth0.ChassisID)
 	}
+
 	if eth0.MgmtIP != "10.0.0.1" {
 		t.Errorf("eth0 mgmt ip = %q, want 10.0.0.1", eth0.MgmtIP)
 	}
+
 	if eth0.PortID != "GigabitEthernet1/0/24" {
 		t.Errorf("eth0 port id = %q", eth0.PortID)
 	}
+
 	if eth0.Capabilities != "Bridge, Router" {
 		t.Errorf("eth0 capabilities = %q, want \"Bridge, Router\"", eth0.Capabilities)
 	}
+
 	if eth0.VLAN != "10" {
 		t.Errorf("eth0 vlan = %q, want 10", eth0.VLAN)
 	}
@@ -89,9 +95,11 @@ func TestShowNeighbors(t *testing.T) {
 	if eth1.Protocol != "CDP" {
 		t.Errorf("eth1 protocol = %q, want CDP", eth1.Protocol)
 	}
+
 	if eth1.MgmtIP != "192.168.1.2" {
 		t.Errorf("eth1 mgmt ip = %q, want 192.168.1.2", eth1.MgmtIP)
 	}
+
 	if eth1.PortID != "Fa0/1" {
 		t.Errorf("eth1 port id = %q, want Fa0/1", eth1.PortID)
 	}

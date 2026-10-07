@@ -8,7 +8,6 @@ import (
 	"github.com/ChevalRouting/routier/pkg/types"
 )
 
-// LLDP godoc
 // @Summary  LLDP/CDP link-layer neighbors
 // @Tags routing
 // @Produce json

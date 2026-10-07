@@ -10,7 +10,6 @@ import (
 	"github.com/ChevalRouting/routier/pkg/types"
 )
 
-// Get godoc
 // @Summary  Live system / interface / routing stats
 // @Tags stats
 // @Produce json

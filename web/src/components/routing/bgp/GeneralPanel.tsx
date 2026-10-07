@@ -1,24 +1,24 @@
-import { Input } from 'cheval-ui'
-import { NumberInput } from 'cheval-ui'
-import { Label } from 'cheval-ui'
-import { Separator } from 'cheval-ui'
-import { Switch } from 'cheval-ui'
 import { ExtraDirectives } from '@/components/ExtraDirectives'
+import { Input, Label, NumberInput, Separator, Switch } from 'cheval-ui'
 import { BGPConfig } from '../types'
 
-export function BGPGeneralPanel({
-  bgp, setBGP, onDirty,
-}: {
+type BGPGeneralPanelShape = {
   bgp: BGPConfig
   setBGP: (v: BGPConfig) => void
   onDirty: () => void
-}) {
-  const upd = (patch: Partial<BGPConfig>) => { setBGP({ ...bgp, ...patch }); onDirty() }
-  const boolOpts: {
+}
+
+type BoolOptsShape = {
     key: 'no_ebgp_requires_policy' | 'no_default_ipv4_unicast' | 'no_import_check' | 'no_rib'
     label: string
     desc: string
-  }[] = [
+  }
+
+export function BGPGeneralPanel({
+  bgp, setBGP, onDirty,
+}: BGPGeneralPanelShape) {
+  const upd = (patch: Partial<BGPConfig>) => { setBGP({ ...bgp, ...patch }); onDirty() }
+  const boolOpts: BoolOptsShape[] = [
     { key: 'no_ebgp_requires_policy', label: 'No eBGP requires policy', desc: 'Allow eBGP sessions without explicit route policies' },
     { key: 'no_default_ipv4_unicast', label: 'No default IPv4 unicast', desc: 'Disable IPv4 unicast as the default address family' },
     { key: 'no_import_check', label: 'No import check', desc: 'Do not check that the nexthop is reachable' },

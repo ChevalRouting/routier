@@ -19,9 +19,11 @@ func TestAPIProjectsSimpleLayer(t *testing.T) {
 	if projection["layer"] != "simple" {
 		t.Fatalf("layer = %v", projection["layer"])
 	}
+
 	if _, ok := projection["sections"].(map[string]any); !ok {
 		t.Fatalf("sections = %#v", projection["sections"])
 	}
+
 	if _, ok := projection["losses"].([]any); !ok {
 		t.Fatalf("losses = %#v", projection["losses"])
 	}
@@ -72,6 +74,7 @@ func TestAPIReadsCommittedConfigOutsideStagingLayer(t *testing.T) {
 	if status != http.StatusOK {
 		t.Fatalf("get advanced hostname %d: %s", status, raw)
 	}
+
 	if hostname := testkit.DecodeData[string](t, raw); hostname != "rtr1" {
 		t.Fatalf("advanced hostname = %q, want committed hostname", hostname)
 	}
@@ -80,6 +83,7 @@ func TestAPIReadsCommittedConfigOutsideStagingLayer(t *testing.T) {
 	if status != http.StatusOK {
 		t.Fatalf("get simple system %d: %s", status, raw)
 	}
+
 	system := testkit.DecodeData[map[string]any](t, raw)
 	if system["hostname"] != "simple-router" {
 		t.Fatalf("simple hostname = %v", system["hostname"])

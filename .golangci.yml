@@ -16,42 +16,30 @@ linters:
     - misspell
     - unconvert
     - nolintlint
+    - wsl_v5
   settings:
     errcheck:
-      exclude-functions:
-        - (net/http.ResponseWriter).Write
-        - os.Remove
-        - os.MkdirAll
-        - fmt.Fprint
-        - fmt.Fprintf
-        - fmt.Fprintln
-        - io.WriteString
-        - (io.Closer).Close
-        - (*os.File).Close
-        - (net.Conn).Close
-        - (*database/sql.DB).Close
-        - (*database/sql.Stmt).Close
-        - (*database/sql.Rows).Close
-        - (*github.com/spf13/cobra.Command).MarkFlagRequired
-        - (*database/sql.Tx).Rollback
+      check-blank: false
+      disable-default-exclusions: true
+    nolintlint:
+      require-specific: true
+      require-explanation: false
+    wsl_v5:
+      default: none
+      enable:
+        - after-block
+        - err
     staticcheck:
       checks:
         - all
         - -ST1000
         - -ST1003
+        - -ST1020
+        - -ST1021
+        - -ST1022
         - -QF1008
   exclusions:
     generated: lax
-    rules:
-      - path: _test\.go
-        linters:
-          - errcheck
-      - path: cmd/routier-mock/
-        linters:
-          - errcheck
-      - path: tests/
-        linters:
-          - errcheck
     paths:
       - pkg/server/client/generated
       - pkg/server/api/docs

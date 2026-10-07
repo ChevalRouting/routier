@@ -27,6 +27,7 @@ import {
  * @interface TypesApplyResult
  */
 export interface TypesApplyResult {
+    logID?: string;
     /**
      * 
      * @type {string}
@@ -77,6 +78,7 @@ export function TypesApplyResultFromJSONTyped(json: any, ignoreDiscriminator: bo
     }
     return {
         
+        'logID': json['logID'] == null ? undefined : json['logID'],
         'bundleID': json['bundleID'] == null ? undefined : json['bundleID'],
         'errors': json['errors'] == null ? undefined : ((json['errors'] as Array<any>).map(TypesArtifactErrorFromJSON)),
         'snapID': json['snapID'] == null ? undefined : json['snapID'],
@@ -96,6 +98,7 @@ export function TypesApplyResultToJSONTyped(value?: TypesApplyResult | null, ign
 
     return {
         
+        'logID': value['logID'],
         'bundleID': value['bundleID'],
         'errors': value['errors'] == null ? undefined : ((value['errors'] as Array<any>).map(TypesArtifactErrorToJSON)),
         'snapID': value['snapID'],

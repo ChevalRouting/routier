@@ -12,7 +12,8 @@ func TestInitDBEnablesIncrementalAutoVacuum(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
+
+	defer func(action func() error) { _ = action() }(db.Close)
 
 	var mode int
 	if err := db.QueryRow(`PRAGMA auto_vacuum`).Scan(&mode); err != nil {
@@ -36,13 +37,14 @@ func TestInitDBConvertsExistingDatabase(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	legacy.Close()
+	_ = legacy.Close()
 
 	db, err := InitDB(t.Context(), path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
+
+	defer func(action func() error) { _ = action() }(db.Close)
 
 	var mode int
 	if err := db.QueryRow(`PRAGMA auto_vacuum`).Scan(&mode); err != nil {

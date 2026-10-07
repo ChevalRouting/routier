@@ -1,20 +1,26 @@
+import { api } from '@/lib/client'
+import { checkCIDR } from '@/lib/validate'
+import { Badge, Button, CopyButton, Input, Label, NumberInput, Segmented, TagInput } from 'cheval-ui'
+import { Download, Eye, EyeOff, Shuffle } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { api } from '@/lib/client'
-import { Button } from 'cheval-ui'
-import { Input } from 'cheval-ui'
-import { Label } from 'cheval-ui'
-import { Badge } from 'cheval-ui'
-import { TagInput } from 'cheval-ui'
-import { NumberInput } from 'cheval-ui'
-import { Eye, EyeOff, Shuffle, Download } from 'lucide-react'
-import { CopyButton } from 'cheval-ui'
-import { checkCIDR } from '@/lib/validate'
-import { Segmented } from 'cheval-ui'
-import { WgPeer, truncateKey, KeyField } from './shared'
 import { ExportModal } from './ExportModal'
+import { KeyField, WgPeer, truncateKey } from './shared'
 
-export function PeerSummary({ peer }: { peer: WgPeer }) {
+type PeerSummaryShape = { peer: WgPeer }
+
+type PeerActionsShape = {
+  peer: WgPeer
+  serverPubKey: string
+  serverPort: number
+  serverAddresses: string[]
+  ifaceName: string
+  onChange: (updated: WgPeer) => void
+}
+
+type PeerBodyShape = { peer: WgPeer; onChange: (updated: WgPeer) => void }
+
+export function PeerSummary({ peer }: PeerSummaryShape) {
   return (
     <div className="flex min-w-0 flex-1 items-center gap-2">
       <span className="min-w-0 flex-1 truncate text-sm font-medium">
@@ -35,14 +41,7 @@ export function PeerSummary({ peer }: { peer: WgPeer }) {
   )
 }
 
-export function PeerActions({ peer, serverPubKey, serverPort, serverAddresses, ifaceName, onChange }: {
-  peer: WgPeer
-  serverPubKey: string
-  serverPort: number
-  serverAddresses: string[]
-  ifaceName: string
-  onChange: (updated: WgPeer) => void
-}) {
+export function PeerActions({ peer, serverPubKey, serverPort, serverAddresses, ifaceName, onChange }: PeerActionsShape) {
   const [showExport, setShowExport] = useState(false)
 
   return (
@@ -76,7 +75,7 @@ export function PeerActions({ peer, serverPubKey, serverPort, serverAddresses, i
   )
 }
 
-export function PeerBody({ peer, onChange }: { peer: WgPeer; onChange: (updated: WgPeer) => void }) {
+export function PeerBody({ peer, onChange }: PeerBodyShape) {
   const [showPsk, setShowPsk] = useState(false)
   const [pskMode, setPskMode] = useState<'inline' | 'file'>(peer.preshared_key_file ? 'file' : 'inline')
 

@@ -20,8 +20,8 @@ func execRunner(ctx context.Context, name string, args ...string) ([]byte, error
 		return nil, err
 	}
 
-	defer os.Remove(f.Name())
-	defer f.Close()
+	defer func(path string) { _ = os.Remove(path) }(f.Name())
+	defer func(action func() error) { _ = action() }(f.Close)
 
 	cmd.Stdout = f
 	cmd.Stderr = f

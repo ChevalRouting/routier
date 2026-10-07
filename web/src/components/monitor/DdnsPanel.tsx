@@ -1,11 +1,10 @@
-import { useEffect, useState } from 'react'
-import { RefreshCw, Trash2 } from 'lucide-react'
-import { toast } from 'sonner'
-import { Button } from 'cheval-ui'
-import { Card, CardHeader, CardTitle, CardContent } from 'cheval-ui'
-import { Spinner } from 'cheval-ui'
-import { EmptyState } from 'cheval-ui'
 import { dnsDdns, dnsDdnsDelete, type DnsDdnsZoneView } from '@/lib/dnsApi'
+import { Button, Card, CardContent, CardHeader, CardTitle, EmptyState, Spinner } from 'cheval-ui'
+import { RefreshCw, Trash2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
+
+type RecShape = { name: string; type: string; value: string }
 
 export function DdnsPanel() {
   const [zones, setZones] = useState<DnsDdnsZoneView[] | null>(null)
@@ -30,7 +29,7 @@ export function DdnsPanel() {
     return () => clearInterval(id)
   }, [])
 
-  const remove = async (zone: string, rec: { name: string; type: string; value: string }) => {
+  const remove = async (zone: string, rec: RecShape) => {
     if (!window.confirm(`Delete ${rec.type} record ${rec.name} → ${rec.value}?`)) return
 
     const key = `${zone}|${rec.name}|${rec.type}|${rec.value}`
@@ -91,7 +90,7 @@ export function DdnsPanel() {
                         <td className="py-1 pr-3 font-mono">{r.name}</td>
                         <td className="py-1 pr-3 font-mono">{r.type}</td>
                         <td className="py-1 pr-3 font-mono">{r.value}</td>
-                        <td className="py-1 pr-3 text-muted-foreground">{r.ttl ?? '—'}</td>
+                        <td className="py-1 pr-3 text-muted-foreground">{r.ttl ?? '-'}</td>
                         <td className="py-1 text-right">
                           <Button
                             variant="ghost"

@@ -71,7 +71,7 @@ func shadowHash(name string) (string, error) {
 		return "", err
 	}
 
-	defer f.Close()
+	defer func(action func() error) { _ = action() }(f.Close)
 	s := bufio.NewScanner(f)
 	for s.Scan() {
 		fields := strings.SplitN(s.Text(), ":", 3)
@@ -163,7 +163,7 @@ func managedUsers() ([]string, error) {
 		return nil, err
 	}
 
-	defer f.Close()
+	defer func(action func() error) { _ = action() }(f.Close)
 
 	var names []string
 	scanner := bufio.NewScanner(f)
@@ -210,7 +210,7 @@ func userInGroup(user, group string) bool {
 		return false
 	}
 
-	defer f.Close()
+	defer func(action func() error) { _ = action() }(f.Close)
 	s := bufio.NewScanner(f)
 	for s.Scan() {
 		fields := strings.SplitN(s.Text(), ":", 4)
@@ -255,6 +255,7 @@ func writeSSHKeys(name string, u *config.User, dryRun bool) error {
 	if err := os.MkdirAll(sshDir, 0700); err != nil {
 		return err
 	}
+
 	if err := os.Chmod(sshDir, 0700); err != nil {
 		return err
 	}
@@ -264,6 +265,7 @@ func writeSSHKeys(name string, u *config.User, dryRun bool) error {
 			return err
 		}
 	}
+
 	if err := os.Chmod(authFile, 0600); err != nil {
 		return err
 	}

@@ -27,10 +27,7 @@ func testClient() *Client {
 
 func TestDynamicRecordsFiltersInfraRecords(t *testing.T) {
 	restore := SetRunner(func(name string, args ...string) ([]byte, error) {
-		if name != "dig" {
-			t.Fatalf("unexpected command %q", name)
-		}
-		return []byte(axfrSample), nil
+		return testDynamicRecordsFiltersInfraRecordsCallback(t, name, args...)
 	})
 	defer restore()
 
@@ -68,17 +65,7 @@ func TestDynamicRecordsTransferFailed(t *testing.T) {
 func TestDeleteRecordScriptForAddress(t *testing.T) {
 	var script string
 	restore := SetRunner(func(name string, args ...string) ([]byte, error) {
-		if name != "nsupdate" {
-			t.Fatalf("unexpected command %q", name)
-		}
-
-		data, err := os.ReadFile(args[len(args)-1])
-		if err != nil {
-			t.Fatalf("read script: %v", err)
-		}
-		script = string(data)
-
-		return nil, nil
+		return testDeleteRecordScriptForAddressCallback(t, &script, name, args...)
 	})
 	defer restore()
 
@@ -121,4 +108,27 @@ func TestDeleteRecordRequiresKey(t *testing.T) {
 	if err := c.DeleteRecord("home.arpa", "laptop.home.arpa.", "A", "192.168.1.50"); err == nil {
 		t.Fatal("expected error without a TSIG key")
 	}
+}
+
+func testDynamicRecordsFiltersInfraRecordsCallback(t *testing.T, name string, args ...string) ([]byte, error) {
+	if name != "dig" {
+		t.Fatalf("unexpected command %q", name)
+	}
+
+	return []byte(axfrSample), nil
+}
+
+func testDeleteRecordScriptForAddressCallback(t *testing.T, script *string, name string, args ...string) ([]byte, error) {
+	if name != "nsupdate" {
+		t.Fatalf("unexpected command %q", name)
+	}
+
+	data, err := os.ReadFile(args[len(args)-1])
+	if err != nil {
+		t.Fatalf("read script: %v", err)
+	}
+
+	(*script) = string(data)
+
+	return nil, nil
 }

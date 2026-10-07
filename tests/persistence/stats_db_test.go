@@ -14,7 +14,7 @@ func TestStatsInsertAndHistory(t *testing.T) {
 		t.Fatalf("init db: %v", err)
 	}
 
-	defer db.Close()
+	defer func(action func() error) { _ = action() }(db.Close)
 
 	if err := webdb.InsertSystemStats(t.Context(), db, 1000, &types.SystemStats{CPUPercent: 12.5, MemUsed: 100, MemTotal: 200, Load1: 0.5}); err != nil {
 		t.Fatalf("insert system: %v", err)
@@ -33,7 +33,7 @@ func TestStatsInsertAndHistory(t *testing.T) {
 		t.Fatalf("system history = %+v", hist)
 	}
 
-	webdb.PruneStats(t.Context(), db, 1500)
+	_ = webdb.PruneStats(t.Context(), db, 1500)
 	if hist := webdb.SystemHistory(t.Context(), db, 0, 1); len(hist) != 1 || hist[0].TS != 2000 {
 		t.Fatalf("after prune = %+v", hist)
 	}
@@ -45,7 +45,7 @@ func TestSystemHistoryBucketAveragesMem(t *testing.T) {
 		t.Fatalf("init db: %v", err)
 	}
 
-	defer db.Close()
+	defer func(action func() error) { _ = action() }(db.Close)
 
 	mem := []uint64{100, 101, 100}
 	for i, m := range mem {
@@ -71,7 +71,7 @@ func TestStatsIfaceHistoryAndTotals(t *testing.T) {
 		t.Fatalf("init db: %v", err)
 	}
 
-	defer db.Close()
+	defer func(action func() error) { _ = action() }(db.Close)
 
 	wanRx, wanTx := 100.0, 50.0
 	lanRx, lanTx := 200.0, 80.0
@@ -109,7 +109,7 @@ func TestReplaceKernelRoutes(t *testing.T) {
 		t.Fatalf("init db: %v", err)
 	}
 
-	defer db.Close()
+	defer func(action func() error) { _ = action() }(db.Close)
 
 	first := []types.KernelRoute{{Dst: "10.0.0.0/24", Dev: "eth0", Protocol: "kernel", Family: "ipv4"}}
 	if err := webdb.ReplaceKernelRoutes(t.Context(), db, first); err != nil {

@@ -19,6 +19,7 @@ func TestZonesQueriesLiveSerialsConcurrently(t *testing.T) {
 	if elapsed := time.Since(start); elapsed >= 100*time.Millisecond {
 		t.Fatalf("zone queries ran serially: %v", elapsed)
 	}
+
 	if calls.Load() != 3 || len(got) != 3 {
 		t.Fatalf("unexpected queries=%d zones=%d", calls.Load(), len(got))
 	}

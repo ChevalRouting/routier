@@ -23,6 +23,7 @@ func TestCryptVerify(t *testing.T) {
 	if err != nil {
 		t.Fatalf("verify correct password: %v", err)
 	}
+
 	if !ok {
 		t.Fatalf("correct password rejected for %q", hash)
 	}
@@ -31,6 +32,7 @@ func TestCryptVerify(t *testing.T) {
 	if err != nil {
 		t.Fatalf("verify wrong password: %v", err)
 	}
+
 	if ok {
 		t.Fatalf("wrong password accepted for %q", hash)
 	}

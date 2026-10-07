@@ -5,15 +5,14 @@ import (
 	"io"
 	"net/http"
 
+	cfgpkg "github.com/ChevalRouting/routier/pkg/config"
 	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
-	cfgpkg "github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
 )
 
-// GetSection godoc
 // @Summary  Get one config section
 // @Tags config
 // @Produce json
@@ -94,7 +93,6 @@ func GetSection(w http.ResponseWriter, r *http.Request) {
 	types.OK(w, data)
 }
 
-// PutSection godoc
 // @Summary  Replace one config section
 // @Tags config
 // @Accept json

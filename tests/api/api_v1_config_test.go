@@ -50,7 +50,7 @@ func TestV1CanonicalConfigSessionYAML(t *testing.T) {
 		t.Fatalf("put session config: %v", err)
 	}
 
-	defer resp.Body.Close()
+	defer func(action func() error) { _ = action() }(resp.Body.Close)
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("put session config %d: %s", resp.StatusCode, body)

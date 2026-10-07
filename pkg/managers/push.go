@@ -6,8 +6,8 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/auth/identity"
+	"github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/types"
 )
 
@@ -65,7 +65,7 @@ func pushImportApply(client *http.Client, f *config.Friend, configData []byte) e
 	}
 
 	_, _ = io.Copy(io.Discard, resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("PUT config/import: HTTP %d", resp.StatusCode)
 	}
@@ -83,7 +83,7 @@ func pushImportApply(client *http.Client, f *config.Friend, configData []byte) e
 	}
 
 	_, _ = io.Copy(io.Discard, resp2.Body)
-	resp2.Body.Close()
+	_ = resp2.Body.Close()
 	if resp2.StatusCode != http.StatusOK {
 		return fmt.Errorf("apply: HTTP %d", resp2.StatusCode)
 	}

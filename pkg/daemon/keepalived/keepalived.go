@@ -25,7 +25,7 @@ type InstanceState struct {
 const dataFile = "/run/keepalived/keepalived.data"
 
 func States() map[string]*InstanceState {
-	os.Remove(dataFile)
+	_ = os.Remove(dataFile)
 	signalKeepalived()
 
 	deadline := time.Now().Add(300 * time.Millisecond)
@@ -74,7 +74,7 @@ func parseData(path string) map[string]*InstanceState {
 		return nil
 	}
 
-	defer f.Close()
+	defer func(action func() error) { _ = action() }(f.Close)
 
 	return ParseStates(f)
 }

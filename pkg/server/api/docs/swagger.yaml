@@ -2423,6 +2423,8 @@ components:
             $ref: '#/components/schemas/types.ArtifactError'
           type: array
           uniqueItems: false
+        logID:
+          type: string
         snapID:
           type: string
         status:
@@ -5054,6 +5056,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/types.Response-types_ApplyResult'
           description: OK
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.Response-types_ApplyResult'
+          description: Internal Server Error
       security:
       - BearerAuth: []
       summary: Apply the staged config

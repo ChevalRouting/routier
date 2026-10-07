@@ -1,5 +1,7 @@
 package dns
 
+import io "io"
+
 import (
 	"bufio"
 	"context"
@@ -27,7 +29,6 @@ type statsResponse struct {
 	Stats    []bind.Stat    `json:"stats,omitempty"    validate:"optional"`
 }
 
-// Stats godoc
 // @Summary  Resolver state and BIND statistics
 // @Tags dns
 // @Produce json
@@ -52,7 +53,6 @@ func Stats(w http.ResponseWriter, r *http.Request) {
 	types.OK(w, resp)
 }
 
-// QueryStream godoc
 // @Summary  Tail the named query log events (SSE)
 // @Tags dns
 // @Produce text/event-stream
@@ -66,6 +66,7 @@ func QueryStream(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Query().Get("history") == "0" {
 		count = "0"
 	}
+
 	cmd := exec.CommandContext(ctx, "tail", "-n", count, "-F", render.NamedLog)
 
 	stdout, err := cmd.StdoutPipe()
@@ -84,31 +85,13 @@ func QueryStream(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("X-Accel-Buffering", "no")
 	flusher, _ := w.(http.Flusher)
-	send := func(frame string) bool {
-		if _, err := fmt.Fprint(w, frame); err != nil {
-			return false
-		}
-		if flusher != nil {
-			flusher.Flush()
-		}
-		return true
-	}
+	send := func(frame string) bool { return queryStreamCallback(w, flusher, frame) }
 	if !send(": connected\n\n") {
 		return
 	}
+
 	lines := make(chan string)
-	go func() {
-		defer close(lines)
-		scanner := bufio.NewScanner(stdout)
-		scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
-		for scanner.Scan() {
-			select {
-			case lines <- scanner.Text():
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
+	go func() { queryStreamCallback2(ctx, stdout, lines) }()
 	heartbeat := time.NewTicker(15 * time.Second)
 	defer heartbeat.Stop()
 	for {
@@ -123,14 +106,41 @@ func QueryStream(w http.ResponseWriter, r *http.Request) {
 			if !ok {
 				return
 			}
+
 			query, ok := bind.ParseQueryLog(line)
 			if !ok {
 				continue
 			}
+
 			payload, err := json.Marshal(query)
 			if err == nil && !send(fmt.Sprintf("data: %s\n\n", payload)) {
 				return
 			}
+		}
+	}
+}
+
+func queryStreamCallback(w http.ResponseWriter, flusher http.Flusher, frame string) bool {
+	if _, err := fmt.Fprint(w, frame); err != nil {
+		return false
+	}
+
+	if flusher != nil {
+		flusher.Flush()
+	}
+
+	return true
+}
+
+func queryStreamCallback2(ctx context.Context, stdout io.ReadCloser, lines chan string) {
+	defer close(lines)
+	scanner := bufio.NewScanner(stdout)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	for scanner.Scan() {
+		select {
+		case lines <- scanner.Text():
+		case <-ctx.Done():
+			return
 		}
 	}
 }

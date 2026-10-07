@@ -6,7 +6,6 @@ import (
 	"net/http"
 )
 
-// Bonds godoc
 // @Summary Live bond link and LACP state
 // @Tags system
 // @Produce json

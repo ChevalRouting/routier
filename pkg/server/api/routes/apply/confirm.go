@@ -3,13 +3,12 @@ package apply
 import (
 	"net/http"
 
+	"github.com/ChevalRouting/routier/pkg/managers"
 	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
-	"github.com/ChevalRouting/routier/pkg/managers"
 	"github.com/ChevalRouting/routier/pkg/types"
 )
 
-// Confirm godoc
 // @Summary  Confirm (keep) a pending apply
 // @Tags apply
 // @Produce json

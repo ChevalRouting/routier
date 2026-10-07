@@ -1,15 +1,10 @@
-import { useState } from 'react'
-import { toast } from 'sonner'
+import { SectionCard, orderedSections } from '@/components/ConfigView'
 import { api } from '@/lib/client'
 import { useFetch } from '@/lib/useFetch'
-import { Card, CardContent } from 'cheval-ui'
-import { Button } from 'cheval-ui'
-import { RefreshCw, Copy, Check, Pencil } from 'lucide-react'
-import { SectionCard, orderedSections } from '@/components/ConfigView'
-import { cn } from 'cheval-ui'
-import { PageHeader } from 'cheval-ui'
-import { Spinner } from 'cheval-ui'
-import { useClipboard } from 'cheval-ui'
+import { Textarea, Button, Card, CardContent, PageHeader, Spinner, cn, useClipboard } from 'cheval-ui'
+import { Check, Copy, Pencil, RefreshCw } from 'lucide-react'
+import { useState } from 'react'
+import { toast } from 'sonner'
 
 function toYAML(val: unknown, indent = 0): string {
   const pad = '  '.repeat(indent)
@@ -43,7 +38,6 @@ function toYAML(val: unknown, indent = 0): string {
   }
   return String(val)
 }
-
 
 export default function ConfigBrowser() {
   const { data, isLoading, reload } = useFetch<Record<string, unknown>>(
@@ -121,7 +115,7 @@ export default function ConfigBrowser() {
             {copied ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
             {copied ? 'Copied' : 'Copy YAML'}
           </Button>
-          <Button variant="outline" size="icon" onClick={reload} title="Refresh">
+          <Button variant="outline" size="icon" onClick={() => reload()} title="Refresh">
             <RefreshCw className="h-4 w-4" />
           </Button>
         </div>
@@ -144,7 +138,7 @@ export default function ConfigBrowser() {
           </div>
           <CardContent className="p-0">
             {editing ? (
-              <textarea
+              <Textarea
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 spellCheck={false}

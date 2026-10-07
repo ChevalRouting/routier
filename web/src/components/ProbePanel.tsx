@@ -1,9 +1,13 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Activity } from 'lucide-react'
+import { api, configLayerRequest } from '@/lib/client'
 import { AccordionList, Badge, Button, Card, CardContent, CardHeader, CardTitle } from 'cheval-ui'
 import { TimeSeriesChart } from 'cheval-ui/charts'
-import { api, configLayerRequest } from '@/lib/client'
+import { Activity } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+
+type ProbesShape2 = { probes?: Record<string, ProbePoint[]> }
+
+type ProbesShape = { probes?: Record<string, ProbePoint[]> }
 
 interface PingProbe { name: string; target: string; interval?: number; timeout?: number }
 interface Monitoring { collection?: Record<string, number>; probes?: PingProbe[] }
@@ -18,8 +22,8 @@ export function ProbePanel() {
     api.apiStatsHistoryGet({ minutes: 1440, series: 'probes' }),
     api.apiStatsHistoryGet({ minutes: 60, series: 'probes' }),
   ]).then(([day, hour]) => {
-    setHistory((day as unknown as { probes?: Record<string, ProbePoint[]> }).probes ?? {})
-    const recent = (hour as unknown as { probes?: Record<string, ProbePoint[]> }).probes ?? {}
+    setHistory((day as unknown as ProbesShape2).probes ?? {})
+    const recent = (hour as unknown as ProbesShape).probes ?? {}
     setLatest(Object.fromEntries(Object.entries(recent).flatMap(([name, points]) => points.length ? [[name, points[points.length - 1]]] : [])))
   }).catch(() => { setHistory({}); setLatest({}) })
 

@@ -19,49 +19,9 @@ func ResolveInterfaces(cfg *Config) {
 
 func resolveInterfaces(cfg *Config, add addfunc) {
 	for name, iface := range cfg.Interfaces {
-		resolveBridgeMembers := func() {
-			if iface.Bridge == nil {
-				return
-			}
+		resolveBridgeMembers := func() { resolveInterfacesCallback(cfg, add, name, iface) }
 
-			iface.Bridge.MemberDevices = nil
-			for _, sel := range iface.Bridge.Members {
-				dev, err := resolveMemberDevice(cfg, sel)
-				if err != nil {
-					add("interfaces.%s.bridge.members: %v", name, err)
-					continue
-				}
-
-				iface.Bridge.MemberDevices = append(iface.Bridge.MemberDevices, dev)
-			}
-		}
-
-		resolveBondMembers := func() {
-			if iface.Bond == nil {
-				return
-			}
-
-			iface.Bond.MemberDevices = nil
-			iface.Bond.PrimaryDevice = ""
-			for _, sel := range iface.Bond.Members {
-				dev, err := resolveMemberDevice(cfg, sel)
-				if err != nil {
-					add("interfaces.%s.bond.members: %v", name, err)
-					continue
-				}
-
-				iface.Bond.MemberDevices = append(iface.Bond.MemberDevices, dev)
-			}
-
-			if iface.Bond.Primary != "" {
-				dev, err := resolveMemberDevice(cfg, iface.Bond.Primary)
-				if err != nil {
-					add("interfaces.%s.bond.primary: %v", name, err)
-				} else {
-					iface.Bond.PrimaryDevice = dev
-				}
-			}
-		}
+		resolveBondMembers := func() { resolveInterfacesCallback2(cfg, add, name, iface) }
 
 		switch iface.Type {
 		case "dummy", "bridge", "vxlan", "bond", "vlan":
@@ -222,4 +182,48 @@ func checkIfaceExists(name string) error {
 	}
 
 	return nil
+}
+
+func resolveInterfacesCallback(cfg *Config, add addfunc, name string, iface *Interface) {
+	if iface.Bridge == nil {
+		return
+	}
+
+	iface.Bridge.MemberDevices = nil
+	for _, sel := range iface.Bridge.Members {
+		dev, err := resolveMemberDevice(cfg, sel)
+		if err != nil {
+			add("interfaces.%s.bridge.members: %v", name, err)
+			continue
+		}
+
+		iface.Bridge.MemberDevices = append(iface.Bridge.MemberDevices, dev)
+	}
+}
+
+func resolveInterfacesCallback2(cfg *Config, add addfunc, name string, iface *Interface) {
+	if iface.Bond == nil {
+		return
+	}
+
+	iface.Bond.MemberDevices = nil
+	iface.Bond.PrimaryDevice = ""
+	for _, sel := range iface.Bond.Members {
+		dev, err := resolveMemberDevice(cfg, sel)
+		if err != nil {
+			add("interfaces.%s.bond.members: %v", name, err)
+			continue
+		}
+
+		iface.Bond.MemberDevices = append(iface.Bond.MemberDevices, dev)
+	}
+
+	if iface.Bond.Primary != "" {
+		dev, err := resolveMemberDevice(cfg, iface.Bond.Primary)
+		if err != nil {
+			add("interfaces.%s.bond.primary: %v", name, err)
+		} else {
+			iface.Bond.PrimaryDevice = dev
+		}
+	}
 }

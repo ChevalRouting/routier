@@ -71,16 +71,7 @@ func wgQuickAll(action string) {
 	var wg sync.WaitGroup
 	for _, name := range ifaces {
 		wg.Add(1)
-		go func(name string) {
-			defer wg.Done()
-			log.Info().Str("interface", name).Str("action", action).Msg("wireguard: wg-quick")
-			out, err := exec.Command("wg-quick", action, name).CombinedOutput()
-			if err != nil {
-				log.Warn().Err(err).Str("interface", name).Str("action", action).
-					Str("output", strings.TrimSpace(string(out))).
-					Msg("wireguard: wg-quick returned non-zero (may already be in target state)")
-			}
-		}(name)
+		go func(name string) { wgQuickAllCallback(action, &wg, name) }(name)
 	}
 
 	wg.Wait()
@@ -94,4 +85,15 @@ func WireguardUp() error {
 func WireguardDown() error {
 	wgQuickAll("down")
 	return nil
+}
+
+func wgQuickAllCallback(action string, wg *sync.WaitGroup, name string) {
+	defer (*wg).Done()
+	log.Info().Str("interface", name).Str("action", action).Msg("wireguard: wg-quick")
+	out, err := exec.Command("wg-quick", action, name).CombinedOutput()
+	if err != nil {
+		log.Warn().Err(err).Str("interface", name).Str("action", action).
+			Str("output", strings.TrimSpace(string(out))).
+			Msg("wireguard: wg-quick returned non-zero (may already be in target state)")
+	}
 }

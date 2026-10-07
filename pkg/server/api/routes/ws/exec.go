@@ -12,10 +12,10 @@ import (
 	"syscall"
 	"time"
 
-	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
-	"github.com/ChevalRouting/routier/pkg/managers"
-	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/ChevalRouting/routier/pkg/host/updates"
+	"github.com/ChevalRouting/routier/pkg/managers"
+	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
+	"github.com/ChevalRouting/routier/pkg/types"
 
 	"github.com/creack/pty"
 	"github.com/gorilla/websocket"
@@ -32,23 +32,8 @@ type wsStream struct {
 }
 
 var wsRegistry = map[string]wsStream{
-	"debug": {args: func(*appctx.App) []string {
-		for _, sh := range []string{"/bin/bash", "/bin/ash", "/bin/sh"} {
-			if _, err := os.Stat(sh); err == nil {
-				return []string{sh, "-i"}
-			}
-		}
-
-		return []string{"/bin/sh", "-i"}
-	}},
-	"reapply": {detached: true, args: func(app *appctx.App) []string {
-		exe := "routier"
-		if p, err := exec.LookPath("routier"); err == nil {
-			exe = p
-		}
-
-		return []string{exe, "apply", "--source", "web", "--timeout", strconv.Itoa(managers.WatchdogTimeout), app.ConfigPath}
-	}},
+	"debug":   {args: debugStreamArgs},
+	"reapply": {detached: true, args: reapplyStreamArgs},
 	"upgrade": {args: func(*appctx.App) []string {
 		return []string{"tail", "-n", "+1", "-F", updates.LogPath}
 	}},
@@ -61,7 +46,6 @@ type wsClientMsg struct {
 	Rows uint16 `json:"rows"`
 }
 
-// Exec godoc
 // @Summary  Interactive exec/terminal websocket
 // @Tags ws
 // @Param name query string true "stream name (debug/reapply)"
@@ -104,30 +88,9 @@ func Exec(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	defer func() {
-		ptmx.Close()
-		if cmd.Process != nil {
-			_ = cmd.Process.Kill()
-		}
+	defer func() { execCallback(cmd, ptmx) }()
 
-		_ = cmd.Wait()
-	}()
-
-	go func() {
-		buf := make([]byte, 4096)
-		for {
-			n, err := ptmx.Read(buf)
-			if n > 0 {
-				if werr := conn.WriteMessage(websocket.BinaryMessage, buf[:n]); werr != nil {
-					return
-				}
-			}
-
-			if err != nil {
-				return
-			}
-		}
-	}()
+	go func() { execCallback2(conn, ptmx) }()
 
 	for {
 		_, raw, err := conn.ReadMessage()
@@ -206,35 +169,83 @@ func runDetachedStream(conn *websocket.Conn, args []string) {
 		return
 	}
 
-	go func() {
-		buf := make([]byte, 4096)
-		for {
-			n, rerr := ptmx.Read(buf)
-			if n > 0 {
-				if werr := conn.WriteMessage(websocket.BinaryMessage, buf[:n]); werr != nil {
-					return
-				}
-			}
+	go func() { runDetachedStreamCallback(conn, ptmx) }()
 
-			if rerr != nil {
-				return
-			}
-		}
-	}()
-
-	go func() {
-		_ = cmd.Wait()
-		ptmx.Close()
-		cancel()
-		_ = conn.WriteControl(websocket.CloseMessage,
-			websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),
-			time.Now().Add(time.Second))
-		_ = conn.Close()
-	}()
+	go func() { runDetachedStreamCallback2(conn, cancel, cmd, ptmx) }()
 
 	for {
 		if _, _, err := conn.ReadMessage(); err != nil {
 			return
 		}
 	}
+}
+
+func execCallback(cmd *exec.Cmd, ptmx *os.File) {
+	_ = ptmx.Close()
+	if cmd.Process != nil {
+		_ = cmd.Process.Kill()
+	}
+
+	_ = cmd.Wait()
+}
+
+func execCallback2(conn *websocket.Conn, ptmx *os.File) {
+	buf := make([]byte, 4096)
+	for {
+		n, err := ptmx.Read(buf)
+		if n > 0 {
+			if werr := conn.WriteMessage(websocket.BinaryMessage, buf[:n]); werr != nil {
+				return
+			}
+		}
+
+		if err != nil {
+			return
+		}
+	}
+}
+
+func runDetachedStreamCallback(conn *websocket.Conn, ptmx *os.File) {
+	buf := make([]byte, 4096)
+	for {
+		n, rerr := ptmx.Read(buf)
+		if n > 0 {
+			if werr := conn.WriteMessage(websocket.BinaryMessage, buf[:n]); werr != nil {
+				return
+			}
+		}
+
+		if rerr != nil {
+			return
+		}
+	}
+}
+
+func runDetachedStreamCallback2(conn *websocket.Conn, cancel context.CancelFunc, cmd *exec.Cmd, ptmx *os.File) {
+	_ = cmd.Wait()
+	_ = ptmx.Close()
+	cancel()
+	_ = conn.WriteControl(websocket.CloseMessage,
+		websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),
+		time.Now().Add(time.Second))
+	_ = conn.Close()
+}
+
+func debugStreamArgs(*appctx.App) []string {
+	for _, sh := range []string{"/bin/bash", "/bin/ash", "/bin/sh"} {
+		if _, err := os.Stat(sh); err == nil {
+			return []string{sh, "-i"}
+		}
+	}
+
+	return []string{"/bin/sh", "-i"}
+}
+
+func reapplyStreamArgs(app *appctx.App) []string {
+	exe := "routier"
+	if p, err := exec.LookPath("routier"); err == nil {
+		exe = p
+	}
+
+	return []string{exe, "apply", "--source", "web", "--timeout", strconv.Itoa(managers.WatchdogTimeout), app.ConfigPath}
 }

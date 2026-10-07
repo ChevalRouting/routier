@@ -7,7 +7,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// Nics godoc
 // @Summary  List candidate system NICs
 // @Tags setup
 // @Produce json

@@ -49,8 +49,8 @@ import (
 	"github.com/ChevalRouting/routier/pkg/server/api/routes/tools"
 	"github.com/ChevalRouting/routier/pkg/server/api/routes/wireguard"
 
-	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	webdb "github.com/ChevalRouting/routier/pkg/db"
+	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 
 	"github.com/ChevalRouting/routier/pkg/auth/identity"
 	"github.com/go-chi/chi/v5"
@@ -108,79 +108,84 @@ func buildRouter(app *appctx.App, staticFS fs.FS) *chi.Mux {
 
 	r.Post("/api/auth/login", auth.Login)
 
-	r.Group(func(r chi.Router) {
-		r.Use(jwtMiddleware)
-		r.Use(stagingHeaderMiddleware)
-
-		ws.Routes(r)
-		auth.Routes(r)
-		setup.Routes(r)
-		configroutes.Routes(r)
-		apply.Routes(r)
-		snapshots.Routes(r)
-		system.Routes(r)
-		failuresroutes.Routes(r)
-		backup.Routes(r)
-		ha.Routes(r)
-		friendsroutes.Routes(r)
-		ui.Routes(r)
-		wireguard.Routes(r)
-		logs.Routes(r)
-		stats.Routes(r)
-		routing.Routes(r)
-		natroutes.Routes(r)
-		announcements.Routes(r)
-		macros.Routes(r)
-		dhcp.Routes(r)
-		dnsroutes.Routes(r)
-		tools.Routes(r)
-	})
+	r.Group(buildRouterHandler)
 
 	v1.Routes(r, jwtMiddleware)
 	docsRoutes(r)
 
 	if staticFS != nil {
 		fileServer := http.FileServer(http.FS(staticFS))
-		r.NotFound(func(w http.ResponseWriter, req *http.Request) {
-			if strings.HasPrefix(req.URL.Path, "/api/") {
-				types.Err(http.StatusNotFound, "not found").Write(w)
-				return
-			}
-
-			path := strings.TrimPrefix(req.URL.Path, "/")
-			if path == "" {
-				path = "index.html"
-			}
-			if path == "index.html" {
-				w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
-			} else if strings.HasPrefix(path, "assets/") {
-				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
-			}
-
-			f, err := staticFS.Open(path)
-			if err != nil {
-				if strings.HasPrefix(path, "assets/") {
-					http.NotFound(w, req)
-					return
-				}
-
-				f2, err2 := staticFS.Open("index.html")
-				if err2 != nil {
-					http.NotFound(w, req)
-					return
-				}
-
-				_ = f2.Close()
-				req2 := req.Clone(req.Context())
-				req2.URL.Path = "/"
-				fileServer.ServeHTTP(w, req2)
-				return
-			}
-
-			_ = f.Close()
-			fileServer.ServeHTTP(w, req)
-		})
+		r.NotFound(func(w http.ResponseWriter, req *http.Request) { buildRouterCallback(staticFS, fileServer, w, req) })
 	}
 
 	return r
+}
+
+func buildRouterHandler(r chi.Router) {
+	r.Use(jwtMiddleware)
+	r.Use(stagingHeaderMiddleware)
+
+	ws.Routes(r)
+	auth.Routes(r)
+	setup.Routes(r)
+	configroutes.Routes(r)
+	apply.Routes(r)
+	snapshots.Routes(r)
+	system.Routes(r)
+	failuresroutes.Routes(r)
+	backup.Routes(r)
+	ha.Routes(r)
+	friendsroutes.Routes(r)
+	ui.Routes(r)
+	wireguard.Routes(r)
+	logs.Routes(r)
+	stats.Routes(r)
+	routing.Routes(r)
+	natroutes.Routes(r)
+	announcements.Routes(r)
+	macros.Routes(r)
+	dhcp.Routes(r)
+	dnsroutes.Routes(r)
+	tools.Routes(r)
+}
+
+func buildRouterCallback(staticFS fs.FS, fileServer http.Handler, w http.ResponseWriter, req *http.Request) {
+	if strings.HasPrefix(req.URL.Path, "/api/") {
+		types.Err(http.StatusNotFound, "not found").Write(w)
+		return
+	}
+
+	path := strings.TrimPrefix(req.URL.Path, "/")
+	if path == "" {
+		path = "index.html"
+	}
+
+	if path == "index.html" {
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	} else if strings.HasPrefix(path, "assets/") {
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	}
+
+	f, err := staticFS.Open(path)
+	if err != nil {
+		if strings.HasPrefix(path, "assets/") {
+			http.NotFound(w, req)
+			return
+		}
+
+		f2, err2 := staticFS.Open("index.html")
+		if err2 != nil {
+			http.NotFound(w, req)
+			return
+		}
+
+		_ = f2.Close()
+		req2 := req.Clone(req.Context())
+		req2.URL.Path = "/"
+		fileServer.ServeHTTP(w, req2)
+		return
+	}
+
+	_ = f.Close()
+	fileServer.ServeHTTP(w, req)
 }

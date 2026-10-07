@@ -37,6 +37,7 @@ func inspect(cfg *config.Config) Config {
 			names = append(names, name)
 		}
 	}
+
 	sort.Strings(names)
 
 	for _, name := range names {
@@ -95,11 +96,13 @@ func inspectDNS(cfg *config.Config, networks []Network) DNS {
 	for _, value := range server.Listen {
 		listens[value] = true
 	}
+
 	for _, network := range networks {
 		if listens["iface("+network.Name+")"] {
 			result.Networks = append(result.Networks, network.Name)
 		}
 	}
+
 	internet := findInternet(cfg)
 	result.AllowWAN = internet != "" && listens["iface("+internet+")"]
 	if result.AllowWAN {
@@ -108,6 +111,7 @@ func inspectDNS(cfg *config.Config, networks []Network) DNS {
 			if !listens["iface("+network.Name+")"] {
 				continue
 			}
+
 			for _, address := range network.Addresses {
 				prefix, err := netip.ParsePrefix(address)
 				if err == nil {
@@ -115,6 +119,7 @@ func inspectDNS(cfg *config.Config, networks []Network) DNS {
 				}
 			}
 		}
+
 		for _, source := range server.AllowFrom {
 			if !local[source] {
 				result.WANAllowFrom = append(result.WANAllowFrom, source)
@@ -178,6 +183,7 @@ func inspectPortForwards(cfg *config.Config) []PortForward {
 			forward.Editable = false
 			forward.Issue = "This port forward uses a custom interface. Manage it in Advanced mode."
 		}
+
 		if spec.Proto != "tcp" && spec.Proto != "udp" {
 			forward.Editable = false
 			forward.Issue = "This port forward uses a custom protocol. Manage it in Advanced mode."
@@ -236,6 +242,7 @@ func findInternet(cfg *config.Config) string {
 	for name := range cfg.Interfaces {
 		names = append(names, name)
 	}
+
 	sort.Strings(names)
 	for _, name := range names {
 		iface := cfg.Interfaces[name]
@@ -278,6 +285,7 @@ func inspectNetwork(cfg *config.Config, name string) (*Network, *layers.Issue) {
 			if len(subnet.Pools) > 0 {
 				network.Pool = subnet.Pools[0]
 			}
+
 			network.Gateway = subnet.Gateway
 			network.DNS = append([]string(nil), subnet.DNS...)
 			network.Exclusions = append([]string(nil), subnet.Exclusions...)
@@ -292,6 +300,7 @@ func inspectNetwork(cfg *config.Config, name string) (*Network, *layers.Issue) {
 			if len(subnet6.Pools) > 0 {
 				network.PoolV6 = subnet6.Pools[0]
 			}
+
 			network.ValidLifetimeV6 = subnet6.ValidLifetime
 		}
 	}
@@ -373,6 +382,7 @@ func dhcpSubnetFamily(subnets []config.KeaSubnet, name, address string) *config.
 	if err != nil {
 		return nil
 	}
+
 	want := ip.Masked()
 	for i := range subnets {
 		subnet := &subnets[i]
@@ -475,8 +485,4 @@ func networkPrefix(address string) (string, error) {
 	}
 
 	return prefix.Masked().String(), nil
-}
-
-func simpleTag(name string) string {
-	return "simple:network:" + strings.ToLower(name)
 }

@@ -1,25 +1,20 @@
-import { useEffect, useState } from 'react'
-import { toast } from 'sonner'
-import { api } from '@/lib/client'
-import { useFetch } from '@/lib/useFetch'
-import { useDataRefresh } from '@/lib/dataVersion'
-import { usePageSave } from '@/lib/usePageSave'
-import { SaveButton } from 'cheval-ui'
-import { Button } from 'cheval-ui'
-import { Sheet } from 'cheval-ui'
-import { Plus, Lock } from 'lucide-react'
-import { EmptyState } from 'cheval-ui'
-import { ReloadButton } from 'cheval-ui'
-import { Pagination, usePagination } from 'cheval-ui'
-import { PreferencesColumns } from 'cheval-ui'
-import { Spinner } from 'cheval-ui'
 import { WgIface, WgMap, emptyWg } from '@/components/wireguard/shared'
 import { WgForm } from '@/components/wireguard/WgForm'
 import { WgRow } from '@/components/wireguard/WgRow'
+import { api } from '@/lib/client'
+import { useDataRefresh } from '@/lib/dataVersion'
+import { useFetch } from '@/lib/useFetch'
+import { usePageSave } from '@/lib/usePageSave'
+import { Button, EmptyState, Pagination, PreferencesColumns, ReloadButton, SaveButton, Sheet, Spinner, usePagination } from 'cheval-ui'
+import { Lock, Plus } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
+
+type WireGuardPanelShape = { onActionChange?: (a: React.ReactNode) => void }
 
 const NEW_KEY = '__new__'
 
-export function WireGuardPanel({ onActionChange }: { onActionChange?: (a: React.ReactNode) => void }) {
+export function WireGuardPanel({ onActionChange }: WireGuardPanelShape) {
   const { data, isLoading, reload } = useFetch<WgMap>(() => api.apiConfigSectionGet({ section: 'wireguard' }) as Promise<WgMap>)
   const [entries, setEntries] = useState<WgMap | null>(null)
   const [newName, setNewName] = useState('')
@@ -32,10 +27,14 @@ export function WireGuardPanel({ onActionChange }: { onActionChange?: (a: React.
   const current: WgMap = entries ?? (data as WgMap | null) ?? {}
 
   useEffect(() => {
+    const handleClick = () => { setEntries(null); reset(); reload(true) }
+
+    const handleCancel = () => { setEntries(null); reset(); reload(true) }
+
     onActionChange?.(
       <div className="flex items-center gap-2">
-        <SaveButton isDirty={isDirty} saving={saving} onClick={() => save(current)} onCancel={() => { setEntries(null); reset() }} />
-        <ReloadButton onClick={() => { setEntries(null); reload() }} />
+        <SaveButton isDirty={isDirty} saving={saving} onClick={() => save(current)} onCancel={handleCancel} />
+        <ReloadButton onClick={handleClick} />
       </div>
     )
     return () => onActionChange?.(null)

@@ -1,9 +1,15 @@
-import { Trash2 } from 'lucide-react'
+import { KnownDeviceSelect, useKnownDevices } from '@/components/KnownDeviceSelect'
+import type { PortForward } from '@/components/simple/types'
 import {
   AccordionList, Badge, Button, ComboRow, EntryRow, PreferencesGroup, Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from 'cheval-ui'
-import type { PortForward } from '@/components/simple/types'
-import { KnownDeviceSelect, useKnownDevices } from '@/components/KnownDeviceSelect'
+import { Trash2 } from 'lucide-react'
+
+type PortForwardFieldsShape = {
+  forward: PortForward
+  devices: ReturnType<typeof useKnownDevices>
+  onChange: (patch: Partial<PortForward>) => void
+}
 
 interface PortForwardEditorProps {
   forwards: PortForward[]
@@ -57,11 +63,7 @@ export function PortForwardEditor({ forwards, onChange }: PortForwardEditorProps
   )
 }
 
-function PortForwardFields({ forward, devices, onChange }: {
-  forward: PortForward
-  devices: ReturnType<typeof useKnownDevices>
-  onChange: (patch: Partial<PortForward>) => void
-}) {
+function PortForwardFields({ forward, devices, onChange }: PortForwardFieldsShape) {
   const disabled = !forward.editable
 
   return (

@@ -5,15 +5,14 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/ChevalRouting/routier/pkg/server/api/friendcache"
-	backuppkg "github.com/ChevalRouting/routier/pkg/state/backup"
 	"github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/managers"
+	"github.com/ChevalRouting/routier/pkg/server/api/friendcache"
+	backuppkg "github.com/ChevalRouting/routier/pkg/state/backup"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/rs/zerolog/log"
 )
 
-// Import godoc
 // @Summary  Restore a config backup and apply it
 // @Tags backup
 // @Produce json
@@ -32,7 +31,7 @@ func Import(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	defer file.Close()
+	defer func(action func() error) { _ = action() }(file.Close)
 
 	tmp, err := os.CreateTemp("", "routier-import-*.bin")
 	if err != nil {
@@ -41,14 +40,14 @@ func Import(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tmpPath := tmp.Name()
-	defer os.Remove(tmpPath)
+	defer func(path string) { _ = os.Remove(path) }(tmpPath)
 	if _, err := io.Copy(tmp, io.LimitReader(file, 256<<20)); err != nil {
-		tmp.Close()
+		_ = tmp.Close()
 		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "failed to stage upload"))
 		return
 	}
 
-	tmp.Close()
+	_ = tmp.Close()
 
 	cfgPath, err := backuppkg.Restore(tmpPath)
 	if err != nil {

@@ -95,7 +95,7 @@ func (c *Client) exchangeUnix(path string, body []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	defer conn.Close()
+	defer func(action func() error) { _ = action() }(conn.Close)
 
 	_ = conn.SetDeadline(time.Now().Add(10 * time.Second))
 
@@ -126,7 +126,7 @@ func (c *Client) exchangeHTTP(url string, body []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	defer resp.Body.Close()
+	defer func(action func() error) { _ = action() }(resp.Body.Close)
 
 	raw, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -162,7 +162,6 @@ func parseResponse(command string, raw []byte) (json.RawMessage, error) {
 		return nil, fmt.Errorf("decode kea response: %w", err)
 	}
 
-	// Lease queries use result 3 for a successful query with no matches.
 	if item.Result == 3 {
 		switch command {
 		case "lease4-get-all", "lease6-get-all":
@@ -171,6 +170,7 @@ func parseResponse(command string, raw []byte) (json.RawMessage, error) {
 			return json.RawMessage(`{}`), nil
 		}
 	}
+
 	if item.Result != 0 {
 		if item.Text != "" {
 			return nil, fmt.Errorf("%s", item.Text)

@@ -19,24 +19,9 @@ type liveStore struct {
 var live liveStore
 
 func StartLiveStats() {
-	update := func() {
-		sys, procs, bgp, ospf := stats.Sample()
-		live.mu.Lock()
-		live.sys = sys
-		live.procs = procs
-		live.bgp = bgp
-		live.ospf = ospf
-		live.mu.Unlock()
-	}
+	update := startLiveStatsHandler
 
-	go func() {
-		update()
-		ticker := time.NewTicker(5 * time.Second)
-		defer ticker.Stop()
-		for range ticker.C {
-			update()
-		}
-	}()
+	go func() { startLiveStatsCallback(update) }()
 }
 
 type LiveStats struct {
@@ -50,4 +35,23 @@ func LiveSnapshot() LiveStats {
 	live.mu.RLock()
 	defer live.mu.RUnlock()
 	return LiveStats{Sys: live.sys, Procs: live.procs, BGP: live.bgp, OSPF: live.ospf}
+}
+
+func startLiveStatsHandler() {
+	sys, procs, bgp, ospf := stats.Sample()
+	live.mu.Lock()
+	live.sys = sys
+	live.procs = procs
+	live.bgp = bgp
+	live.ospf = ospf
+	live.mu.Unlock()
+}
+
+func startLiveStatsCallback(update func()) {
+	update()
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+	for range ticker.C {
+		update()
+	}
 }

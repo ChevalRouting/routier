@@ -18,7 +18,6 @@ type schemaVersionDocument struct {
 	Version string `json:"version"`
 }
 
-// GetSchema godoc
 // @Summary  Get the JSON Schema for the canonical configuration
 // @Tags config
 // @Produce json
@@ -35,7 +34,6 @@ func GetSchema(w http.ResponseWriter, _ *http.Request) {
 	types.OK(w, schemaDocument{Version: cfgpkg.CurrentVersion, Schema: schema})
 }
 
-// GetSchemaVersion godoc
 // @Summary  Get the version of the canonical configuration schema
 // @Tags config
 // @Produce json

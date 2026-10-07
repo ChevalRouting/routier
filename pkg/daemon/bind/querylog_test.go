@@ -3,11 +3,7 @@ package bind
 import "testing"
 
 func TestParseQueryLog(t *testing.T) {
-	cases := []struct {
-		name string
-		line string
-		want LogQuery
-	}{
+	cases := []parseQueryLogCase{
 		{
 			name: "ipv4 with edns and dest",
 			line: "07-Oct-2026 12:34:56.789 queries: client @0x7f0a1c000d68 192.168.1.10#54321 (example.com): query: example.com IN A +E(0)K (192.168.1.1)",
@@ -48,4 +44,10 @@ func TestParseQueryLogRejectsNonQuery(t *testing.T) {
 			t.Errorf("expected non-query line to be rejected: %q", line)
 		}
 	}
+}
+
+type parseQueryLogCase struct {
+	name string
+	line string
+	want LogQuery
 }

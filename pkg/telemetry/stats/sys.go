@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/ChevalRouting/routier/pkg/daemon/vtysh"
+	"github.com/ChevalRouting/routier/pkg/types"
 )
 
 func ReadIfaceStats() map[string]*types.IfaceStats {
@@ -23,7 +23,7 @@ func ReadIfaceStats() map[string]*types.IfaceStats {
 		return out
 	}
 
-	defer f.Close()
+	defer func(action func() error) { _ = action() }(f.Close)
 
 	scanner := bufio.NewScanner(f)
 	lineNum := 0
@@ -80,7 +80,7 @@ func readCPUTimes() (cpuTimes, bool) {
 		return cpuTimes{}, false
 	}
 
-	defer f.Close()
+	defer func(action func() error) { _ = action() }(f.Close)
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -123,7 +123,7 @@ func buildSystemStats(t1 cpuTimes, ok1 bool, t2 cpuTimes, ok2 bool) *types.Syste
 	}
 
 	if f, err := os.Open("/proc/meminfo"); err == nil {
-		defer f.Close()
+		defer func(action func() error) { _ = action() }(f.Close)
 		kv := map[string]uint64{}
 		scanner := bufio.NewScanner(f)
 		for scanner.Scan() {
@@ -240,21 +240,7 @@ func ReadBGPStats() *types.BGPStats {
 		return nil
 	}
 
-	sort.Slice(stats.Peers, func(i, j int) bool {
-		stateRank := func(s string) int {
-			if s == "Established" {
-				return 0
-			}
-
-			return 1
-		}
-		ri, rj := stateRank(stats.Peers[i].State), stateRank(stats.Peers[j].State)
-		if ri != rj {
-			return ri < rj
-		}
-
-		return stats.Peers[i].ASN < stats.Peers[j].ASN
-	})
+	sort.Slice(stats.Peers, func(i, j int) bool { return readBGPStatsCallback(stats, i, j) })
 
 	return stats
 }
@@ -417,13 +403,7 @@ func buildProcList(s1, s2 map[int]procSnap, totalDelta float64) []types.ProcessI
 		})
 	}
 
-	sort.Slice(procs, func(i, j int) bool {
-		if procs[i].CPUPct != procs[j].CPUPct {
-			return procs[i].CPUPct > procs[j].CPUPct
-		}
-
-		return procs[i].PID < procs[j].PID
-	})
+	sort.Slice(procs, func(i, j int) bool { return buildProcListCallback(procs, i, j) })
 	return procs
 }
 
@@ -447,4 +427,30 @@ func Sample() (*types.SystemStats, []types.ProcessInfo, *types.BGPStats, *types.
 	bgp := ReadBGPStats()
 	ospf := ReadOSPFStats()
 	return sys, procs, bgp, ospf
+}
+
+func readBGPStatsHandler(s string) int {
+	if s == "Established" {
+		return 0
+	}
+
+	return 1
+}
+
+func readBGPStatsCallback(stats *types.BGPStats, i, j int) bool {
+	stateRank := readBGPStatsHandler
+	ri, rj := stateRank(stats.Peers[i].State), stateRank(stats.Peers[j].State)
+	if ri != rj {
+		return ri < rj
+	}
+
+	return stats.Peers[i].ASN < stats.Peers[j].ASN
+}
+
+func buildProcListCallback(procs []types.ProcessInfo, i, j int) bool {
+	if procs[i].CPUPct != procs[j].CPUPct {
+		return procs[i].CPUPct > procs[j].CPUPct
+	}
+
+	return procs[i].PID < procs[j].PID
 }

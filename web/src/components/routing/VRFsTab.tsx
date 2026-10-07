@@ -1,12 +1,13 @@
-import React, {} from 'react'
-import { Input } from 'cheval-ui'
-import { NumberInput } from 'cheval-ui'
-import { Button } from 'cheval-ui'
-import { EmptyState } from 'cheval-ui'
-import { Card } from 'cheval-ui'
-import { Label } from 'cheval-ui'
+import { Button, Card, EmptyState, Input, Label, NumberInput } from 'cheval-ui'
 import { Plus, Trash2 } from 'lucide-react'
+import React from 'react'
 import { newId } from './shared'
+
+type VRFsTabShape = {
+  rows: VRFRow[]
+  setRows: React.Dispatch<React.SetStateAction<VRFRow[]>>
+  onDirty: () => void
+}
 
 export interface VRFRow { _id: number; name: string; table: number }
 
@@ -22,11 +23,7 @@ function nextTable(rows: VRFRow[]): number {
 
 export function VRFsTab({
   rows, setRows, onDirty,
-}: {
-  rows: VRFRow[]
-  setRows: React.Dispatch<React.SetStateAction<VRFRow[]>>
-  onDirty: () => void
-}) {
+}: VRFsTabShape) {
   const add = () => { setRows((p) => [...p, { _id: newId(), name: '', table: nextTable(p) }]); onDirty() }
   const remove = (id: number) => { setRows((p) => p.filter((r) => r._id !== id)); onDirty() }
   const upd = (id: number, patch: Partial<VRFRow>) => { setRows((p) => p.map((r) => (r._id === id ? { ...r, ...patch } : r))); onDirty() }

@@ -1,20 +1,20 @@
-import { useState, useEffect } from 'react'
-import { useSearchParams, useNavigate } from 'react-router-dom'
-import { useTabState } from 'cheval-ui'
-import { Tabs } from 'cheval-ui'
-import { PageHeader } from 'cheval-ui'
+import { BGPPanel } from '@/components/monitor/BGPPanel'
+import { LogsPanel } from '@/components/monitor/LogsPanel'
+import { NeighborsPanel } from '@/components/monitor/NeighborsPanel'
+import { ProbesPanel } from '@/components/monitor/ProbesPanel'
+import { ProcessesPanel } from '@/components/monitor/ProcessesPanel'
 import { TabAction } from '@/components/monitor/shared'
 import { SystemPanel } from '@/components/monitor/SystemPanel'
 import { TrafficPanel } from '@/components/monitor/TrafficPanel'
-import { LogsPanel } from '@/components/monitor/LogsPanel'
-import { NeighborsPanel } from '@/components/monitor/NeighborsPanel'
-import { BGPPanel } from '@/components/monitor/BGPPanel'
-import { ProcessesPanel } from '@/components/monitor/ProcessesPanel'
-import { ProbesPanel } from '@/components/monitor/ProbesPanel'
+import { PageHeader, Tabs, useTabState } from 'cheval-ui'
+import { useEffect, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+
+type MONITORTABSShape = { key: MonitorTab; label: string }
 
 type MonitorTab = 'system' | 'bgp' | 'traffic' | 'logs' | 'neighbors' | 'processes' | 'probes'
 
-const MONITOR_TABS: { key: MonitorTab; label: string }[] = [
+const MONITOR_TABS: MONITORTABSShape[] = [
   { key: 'system',     label: 'System' },
   { key: 'processes',  label: 'Processes' },
   { key: 'bgp',        label: 'BGP' },
@@ -47,7 +47,7 @@ export default function Monitor() {
       searchParams.delete('tab')
       setSearchParams(searchParams, { replace: true })
     }
-  }, [])
+  }, [activeTab, navigate, searchParams, setActiveTab, setSearchParams])
 
   const handleTabChange = (tab: MonitorTab) => {
     setActiveTab(tab)

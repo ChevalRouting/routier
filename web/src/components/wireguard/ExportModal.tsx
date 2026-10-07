@@ -1,16 +1,12 @@
-import { useState, useEffect } from 'react'
-import { toast } from 'sonner'
 import { api } from '@/lib/client'
 import { useFetch } from '@/lib/useFetch'
-import { Button } from 'cheval-ui'
-import { Input } from 'cheval-ui'
-import { Label } from 'cheval-ui'
-import { Separator } from 'cheval-ui'
-import { Dialog } from 'cheval-ui'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from 'cheval-ui'
-import { Shuffle, Download } from 'lucide-react'
-import { CopyButton } from 'cheval-ui'
-import { WgPeer, KeyField } from './shared'
+import { Button, CopyButton, Dialog, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Separator } from 'cheval-ui'
+import { Download, Shuffle } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
+import { KeyField, WgPeer } from './shared'
+
+type VrrpShape = { vips?: string[] }
 
 const dhcpTokens = ['dhcp', 'dhcp4', 'dhcp6', 'slaac']
 
@@ -19,7 +15,7 @@ interface ExportIface {
 }
 
 interface ExportHA {
-  vrrp?: { vips?: string[] }[]
+  vrrp?: VrrpShape[]
 }
 
 function serverIPs(ifaces: Record<string, ExportIface> | null, ha: ExportHA | null): string[] {
@@ -92,7 +88,7 @@ export function ExportModal({ peer, serverPubKey, serverPort, serverAddresses: _
   const buildConf = () => {
     const lines: string[] = [
       '[Interface]',
-      clientPrivKey ? `PrivateKey = ${clientPrivKey}` : `# PrivateKey = <your private key>`,
+      clientPrivKey ? `PrivateKey = ${clientPrivKey}` : '# PrivateKey = <your private key>',
     ]
     if (clientAddresses) lines.push(`Address = ${clientAddresses}`)
     if (dns) lines.push(`DNS = ${dns}`)

@@ -1,21 +1,18 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { toast } from 'sonner'
+import type { NatKind, NatSpec } from '@/api'
 import { api } from '@/lib/client'
-import type { NatSpec, NatKind } from '@/api'
-import { useFetch } from '@/lib/useFetch'
 import { useDataRefresh } from '@/lib/dataVersion'
-import { Button } from 'cheval-ui'
-import { Input } from 'cheval-ui'
-import { Label } from 'cheval-ui'
-import { Badge } from 'cheval-ui'
-import { Spinner } from 'cheval-ui'
-import { Card } from 'cheval-ui'
-import { EmptyState } from 'cheval-ui'
-import { VarPickerInput } from '@/components/VarPickerInput'
+import { useFetch } from '@/lib/useFetch'
+import { Badge, Button, Card, EmptyState, Spinner } from 'cheval-ui'
 import { Plus, Trash2 } from 'lucide-react'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from 'cheval-ui'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { toast } from 'sonner'
+import { NatBody } from './NatPanelParts/NatBody'
 
-const KIND_LABEL: Record<NatKind, string> = {
+type NatSummaryShape = { spec: NatSpec }
+
+type NatPanelShape = { onStateChange?: (s: NatSaveState) => void }
+
+export const KIND_LABEL: Record<NatKind, string> = {
   masquerade: 'Masquerade',
   snat: 'SNAT',
   dnat: 'Port forward (DNAT)',
@@ -28,7 +25,7 @@ export interface NatSaveState {
   cancel: () => void
 }
 
-function NatSummary({ spec }: { spec: NatSpec }) {
+export function NatSummary({ spec }: NatSummaryShape) {
   const detail =
     spec.kind === 'dnat'
       ? `${spec.in || 'any'} ${spec.proto || 'tcp'}/${spec.dport || '?'} → ${spec.to || '?'}`
@@ -44,91 +41,16 @@ function NatSummary({ spec }: { spec: NatSpec }) {
   )
 }
 
-function NatBody({ spec, ifaceVars, addrVars, onChange }: {
-  spec: NatSpec
-  ifaceVars: string[]
-  addrVars: string[]
-  onChange: (patch: Partial<NatSpec>) => void
-}) {
-  return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-      {(spec.kind === 'masquerade' || spec.kind === 'snat') && (
-        <div className="space-y-1.5">
-          <Label className="text-[11px]">Out interface</Label>
-          <VarPickerInput value={spec.out ?? ''} onChange={(v) => onChange({ out: v })} vars={ifaceVars} placeholder="$wan_interfaces" mono />
-        </div>
-      )}
-      {spec.kind === 'snat' && (
-        <div className="space-y-1.5">
-          <Label className="text-[11px]">SNAT to</Label>
-          <Input value={spec.to ?? ''} onChange={(e) => onChange({ to: e.target.value })} placeholder="203.0.113.5" className="font-mono text-sm h-8" />
-        </div>
-      )}
-      {(spec.kind === 'masquerade' || spec.kind === 'snat') && (
-        <>
-          <div className="space-y-1.5">
-            <Label className="text-[11px]">Source (optional)</Label>
-            <VarPickerInput value={spec.source ?? ''} onChange={(v) => onChange({ source: v })} vars={addrVars} placeholder="$lan_network" mono />
-          </div>
-          {spec.source ? (
-            <div className="space-y-1.5">
-              <Label className="text-[11px]">Source family</Label>
-              <Select value={spec.family || 'ip'} onValueChange={(v) => onChange({ family: v })}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ip">ip</SelectItem>
-                  <SelectItem value="ip6">ip6</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          ) : null}
-        </>
-      )}
-
-      {spec.kind === 'dnat' && (
-        <>
-          <div className="space-y-1.5">
-            <Label className="text-[11px]">In interface</Label>
-            <VarPickerInput value={spec.in ?? ''} onChange={(v) => onChange({ in: v })} vars={ifaceVars} placeholder="$wan_interfaces" mono />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-[11px]">Protocol</Label>
-            <Select value={spec.proto || 'tcp'} onValueChange={(v) => onChange({ proto: v })}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="tcp">tcp</SelectItem>
-                <SelectItem value="udp">udp</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-[11px]">Dest port</Label>
-            <Input value={spec.dport ?? ''} onChange={(e) => onChange({ dport: e.target.value })} placeholder="443" className="font-mono text-sm h-8" />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-[11px]">Forward to</Label>
-            <Input value={spec.to ?? ''} onChange={(e) => onChange({ to: e.target.value })} placeholder="10.0.0.5:8443" className="font-mono text-sm h-8" />
-          </div>
-        </>
-      )}
-
-      <div className="space-y-1.5">
-        <Label className="text-[11px]">Comment</Label>
-        <Input value={spec.comment ?? ''} onChange={(e) => onChange({ comment: e.target.value })} placeholder="optional" className="text-sm h-8" />
-      </div>
-    </div>
-  )
-}
-
-export default function NatPanel({ onStateChange }: { onStateChange?: (s: NatSaveState) => void }) {
-  const { data, isLoading } = useFetch<NatSpec[]>(() => api.apiNatGet())
+export default function NatPanel({ onStateChange }: NatPanelShape) {
+  const { data, isLoading, reload } = useFetch<NatSpec[]>(() => api.apiNatGet())
   const { data: vars } = useFetch(() => api.apiConfigNftablesVarsGet())
   const [specs, setSpecs] = useState<NatSpec[]>([])
   const [initialized, setInitialized] = useState(false)
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
+  const revision = useRef(0)
 
-  useDataRefresh(() => { setInitialized(false); setDirty(false) })
+  useDataRefresh(() => { revision.current += 1; setInitialized(false); setDirty(false) })
 
   useEffect(() => {
     if (!isLoading && !initialized) {
@@ -146,7 +68,7 @@ export default function NatPanel({ onStateChange }: { onStateChange?: (s: NatSav
     [vars],
   )
 
-  const update = (next: NatSpec[]) => { setSpecs(next); setDirty(true) }
+  const update = (next: NatSpec[]) => { revision.current += 1; setSpecs(next); setDirty(true) }
   const setSpec = (i: number, patch: Partial<NatSpec>) =>
     update(specs.map((s, j) => (j === i ? { ...s, ...patch } : s)))
   const add = (kind: NatKind) =>
@@ -154,11 +76,12 @@ export default function NatPanel({ onStateChange }: { onStateChange?: (s: NatSav
   const remove = (i: number) => update(specs.filter((_, j) => j !== i))
 
   const save = useCallback(async () => {
+    const savedRevision = revision.current
     setSaving(true)
     try {
       await api.apiNatPut({ NatSpec: specs })
-      setDirty(false)
-      toast.success('NAT rules saved')
+      if (revision.current === savedRevision) setDirty(false)
+      toast.success('NAT rules staged; apply to activate')
     } catch (err: unknown) {
       toast.error((err as Error).message || 'Failed to save NAT rules')
     } finally {
@@ -166,7 +89,7 @@ export default function NatPanel({ onStateChange }: { onStateChange?: (s: NatSav
     }
   }, [specs])
 
-  const cancel = useCallback(() => { setSpecs(data ?? []); setDirty(false) }, [data])
+  const cancel = useCallback(() => { revision.current += 1; setInitialized(false); setDirty(false); reload(true) }, [reload])
 
   useEffect(() => {
     onStateChange?.({ isDirty: dirty, saving, save, cancel })
@@ -215,3 +138,5 @@ export default function NatPanel({ onStateChange }: { onStateChange?: (s: NatSav
     </div>
   )
 }
+
+export { NatBody } from './NatPanelParts/NatBody'

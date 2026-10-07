@@ -8,6 +8,8 @@ import { clearToken } from '@/lib/utils'
 import { addStagingListener, api } from '@/lib/client'
 import { DiffView, withContext, type ViewLine } from '@/components/DiffView'
 import DiffModal from '@/components/DiffModal'
+import ApplyFailureModal from '@/components/ApplyFailureModal'
+import { applyFailureFromResult, applyFailureFromError, type ApplyFailure } from '@/lib/applyFailure'
 import { WatchdogConfirmBar } from '@/components/WatchdogConfirmBar'
 import Logo from '@/components/Logo'
 import { SectionLabel } from 'cheval-ui'
@@ -19,7 +21,7 @@ import { InstanceSwitcher, InstanceMenu, useActiveInstance } from '@/components/
 import { SELF, switchInstance } from '@/lib/instance'
 import {
   LayoutDashboard, Network, Route, Lock, Radio, Shield,
-  Settings2, Users, Server, LogOut, Activity, HeartPulse, Megaphone,
+  Settings2, Server, LogOut, Activity, HeartPulse, Megaphone,
   BookOpen, KeyRound, Workflow, Play, Terminal, Boxes, Handshake,
   ChevronLeft, ChevronRight, Sun, Moon, MoreHorizontal, RefreshCw, Cable,
   Calculator, Globe, ArrowRightLeft,
@@ -32,10 +34,12 @@ import {
   type ConfigLayer,
 } from '@/lib/configLayer'
 
+type IconShape = { className?: string }
+
 interface NavItem {
   to: string
   label: string
-  icon: React.ComponentType<{ className?: string }>
+  icon: React.ComponentType<IconShape>
   exact?: boolean
 }
 
@@ -68,8 +72,6 @@ const navGroups: NavGroup[] = [
     label: 'System',
     items: [
       { to: '/system', label: 'General', icon: Settings2 },
-      { to: '/users', label: 'Users', icon: Users },
-      { to: '/services', label: 'Services', icon: Server },
       { to: '/friends', label: 'Friends', icon: Handshake },
     ],
   },
@@ -107,7 +109,6 @@ const simpleNavGroups: NavGroup[] = [
       { to: '/simple/dns', label: 'DNS', icon: Globe },
       { to: '/simple/port-forwards', label: 'Port forwards', icon: ArrowRightLeft },
       { to: '/simple/system', label: 'System', icon: Settings2 },
-      { to: '/users', label: 'Users', icon: Users },
     ],
   },
   {
@@ -123,7 +124,7 @@ const simpleNavGroups: NavGroup[] = [
 const simpleSharedPaths = new Set(['/settings', '/ip-tools', '/announcements', '/config-browser', '/users'])
 
 function isSimpleSharedPath(pathname: string): boolean {
-  return simpleSharedPaths.has(pathname) || pathname.startsWith('/users/')
+  return simpleSharedPaths.has(pathname) || pathname.startsWith('/users/') || pathname.startsWith('/system/users/')
 }
 
 function groupKeyForPath(pathname: string): string {
@@ -155,6 +156,8 @@ export default function MainLayout() {
   const [stagingLayer, setStagingLayer] = useState<string | null>(null)
   const [showDiff, setShowDiff] = useState(false)
   const [applying, setApplying] = useState(false)
+  const [applyFailure, setApplyFailure] = useState<ApplyFailure | null>(null)
+  const [showApplyLogs, setShowApplyLogs] = useState(false)
   const [pendingPoll, setPendingPoll] = useState(0)
   const [showSaveMacro, setShowSaveMacro] = useState(false)
   const [macroName, setMacroName] = useState('')
@@ -171,6 +174,7 @@ export default function MainLayout() {
   const { bump } = useDataVersion()
   const activeInstance = useActiveInstance()
   const onFriend = activeInstance.id !== 'self'
+  useEffect(() => { setApplyFailure(null); setShowApplyLogs(false) }, [activeInstance.id])
 
   const returnToSelf = () => {
     switchInstance(SELF)
@@ -208,6 +212,8 @@ export default function MainLayout() {
   const handleDiscard = async () => {
     try {
       await api.apiConfigStagingDelete()
+      setApplyFailure(null)
+      setShowApplyLogs(false)
       setStaging(false)
       setStagingLayer(null)
       bump()
@@ -222,6 +228,13 @@ export default function MainLayout() {
     try {
       const result = await api.apiConfigApplyPost()
       setShowDiff(false)
+      const failure = applyFailureFromResult(result)
+      if (failure) {
+        setApplyFailure(failure)
+        return
+      }
+      setApplyFailure(null)
+      setShowApplyLogs(false)
       setStaging(false)
       bump()
       if (result.warning) {
@@ -233,7 +246,8 @@ export default function MainLayout() {
         toast.success('Configuration applied')
       }
     } catch (err: unknown) {
-      toast.error((err as Error).message || 'Failed to apply configuration')
+      setShowDiff(false)
+      setApplyFailure(applyFailureFromError(err))
     } finally {
       setApplying(false)
     }
@@ -315,6 +329,25 @@ export default function MainLayout() {
           sheet: moreExtras,
         },
       ]
+
+  const handleClick = () => {
+    setMacroName('')
+    setMacroDesc('')
+    setMacroError(null)
+    setMacroDiffLines(null)
+    setMacroDiffLoading(true)
+    setShowSaveMacro(true)
+    api.apiConfigDiffGet()
+      .then((raw = []) => {
+        setMacroDiffLoading(false)
+        if (!raw.length || raw.every((l) => l.type === 'same')) {
+          setMacroDiffLines([])
+        } else {
+          setMacroDiffLines(withContext(raw))
+        }
+      })
+      .catch(() => setMacroDiffLoading(false))
+  }
 
   return (
     <div className="app-shell flex overflow-hidden">
@@ -513,56 +546,39 @@ export default function MainLayout() {
           </div>
         )}
         <AnnouncementBanner />
-        {pendingPoll > 0 && (
-          <div className="px-4 pt-2 shrink-0 empty:hidden">
+        <div className="px-4 pt-2 shrink-0 empty:hidden">
             <WatchdogConfirmBar
+              key={activeInstance.id}
               pollKey={pendingPoll}
               onKept={() => { setPendingPoll(0); bump() }}
               onRolledBack={() => { setPendingPoll(0); bump() }}
             />
-          </div>
-        )}
-        {staging && (
-          <div className="flex items-center justify-between gap-3 px-4 py-2 bg-warning/8 border-b border-warning/20 text-warning text-sm shrink-0">
+        </div>
+        {(staging || applyFailure) && (
+          <div role={applyFailure ? 'alert' : 'status'} className={cn('flex flex-wrap items-center justify-between gap-3 px-4 py-2 border-b text-sm shrink-0', applyFailure ? 'bg-danger/10 border-danger/30 text-danger' : 'bg-warning/8 border-warning/20 text-warning')}>
             <div className="flex items-center gap-2">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-warning animate-pulse" />
-              <span className="text-xs font-medium text-warning/90">
-                {stagingLayer && stagingLayer !== configLayer ? `Pending ${stagingLayer} changes` : 'Pending changes'}
+              <span className={cn('inline-block h-1.5 w-1.5 shrink-0 rounded-full', applyFailure ? 'bg-danger' : 'bg-warning animate-pulse')} />
+              <span className="text-xs font-medium">
+                {applyFailure ? (staging ? 'Pending changes · Apply failed' : 'Apply failed') : stagingLayer && stagingLayer !== configLayer ? `Pending ${stagingLayer} changes` : 'Pending changes'}
               </span>
-              <span className="text-xs text-muted-foreground hidden sm:inline">
-                {stagingLayer && stagingLayer !== configLayer ? '- switch views to edit or apply' : '- apply to activate'}
+              <span className={cn('text-xs break-words min-w-0', !applyFailure && 'text-muted-foreground hidden sm:inline')}>
+                {applyFailure ? applyFailure.message : stagingLayer && stagingLayer !== configLayer ? '- switch views to edit or apply' : '- apply to activate'}
               </span>
             </div>
             <div className="flex items-center gap-2">
+              {applyFailure && <Button size="sm" variant="outline" onClick={() => setShowApplyLogs(true)} className="h-6 border-danger/40 text-xs text-danger">Check logs</Button>}
               <Button
                 size="sm"
                 onClick={() => setShowDiff(true)}
                 disabled={applying || (!!stagingLayer && stagingLayer !== configLayer)}
                 className="h-6 gap-1.5 bg-warning hover:bg-warning/85 text-warning-foreground border-0 text-xs px-2.5"
               >
-                <Play className="h-2.5 w-2.5" />Apply
+                <Play className="h-2.5 w-2.5" />{applying ? 'Applying…' : applyFailure ? 'Retry apply' : 'Apply'}
               </Button>
               {configLayer === 'advanced' && <Button
                 size="sm"
                 variant="outline"
-                onClick={() => {
-                  setMacroName('')
-                  setMacroDesc('')
-                  setMacroError(null)
-                  setMacroDiffLines(null)
-                  setMacroDiffLoading(true)
-                  setShowSaveMacro(true)
-                  api.apiConfigDiffGet()
-                    .then((raw = []) => {
-                      setMacroDiffLoading(false)
-                      if (!raw.length || raw.every((l) => l.type === 'same')) {
-                        setMacroDiffLines([])
-                      } else {
-                        setMacroDiffLines(withContext(raw))
-                      }
-                    })
-                    .catch(() => setMacroDiffLoading(false))
-                }}
+                onClick={handleClick}
                 disabled={applying}
                 className="h-6 gap-1.5 text-xs px-2.5 hidden sm:inline-flex border-warning/40 text-warning/80 hover:border-warning hover:text-warning hover:bg-warning/10"
               >
@@ -579,6 +595,8 @@ export default function MainLayout() {
             </div>
           </div>
         )}
+
+        {showApplyLogs && applyFailure && <ApplyFailureModal failure={applyFailure} onClose={() => setShowApplyLogs(false)} />}
 
         <main className="flex-1 overflow-auto">
           <div className="p-4 pb-8 md:p-6" key={activeInstance.id}>

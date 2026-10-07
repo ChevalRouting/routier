@@ -22,23 +22,7 @@ func newAnycastRunCommand() *cobra.Command {
 		Use:   "run [config]",
 		Short: "run one health check cycle and update BGP routes",
 		Args:  cobra.MaximumNArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := config.LoadAndValidate(configArg(args), true)
-			if err != nil {
-				return err
-			}
-
-			if cfg.Routing == nil || cfg.Routing.Anycast == nil {
-				return nil
-			}
-
-			ctx := log.Logger.WithContext(cmd.Context())
-			if err := anyk.Run(ctx, cfg.Routing.BGP.ASN, toAnykServices(cfg.Routing.Anycast.Services)); err != nil {
-				log.Error().Err(err).Msg("anycast run failed")
-			}
-
-			return nil
-		},
+		RunE:  newAnycastRunCommandHandler,
 	}
 }
 
@@ -81,4 +65,22 @@ func toAnykServices(services []config.AnycastService) []anyk.AnykService {
 	}
 
 	return out
+}
+
+func newAnycastRunCommandHandler(cmd *cobra.Command, args []string) error {
+	cfg, err := config.LoadAndValidate(configArg(args), true)
+	if err != nil {
+		return err
+	}
+
+	if cfg.Routing == nil || cfg.Routing.Anycast == nil {
+		return nil
+	}
+
+	ctx := log.Logger.WithContext(cmd.Context())
+	if err := anyk.Run(ctx, cfg.Routing.BGP.ASN, toAnykServices(cfg.Routing.Anycast.Services)); err != nil {
+		log.Error().Err(err).Msg("anycast run failed")
+	}
+
+	return nil
 }

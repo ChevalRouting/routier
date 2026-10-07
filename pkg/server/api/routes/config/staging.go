@@ -9,7 +9,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// DiscardStaging godoc
 // @Summary  Discard staged changes
 // @Tags config
 // @Produce json

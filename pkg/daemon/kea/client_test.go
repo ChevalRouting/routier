@@ -18,18 +18,9 @@ func TestUnixSocketExchange(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	defer ln.Close()
+	defer func(action func() error) { _ = action() }(ln.Close)
 
-	go func() {
-		conn, err := ln.Accept()
-		if err != nil {
-			return
-		}
-
-		defer conn.Close()
-		_, _ = io.ReadAll(conn)
-		io.WriteString(conn, `{"result":0,"arguments":{"Dhcp4":{"subnet4":[{"id":1,"subnet":"10.0.0.0/24"}]}}}`)
-	}()
+	go func() { testUnixSocketExchangeCallback(ln) }()
 
 	c := &Client{unix: true, endpoints: map[string]string{"dhcp4": sock}}
 	subnets, err := c.Subnets("dhcp4")
@@ -50,25 +41,7 @@ type caCall struct {
 
 func fakeCA(t *testing.T, replies map[string]string, record *[]caCall) *httptest.Server {
 	t.Helper()
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, _ := io.ReadAll(r.Body)
-		var call caCall
-		if err := json.Unmarshal(body, &call); err != nil {
-			t.Errorf("bad request body: %v", err)
-		}
-
-		if record != nil {
-			*record = append(*record, call)
-		}
-
-		reply, ok := replies[call.Command]
-		if !ok {
-			reply = `[{"result":1,"text":"unknown command"}]`
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		io.WriteString(w, reply)
-	}))
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { fakeCACallback(t, replies, record, w, r) }))
 }
 
 func TestSubnetsAndLeases(t *testing.T) {
@@ -284,7 +257,7 @@ func TestBasicAuthHeader(t *testing.T) {
 	got := ""
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		got = r.Header.Get("Authorization")
-		io.WriteString(w, `[{"result":0,"arguments":{"subnets":[]}}]`)
+		_, _ = io.WriteString(w, `[{"result":0,"arguments":{"subnets":[]}}]`)
 	}))
 	defer srv.Close()
 
@@ -300,28 +273,64 @@ func TestBasicAuthHeader(t *testing.T) {
 
 func TestLeaseQueryEmptyResults(t *testing.T) {
 	for _, command := range []string{"lease4-get-all", "lease6-get-all", "lease4-get", "lease6-get"} {
-		t.Run(command, func(t *testing.T) {
-			raw, err := parseResponse(command, []byte(`{"result":3,"text":"No matching leases."}`))
-			if err != nil {
-				t.Fatal(err)
-			}
-			if command == "lease4-get-all" || command == "lease6-get-all" {
-				var result leaseList
-				if err := json.Unmarshal(raw, &result); err != nil || len(result.Leases) != 0 {
-					t.Fatalf("expected empty lease list: %s, %v", raw, err)
-				}
-			} else {
-				var lease Lease
-				if err := json.Unmarshal(raw, &lease); err != nil || lease.IPAddress != "" {
-					t.Fatalf("expected empty lease: %s, %v", raw, err)
-				}
-			}
-		})
+		t.Run(command, func(t *testing.T) { testLeaseQueryEmptyResultsCallback(command, t) })
 	}
+
 	if _, err := parseResponse("lease4-get-all", []byte(`{"result":1,"text":"lease commands hook unavailable"}`)); err == nil {
 		t.Fatal("lease query failures must remain errors")
 	}
+
 	if _, err := parseResponse("lease4-del", []byte(`{"result":3,"text":"No lease deleted"}`)); err == nil {
 		t.Fatal("empty mutation results must remain errors")
+	}
+}
+
+func testUnixSocketExchangeCallback(ln net.Listener) {
+	conn, err := ln.Accept()
+	if err != nil {
+		return
+	}
+
+	defer func(action func() error) { _ = action() }(conn.Close)
+	_, _ = io.ReadAll(conn)
+	_, _ = io.WriteString(conn, `{"result":0,"arguments":{"Dhcp4":{"subnet4":[{"id":1,"subnet":"10.0.0.0/24"}]}}}`)
+}
+
+func fakeCACallback(t *testing.T, replies map[string]string, record *[]caCall, w http.ResponseWriter, r *http.Request) {
+	body, _ := io.ReadAll(r.Body)
+	var call caCall
+	if err := json.Unmarshal(body, &call); err != nil {
+		t.Errorf("bad request body: %v", err)
+	}
+
+	if record != nil {
+		*record = append(*record, call)
+	}
+
+	reply, ok := replies[call.Command]
+	if !ok {
+		reply = `[{"result":1,"text":"unknown command"}]`
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = io.WriteString(w, reply)
+}
+
+func testLeaseQueryEmptyResultsCallback(command string, t *testing.T) {
+	raw, err := parseResponse(command, []byte(`{"result":3,"text":"No matching leases."}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if command == "lease4-get-all" || command == "lease6-get-all" {
+		var result leaseList
+		if err := json.Unmarshal(raw, &result); err != nil || len(result.Leases) != 0 {
+			t.Fatalf("expected empty lease list: %s, %v", raw, err)
+		}
+	} else {
+		var lease Lease
+		if err := json.Unmarshal(raw, &lease); err != nil || lease.IPAddress != "" {
+			t.Fatalf("expected empty lease: %s, %v", raw, err)
+		}
 	}
 }

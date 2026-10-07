@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
-import { toast } from 'sonner'
-import { PageHeader, SaveButton, Spinner } from 'cheval-ui'
+import { PortForwardEditor } from '@/components/simple/PortForwardEditor'
+import type { PortForward } from '@/components/simple/types'
 import { api } from '@/lib/client'
 import { useFetch } from '@/lib/useFetch'
-import type { PortForward } from '@/components/simple/types'
-import { PortForwardEditor } from '@/components/simple/PortForwardEditor'
+import { PageHeader, SaveButton, Spinner } from 'cheval-ui'
+import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 
 export default function SimplePortForwards() {
   const { data, isLoading, reload } = useFetch<PortForward[]>(() =>

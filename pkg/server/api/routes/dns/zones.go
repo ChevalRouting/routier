@@ -4,14 +4,13 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/ChevalRouting/routier/pkg/daemon/bind"
 	"github.com/ChevalRouting/routier/pkg/config"
+	"github.com/ChevalRouting/routier/pkg/daemon/bind"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
 )
 
-// Zones godoc
 // @Summary  Authoritative zones with their declared records and live serial
 // @Tags dns
 // @Produce json
@@ -38,7 +37,6 @@ func Zones(w http.ResponseWriter, r *http.Request) {
 	types.OK(w, client.Zones(inputs))
 }
 
-// Zone godoc
 // @Summary  A single authoritative zone
 // @Tags dns
 // @Produce json
@@ -72,7 +70,6 @@ func Zone(w http.ResponseWriter, r *http.Request) {
 	types.OK(w, client.Zones([]bind.ZoneInput{input})[0])
 }
 
-// ReloadZone godoc
 // @Summary  Reload one authoritative zone from its rendered file
 // @Tags dns
 // @Produce json

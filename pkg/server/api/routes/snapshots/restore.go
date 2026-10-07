@@ -9,7 +9,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// Restore godoc
 // @Summary  Restore a snapshot
 // @Tags snapshots
 // @Produce json

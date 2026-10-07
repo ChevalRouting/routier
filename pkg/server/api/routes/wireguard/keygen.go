@@ -8,7 +8,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// Keygen godoc
 // @Summary  Generate a WireGuard keypair
 // @Tags wireguard
 // @Produce json

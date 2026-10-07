@@ -7,18 +7,17 @@ import (
 	"regexp"
 	"strings"
 
-	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
-	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
-	"github.com/ChevalRouting/routier/pkg/server/api/friendcache"
 	"github.com/ChevalRouting/routier/pkg/artifacterr"
 	cfgpkg "github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/render"
+	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
+	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
+	"github.com/ChevalRouting/routier/pkg/server/api/friendcache"
 	"github.com/ChevalRouting/routier/pkg/svc"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/rs/zerolog/log"
 )
 
-// GetNftablesVars godoc
 // @Summary  nftables variables for the staged config
 // @Tags config
 // @Produce json
@@ -39,7 +38,6 @@ func GetNftablesVars(w http.ResponseWriter, r *http.Request) {
 
 var nftChainOpen = regexp.MustCompile(`^chain (\w+) \{$`)
 
-// ValidateNftables godoc
 // @Summary  Validate a draft nftables ruleset with `nft -c`
 // @Tags config
 // @Produce json

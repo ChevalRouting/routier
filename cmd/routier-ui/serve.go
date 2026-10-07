@@ -37,61 +37,8 @@ func serveCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "serve",
 		Short: "start the web UI server",
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			lvl, err := zerolog.ParseLevel(logLevel)
-			if err != nil {
-				return fmt.Errorf("invalid log level %q", logLevel)
-			}
-
-			zerolog.SetGlobalLevel(lvl)
-			jwtSecret, err := loadOrCreateSecret(secretFile)
-			if err != nil {
-				return fmt.Errorf("jwt secret: %w", err)
-			}
-
-			srv, err := api.New(cmd.Context(), configPath, dbPath, jwtSecret, debug)
-			if err != nil {
-				return fmt.Errorf("create server: %w", err)
-			}
-
-			var staticFS fs.FS
-			if devDir != "" {
-				log.Info().Str("dir", devDir).Msg("serving static files from directory")
-				staticFS = os.DirFS(devDir)
-			} else {
-				entries, err := api.EmbeddedFS.ReadDir(".")
-				log.Debug().Bool("exist", len(entries) > 0).Any("files", entries).Msg("embed exist")
-				if err == nil && len(entries) > 0 {
-					sub, err := fs.Sub(api.EmbeddedFS, "dist")
-					if err == nil {
-						staticFS = sub
-						log.Info().Msg("serving embedded static files")
-					}
-				}
-			}
-
-			if staticFS != nil {
-				srv.SetStaticFS(staticFS)
-			}
-
-			handler := srv.Handler()
-
-			_, certErr := os.Stat(tlsCert)
-			_, keyErr := os.Stat(tlsKey)
-			tlsEnabled := certErr == nil && keyErr == nil
-			if _, portStr, aerr := net.SplitHostPort(addr); aerr == nil {
-				if port, perr := strconv.Atoi(portStr); perr == nil {
-					srv.SetAdvertise(port, tlsEnabled)
-				}
-			}
-
-			if tlsEnabled {
-				log.Info().Str("addr", addr).Str("cert", tlsCert).Str("key", tlsKey).Msg("starting web server (TLS)")
-				return http.ListenAndServeTLS(addr, tlsCert, tlsKey, handler)
-			}
-
-			log.Info().Str("addr", addr).Str("config", configPath).Msg("starting web server")
-			return http.ListenAndServe(addr, handler)
+		RunE: func(cmd *cobra.Command, unusedArg10 []string) error {
+			return serveCmdCallback(configPath, dbPath, addr, secretFile, tlsCert, tlsKey, devDir, debug, logLevel, cmd, unusedArg10)
 		},
 	}
 
@@ -136,4 +83,61 @@ func loadOrCreateSecret(path string) ([]byte, error) {
 
 	log.Info().Str("file", path).Msg("generated new JWT secret")
 	return secret, nil
+}
+
+func serveCmdCallback(configPath string, dbPath string, addr string, secretFile string, tlsCert string, tlsKey string, devDir string, debug bool, logLevel string, cmd *cobra.Command, _ []string) error {
+	lvl, err := zerolog.ParseLevel(logLevel)
+	if err != nil {
+		return fmt.Errorf("invalid log level %q", logLevel)
+	}
+
+	zerolog.SetGlobalLevel(lvl)
+	jwtSecret, err := loadOrCreateSecret(secretFile)
+	if err != nil {
+		return fmt.Errorf("jwt secret: %w", err)
+	}
+
+	srv, err := api.New(cmd.Context(), configPath, dbPath, jwtSecret, debug)
+	if err != nil {
+		return fmt.Errorf("create server: %w", err)
+	}
+
+	var staticFS fs.FS
+	if devDir != "" {
+		log.Info().Str("dir", devDir).Msg("serving static files from directory")
+		staticFS = os.DirFS(devDir)
+	} else {
+		entries, err := api.EmbeddedFS.ReadDir(".")
+		log.Debug().Bool("exist", len(entries) > 0).Any("files", entries).Msg("embed exist")
+		if err == nil && len(entries) > 0 {
+			sub, err := fs.Sub(api.EmbeddedFS, "dist")
+			if err == nil {
+				staticFS = sub
+				log.Info().Msg("serving embedded static files")
+			}
+		}
+	}
+
+	if staticFS != nil {
+		srv.SetStaticFS(staticFS)
+	}
+
+	handler := srv.Handler()
+
+	_, certErr := os.Stat(tlsCert)
+	_, keyErr := os.Stat(tlsKey)
+	tlsEnabled := certErr == nil && keyErr == nil
+	if _, portStr, aerr := net.SplitHostPort(addr); aerr == nil {
+		if port, perr := strconv.Atoi(portStr); perr == nil {
+			srv.SetAdvertise(port, tlsEnabled)
+		}
+	}
+
+	if tlsEnabled {
+		log.Info().Str("addr", addr).Str("cert", tlsCert).Str("key", tlsKey).Msg("starting web server (TLS)")
+		return http.ListenAndServeTLS(addr, tlsCert, tlsKey, handler)
+	}
+
+	log.Info().Str("addr", addr).Str("config", configPath).Msg("starting web server")
+	return http.ListenAndServe(addr, handler)
 }

@@ -11,14 +11,14 @@ import (
 	"sync"
 	"time"
 
-	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
-	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
-	"github.com/ChevalRouting/routier/pkg/server/api/friendcache"
-	"github.com/ChevalRouting/routier/pkg/server/api/requests"
 	"github.com/ChevalRouting/routier/pkg/config"
 	webdb "github.com/ChevalRouting/routier/pkg/db"
 	"github.com/ChevalRouting/routier/pkg/diffutil"
 	"github.com/ChevalRouting/routier/pkg/managers"
+	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
+	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
+	"github.com/ChevalRouting/routier/pkg/server/api/friendcache"
+	"github.com/ChevalRouting/routier/pkg/server/api/requests"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
@@ -55,32 +55,9 @@ func v1SessionFromCtx(ctx context.Context) *v1Session {
 }
 
 func v1SessionMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		app := appctx.FromContext(r.Context())
-		id := chi.URLParam(r, "sessionID")
-		username := appctx.UsernameFromContext(r.Context())
-
-		sess, err := webdb.LoadSession(r.Context(), app.DB, id)
-		if err != nil {
-			types.Err(http.StatusInternalServerError, "failed to load session").Write(w)
-			return
-		}
-
-		if sess == nil {
-			types.Err(http.StatusNotFound, "session not found").Write(w)
-			return
-		}
-
-		if sess.Username != username {
-			types.Err(http.StatusForbidden, "session belongs to another user").Write(w)
-			return
-		}
-
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), v1SessCtxKey{}, sess)))
-	})
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { v1SessionMiddlewareCallback(next, w, r) })
 }
 
-// handleV1CreateSession godoc
 // @Summary  Create a config edit session
 // @Tags v1-sessions
 // @Produce json
@@ -109,7 +86,6 @@ func handleV1CreateSession(w http.ResponseWriter, r *http.Request) {
 	types.OK(w, v1SessionInfo{ID: id, Username: username, CreatedAt: createdAt})
 }
 
-// handleV1ListSessions godoc
 // @Summary  List the current user's sessions
 // @Tags v1-sessions
 // @Produce json
@@ -128,7 +104,6 @@ func handleV1ListSessions(w http.ResponseWriter, r *http.Request) {
 	types.OK(w, list)
 }
 
-// handleV1GetSession godoc
 // @Summary  Get a session
 // @Tags v1-sessions
 // @Produce json
@@ -141,7 +116,6 @@ func handleV1GetSession(w http.ResponseWriter, r *http.Request) {
 	types.OK(w, v1SessionInfo{ID: sess.ID, Username: sess.Username, CreatedAt: sess.CreatedAt})
 }
 
-// handleV1DeleteSession godoc
 // @Summary  Discard a session
 // @Tags v1-sessions
 // @Produce json
@@ -162,7 +136,6 @@ func handleV1DeleteSession(w http.ResponseWriter, r *http.Request) {
 	types.OK(w, types.StatusResponse{Status: "discarded"})
 }
 
-// handleV1SessionDiff godoc
 // @Summary  Diff a session vs live config
 // @Tags v1-sessions
 // @Produce json
@@ -193,7 +166,6 @@ func handleV1SessionDiff(w http.ResponseWriter, r *http.Request) {
 	types.OK(w, lines)
 }
 
-// handleV1SessionValidate godoc
 // @Summary  Validate a session
 // @Tags v1-sessions
 // @Produce json
@@ -211,7 +183,6 @@ func handleV1SessionValidate(w http.ResponseWriter, r *http.Request) {
 	types.OK(w, types.StatusResponse{Status: "ok"})
 }
 
-// handleV1SessionApply godoc
 // @Summary  Apply a session to the live config
 // @Tags v1-sessions
 // @Produce json
@@ -224,72 +195,98 @@ func handleV1SessionApply(w http.ResponseWriter, r *http.Request) {
 	sess := v1SessionFromCtx(r.Context())
 
 	var result types.ApplyResult
-	if err := v1WithLock(sess.ID, func() error {
-		current, err := webdb.LoadSession(r.Context(), app.DB, sess.ID)
-		if err != nil || current == nil {
-			return types.NewError(http.StatusNotFound, "session not found or expired")
-		}
-
-		current.Config.BaseDir = current.BaseDir
-
-		resolved, err := cfgstore.Resolve(current.Config)
-		if err != nil {
-			return types.Errorf(http.StatusBadRequest, "config interpolation: %v", err)
-		}
-
-		if errs := config.Validate(resolved, true); len(errs) > 0 {
-			msgs := make([]string, len(errs))
-			for i, e := range errs {
-				msgs[i] = e.Error()
-			}
-
-			return types.Errorf(http.StatusBadRequest, "validation failed: %s", strings.Join(msgs, "; "))
-		}
-
-		cfgstore.Mu.RLock()
-		oldData, _ := os.ReadFile(app.ConfigPath)
-		cfgstore.Mu.RUnlock()
-
-		newData, err := yaml.Marshal(current.Config)
-		if err != nil {
-			return types.Wrap(http.StatusInternalServerError, err, "marshal config")
-		}
-
-		cfgstore.Mu.Lock()
-		if err := os.MkdirAll(filepath.Dir(app.ConfigPath), 0755); err != nil {
-			cfgstore.Mu.Unlock()
-			return types.Wrap(http.StatusInternalServerError, err, "create config dir")
-		}
-
-		if err := os.WriteFile(app.ConfigPath, newData, 0600); err != nil {
-			cfgstore.Mu.Unlock()
-			return types.Wrap(http.StatusInternalServerError, err, "write config")
-		}
-
-		cfgstore.Mu.Unlock()
-
-		res, err := managers.Apply(r.Context(), resolved, friendcache.InterpolationVars(),
-			managers.ApplyOptions{Source: "web", ConfigPath: app.ConfigPath}, managers.WatchdogTimeout)
-		if err != nil {
-			cfgstore.Mu.Lock()
-			if len(oldData) > 0 {
-				_ = os.WriteFile(app.ConfigPath, oldData, 0600)
-			}
-
-			cfgstore.Mu.Unlock()
-			return types.Wrap(http.StatusInternalServerError, err, "apply failed (rolled back)")
-		}
-
-		_ = webdb.DeleteSession(requests.DurableContext(r), app.DB, sess.ID)
-
-		result.Status = "applied"
-		result.SnapID = res.SnapID
-		result.Warning = res.Warning
-		return nil
-	}); err != nil {
+	if err := v1WithLock(sess.ID, func() error { return handleV1SessionApplyCallback(r, app, sess, &result) }); err != nil {
 		types.Error(log.Logger, w, err)
 		return
 	}
 
 	types.OK(w, result)
+}
+
+func v1SessionMiddlewareCallback(next http.Handler, w http.ResponseWriter, r *http.Request) {
+	app := appctx.FromContext(r.Context())
+	id := chi.URLParam(r, "sessionID")
+	username := appctx.UsernameFromContext(r.Context())
+
+	sess, err := webdb.LoadSession(r.Context(), app.DB, id)
+	if err != nil {
+		types.Err(http.StatusInternalServerError, "failed to load session").Write(w)
+		return
+	}
+
+	if sess == nil {
+		types.Err(http.StatusNotFound, "session not found").Write(w)
+		return
+	}
+
+	if sess.Username != username {
+		types.Err(http.StatusForbidden, "session belongs to another user").Write(w)
+		return
+	}
+
+	next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), v1SessCtxKey{}, sess)))
+}
+
+func handleV1SessionApplyCallback(r *http.Request, app *appctx.App, sess *v1Session, result *types.ApplyResult) error {
+	current, err := webdb.LoadSession(r.Context(), app.DB, sess.ID)
+	if err != nil || current == nil {
+		return types.NewError(http.StatusNotFound, "session not found or expired")
+	}
+
+	current.Config.BaseDir = current.BaseDir
+
+	resolved, err := cfgstore.Resolve(current.Config)
+	if err != nil {
+		return types.Errorf(http.StatusBadRequest, "config interpolation: %v", err)
+	}
+
+	if errs := config.Validate(resolved, true); len(errs) > 0 {
+		msgs := make([]string, len(errs))
+		for i, e := range errs {
+			msgs[i] = e.Error()
+		}
+
+		return types.Errorf(http.StatusBadRequest, "validation failed: %s", strings.Join(msgs, "; "))
+	}
+
+	cfgstore.Mu.RLock()
+	oldData, _ := os.ReadFile(app.ConfigPath)
+	cfgstore.Mu.RUnlock()
+
+	newData, err := yaml.Marshal(current.Config)
+	if err != nil {
+		return types.Wrap(http.StatusInternalServerError, err, "marshal config")
+	}
+
+	cfgstore.Mu.Lock()
+	if err := os.MkdirAll(filepath.Dir(app.ConfigPath), 0755); err != nil {
+		cfgstore.Mu.Unlock()
+		return types.Wrap(http.StatusInternalServerError, err, "create config dir")
+	}
+
+	if err := os.WriteFile(app.ConfigPath, newData, 0600); err != nil {
+		cfgstore.Mu.Unlock()
+		return types.Wrap(http.StatusInternalServerError, err, "write config")
+	}
+
+	cfgstore.Mu.Unlock()
+
+	res, err := managers.Apply(r.Context(), resolved, friendcache.InterpolationVars(),
+		managers.ApplyOptions{Source: "web", ConfigPath: app.ConfigPath}, managers.WatchdogTimeout)
+	if err != nil {
+		cfgstore.Mu.Lock()
+		if len(oldData) > 0 {
+			_ = os.WriteFile(app.ConfigPath, oldData, 0600)
+		}
+
+		cfgstore.Mu.Unlock()
+		return types.Wrap(http.StatusInternalServerError, err, "apply failed (rolled back)")
+	}
+
+	_ = webdb.DeleteSession(requests.DurableContext(r), app.DB, sess.ID)
+
+	(*result).Status = "applied"
+	(*result).SnapID = res.SnapID
+	(*result).Warning = res.Warning
+	return nil
 }

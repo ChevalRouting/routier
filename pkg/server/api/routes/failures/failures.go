@@ -29,7 +29,6 @@ func toRecord(m failurespkg.Meta) types.FailureRecord {
 	}
 }
 
-// List godoc
 // @Summary  List preserved failed-apply bundles
 // @Tags failures
 // @Produce json
@@ -46,7 +45,6 @@ func List(w http.ResponseWriter, _ *http.Request) {
 	types.OK(w, types.FailuresResponse{Failures: out})
 }
 
-// Get godoc
 // @Summary  Get a failed-apply bundle
 // @Tags failures
 // @Produce json
@@ -64,7 +62,6 @@ func Get(w http.ResponseWriter, r *http.Request) {
 	types.OK(w, toRecord(m))
 }
 
-// Artifact godoc
 // @Summary  Read a rendered artifact from a failed-apply bundle
 // @Tags failures
 // @Produce json
@@ -84,7 +81,6 @@ func Artifact(w http.ResponseWriter, r *http.Request) {
 	types.OK(w, types.ArtifactContent{Dest: dest, Content: string(data)})
 }
 
-// Export godoc
 // @Summary  Download a failed-apply bundle as a tar.gz
 // @Tags failures
 // @Produce octet-stream
@@ -107,7 +103,6 @@ func Export(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Remove godoc
 // @Summary  Delete a failed-apply bundle
 // @Tags failures
 // @Produce json

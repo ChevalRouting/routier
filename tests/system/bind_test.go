@@ -83,11 +83,7 @@ func TestBindKeyStatisticsFiltersAndOrders(t *testing.T) {
 
 func TestBindStatusParse(t *testing.T) {
 	restore := bind.SetRunner(func(name string, args ...string) ([]byte, error) {
-		if name != "rndc" {
-			t.Errorf("expected rndc, got %q", name)
-		}
-
-		return []byte(statusOut), nil
+		return testBindStatusParseCallback(t, name, args...)
 	})
 	defer restore()
 
@@ -160,12 +156,8 @@ nas.home.arpa.		300	IN	A	10.0.0.10
 ;; SERVER: 127.0.0.1#53(127.0.0.1) (UDP)
 `
 
-	restore := bind.SetRunner(func(name string, _ ...string) ([]byte, error) {
-		if name != "dig" {
-			t.Errorf("expected dig, got %q", name)
-		}
-
-		return []byte(digOut), nil
+	restore := bind.SetRunner(func(name string, unusedArg3 ...string) ([]byte, error) {
+		return testBindDigParseCallback(t, digOut, name, unusedArg3...)
 	})
 	defer restore()
 
@@ -205,4 +197,20 @@ func TestBindZoneViewMarksUnanswered(t *testing.T) {
 	if views[0].Serial != 7 {
 		t.Errorf("declared serial lost: %d", views[0].Serial)
 	}
+}
+
+func testBindStatusParseCallback(t *testing.T, name string, args ...string) ([]byte, error) {
+	if name != "rndc" {
+		t.Errorf("expected rndc, got %q", name)
+	}
+
+	return []byte(statusOut), nil
+}
+
+func testBindDigParseCallback(t *testing.T, digOut string, name string, _ ...string) ([]byte, error) {
+	if name != "dig" {
+		t.Errorf("expected dig, got %q", name)
+	}
+
+	return []byte(digOut), nil
 }

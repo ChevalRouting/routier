@@ -1,11 +1,10 @@
-import { useEffect, useState } from 'react'
-import { toast } from 'sonner'
-import { Button, EntryRow, Label, PageHeader, PreferencesGroup, Spinner, TagInput } from 'cheval-ui'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from 'cheval-ui'
+import type { TypesSystemNic as SystemNic } from '@/api'
+import type { Internet } from '@/components/simple/types'
 import { api } from '@/lib/client'
 import { useFetch } from '@/lib/useFetch'
-import type { Internet } from '@/components/simple/types'
-import type { TypesSystemNic as SystemNic } from '@/api'
+import { Button, EntryRow, Label, PageHeader, PreferencesGroup, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Spinner, TagInput } from 'cheval-ui'
+import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 
 export default function SimpleInternet() {
   const { data, isLoading, reload } = useFetch<Internet | null>(() =>

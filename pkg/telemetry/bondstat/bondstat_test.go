@@ -69,8 +69,7 @@ func TestParseLACPChurned(t *testing.T) {
 }
 
 func TestParseSlaveDown(t *testing.T) {
-	s := Parse("bond0", lacpHealthy)
-	s = Parse("bond0", replaceFirst(lacpHealthy, "Slave Interface: eth0\nMII Status: up", "Slave Interface: eth0\nMII Status: down"))
+	s := Parse("bond0", replaceFirst(lacpHealthy, "Slave Interface: eth0\nMII Status: up", "Slave Interface: eth0\nMII Status: down"))
 	if s.Healthy {
 		t.Error("bond with a down slave should be unhealthy")
 	}

@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/ChevalRouting/routier/pkg/daemon/bind"
 	"github.com/ChevalRouting/routier/pkg/config"
+	"github.com/ChevalRouting/routier/pkg/daemon/bind"
 	"github.com/ChevalRouting/routier/pkg/render"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/go-chi/chi/v5"
@@ -25,7 +25,6 @@ type ddnsDeleteRequest struct {
 	Value string `json:"value,omitempty" validate:"optional"`
 }
 
-// DDNS godoc
 // @Summary  Live DDNS-managed zones and the dynamic records they currently hold
 // @Tags dns
 // @Produce json
@@ -69,7 +68,6 @@ func DDNS(w http.ResponseWriter, r *http.Request) {
 	types.OK(w, views)
 }
 
-// DeleteDDNSRecord godoc
 // @Summary  Clear a single dynamic record from a DDNS-managed zone
 // @Tags dns
 // @Accept json
@@ -130,6 +128,7 @@ func ddnsClient(r *http.Request, cfg *config.Config) (*bind.Client, error) {
 	if client.TSIGAlgorithm == "" {
 		client.TSIGAlgorithm = config.DefaultDDNSAlgorithm
 	}
+
 	client.TSIGSecret = cfg.DHCP.DDNS.Key
 
 	return client, nil

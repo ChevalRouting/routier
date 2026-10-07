@@ -11,9 +11,9 @@ import (
 
 	webdb "github.com/ChevalRouting/routier/pkg/db"
 
-	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
 	"github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/net/iproute"
+	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
 	"github.com/ChevalRouting/routier/pkg/telemetry/lldp"
 	"github.com/ChevalRouting/routier/pkg/telemetry/stats"
 	"github.com/ChevalRouting/routier/pkg/types"
@@ -25,7 +25,7 @@ func Run(ctx context.Context, dbPath, configPath string) error {
 		return fmt.Errorf("open db: %w", err)
 	}
 
-	defer db.Close()
+	defer func(action func() error) { _ = action() }(db.Close)
 
 	var intervals config.CollectionIntervals
 	if configPath != "" {
@@ -123,16 +123,7 @@ func storeNeighborStats(ctx context.Context, db *webdb.DB, now int64) error {
 
 	ch := make(chan dnsResult, len(raw))
 	for _, n := range raw {
-		go func(n iproute.Neighbor) {
-			hostname := ""
-			lookupCtx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
-			defer cancel()
-			if names, err := net.DefaultResolver.LookupAddr(lookupCtx, n.Dst); err == nil && len(names) > 0 {
-				hostname = strings.TrimSuffix(names[0], ".")
-			}
-
-			ch <- dnsResult{n: n, hostname: hostname}
-		}(n)
+		go func(n iproute.Neighbor) { storeNeighborStatsCallback(ctx, ch, n) }(n)
 	}
 
 	rows := make([]webdb.NeighborStatRow, 0, len(raw))
@@ -279,4 +270,15 @@ func parseProcSnmp(path string) (map[string]map[string]int64, error) {
 	}
 
 	return kv, nil
+}
+
+func storeNeighborStatsCallback(ctx context.Context, ch chan dnsResult, n iproute.Neighbor) {
+	hostname := ""
+	lookupCtx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
+	defer cancel()
+	if names, err := net.DefaultResolver.LookupAddr(lookupCtx, n.Dst); err == nil && len(names) > 0 {
+		hostname = strings.TrimSuffix(names[0], ".")
+	}
+
+	ch <- dnsResult{n: n, hostname: hostname}
 }
