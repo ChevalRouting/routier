@@ -9,17 +9,22 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/types"
 )
 
 var actionRE = regexp.MustCompile(`(?s)\{\{-?\s*(.*?)\s*-?\}\}`)
 
 type Vars struct {
-	Hostname    string
-	Fingerprint string
-	Version     string
-	Interfaces  map[string][]string
-	Exports     map[string]string
+	Hostname             string
+	Fingerprint          string
+	Version              string
+	Interfaces           map[string][]string
+	Exports              map[string]string
+	BGPPrefixLists       map[string][]config.PrefixEntry
+	BGPRouteMaps         map[string][]config.RouteMapEntry
+	BGPSharedPrefixLists map[string]bool
+	BGPSharedRouteMaps   map[string]bool
 }
 
 func resolvePath(v Vars, path string) (string, error) {
@@ -65,6 +70,7 @@ func CachedVars() map[string]Vars {
 type cachedVarsFile struct {
 	Status     map[string]*types.FriendStatus     `json:"status"`
 	Interfaces map[string][]types.FriendInterface `json:"interfaces"`
+	Configs    map[string]*config.Config          `json:"configs"`
 }
 
 func LoadCacheVars(path string) map[string]Vars {
@@ -101,7 +107,37 @@ func LoadCacheVars(path string) map[string]Vars {
 		out[name] = v
 	}
 
+	for name, cfg := range f.Configs {
+		if cfg == nil || cfg.Routing == nil || cfg.Routing.BGP == nil {
+			continue
+		}
+
+		v, ok := out[name]
+		if !ok {
+			v = Vars{Interfaces: map[string][]string{}}
+		}
+
+		v.BGPPrefixLists = cfg.Routing.BGP.PrefixLists
+		v.BGPRouteMaps = cfg.Routing.BGP.RouteMaps
+		v.BGPSharedPrefixLists = nameSet(cfg.Routing.BGP.SharedPrefixLists)
+		v.BGPSharedRouteMaps = nameSet(cfg.Routing.BGP.SharedRouteMaps)
+		out[name] = v
+	}
+
 	return out
+}
+
+func nameSet(names []string) map[string]bool {
+	if len(names) == 0 {
+		return nil
+	}
+
+	set := make(map[string]bool, len(names))
+	for _, n := range names {
+		set[n] = true
+	}
+
+	return set
 }
 
 func Interpolate(raw string, data map[string]Vars) (string, error) {
@@ -110,11 +146,11 @@ func Interpolate(raw string, data map[string]Vars) (string, error) {
 	}
 
 	funcs := template.FuncMap{
-		"friend": func(name, path string) (string, error) { return interpolateCallback(data, name, path) },
+		"friend": func(name, path string) (string, error) { return lookupFriendVar(data, name, path) },
 	}
 
 	var firstErr error
-	out := actionRE.ReplaceAllStringFunc(raw, func(action string) string { return interpolateCallback2(funcs, &firstErr, action) })
+	out := actionRE.ReplaceAllStringFunc(raw, func(action string) string { return expandFriendAction(funcs, &firstErr, action) })
 
 	if firstErr != nil {
 		return "", firstErr
@@ -123,7 +159,7 @@ func Interpolate(raw string, data map[string]Vars) (string, error) {
 	return out, nil
 }
 
-func interpolateCallback(data map[string]Vars, name, path string) (string, error) {
+func lookupFriendVar(data map[string]Vars, name, path string) (string, error) {
 	v, ok := data[name]
 	if !ok {
 		return "", fmt.Errorf("unknown friend %q", name)
@@ -132,7 +168,7 @@ func interpolateCallback(data map[string]Vars, name, path string) (string, error
 	return resolvePath(v, path)
 }
 
-func interpolateCallback2(funcs template.FuncMap, firstErr *error, action string) string {
+func expandFriendAction(funcs template.FuncMap, firstErr *error, action string) string {
 	inner := actionRE.FindStringSubmatch(action)[1]
 	if fields := strings.Fields(inner); len(fields) == 0 || fields[0] != "friend" {
 		return action
@@ -140,8 +176,8 @@ func interpolateCallback2(funcs template.FuncMap, firstErr *error, action string
 
 	t, err := template.New("friend").Funcs(funcs).Parse(action)
 	if err != nil {
-		if (*firstErr) == nil {
-			(*firstErr) = fmt.Errorf("parse friend template: %w", err)
+		if *firstErr == nil {
+			*firstErr = fmt.Errorf("parse friend template: %w", err)
 		}
 
 		return action
@@ -149,8 +185,8 @@ func interpolateCallback2(funcs template.FuncMap, firstErr *error, action string
 
 	var b bytes.Buffer
 	if err := t.Execute(&b, nil); err != nil {
-		if (*firstErr) == nil {
-			(*firstErr) = fmt.Errorf("interpolate config: %w", err)
+		if *firstErr == nil {
+			*firstErr = fmt.Errorf("interpolate config: %w", err)
 		}
 
 		return action

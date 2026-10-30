@@ -44,13 +44,13 @@ export function InstanceRow({ tone, icon, label, sub, active, onClick }: Instanc
       type="button"
       onClick={onClick}
       className={cn(
-        'flex items-center gap-2 px-2.5 py-2 text-[13px] w-full text-left transition-colors',
+        'flex items-center gap-2 px-2.5 py-2 text-sm w-full text-left transition-colors',
         active ? tones.active : tones.idle,
       )}
     >
       {icon}
       <span className="truncate">{label}</span>
-      {sub && <span className="truncate text-[11px] text-muted-foreground font-mono">{sub}</span>}
+      {sub && <span className="truncate text-xs text-muted-foreground font-mono">{sub}</span>}
       {active && <Check className="ml-auto h-3.5 w-3.5 shrink-0" />}
     </button>
   )

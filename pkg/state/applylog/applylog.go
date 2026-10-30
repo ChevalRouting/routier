@@ -116,7 +116,7 @@ func MarkConfirmed(snapID string) {
 }
 
 func MarkRolledBack(snapID string) {
-	mark(snapID, markRolledBackHandler)
+	mark(snapID, markRolledBack)
 }
 
 func mark(snapID string, fn func(*Record)) {
@@ -186,7 +186,7 @@ func prune() {
 
 func Path(id string) string { return filepath.Join(dir, id+".log") }
 
-func markRolledBackHandler(r *Record) {
+func markRolledBack(r *Record) {
 	now := time.Now()
 	r.RolledBackAt = &now
 	if r.Result == "" || r.Result == "applied" {

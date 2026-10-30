@@ -14,20 +14,25 @@ func TestRenderNamedConfPassesCheckconf(t *testing.T) {
 	}
 
 	cases := map[string]string{
-		"target":        dnsTargetConfig,
-		"zones":         dnsZoneConfig,
-		"forwarder":     dnsForwarderOnly,
-		"authoritative": dnsAuthoritativeOnly,
-		"both":          dnsBothRoles,
-		"views":         dnsViewsConfig,
+		"empty primary":     dnsEmptyPrimaryConfig,
+		"target":            dnsTargetConfig,
+		"transfers":         strings.Replace(dnsZoneConfig, "        ttl: 300", "        notify_source: 198.51.100.11\n        notify_source_v6: fd00:42::1\n        secondaries: [192.0.2.2, 192.0.2.3]\n        transfer_key: {name: transfer.home.arpa, secret: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}\n        ttl: 300", 1),
+		"zones":             dnsZoneConfig,
+		"forwarder":         dnsForwarderOnly,
+		"authoritative":     dnsAuthoritativeOnly,
+		"both":              dnsBothRoles,
+		"views":             dnsViewsConfig,
+		"view sources":      strings.Replace(dnsViewsConfig, "          - name: corp.example\n", "          - name: corp.example\n            notify_source: 198.51.100.11\n            notify_source_v6: fd00:42::1\n", 1),
+		"secondary sources": dnsServerBaseSourceConfig,
+		"automatic sources": strings.Replace(dnsZoneConfig, "        ttl: 300", "        notify_source: '*'\n        notify_source_v6: '*'\n        ttl: 300", 1),
 	}
 
 	for name, yaml := range cases {
-		t.Run(name, func(t *testing.T) { testRenderNamedConfPassesCheckconfCallback(yaml, t) })
+		t.Run(name, func(t *testing.T) { checkNamedConfPasses(yaml, t) })
 	}
 }
 
-func testRenderNamedConfPassesCheckconfCallback(yaml string, t *testing.T) {
+func checkNamedConfPasses(yaml string, t *testing.T) {
 	dir := t.TempDir()
 	zoneDir := filepath.Join(dir, "zones")
 	if err := os.MkdirAll(zoneDir, 0o755); err != nil {
@@ -74,3 +79,17 @@ func testRenderNamedConfPassesCheckconfCallback(yaml string, t *testing.T) {
 		t.Errorf("named-checkconf reported:\n%s", text)
 	}
 }
+
+const dnsServerBaseSourceConfig = `version: v3.0.0
+hostname: gw
+dns:
+  server:
+    enabled: true
+    listen: [127.0.0.1]
+    allow_from: [127.0.0.1]
+    zones:
+      - name: example.net
+        primaries: [192.0.2.1]
+        transfer_source: 198.51.100.11
+        transfer_source_v6: fd00:42::1
+`

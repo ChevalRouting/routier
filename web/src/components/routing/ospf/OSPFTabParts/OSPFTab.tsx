@@ -1,8 +1,10 @@
 import { OSPFAreasPanel, OSPFGeneralPanel, OSPFInterfacesPanel } from '@/components/routing/ospf/OSPFTab'
 import { OSPFConfig, OSPFSubTab } from '@/components/routing/types'
-import { Label, SectionNav, Switch, useTabState } from 'cheval-ui'
+import { Button, EmptyState, PreferencesGroup, SwitchRow } from 'cheval-ui'
+import { Network } from 'lucide-react'
 
 type OSPFTabShape = {
+  section: OSPFSubTab
   ospf: OSPFConfig
   setOSPF: (v: OSPFConfig) => void
   enabled: boolean
@@ -11,54 +13,49 @@ type OSPFTabShape = {
   ifaceNames: string[]
 }
 
-type SubTabsShape = { key: OSPFSubTab; label: string }
-
 export function OSPFTab({
-  ospf, setOSPF, enabled, setEnabled, onDirty, ifaceNames,
+  section, ospf, setOSPF, enabled, setEnabled, onDirty, ifaceNames,
 }: OSPFTabShape) {
-  const [subTab, setSubTab] = useTabState<OSPFSubTab>('routing.ospf', 'general')
+  const enable = (value: boolean) => {
+    setEnabled(value)
+    onDirty()
+  }
 
-  const subTabs: SubTabsShape[] = [
-    { key: 'general', label: 'General' },
-    { key: 'areas', label: ospf.areas?.length ? `Areas (${ospf.areas.length})` : 'Areas' },
-    { key: 'interfaces', label: Object.keys(ospf.interfaces ?? {}).length ? `Interfaces (${Object.keys(ospf.interfaces ?? {}).length})` : 'Interfaces' },
-  ]
+  if (!enabled && section !== 'general') {
+    return (
+      <EmptyState
+        icon={<Network />}
+        title="OSPF Disabled"
+        action={<Button variant="suggested" onClick={() => enable(true)}>Enable OSPF</Button>}
+      />
+    )
+  }
 
   return (
-    <div className="space-y-5">
-      <p className="text-sm text-muted-foreground">
-        OSPF (Open Shortest Path First) is a link-state IGP that distributes IPv4 routes within your
-        network by flooding link-state information across areas.
-      </p>
-      <div className="flex items-center justify-between gap-2">
-        <Label htmlFor="ospf-enable" className="cursor-pointer">Enable OSPF</Label>
-        <Switch id="ospf-enable" checked={enabled} onCheckedChange={(v) => { setEnabled(v); onDirty() }} />
-      </div>
-
-      {!enabled ? (
-        <p className="text-sm text-muted-foreground italic">OSPF is disabled. Enable it above to configure.</p>
-      ) : (
-        <SectionNav items={subTabs} active={subTab} onChange={setSubTab}>
-          {subTab === 'general' && (
-            <OSPFGeneralPanel ospf={ospf} setOSPF={setOSPF} onDirty={onDirty} />
-          )}
-          {subTab === 'areas' && (
-            <OSPFAreasPanel
-              areas={ospf.areas ?? []}
-              onChange={(areas) => setOSPF({ ...ospf, areas })}
-              onDirty={onDirty}
-            />
-          )}
-          {subTab === 'interfaces' && (
-            <OSPFInterfacesPanel
-              interfaces={ospf.interfaces ?? {}}
-              onChange={(interfaces) => setOSPF({ ...ospf, interfaces })}
-              ifaceNames={ifaceNames}
-              areaIds={(ospf.areas ?? []).map((a) => a.id).filter(Boolean)}
-              onDirty={onDirty}
-            />
-          )}
-        </SectionNav>
+    <div className="space-y-6">
+      {section === 'general' && (
+        <PreferencesGroup>
+          <SwitchRow title="OSPF" checked={enabled} onCheckedChange={enable} />
+        </PreferencesGroup>
+      )}
+      {enabled && section === 'general' && (
+        <OSPFGeneralPanel ospf={ospf} setOSPF={setOSPF} onDirty={onDirty} />
+      )}
+      {enabled && section === 'areas' && (
+        <OSPFAreasPanel
+          areas={ospf.areas ?? []}
+          onChange={(areas) => setOSPF({ ...ospf, areas })}
+          onDirty={onDirty}
+        />
+      )}
+      {enabled && section === 'interfaces' && (
+        <OSPFInterfacesPanel
+          interfaces={ospf.interfaces ?? {}}
+          onChange={(interfaces) => setOSPF({ ...ospf, interfaces })}
+          ifaceNames={ifaceNames}
+          areaIds={(ospf.areas ?? []).map((a) => a.id).filter(Boolean)}
+          onDirty={onDirty}
+        />
       )}
     </div>
   )

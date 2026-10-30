@@ -13,20 +13,22 @@ type Conflict struct {
 }
 
 var allSections = []string{
-	"hostname", "interfaces", "tunnels", "routing", "wireguard",
+	"hostname", "interfaces", "vpn", "routing",
 	"nftables", "sysctl", "dns", "users", "services", "logging",
 	"ha", "ssh", "vrfs", "gai",
-	"monitoring", "boot_modules", "friends", "dhcp",
+	"monitoring", "boot_modules", "friends", "dhcp", "switches", "web",
 }
 
 var mapSections = map[string]bool{
 	"interfaces": true,
+	"vpn":        true,
 	"tunnels":    true,
 	"wireguard":  true,
 	"users":      true,
 	"services":   true,
 	"vrfs":       true,
 	"sysctl":     true,
+	"switches":   true,
 }
 
 func ComputeSections(base, mod *config.Config) []string {
@@ -47,12 +49,14 @@ func sectionJSON(cfg *config.Config, section string) string {
 		v = cfg.Hostname
 	case "interfaces":
 		v = cfg.Interfaces
+	case "vpn":
+		v = cfg.VPN
 	case "tunnels":
-		v = cfg.Tunnels
+		v = cfg.Tunnels()
 	case "routing":
 		v = cfg.Routing
 	case "wireguard":
-		v = cfg.Wireguard
+		v = cfg.VPN.Wireguard
 	case "nftables":
 		v = cfg.Nftables
 	case "sysctl":
@@ -79,6 +83,10 @@ func sectionJSON(cfg *config.Config, section string) string {
 		v = cfg.BootModules
 	case "dhcp":
 		v = cfg.DHCP
+	case "switches":
+		v = cfg.Switches
+	case "web":
+		v = cfg.Web
 	default:
 		return ""
 	}
@@ -88,15 +96,17 @@ func sectionJSON(cfg *config.Config, section string) string {
 }
 
 func sectionMapKeys(cfg *config.Config, section string) map[string]string {
-	asMap := sectionMapKeysHandler
+	asMap := rawJSONFields
 
 	switch section {
 	case "interfaces":
 		return asMap(cfg.Interfaces)
+	case "vpn":
+		return vpnMapKeys(cfg.VPN)
 	case "tunnels":
-		return asMap(cfg.Tunnels)
+		return asMap(cfg.Tunnels())
 	case "wireguard":
-		return asMap(cfg.Wireguard)
+		return asMap(cfg.VPN.Wireguard)
 	case "users":
 		return asMap(cfg.Users)
 	case "services":
@@ -105,6 +115,8 @@ func sectionMapKeys(cfg *config.Config, section string) map[string]string {
 		return asMap(cfg.VRFs)
 	case "sysctl":
 		return asMap(cfg.Sysctl)
+	case "switches":
+		return asMap(cfg.Switches)
 	}
 
 	return nil
@@ -177,6 +189,12 @@ func ApplyDelta(base, live, mod *config.Config, sections []string) *config.Confi
 
 	for _, s := range sections {
 		switch {
+		case s == "vpn":
+			liveMap[s] = applyVPNDeltaJSON(baseMap[s], liveMap[s], modMap[s])
+		case s == "tunnels":
+			liveMap["interfaces"] = applyLegacyTunnelDelta(base, mod, liveMap["interfaces"])
+		case s == "wireguard":
+			liveMap["vpn"] = applyVPNSectionDeltaJSON(baseMap["vpn"], liveMap["vpn"], modMap["vpn"], s)
 		case mapSections[s]:
 			liveMap[s] = applyObjDeltaJSON(baseMap[s], liveMap[s], modMap[s])
 		case s == "routing":
@@ -241,7 +259,7 @@ func applyObjDeltaJSON(baseR, liveR, modR json.RawMessage) json.RawMessage {
 }
 
 func applyListDeltaJSON(baseR, liveR, modR json.RawMessage, keyField string) json.RawMessage {
-	itemKey := func(raw json.RawMessage) string { return applyListDeltaJSONCallback(keyField, raw) }
+	itemKey := func(raw json.RawMessage) string { return listItemKey(keyField, raw) }
 
 	baseItems := rawList(baseR)
 	liveItems := rawList(liveR)
@@ -350,7 +368,7 @@ func applyRoutingDeltaJSON(baseR, liveR, modR json.RawMessage) json.RawMessage {
 	return out
 }
 
-func sectionMapKeysHandler(v any) map[string]string {
+func rawJSONFields(v any) map[string]string {
 	b, _ := json.Marshal(v)
 	var raw map[string]json.RawMessage
 	if json.Unmarshal(b, &raw) != nil {
@@ -365,7 +383,7 @@ func sectionMapKeysHandler(v any) map[string]string {
 	return out
 }
 
-func applyListDeltaJSONCallback(keyField string, raw json.RawMessage) string {
+func listItemKey(keyField string, raw json.RawMessage) string {
 	var m map[string]json.RawMessage
 	if json.Unmarshal(raw, &m) != nil {
 		return string(raw)
@@ -381,4 +399,38 @@ func applyListDeltaJSONCallback(keyField string, raw json.RawMessage) string {
 	}
 
 	return string(raw)
+}
+
+func vpnMapKeys(vpn config.VPNConfig) map[string]string {
+	keys := map[string]string{}
+	for name, value := range rawJSONFields(vpn.Wireguard) {
+		keys["wireguard."+name] = value
+	}
+
+	return keys
+}
+
+func applyVPNDeltaJSON(baseR, liveR, modR json.RawMessage) json.RawMessage {
+	return applyVPNSectionDeltaJSON(baseR, liveR, modR, "wireguard")
+}
+
+func applyVPNSectionDeltaJSON(baseR, liveR, modR json.RawMessage, section string) json.RawMessage {
+	base, live, mod := rawObjMap(baseR), rawObjMap(liveR), rawObjMap(modR)
+	live[section] = applyObjDeltaJSON(base[section], live[section], mod[section])
+	out, _ := json.Marshal(live)
+	return out
+}
+
+func applyLegacyTunnelDelta(base, mod *config.Config, liveInterfaces json.RawMessage) json.RawMessage {
+	live := &config.Config{}
+	_ = json.Unmarshal(liveInterfaces, &live.Interfaces)
+	baseR, _ := json.Marshal(base.Tunnels())
+	liveR, _ := json.Marshal(live.Tunnels())
+	modR, _ := json.Marshal(mod.Tunnels())
+	merged := applyObjDeltaJSON(baseR, liveR, modR)
+	var tunnels map[string]*config.Tunnel
+	_ = json.Unmarshal(merged, &tunnels)
+	_ = live.ReplaceTunnels(tunnels)
+	out, _ := json.Marshal(live.Interfaces)
+	return out
 }

@@ -12,8 +12,8 @@ func newPruneStatsCommand() *cobra.Command {
 		Use:    "prune-stats",
 		Short:  "delete stats history past the retention window and reclaim disk space",
 		Hidden: true,
-		RunE: func(cmd *cobra.Command, unusedArg2 []string) error {
-			return newPruneStatsCommandCallback(dbPath, cmd, unusedArg2)
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runPruneStats(dbPath, cmd)
 		},
 	}
 
@@ -21,7 +21,7 @@ func newPruneStatsCommand() *cobra.Command {
 	return cmd
 }
 
-func newPruneStatsCommandCallback(dbPath string, cmd *cobra.Command, _ []string) error {
+func runPruneStats(dbPath string, cmd *cobra.Command) error {
 	ctx := cmd.Context()
 	db, err := webdb.InitDB(ctx, dbPath)
 	if err != nil {

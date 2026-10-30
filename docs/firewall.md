@@ -75,6 +75,9 @@ needed:
   clients are routed rather than on-link. Firewall and daemon therefore always
   agree on who may query.
 
+Frames switched inside a bridge are not filtered: Routier keeps them out of
+netfilter when `br_netfilter` is loaded (see [interfaces.md](interfaces.md)).
+
 `allow_inbound` lists accept an interface, VLAN, WireGuard or tunnel name. A
 name that matches none of those emits no rule and logs a warning rather than
 failing the render.

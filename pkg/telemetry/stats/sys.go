@@ -240,7 +240,7 @@ func ReadBGPStats() *types.BGPStats {
 		return nil
 	}
 
-	sort.Slice(stats.Peers, func(i, j int) bool { return readBGPStatsCallback(stats, i, j) })
+	sort.Slice(stats.Peers, func(i, j int) bool { return bgpPeerLess(stats, i, j) })
 
 	return stats
 }
@@ -403,7 +403,7 @@ func buildProcList(s1, s2 map[int]procSnap, totalDelta float64) []types.ProcessI
 		})
 	}
 
-	sort.Slice(procs, func(i, j int) bool { return buildProcListCallback(procs, i, j) })
+	sort.Slice(procs, func(i, j int) bool { return processLess(procs, i, j) })
 	return procs
 }
 
@@ -429,7 +429,7 @@ func Sample() (*types.SystemStats, []types.ProcessInfo, *types.BGPStats, *types.
 	return sys, procs, bgp, ospf
 }
 
-func readBGPStatsHandler(s string) int {
+func bgpStateRank(s string) int {
 	if s == "Established" {
 		return 0
 	}
@@ -437,9 +437,8 @@ func readBGPStatsHandler(s string) int {
 	return 1
 }
 
-func readBGPStatsCallback(stats *types.BGPStats, i, j int) bool {
-	stateRank := readBGPStatsHandler
-	ri, rj := stateRank(stats.Peers[i].State), stateRank(stats.Peers[j].State)
+func bgpPeerLess(stats *types.BGPStats, i, j int) bool {
+	ri, rj := bgpStateRank(stats.Peers[i].State), bgpStateRank(stats.Peers[j].State)
 	if ri != rj {
 		return ri < rj
 	}
@@ -447,7 +446,7 @@ func readBGPStatsCallback(stats *types.BGPStats, i, j int) bool {
 	return stats.Peers[i].ASN < stats.Peers[j].ASN
 }
 
-func buildProcListCallback(procs []types.ProcessInfo, i, j int) bool {
+func processLess(procs []types.ProcessInfo, i, j int) bool {
 	if procs[i].CPUPct != procs[j].CPUPct {
 		return procs[i].CPUPct > procs[j].CPUPct
 	}

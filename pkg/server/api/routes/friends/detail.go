@@ -85,3 +85,13 @@ func NftablesImport(w http.ResponseWriter, r *http.Request) {
 
 	types.OK(w, render.FriendNftVars(cfg, name, render.WithFriends(friendcache.InterpolationVars())))
 }
+
+// @Summary  BGP prefix-lists and route-maps imported from all friends
+// @Tags     friends
+// @Produce  json
+// @Success  200 {object} types.Response[render.FriendBGPImportResult]
+// @Security BearerAuth
+// @Router   /api/friends/bgp-policies [get]
+func BGPImport(w http.ResponseWriter, r *http.Request) {
+	types.OK(w, render.FriendBGPImport(friendcache.InterpolationVars()))
+}

@@ -15,11 +15,11 @@ export default function Login() {
     } catch (err: unknown) {
       const msg = (err as Error).message
       throw Object.assign(
-        new Error(msg === 'Unauthorized' ? 'Invalid username or password' : (msg || 'Login failed. Please check your credentials.')),
+        new Error(msg === 'Unauthorized' ? 'Invalid username or password' : (msg || 'Sign in failed, check the username and password')),
         { cause: err },
       )
     }
   }
 
-  return <LoginForm description="Enter your credentials to access Routier" onSubmit={handleSubmit} />
+  return <LoginForm onSubmit={handleSubmit} />
 }

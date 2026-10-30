@@ -44,7 +44,6 @@ go.work.sum
 
 # Packaging output
 /dist/
-/www/
 /.docker-image-*
 /pkg/server/api/dist/
 
@@ -54,7 +53,6 @@ docs/internal/
 
 # Local scratch files
 /nft.yml
-/deploy.sh
 /deploy/
 !website/**/*.md
 vendor/
@@ -64,3 +62,4 @@ web/vendor/*
 
 # Task runner cache
 /.task/
+routier-mcp.yml

@@ -3,8 +3,12 @@ import { OSPF6AreaRow } from '@/components/routing/ospf/OSPF6Tab'
 import { newId } from '@/components/routing/shared'
 import { OSPF6Area } from '@/components/routing/types'
 import { checkCIDR } from '@/lib/validate'
-import { Badge, Button, Card, Input, Label, NumberInput, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Sheet, Switch, TagInput } from 'cheval-ui'
-import { Plus, Trash2 } from 'lucide-react'
+import { Badge, Button, ComboRow, EmptyState, EntryRow, PreferencesGroup, Sheet, SwitchRow, TagInput } from 'cheval-ui'
+import { Plus } from 'lucide-react'
+import { EntityRow } from '@/components/ui/EntityRow'
+import { NumberRow } from '@/components/ui/NumberRow'
+import { SelectRow } from '@/components/ui/SelectRow'
+import { plural } from '@/lib/utils'
 import { useEffect, useRef, useState } from 'react'
 
 type OSPF6AreasPanelShape = {
@@ -26,63 +30,45 @@ export function OSPF6AreasPanel({ areas, onChange, onDirty }: OSPF6AreasPanelSha
   const remove = (id: number) => { setRows((p) => p.filter((r) => r._rowId !== id)); if (openRowId === id) setOpenRowId(null) }
   const upd = (id: number, patch: Partial<OSPF6AreaRow>) =>
     setRows((p) => p.map((r) => (r._rowId === id ? { ...r, ...patch } : r)))
+  const openRow = rows.find((row) => row._rowId === openRowId) ?? null
+  const addButton = <Button variant="outline" size="sm" onClick={add} className="gap-1.5"><Plus className="h-4 w-4" />Add Area</Button>
+
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <Label className="text-sm font-semibold">Areas</Label>
-        <Button variant="outline" size="sm" onClick={add} className="gap-1.5">
-          <Plus className="h-3.5 w-3.5" />Add Area
-        </Button>
-      </div>
-      {rows.length === 0 && <p className="text-sm text-muted-foreground italic">No areas configured.</p>}
-      {rows.length > 0 && (
-        <div className="grid gap-3 md:grid-cols-2">
+    <div className="space-y-6">
+      {rows.length === 0 ? (
+        <EmptyState className="py-10" title="No Areas" action={addButton} />
+      ) : (
+        <PreferencesGroup
+          title="Areas"
+          header={addButton}
+        >
           {rows.map((row) => (
-            <div key={row._rowId}>
-              <Card className="flex cursor-pointer items-center gap-2 p-4 transition-colors hover:bg-accent/50" onClick={() => setOpenRowId(row._rowId)}>
-                <span className="flex-1 truncate font-mono text-sm font-semibold">{row.id || 'New area'}</span>
-                <Badge variant="secondary">{row.type || 'normal'}</Badge>
-                <Badge variant="outline">{row.ranges?.length ?? 0} ranges</Badge>
-                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={(event) => { event.stopPropagation(); remove(row._rowId) }}><Trash2 className="h-3.5 w-3.5" /></Button>
-              </Card>
-              <Sheet open={openRowId === row._rowId} onClose={() => setOpenRowId(null)} title={row.id || 'OSPFv3 area'} className="max-w-2xl">
-                <div className="space-y-4">
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Area ID</Label>
-                <Input value={row.id} onChange={(e) => upd(row._rowId, { id: e.target.value })} placeholder="0.0.0.0"
-                  className="font-mono" /></div>
-                    <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Type</Label>
-                <Select value={row.type || 'normal'} onValueChange={(v) => upd(row._rowId, { type: v === 'normal' ? '' : v })}>
-                  <SelectTrigger className="h-8 text-xs font-mono"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="normal">normal</SelectItem>
-                    <SelectItem value="stub">stub</SelectItem>
-                    <SelectItem value="nssa">nssa</SelectItem>
-                  </SelectContent>
-                </Select></div>
-                  </div>
-                  <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Ranges (IPv6 CIDRs)</Label>
-                <TagInput values={row.ranges ?? []} onChange={(v) => upd(row._rowId, { ranges: v })} placeholder="2001:db8::/32" mono validate={checkCIDR} />
-                  </div>
-              <div className="grid grid-cols-[130px_1fr] items-center gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] text-muted-foreground">Default cost</Label>
-                  <NumberInput value={row.default_cost || undefined} onChange={(v) => upd(row._rowId, { default_cost: v })} placeholder="none" className="font-mono h-8 text-xs" />
-                </div>
-                {row.type === 'stub' && (
-                  <label className="flex items-center gap-2 self-end pb-1.5 text-xs">
-                    <Switch checked={!!row.stub_no_summary} onCheckedChange={(v) => upd(row._rowId, { stub_no_summary: v || undefined })} />
-                    <span>Totally stubby (no-summary)</span>
-                  </label>
-                )}
-              </div>
-              <ExtraDirectives label="Additional area directives" values={row.extra} onChange={(v) => upd(row._rowId, { extra: v })} placeholder="area 0.0.0.0 range 2001:db8::/32 advertise" />
-                </div>
-              </Sheet>
-            </div>
+            <EntityRow key={row._rowId} title={row.id} placeholder="New area" onOpen={() => setOpenRowId(row._rowId)} onRemove={() => remove(row._rowId)} removeLabel="Remove Area">
+              <Badge variant="secondary">{row.type || 'normal'}</Badge>
+              <Badge variant="outline">{plural(row.ranges?.length ?? 0, 'range')}</Badge>
+            </EntityRow>
           ))}
-        </div>
+        </PreferencesGroup>
       )}
+
+      <Sheet open={openRow !== null} onClose={() => setOpenRowId(null)} title={openRow?.id || 'OSPFv3 Area'}>
+        {openRow && (
+          <div className="space-y-6">
+            <PreferencesGroup>
+              <EntryRow title="Area ID" value={openRow.id} onChange={(e) => upd(openRow._rowId, { id: e.target.value })} placeholder="0.0.0.0" className="font-mono" />
+              <SelectRow title="Type" value={openRow.type || 'normal'} onChange={(v) => upd(openRow._rowId, { type: !v || v === 'normal' ? '' : v })} options={['normal', 'stub', 'nssa']} />
+              {openRow.type === 'stub' && (
+                <SwitchRow title="Totally Stubby (no-summary)" checked={!!openRow.stub_no_summary} onCheckedChange={(v) => upd(openRow._rowId, { stub_no_summary: v || undefined })} />
+              )}
+              <ComboRow title="Ranges">
+                <TagInput values={openRow.ranges ?? []} onChange={(v) => upd(openRow._rowId, { ranges: v })} placeholder="2001:db8::/32" mono validate={checkCIDR} />
+              </ComboRow>
+              <NumberRow title="Default Cost" value={openRow.default_cost} onChange={(v) => upd(openRow._rowId, { default_cost: v })} placeholder="none" />
+            </PreferencesGroup>
+            <ExtraDirectives label="Additional Area Directives" values={openRow.extra} onChange={(v) => upd(openRow._rowId, { extra: v })} placeholder="area 0.0.0.0 range 2001:db8::/32 advertise" />
+          </div>
+        )}
+      </Sheet>
     </div>
   )
 }

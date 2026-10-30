@@ -1,10 +1,10 @@
 import type {
   TypesVRRPInstanceStatus as VRRPInstanceStatus
 } from '@/api'
-import { Field, VrrpConfigInstance } from '@/components/ha/FriendDetailView'
+import { Field, LoadingState, VrrpConfigInstance } from '@/components/ha/FriendDetailView'
 import { api } from '@/lib/client'
 import { useFetch } from '@/lib/useFetch'
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle, EmptyState, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Spinner } from 'cheval-ui'
+import { Button, Card, CardContent, CardHeader, CardTitle, ComboRow, EmptyState, EntryRow, PreferencesGroup, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, StateChip, TagInput } from 'cheval-ui'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
@@ -17,7 +17,7 @@ type FriendVrrpShape = { iface: string; v: VrrpConfigInstance }
 type UpdatedShape = { vrrp?: VrrpConfigInstance[] }
 
 export function VrrpTab({ friendName, vrrpStatus }: VrrpTabShape) {
-  const { data: cfg, reload } = useFetch(() => api.apiConfigGet() as unknown as Promise<Record<string, unknown>>)
+  const { data: cfg, error: cfgError, reload } = useFetch(() => api.apiConfigGet() as unknown as Promise<Record<string, unknown>>)
   const ha = (cfg?.ha ?? {}) as HaShape
   const interfaceNames = Object.keys((cfg?.interfaces ?? {}) as Record<string, unknown>)
 
@@ -32,21 +32,13 @@ export function VrrpTab({ friendName, vrrpStatus }: VrrpTabShape) {
   const [friendIface, setFriendIface] = useState('')
   const [vrid, setVrid] = useState('')
   const [vips, setVips] = useState<string[]>([])
-  const [vipInput, setVipInput] = useState('')
   const [priority, setPriority] = useState('')
   const [saving, setSaving] = useState(false)
 
   const statusFor = (id?: number) => vrrpStatus.find((s) => s.id === id)
-
-  const addVip = () => {
-    const v = vipInput.trim()
-    if (v && !vips.includes(v)) setVips((p) => [...p, v])
-    setVipInput('')
-  }
+  const ready = !!localIface && !!friendIface && !!vrid && vips.length > 0
 
   const addInstance = async () => {
-    if (!localIface || !friendIface || !vrid) { toast.error('Our interface, friend interface and VRID are required'); return }
-    if (vips.length === 0) { toast.error('At least one VIP is required'); return }
     setSaving(true)
     try {
       await api.apiFriendsNameVrrpPost({ name: friendName, TypesConfigureVRRPRequest: {
@@ -57,7 +49,7 @@ export function VrrpTab({ friendName, vrrpStatus }: VrrpTabShape) {
         ...(priority ? { priority: Number(priority) } : {}),
       } })
       toast.success('VRRP configured and applied on both sides')
-      setVrid(''); setVips([]); setVipInput(''); setPriority('')
+      setVrid(''); setVips([]); setPriority('')
       reload()
     } catch (e) {
       toast.error((e as Error).message)
@@ -85,7 +77,7 @@ export function VrrpTab({ friendName, vrrpStatus }: VrrpTabShape) {
   return (
     <div className="space-y-4">
       {friendVrrp.length === 0 ? (
-        <EmptyState className="py-10" title="No VRRP instances" message="Configure VRRP below to create a failover group with this friend." />
+        <EmptyState className="py-10" title="No VRRP Instances" message="Configure VRRP below to create a failover group with this friend" />
       ) : friendVrrp.map(({ iface: ifn, v }) => {
         const s = statusFor(v.id)
         return (
@@ -94,12 +86,12 @@ export function VrrpTab({ friendName, vrrpStatus }: VrrpTabShape) {
               <div className="flex items-center justify-between gap-2">
                 <CardTitle className="flex items-center gap-2 text-base">
                   {v.name || `${ifn} (VRID ${v.id})`}
-                  {s && <Badge variant={s.state === 'MASTER' ? 'success' : s.state === 'BACKUP' ? 'secondary' : 'destructive'}>{s.state}</Badge>}
+                  {s && <StateChip state={s.state} />}
                 </CardTitle>
                 <Button variant="ghost" size="sm" className="text-destructive" disabled={saving} onClick={() => removeInstance(ifn, v.id)}>Remove</Button>
               </div>
             </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm md:grid-cols-3">
+            <CardContent className="grid grid-cols-1 gap-x-6 gap-y-3 text-sm sm:grid-cols-2 md:grid-cols-3">
               <Field label="Interface" value={ifn} mono />
               <Field label="VRID" value={v.id} />
               <Field label="Priority" value={v.priority} />
@@ -110,64 +102,38 @@ export function VrrpTab({ friendName, vrrpStatus }: VrrpTabShape) {
         )
       })}
 
-      <Card>
-        <CardHeader><CardTitle>Configure VRRP with this friend</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          {!cfg ? <Spinner /> : (
-            <>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Our interface</label>
-                  <Select value={localIface} onValueChange={setLocalIface}>
-                    <SelectTrigger className="h-9"><SelectValue placeholder="select interface" /></SelectTrigger>
-                    <SelectContent>
-                      {interfaceNames.map((k) => <SelectItem key={k} value={k} className="font-mono">{k}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Friend interface</label>
-                  <Select value={friendIface} onValueChange={setFriendIface}>
-                    <SelectTrigger className="h-9"><SelectValue placeholder="select interface" /></SelectTrigger>
-                    <SelectContent>
-                      {(friendIfaces ?? []).map((i) => <SelectItem key={i.name} value={i.name} className="font-mono">{i.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">VRID</label>
-                  <Input value={vrid} onChange={(e) => setVrid(e.target.value)} className="font-mono text-sm" placeholder="51" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Priority (optional)</label>
-                  <Input value={priority} onChange={(e) => setPriority(e.target.value)} className="font-mono text-sm" placeholder="150" />
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Virtual IPs</label>
-                <div className="flex flex-wrap items-center gap-2">
-                  {vips.map((v) => (
-                    <button key={v} type="button" onClick={() => setVips((p) => p.filter((x) => x !== v))}>
-                      <Badge variant="default" className="cursor-pointer gap-1 font-mono">{v} ×</Badge>
-                    </button>
-                  ))}
-                  <Input
-                    value={vipInput}
-                    onChange={(e) => setVipInput(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addVip() } }}
-                    onBlur={addVip}
-                    className="h-8 w-44 font-mono text-sm"
-                    placeholder="10.0.0.1/24 ⏎"
-                  />
-                </div>
-              </div>
-              <Button onClick={addInstance} disabled={saving}>{saving ? 'Applying…' : 'Configure & apply on both sides'}</Button>
-            </>
+      {!cfg ? <LoadingState error={cfgError} onRetry={() => reload(true)} /> : (
+        <PreferencesGroup
+          title="Configure VRRP With This Friend"
+          header={(
+            <Button variant="suggested" onClick={addInstance} disabled={saving || !ready}>
+              {saving ? 'Applying…' : 'Configure & Apply on Both Sides'}
+            </Button>
           )}
-        </CardContent>
-      </Card>
+        >
+          <ComboRow title="Our Interface">
+            <Select value={localIface} onValueChange={setLocalIface}>
+              <SelectTrigger><SelectValue placeholder="Select interface" /></SelectTrigger>
+              <SelectContent>
+                {interfaceNames.map((k) => <SelectItem key={k} value={k} className="font-mono">{k}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </ComboRow>
+          <ComboRow title="Friend Interface">
+            <Select value={friendIface} onValueChange={setFriendIface}>
+              <SelectTrigger><SelectValue placeholder="Select interface" /></SelectTrigger>
+              <SelectContent>
+                {(friendIfaces ?? []).map((i) => <SelectItem key={i.name} value={i.name} className="font-mono">{i.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </ComboRow>
+          <EntryRow title="VRID" value={vrid} onChange={(e) => setVrid(e.target.value)} className="font-mono" placeholder="51" />
+          <EntryRow title="Priority" value={priority} onChange={(e) => setPriority(e.target.value)} className="font-mono" placeholder="150" />
+          <ComboRow title="Virtual IPs">
+            <TagInput values={vips} onChange={setVips} placeholder="10.0.0.1/24" mono />
+          </ComboRow>
+        </PreferencesGroup>
+      )}
     </div>
   )
 }

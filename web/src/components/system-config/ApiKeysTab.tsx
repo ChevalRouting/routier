@@ -2,7 +2,7 @@ import type { TypesAPIKey } from '@/api'
 import { api } from '@/lib/client'
 import { useFetch } from '@/lib/useFetch'
 import { AlertDialog, Button, CopyButton, Dialog, EmptyState, Input, SectionLabel, Spinner, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from 'cheval-ui'
-import { KeyRound, Plus, RefreshCw, Trash2 } from 'lucide-react'
+import { KeyRound, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
@@ -58,25 +58,24 @@ export function ApiKeysTab() {
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') create() }}
-          placeholder="Key name (e.g. edge-a-mcp)"
+          placeholder="edge-a-mcp"
           className="max-w-xs"
           disabled={creating}
         />
         <Button onClick={create} disabled={creating || !name.trim()} className="gap-2">
-          {creating ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}Generate key
+          {creating ? 'Generating…' : 'Generate Key'}
         </Button>
       </div>
 
       {isLoading ? <Spinner /> : keys.length === 0 ? (
         <EmptyState
           icon={<KeyRound />}
-          title="No API keys"
-          message="Generate a key to authenticate programmatic clients."
+          title="No API Keys"
         />
       ) : (
         <Table>
           <TableHeader>
-            <TableRow><TableHead>Name</TableHead><TableHead>Prefix</TableHead><TableHead>Created</TableHead><TableHead>Created by</TableHead><TableHead></TableHead></TableRow>
+            <TableRow><TableHead>Name</TableHead><TableHead>Prefix</TableHead><TableHead>Created</TableHead><TableHead>Created By</TableHead><TableHead></TableHead></TableRow>
           </TableHeader>
           <TableBody>
             {keys.map((k) => (
@@ -87,7 +86,7 @@ export function ApiKeysTab() {
                 <TableCell className="text-muted-foreground">{k.created_by}</TableCell>
                 <TableCell className="text-right">
                   <Button variant="outline" size="sm" className="gap-1.5" disabled={busy === k.id} onClick={() => setRevoke(k)}>
-                    <Trash2 className="h-3.5 w-3.5" />Revoke
+                    <Trash2 className="h-3.5 w-3.5" />Revoke…
                   </Button>
                 </TableCell>
               </TableRow>
@@ -96,13 +95,13 @@ export function ApiKeysTab() {
         </Table>
       )}
 
-      <Dialog open={!!created} onClose={() => setCreated(null)} title="API key created">
+      <Dialog open={!!created} onClose={() => setCreated(null)} title="API Key Created">
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Copy the token for <span className="font-medium text-foreground">{created?.name}</span> now. It will not be shown again.
+            Copy the token for <span className="font-medium text-foreground">{created?.name}</span> now, it is not shown again
           </p>
-          <div className="flex items-center gap-2 rounded-md bg-[#09090b] p-3">
-            <code className="flex-1 overflow-auto whitespace-nowrap font-mono text-xs text-zinc-200">{created?.token}</code>
+          <div className="flex items-center gap-2 rounded-md bg-muted p-3">
+            <code className="flex-1 overflow-auto whitespace-nowrap font-mono text-xs text-foreground">{created?.token}</code>
             <CopyButton text={created?.token ?? ''} />
           </div>
         </div>
@@ -112,7 +111,7 @@ export function ApiKeysTab() {
         open={!!revoke}
         onCancel={() => setRevoke(null)}
         onConfirm={doRevoke}
-        title="Revoke this API key?"
+        title="Revoke API Key?"
         description={revoke ? `Clients using "${revoke.name}" will immediately lose access. This cannot be undone.` : undefined}
         confirmLabel="Revoke"
         cancelLabel="Cancel"

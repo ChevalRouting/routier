@@ -106,21 +106,21 @@ func Remove(cfg *config.Config, name string) (*config.Friend, error) {
 
 func TaggedSections(cfg *config.Config, name string) []types.FriendTaggedSection {
 	var out []types.FriendTaggedSection
-	for ifName, wg := range cfg.Wireguard {
+	for ifName, wg := range cfg.VPN.Wireguard {
 		if wg.Friend == name {
 			out = append(out, types.FriendTaggedSection{Section: "wireguard", Key: ifName})
 		}
 	}
 
-	sort.Slice(out, func(i, j int) bool { return taggedSectionsCallback(out, i, j) })
+	sort.Slice(out, func(i, j int) bool { return taggedSectionLess(out, i, j) })
 
 	return out
 }
 
 func RemoveTagged(cfg *config.Config, name string) {
-	for ifName, wg := range cfg.Wireguard {
+	for ifName, wg := range cfg.VPN.Wireguard {
 		if wg.Friend == name {
-			delete(cfg.Wireguard, ifName)
+			delete(cfg.VPN.Wireguard, ifName)
 		}
 	}
 }
@@ -141,7 +141,7 @@ func PinIdentity(f *config.Friend, fingerprint, publicKey, x25519PublicKey strin
 	return nil
 }
 
-func taggedSectionsCallback(out []types.FriendTaggedSection, i, j int) bool {
+func taggedSectionLess(out []types.FriendTaggedSection, i, j int) bool {
 	if out[i].Section != out[j].Section {
 		return out[i].Section < out[j].Section
 	}

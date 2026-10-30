@@ -43,7 +43,7 @@ func TestServiceReloadIsMockable(t *testing.T) {
 		{Desc: "restart conntrackd", Args: []string{"rc-service", "conntrackd", "restart"}},
 	}
 
-	if err := svc.Reload(actions, false); err != nil {
+	if err := svc.Reload(actions, false, nil); err != nil {
 		t.Fatalf("reload: %v", err)
 	}
 

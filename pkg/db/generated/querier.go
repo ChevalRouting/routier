@@ -11,19 +11,29 @@ import (
 
 type Querier interface {
 	BGPHistory(ctx context.Context, arg BGPHistoryParams) ([]BGPHistoryRow, error)
+	CountFlows(ctx context.Context) (int64, error)
 	CountKernelRoutes(ctx context.Context, arg CountKernelRoutesParams) (int64, error)
 	CreateAPIKey(ctx context.Context, arg CreateAPIKeyParams) error
 	CreateAnnouncement(ctx context.Context, arg CreateAnnouncementParams) (sql.Result, error)
 	DeleteAnnouncement(ctx context.Context, id int64) (int64, error)
+	DeleteFlowNamesResolvedBefore(ctx context.Context, before int64) error
+	DeleteFlowsEndedBefore(ctx context.Context, before int64) error
 	DeleteKernelRoutes(ctx context.Context) error
 	DeleteMacro(ctx context.Context, id string) (int64, error)
 	DeleteSession(ctx context.Context, id string) error
+	DeleteSwitchCredentials(ctx context.Context, name string) (int64, error)
+	FlowBytesSince(ctx context.Context, since int64) (int64, error)
+	FlowNames(ctx context.Context, addresses interface{}) ([]FlowNamesRow, error)
+	FlowPaths(ctx context.Context, arg FlowPathsParams) ([]FlowPathsRow, error)
+	FlowSeries(ctx context.Context, arg FlowSeriesParams) ([]FlowSeriesRow, error)
 	GetActiveAPIKeyByHash(ctx context.Context, tokenHash []byte) (GetActiveAPIKeyByHashRow, error)
 	GetSetting(ctx context.Context, key string) (string, error)
+	GetSwitchCredentials(ctx context.Context, name string) ([]byte, error)
 	GetUILayout(ctx context.Context, key string) (string, error)
 	IfaceHistory(ctx context.Context, arg IfaceHistoryParams) ([]IfaceHistoryRow, error)
 	IfaceTotals(ctx context.Context, arg IfaceTotalsParams) ([]IfaceTotalsRow, error)
 	InsertBGPStat(ctx context.Context, arg InsertBGPStatParams) error
+	InsertFlow(ctx context.Context, arg InsertFlowParams) error
 	InsertIfaceStat(ctx context.Context, arg InsertIfaceStatParams) error
 	InsertKernelRoute(ctx context.Context, arg InsertKernelRouteParams) error
 	InsertLLDPNeighbor(ctx context.Context, arg InsertLLDPNeighborParams) error
@@ -48,6 +58,7 @@ type Querier interface {
 	ListAnnouncements(ctx context.Context) ([]Announcement, error)
 	ListEnabledAnnouncements(ctx context.Context) ([]Announcement, error)
 	ListMacros(ctx context.Context) ([]Macro, error)
+	ListSwitchCredentialNames(ctx context.Context) ([]string, error)
 	ListUserSessions(ctx context.Context, username string) ([]ListUserSessionsRow, error)
 	LoadMacro(ctx context.Context, id string) (Macro, error)
 	LoadMacroByName(ctx context.Context, name string) (Macro, error)
@@ -63,12 +74,17 @@ type Querier interface {
 	PruneProtoStats(ctx context.Context, ts int64) error
 	PruneSystemStats(ctx context.Context, ts int64) error
 	QueryKernelRoutes(ctx context.Context, arg QueryKernelRoutesParams) ([]KernelRoute, error)
+	RecentFlows(ctx context.Context, arg RecentFlowsParams) ([]Flow, error)
 	RevokeAPIKey(ctx context.Context, arg RevokeAPIKeyParams) (int64, error)
 	SetSetting(ctx context.Context, arg SetSettingParams) error
 	SetUILayout(ctx context.Context, arg SetUILayoutParams) error
 	SystemHistory(ctx context.Context, arg SystemHistoryParams) ([]SystemHistoryRow, error)
+	TopFlows(ctx context.Context, arg TopFlowsParams) ([]TopFlowsRow, error)
+	TrimFlowsToNewest(ctx context.Context, keep int64) error
 	UpdateAnnouncement(ctx context.Context, arg UpdateAnnouncementParams) (int64, error)
 	UpdateSession(ctx context.Context, arg UpdateSessionParams) (int64, error)
+	UpsertFlowName(ctx context.Context, arg UpsertFlowNameParams) error
+	UpsertSwitchCredentials(ctx context.Context, arg UpsertSwitchCredentialsParams) error
 }
 
 var _ Querier = (*Queries)(nil)

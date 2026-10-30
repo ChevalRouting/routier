@@ -44,7 +44,7 @@ func routesSnapshotFresh(ctx context.Context, db *webdb.DB, ttl time.Duration) b
 
 func refreshKernelRoutes(ctx context.Context, db *webdb.DB) error {
 	var routes []types.KernelRoute
-	collect := func(rt iproute.Route) { refreshKernelRoutesCallback(&routes, rt) }
+	collect := func(rt iproute.Route) { appendKernelRoute(&routes, rt) }
 
 	if err := iproute.StreamRoutes(false, collect); err != nil {
 		return err
@@ -61,8 +61,8 @@ func refreshKernelRoutes(ctx context.Context, db *webdb.DB) error {
 	return webdb.SetSetting(context.WithoutCancel(ctx), db, settingRoutesSnapshotAt, strconv.FormatInt(time.Now().Unix(), 10))
 }
 
-func refreshKernelRoutesCallback(routes *[]types.KernelRoute, rt iproute.Route) {
-	(*routes) = append((*routes), types.KernelRoute{
+func appendKernelRoute(routes *[]types.KernelRoute, rt iproute.Route) {
+	*routes = append(*routes, types.KernelRoute{
 		Dst: rt.Dst, Gateway: rt.Gateway, Dev: rt.Dev,
 		Protocol: rt.Protocol, Metric: rt.Metric, Family: rt.Family,
 	})

@@ -1,6 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle, SectionNav, useTabState } from 'cheval-ui'
-import { DhcpLogsPanel } from './DhcpPanelParts/DhcpLogsPanel'
-import { DhcpStatusPanel } from './DhcpPanelParts/DhcpStatusPanel'
+import { Card, CardContent, CardHeader, CardTitle } from 'cheval-ui'
 
 type StatsShape2 = { name: string; value: number }
 
@@ -26,7 +24,7 @@ export function DhcpStatGrid({ title, stats }: DhcpStatGridShape) {
     return (
       <Card>
         <CardHeader className="pb-2"><CardTitle className="text-sm">{title}</CardTitle></CardHeader>
-        <CardContent><p className="text-xs text-muted-foreground italic">No statistics (server not running).</p></CardContent>
+        <CardContent><p className="text-xs text-muted-foreground">No statistics, server not running</p></CardContent>
       </Card>
     )
   }
@@ -39,7 +37,7 @@ export function DhcpStatGrid({ title, stats }: DhcpStatGridShape) {
           {shown.map(({ n, v }) => (
             <div key={n} className="space-y-0.5">
               <div className="text-lg font-semibold tabular-nums">{v}</div>
-              <div className="text-[11px] text-muted-foreground font-mono truncate" title={n}>{n}</div>
+              <div className="text-xs text-muted-foreground font-mono truncate" title={n}>{n}</div>
             </div>
           ))}
         </div>
@@ -79,21 +77,6 @@ export const DHCP_LOG_TABS: DHCPLOGTABSShape[] = [
   { key: 'kea-dhcp-ddns', label: 'kea-dhcp-ddns' },
 ]
 
-export function DhcpPanel() {
-  const [sub, setSub] = useTabState<'status' | 'logs'>('dhcp', 'status')
-  return (
-    <SectionNav
-      items={[{ key: 'status', label: 'Status & Leases' }, { key: 'logs', label: 'Logs' }]}
-      active={sub}
-      onChange={setSub}
-    >
-      {sub === 'status' && <DhcpStatusPanel />}
-      {sub === 'logs' && <DhcpLogsPanel />}
-    </SectionNav>
-  )
-}
-
-export type MonitorTab = 'system' | 'bgp' | 'traffic' | 'logs' | 'ha-status' | 'neighbors' | 'processes' | 'collection' | 'dhcp'
 
 export { DhcpLeases } from './DhcpPanelParts/DhcpLeases'
 export { DhcpLogsPanel } from './DhcpPanelParts/DhcpLogsPanel'

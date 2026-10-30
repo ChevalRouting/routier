@@ -90,7 +90,7 @@ func Pair(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := cfgstore.WriteLive(app.ConfigPath, cfg); err != nil {
-		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "save config"))
+		types.Error(log.Logger, w, cfgstore.ApplyError(err, http.StatusInternalServerError, "save config"))
 		return
 	}
 

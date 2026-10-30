@@ -1,8 +1,9 @@
+import { DraftControls } from '@/components/DraftControls'
 import { api } from '@/lib/client'
 import { useDataRefresh } from '@/lib/dataVersion'
 import { useFetch } from '@/lib/useFetch'
 import { usePageSave } from '@/lib/usePageSave'
-import { ComboRow, EntryRow, PageHeader, PreferencesGroup, SaveButton, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Spinner } from 'cheval-ui'
+import { ComboRow, EntryRow, PageHeader, PreferencesGroup, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Spinner } from 'cheval-ui'
 import { useEffect, useState } from 'react'
 
 interface LoggingConfig {
@@ -50,11 +51,11 @@ export default function Logging() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Logging" description="Configure log output target and verbosity" action={
-        <SaveButton isDirty={isDirty} saving={saving} onClick={() => save(buildPayload(target, file, level))} onCancel={handleCancel} />
+      <PageHeader title="Logging" action={
+        <DraftControls isDirty={isDirty} saving={saving} onClick={() => save(buildPayload(target, file, level))} onCancel={handleCancel} />
       } />
 
-      <div className="max-w-xl">
+      <div className="max-w-3xl">
         <PreferencesGroup title="Output">
           <ComboRow title="Target" subtitle="Where log lines are written">
             <Select value={target || '_none'} onValueChange={(v) => { setTarget(v === '_none' ? '' : v); markDirty() }}>
@@ -72,7 +73,7 @@ export default function Logging() {
           {target === 'file' && (
             <EntryRow
               id="log-file"
-              title="File path"
+              title="File Path"
               value={file}
               onChange={(e) => { setFile(e.target.value); markDirty() }}
               placeholder="/var/log/routier.log"

@@ -24,7 +24,7 @@ func newHistoryListCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
 		Short: "list recent apply runs",
-		RunE:  newHistoryListCommandHandler,
+		RunE:  runHistoryList,
 	}
 }
 
@@ -33,11 +33,11 @@ func newHistoryShowCommand() *cobra.Command {
 		Use:   "show <id>",
 		Short: "print the full log for an apply run",
 		Args:  cobra.ExactArgs(1),
-		RunE:  newHistoryShowCommandHandler,
+		RunE:  runHistoryShow,
 	}
 }
 
-func newHistoryListCommandHandler(_ *cobra.Command, _ []string) error {
+func runHistoryList(_ *cobra.Command, _ []string) error {
 	recs := applylog.List()
 	if len(recs) == 0 {
 		_, _ = fmt.Println("no apply logs")
@@ -62,7 +62,7 @@ func newHistoryListCommandHandler(_ *cobra.Command, _ []string) error {
 	return tw.Flush()
 }
 
-func newHistoryShowCommandHandler(_ *cobra.Command, args []string) error {
+func runHistoryShow(_ *cobra.Command, args []string) error {
 	text, err := applylog.Read(args[0])
 	if err != nil {
 		return err

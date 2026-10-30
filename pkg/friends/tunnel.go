@@ -9,7 +9,7 @@ import (
 )
 
 func tunInterfaceName(friendName string) string {
-	clean := strings.Map(tunInterfaceNameHandler, friendName)
+	clean := strings.Map(interfaceNameRune, friendName)
 
 	name := "tun-fr-" + clean
 	if len(name) > 15 {
@@ -80,7 +80,7 @@ func DeriveTunnel(p TunnelDeriveParams) (*TunnelDeriveResult, error) {
 	return &TunnelDeriveResult{InterfaceName: name, Local: local, Counterpart: counterpart}, nil
 }
 
-func tunInterfaceNameHandler(r rune) rune {
+func interfaceNameRune(r rune) rune {
 	switch {
 	case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
 		return r

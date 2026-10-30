@@ -16,7 +16,7 @@ func TestLeaseLogFiles(t *testing.T) {
 		{"/etc/passwd", nil},
 		{"unknown", nil},
 	} {
-		t.Run(tc.source, func(t *testing.T) { testLeaseLogFilesCallback(&tc, t) })
+		t.Run(tc.source, func(t *testing.T) { checkLeaseLogFiles(&tc, t) })
 	}
 }
 
@@ -25,9 +25,9 @@ type leaseLogFilesCase struct {
 	want   []string
 }
 
-func testLeaseLogFilesCallback(tc *leaseLogFilesCase, t *testing.T) {
-	got, ok := leaseLogFiles((*tc).source)
-	if ok != ((*tc).want != nil) || !reflect.DeepEqual(got, (*tc).want) {
-		t.Fatalf("leaseLogFiles(%q) = %v, %v; want %v", (*tc).source, got, ok, (*tc).want)
+func checkLeaseLogFiles(tc *leaseLogFilesCase, t *testing.T) {
+	got, ok := leaseLogFiles(tc.source)
+	if ok != (tc.want != nil) || !reflect.DeepEqual(got, tc.want) {
+		t.Fatalf("leaseLogFiles(%q) = %v, %v; want %v", tc.source, got, ok, tc.want)
 	}
 }

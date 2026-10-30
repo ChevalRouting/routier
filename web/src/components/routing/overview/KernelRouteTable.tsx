@@ -2,7 +2,7 @@ import type { TypesKernelRoute as KernelRoute } from '@/api'
 import { api } from '@/lib/client'
 import { protoColor } from '@/lib/palette'
 import '@xyflow/react/dist/style.css'
-import { cn, Pagination } from 'cheval-ui'
+import { cn, Pagination, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from 'cheval-ui'
 import { useEffect, useState } from 'react'
 import { PROTO_FILTER } from './graph'
 
@@ -33,37 +33,38 @@ export function KernelRouteTable({ proto }: KernelRouteTableShape2) {
   const totalPages = Math.max(1, Math.ceil(total / ROUTE_PAGE_SIZE))
 
   if (!loading && total === 0) {
-    return <p className="px-2 py-4 text-xs text-muted-foreground">No kernel routes for this selection.</p>
+    return <p className="px-2 py-4 text-xs text-muted-foreground">No kernel routes</p>
   }
 
   return (
     <div className="space-y-2">
       <div className="max-h-96 overflow-auto rounded-xl bg-card shadow-[var(--card-shadow)]">
-        <table className="w-full text-xs font-mono">
-          <thead className="sticky top-0 z-10 bg-card">
-            <tr className="border-b border-border text-muted-foreground">
+        <Table className="w-full text-xs font-mono">
+          <TableHeader className="sticky top-0 z-10 bg-card">
+            <TableRow className="border-b border-border text-muted-foreground">
               {['Destination', 'Gateway', 'Dev', 'Protocol', 'Metric', 'Family'].map((h) => (
-                <th key={h} className="px-3 py-2 text-left font-medium">{h}</th>
+                <TableHead key={h} className="px-3 py-2 text-left font-medium">{h}</TableHead>
               ))}
-            </tr>
-          </thead>
-          <tbody className={cn('transition-opacity', loading && 'opacity-50')}>
+            </TableRow>
+          </TableHeader>
+          <TableBody className={cn('transition-opacity', loading && 'opacity-50')}>
             {routes.map((r, i) => (
-              <tr key={i} className="border-b border-border/40 last:border-0 hover:bg-muted/30">
-                <td className="px-3 py-1">{r.dst}</td>
-                <td className="px-3 py-1 text-muted-foreground">{r.gateway || '-'}</td>
-                <td className="px-3 py-1 text-muted-foreground">{r.dev || '-'}</td>
-                <td className="px-3 py-1">
-                  <span className="inline-block rounded px-1.5 py-0.5 text-[10px] text-white" style={{ background: protoColor(r.protocol) }}>
+              <TableRow key={i} className="border-b border-border/40 last:border-0 hover:bg-muted/30">
+                <TableCell className="px-3 py-1">{r.dst}</TableCell>
+                <TableCell className="px-3 py-1 text-muted-foreground">{r.gateway || '-'}</TableCell>
+                <TableCell className="px-3 py-1 text-muted-foreground">{r.dev || '-'}</TableCell>
+                <TableCell className="px-3 py-1">
+                  <span className="inline-flex items-center gap-1.5 text-xs">
+                    <span className="h-2 w-2 rounded-full" style={{ background: protoColor(r.protocol) }} />
                     {r.protocol}
                   </span>
-                </td>
-                <td className="px-3 py-1">{r.metric || '-'}</td>
-                <td className="px-3 py-1 text-muted-foreground">{r.family}</td>
-              </tr>
+                </TableCell>
+                <TableCell className="px-3 py-1">{r.metric || '-'}</TableCell>
+                <TableCell className="px-3 py-1 text-muted-foreground">{r.family}</TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
       {totalPages > 1 ? (
         <Pagination page={page} totalPages={totalPages} total={total} pageSize={ROUTE_PAGE_SIZE} onPage={setPage} unit="routes" />

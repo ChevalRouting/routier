@@ -32,8 +32,8 @@ func newDiffCommand() *cobra.Command {
 		Use:   "diff [config]",
 		Short: "show what would change to converge the live system to the config",
 		Args:  cobra.MaximumNArgs(1),
-		RunE: func(unusedArg2 *cobra.Command, args []string) error {
-			return newDiffCommandCallback(asJSON, exitCode, unusedArg2, args)
+		RunE: func(_ *cobra.Command, args []string) error {
+			return runDiff(asJSON, exitCode, args)
 		},
 	}
 
@@ -74,7 +74,7 @@ func computeDiff(cfg *config.Config) ([]diffChange, error) {
 	}
 
 	changes = append(changes, netlinkChanges(cfg)...)
-	sort.Slice(changes, func(i, j int) bool { return computeDiffCallback(changes, i, j) })
+	sort.Slice(changes, func(i, j int) bool { return changeLess(changes, i, j) })
 	return changes, nil
 }
 
@@ -189,7 +189,7 @@ func diffBody(lines []types.DiffLine) []string {
 	return out
 }
 
-func newDiffCommandCallback(asJSON bool, exitCode bool, _ *cobra.Command, args []string) error {
+func runDiff(asJSON bool, exitCode bool, args []string) error {
 	cfg, err := config.LoadAndValidate(configArg(args), true)
 	if err != nil {
 		return err
@@ -217,7 +217,7 @@ func newDiffCommandCallback(asJSON bool, exitCode bool, _ *cobra.Command, args [
 	return nil
 }
 
-func computeDiffCallback(changes []diffChange, i, j int) bool {
+func changeLess(changes []diffChange, i, j int) bool {
 	if changes[i].Kind != changes[j].Kind {
 		return changes[i].Kind < changes[j].Kind
 	}

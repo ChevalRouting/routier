@@ -2,6 +2,7 @@ package types
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/rs/zerolog"
@@ -61,7 +62,8 @@ func (e *Response[T]) Envelope() *Response[any] {
 }
 
 func Error(logger zerolog.Logger, w http.ResponseWriter, err error) {
-	if rnd, ok := err.(Renderer); ok {
+	var rnd Renderer
+	if errors.As(err, &rnd) {
 		rnd.Envelope().Write(w)
 		return
 	}

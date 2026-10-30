@@ -3,6 +3,7 @@ package managers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,16 +11,19 @@ import (
 	"time"
 
 	"github.com/ChevalRouting/routier/pkg/config"
+	"github.com/ChevalRouting/routier/pkg/host/takeover"
 	"github.com/ChevalRouting/routier/pkg/state/applylog"
 	anyk "github.com/m-vinc/anyk"
 	"github.com/rs/zerolog/log"
 )
 
 type pendingState struct {
-	SnapID  string    `json:"snap_id"`
-	Created time.Time `json:"created"`
-	Timeout int       `json:"timeout"`
-	Source  string    `json:"source,omitempty"`
+	SnapID     string    `json:"snap_id"`
+	Created    time.Time `json:"created"`
+	Timeout    int       `json:"timeout"`
+	Source     string    `json:"source,omitempty"`
+	ConfigPath string    `json:"config_path,omitempty"`
+	Config     []byte    `json:"config,omitempty"`
 }
 
 const WatchdogTimeout = 60
@@ -54,14 +58,24 @@ func PendingStatus() (*PendingApply, error) {
 }
 
 func SetPending(snapID string, timeout int, source string) error {
+	return setPending(snapID, timeout, source, "", nil)
+}
+
+func setPending(snapID string, timeout int, source, configPath string, persist []byte) error {
 	_ = os.MkdirAll(filepath.Dir(pendingFile), 0700)
 
-	data, err := json.Marshal(pendingState{
+	state := pendingState{
 		SnapID:  snapID,
 		Created: time.Now(),
 		Timeout: timeout,
 		Source:  source,
-	})
+	}
+	if persist != nil {
+		state.ConfigPath = configPath
+		state.Config = persist
+	}
+
+	data, err := json.Marshal(state)
 	if err != nil {
 		return err
 	}
@@ -69,35 +83,70 @@ func SetPending(snapID string, timeout int, source string) error {
 	return os.WriteFile(pendingFile, data, 0600)
 }
 
-func takePending() (snapID, source string, err error) {
+var ErrNoPending = errors.New("no pending apply")
+
+func takePending() (pendingState, error) {
 	data, err := os.ReadFile(pendingFile)
 	if err != nil {
-		return "", "", fmt.Errorf("no pending apply")
+		return pendingState{}, ErrNoPending
 	}
 
 	_ = os.Remove(pendingFile)
 	var state pendingState
 	if err := json.Unmarshal(data, &state); err == nil {
-		return state.SnapID, state.Source, nil
+		return state, nil
 	}
 
-	return string(data), "", nil
+	return pendingState{SnapID: string(data)}, nil
+}
+
+func PendingConfig(configPath string) ([]byte, bool) {
+	data, err := os.ReadFile(pendingFile)
+	if err != nil {
+		return nil, false
+	}
+
+	var state pendingState
+	if err := json.Unmarshal(data, &state); err != nil || state.Config == nil || state.ConfigPath != configPath {
+		return nil, false
+	}
+
+	return state.Config, true
+}
+
+func persistPending(state pendingState) error {
+	if state.Config == nil || state.ConfigPath == "" {
+		return nil
+	}
+
+	if err := writeConfigFile(state.ConfigPath, state.Config); err != nil {
+		return fmt.Errorf("confirmed but failed to persist config: %w", err)
+	}
+
+	return nil
 }
 
 func ClearPending() (string, error) {
-	id, _, err := takePending()
-	return id, err
+	state, err := takePending()
+	return state.SnapID, err
 }
 
 func ConfirmPending() (string, error) {
-	id, source, err := takePending()
+	state, err := takePending()
 	if err != nil {
 		return "", err
+	}
+
+	id, source := state.SnapID, state.Source
+	if err := persistPending(state); err != nil {
+		return id, err
 	}
 
 	if id != "" {
 		applylog.MarkConfirmed(id)
 	}
+
+	takeover.EnsureOnConfirm()
 
 	if !strings.HasPrefix(source, "macro:") {
 		runAnycast()

@@ -1,11 +1,13 @@
 import { ValueNode } from '@/components/ConfigView'
-import { Card, CardContent, CardHeader, CardTitle } from 'cheval-ui'
+import { Button, Card, CardContent, CardHeader, CardTitle, EmptyState, Spinner } from 'cheval-ui'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 
 type FieldShape = { label: string; value?: ReactNode; mono?: boolean }
 
 type TABSShape = { key: Tab; label: string }
+
+type LoadingStateShape = { error: string | null; onRetry: () => void }
 
 type WgCardShape = { name: string; wg: WgInstance }
 
@@ -17,6 +19,18 @@ export function Field({ label, value, mono }: FieldShape) {
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className={`truncate ${mono ? 'font-mono text-xs' : ''}`}>{value ?? '-'}</div>
     </div>
+  )
+}
+
+export function LoadingState({ error, onRetry }: LoadingStateShape) {
+  if (!error) return <Spinner />
+  return (
+    <EmptyState
+      className="py-8"
+      title="Could Not Load Configuration"
+      message={error}
+      action={<Button variant="outline" size="sm" onClick={onRetry}>Retry</Button>}
+    />
   )
 }
 
@@ -45,17 +59,17 @@ export function WgCard({ name, wg }: WgCardShape) {
   const allowed = (wg.peers ?? []).flatMap((p) => p.allowed_ips ?? []).join(', ')
   return (
     <Card>
-      <button type="button" onClick={() => setOpen((o) => !o)} className="w-full text-left">
+      <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="w-full text-left">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center justify-between text-base">
             <span className="font-mono">{name}</span>
             {open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
           </CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm md:grid-cols-4">
+        <CardContent className="grid grid-cols-1 gap-x-6 gap-y-3 text-sm sm:grid-cols-2 md:grid-cols-4">
           <Field label="Addresses" value={(wg.addresses ?? []).join(', ') || undefined} mono />
-          <Field label="Listen port" value={wg.listen_port} />
-          <Field label="Peer endpoint" value={endpoints || undefined} mono />
+          <Field label="Listen Port" value={wg.listen_port} />
+          <Field label="Peer Endpoint" value={endpoints || undefined} mono />
           <Field label="Allowed IPs" value={allowed || undefined} mono />
         </CardContent>
       </button>
@@ -82,14 +96,14 @@ export function TunCard({ name, tun }: TunCardShape) {
   const [open, setOpen] = useState(false)
   return (
     <Card>
-      <button type="button" onClick={() => setOpen((o) => !o)} className="w-full text-left">
+      <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="w-full text-left">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center justify-between text-base">
             <span className="font-mono">{name}</span>
             {open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
           </CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm md:grid-cols-4">
+        <CardContent className="grid grid-cols-1 gap-x-6 gap-y-3 text-sm sm:grid-cols-2 md:grid-cols-4">
           <Field label="Mode" value={tun.mode} />
           <Field label="Addresses" value={(tun.addresses ?? []).join(', ') || undefined} mono />
           <Field label="Local" value={tun.local || undefined} mono />

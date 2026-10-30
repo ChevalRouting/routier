@@ -14,12 +14,15 @@ export COMMUNITY="${ALPINE_COMMUNITY:-https://dl-cdn.alpinelinux.org/alpine/v3.2
 export OFFLINE="${OFFLINE:-0}"
 export MIRROR_DIR="${MIRROR_DIR:-$HERE/../dist/cache/apkmirror}"
 export FLAVOR="${FLAVOR:-lts}"
+export ROUTIER_REPO_URL="${ROUTIER_REPO_URL-https://repo.routier.cloud}"
+export ROUTIER_CHANNEL="${ROUTIER_CHANNEL:-nightly}"
 
 case "$FLAVOR" in
-	lts)    PROFILE="routier"; IMAGE="routier" ;;
-	virt)   PROFILE="routier_virt"; IMAGE="routier-virt" ;;
-	stable) PROFILE="routier_stable"; IMAGE="routier-stable" ;;
-	*) echo "unknown FLAVOR=$FLAVOR (lts|virt|stable)" >&2; exit 1 ;;
+	lts)       PROFILE="routier"; IMAGE="routier" ;;
+	virt)      PROFILE="routier_virt"; IMAGE="routier-virt" ;;
+	stable)    PROFILE="routier_stable"; IMAGE="routier-stable" ;;
+	installer) PROFILE="routier_installer"; IMAGE="routier-installer" ;;
+	*) echo "unknown FLAVOR=$FLAVOR (lts|virt|stable|installer)" >&2; exit 1 ;;
 esac
 
 [ -f "$REPO/$ARCH/APKINDEX.tar.gz" ] || { echo "no signed repo at $REPO/$ARCH, run task apk first" >&2; exit 1; }
@@ -46,7 +49,23 @@ cp "$HERE/genapkovl-routier.sh" "$APORTS/scripts/genapkovl-routier.sh"
 mkdir -p "$OUTDIR"
 chown builder: "$OUTDIR"
 
-su builder -c "export FLAVOR='$FLAVOR'; . /home/builder/.abuild/abuild.conf && cd '$APORTS/scripts' && $APORTS/scripts/mkimage.sh \
+ROUTIER_BIN=""
+BINDIR=""
+if [ "$FLAVOR" = "installer" ]; then
+	ROUTIER_APK=$(ls -t "$REPO/$ARCH"/routier-[0-9]*.apk 2>/dev/null | head -1)
+	[ -n "$ROUTIER_APK" ] || { echo "no routier apk in $REPO/$ARCH, run task apk first" >&2; exit 1; }
+	BINDIR="$OUTDIR/.installer-bin"
+	rm -rf "$BINDIR"
+	mkdir -p "$BINDIR"
+	OPENRC_APK=$(ls -t "$REPO/$ARCH"/routier-openrc-[0-9]*.apk 2>/dev/null | head -1)
+	[ -n "$OPENRC_APK" ] || { echo "no routier-openrc apk in $REPO/$ARCH, run task apk first" >&2; exit 1; }
+	tar -xzf "$ROUTIER_APK" -C "$BINDIR" usr/bin/routier usr/bin/routier-ui
+	tar -xzf "$OPENRC_APK" -C "$BINDIR" etc/init.d/routier-ui etc/init.d/routier-live
+	ROUTIER_BIN="$BINDIR/usr/bin/routier"
+	chmod -R a+rX "$BINDIR"
+fi
+
+su builder -c "export FLAVOR='$FLAVOR'; export OFFLINE='$OFFLINE'; export ROUTIER_REPO_URL='$ROUTIER_REPO_URL'; export ROUTIER_CHANNEL='$ROUTIER_CHANNEL'; export ARCH='$ARCH'; export ROUTIER_BIN='$ROUTIER_BIN'; export ROUTIER_FILES='$BINDIR'; . /home/builder/.abuild/abuild.conf && cd '$APORTS/scripts' && $APORTS/scripts/mkimage.sh \
 	--tag '${VERSION}-r${RELEASE}' \
 	--outdir '$OUTDIR' \
 	--arch '$ARCH' \
@@ -54,17 +73,20 @@ su builder -c "export FLAVOR='$FLAVOR'; . /home/builder/.abuild/abuild.conf && c
 	$REPOS \
 	--profile $PROFILE"
 
+rm -rf "$OUTDIR/.installer-bin"
 chown -R 0:0 "$OUTDIR"
 
 echo "ISO written to $OUTDIR"
 
+KERNEL=$FLAVOR
+[ "$FLAVOR" = "installer" ] && KERNEL=lts
 ISO=$(ls -t "$OUTDIR/$IMAGE"-*-"$ARCH".iso 2>/dev/null | head -1)
 if [ -n "$ISO" ]; then
 	BOOTDIR="$HERE/../dist/boot"
 	mkdir -p "$BOOTDIR"
 	xorriso -osirrox on -indev "$ISO" \
-		-extract "/boot/vmlinuz-$FLAVOR"   "$BOOTDIR/vmlinuz-$FLAVOR" \
-		-extract "/boot/initramfs-$FLAVOR" "$BOOTDIR/initramfs-$FLAVOR" \
+		-extract "/boot/vmlinuz-$KERNEL"   "$BOOTDIR/vmlinuz-$KERNEL" \
+		-extract "/boot/initramfs-$KERNEL" "$BOOTDIR/initramfs-$KERNEL" \
 		2>/dev/null
 	echo "kernel/initramfs extracted to $BOOTDIR"
 fi

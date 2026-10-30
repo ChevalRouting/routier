@@ -49,8 +49,8 @@ func newMacrosListCommand(dbPath *string) *cobra.Command {
 		Use:   "list",
 		Short: "list macros",
 		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, unusedArg2 []string) error {
-			return newMacrosListCommandCallback(dbPath, cmd, unusedArg2)
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runMacrosList(dbPath, cmd)
 		},
 	}
 }
@@ -60,7 +60,7 @@ func newMacrosShowCommand(dbPath *string) *cobra.Command {
 		Use:   "show <name-or-id>",
 		Short: "show macro details",
 		Args:  cobra.ExactArgs(1),
-		RunE:  func(cmd *cobra.Command, args []string) error { return newMacrosShowCommandCallback(dbPath, cmd, args) },
+		RunE:  func(cmd *cobra.Command, args []string) error { return runMacrosShow(dbPath, cmd, args) },
 	}
 }
 
@@ -77,7 +77,7 @@ func newMacrosApplyCommand(dbPath *string) *cobra.Command {
 		Short: "apply a macro to the live config",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return newMacrosApplyCommandCallback(dbPath, dryRun, force, configPath, noArm, timeout, cmd, args)
+			return runMacrosApply(dbPath, dryRun, force, configPath, noArm, timeout, cmd, args)
 		},
 	}
 
@@ -95,12 +95,12 @@ func newMacrosDeleteCommand(dbPath *string) *cobra.Command {
 		Short: "delete a macro",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return newMacrosDeleteCommandCallback(dbPath, cmd, args)
+			return runMacrosDelete(dbPath, cmd, args)
 		},
 	}
 }
 
-func newMacrosListCommandCallback(dbPath *string, cmd *cobra.Command, _ []string) error {
+func runMacrosList(dbPath *string, cmd *cobra.Command) error {
 	db, err := openMacroDB(*dbPath)
 	if err != nil {
 		return err
@@ -134,7 +134,7 @@ func newMacrosListCommandCallback(dbPath *string, cmd *cobra.Command, _ []string
 	return w.Flush()
 }
 
-func newMacrosShowCommandCallback(dbPath *string, cmd *cobra.Command, args []string) error {
+func runMacrosShow(dbPath *string, cmd *cobra.Command, args []string) error {
 	db, err := openMacroDB(*dbPath)
 	if err != nil {
 		return err
@@ -172,7 +172,7 @@ func newMacrosShowCommandCallback(dbPath *string, cmd *cobra.Command, args []str
 	return nil
 }
 
-func newMacrosApplyCommandCallback(dbPath *string, dryRun bool, force bool, configPath string, noArm bool, timeout int, cmd *cobra.Command, args []string) error {
+func runMacrosApply(dbPath *string, dryRun bool, force bool, configPath string, noArm bool, timeout int, cmd *cobra.Command, args []string) error {
 	db, err := openMacroDB(*dbPath)
 	if err != nil {
 		return err
@@ -251,25 +251,17 @@ func newMacrosApplyCommandCallback(dbPath *string, dryRun bool, force bool, conf
 		return fmt.Errorf("marshal merged config: %w", err)
 	}
 
-	oldData, _ := os.ReadFile(configPath)
-	if err := os.WriteFile(configPath, newData, 0600); err != nil {
-		return fmt.Errorf("write config: %w", err)
-	}
-
 	armTimeout := 0
 	if !noArm {
 		armTimeout = timeout
 	}
 
 	res, err := managers.Apply(cmd.Context(), merged, friends.LoadCacheVars(defaultFriendsCache), managers.ApplyOptions{
-		Source:     "macro:" + m.Name,
-		ConfigPath: configPath,
+		Source:        "macro:" + m.Name,
+		ConfigPath:    configPath,
+		PersistConfig: newData,
 	}, armTimeout)
 	if err != nil {
-		if len(oldData) > 0 {
-			_ = os.WriteFile(configPath, oldData, 0600)
-		}
-
 		return err
 	}
 
@@ -287,7 +279,7 @@ func newMacrosApplyCommandCallback(dbPath *string, dryRun bool, force bool, conf
 	return nil
 }
 
-func newMacrosDeleteCommandCallback(dbPath *string, cmd *cobra.Command, args []string) error {
+func runMacrosDelete(dbPath *string, cmd *cobra.Command, args []string) error {
 	db, err := openMacroDB(*dbPath)
 	if err != nil {
 		return err

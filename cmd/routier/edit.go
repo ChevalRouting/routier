@@ -24,7 +24,7 @@ func newEditCommand() *cobra.Command {
 		Short: "edit config in $EDITOR and apply on exit",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return newEditCommandCallback(timeout, noArm, noApply, cmd, args)
+			return runEdit(timeout, noArm, noApply, cmd, args)
 		},
 	}
 
@@ -34,7 +34,7 @@ func newEditCommand() *cobra.Command {
 	return cmd
 }
 
-func newEditCommandCallback(timeout int, noArm bool, noApply bool, cmd *cobra.Command, args []string) error {
+func runEdit(timeout int, noArm bool, noApply bool, cmd *cobra.Command, args []string) error {
 	cfgPath := configArg(args)
 
 	src, err := os.ReadFile(cfgPath)
@@ -84,6 +84,10 @@ func newEditCommandCallback(timeout int, noArm bool, noApply bool, cmd *cobra.Co
 
 	edited, err := os.ReadFile(tmpPath)
 	if err != nil {
+		return err
+	}
+
+	if err := managers.RequireNoPending(); err != nil {
 		return err
 	}
 

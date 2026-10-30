@@ -1,3 +1,4 @@
+import { onActivate } from '@/lib/utils'
 import type {
   TypesHAStatusResponse as HAStatusResponse,
   TypesNeighborStat as NeighborStat,
@@ -5,12 +6,13 @@ import type {
   TypesSystemHistoryPoint as SystemHistoryPoint,
 } from '@/api'
 import { api } from '@/lib/client'
-import { Button, Card, CardContent, CardHeader, CardTitle, fmtBytes, fmtUptime, Spinner, StateChip } from 'cheval-ui'
+import { Button, Card, CardContent, CardHeader, CardTitle, fmtBytes, fmtUptime, Spinner, StateChip, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, ReloadButton } from 'cheval-ui'
 import { TimeSeriesChart } from 'cheval-ui/charts'
-import { Cpu, MemoryStick, Network, Pause, Play, RefreshCw } from 'lucide-react'
+import { Cpu, MemoryStick, Network, Pause, Play } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { InterfaceDetails } from './InterfaceDetails'
 import { OnActionChange, VRRPState } from './shared'
+import { SERIES } from '@/lib/palette'
 
 type SystemPanelShape = { onActionChange: OnActionChange }
 
@@ -29,11 +31,13 @@ export function SystemPanel({ onActionChange }: SystemPanelShape) {
   const fetchStats = useCallback(async () => {
     try {
       const data = await api.apiStatsGet()
-      setPrev((p) => (stats !== null ? stats : p))
-      setStats(data)
+      setStats((current) => {
+        setPrev(current)
+        return data
+      })
       setLastUpdate(new Date())
     } catch {}
-  }, [stats])
+  }, [])
 
   useEffect(() => { fetchStats() }, [fetchStats])
   useEffect(() => {
@@ -61,9 +65,7 @@ export function SystemPanel({ onActionChange }: SystemPanelShape) {
           {paused ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
           {paused ? 'Resume' : 'Pause'}
         </Button>
-        <Button variant="outline" size="icon" className="h-8 w-8" onClick={fetchStats}>
-          <RefreshCw className="h-3.5 w-3.5" />
-        </Button>
+        <ReloadButton onClick={fetchStats} />
       </div>
     )
   }, [paused, lastUpdate, fetchStats, onActionChange])
@@ -87,6 +89,9 @@ export function SystemPanel({ onActionChange }: SystemPanelShape) {
     }
   }
 
+  const cpuData = useMemo(() => sysHistory.map((p) => ({ ts: p.ts, cpu: p.cpu_pct })), [sysHistory])
+  const memData = useMemo(() => sysHistory.map((p) => ({ ts: p.ts, mem: p.mem_total > 0 ? (p.mem_used / p.mem_total) * 100 : 0 })), [sysHistory])
+
   const v4Reachable = neighborStats.filter((n) => n.family === 'ipv4' && n.state === 'REACHABLE').length
   const v4Total     = neighborStats.filter((n) => n.family === 'ipv4').length
   const v6Reachable = neighborStats.filter((n) => n.family === 'ipv6' && n.state === 'REACHABLE').length
@@ -106,7 +111,7 @@ export function SystemPanel({ onActionChange }: SystemPanelShape) {
                 <Cpu className="h-4 w-4 text-muted-foreground" />
               </div>
               <div className="relative z-10 px-5 pb-7">
-                <div className={`text-3xl font-bold ${sys.cpu_percent > 90 ? 'text-danger' : sys.cpu_percent > 70 ? 'text-warning' : 'text-primary'}`}>
+                <div className={`text-3xl font-bold ${sys.cpu_percent > 90 ? 'text-danger' : sys.cpu_percent > 70 ? 'text-warning' : ''}`}>
                   {sys.cpu_percent.toFixed(1)}%
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">
@@ -114,7 +119,7 @@ export function SystemPanel({ onActionChange }: SystemPanelShape) {
                 </p>
               </div>
               <div className="absolute inset-x-0 bottom-0 h-24 opacity-25 pointer-events-none">
-                <TimeSeriesChart mini data={sysHistory.map((p) => ({ ts: p.ts, cpu: p.cpu_pct }))} series={[{ dataKey: 'cpu', label: 'CPU %', color: '#3584e4' }]} height={96} />
+                <TimeSeriesChart mini data={cpuData} series={[{ dataKey: 'cpu', label: 'CPU %', color: SERIES.cpu }]} height={96} />
               </div>
             </Card>
 
@@ -124,7 +129,7 @@ export function SystemPanel({ onActionChange }: SystemPanelShape) {
                 <MemoryStick className="h-4 w-4 text-muted-foreground" />
               </div>
               <div className="relative z-10 px-5 pb-7">
-                <div className="text-3xl font-bold text-[#9141ac]">{fmtBytes(sys.mem_used)}</div>
+                <div className="text-3xl font-bold">{fmtBytes(sys.mem_used)}</div>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   of {fmtBytes(sys.mem_total)}
                   {sys.swap_total > 0 && ` · swap ${fmtBytes(sys.swap_used)}/${fmtBytes(sys.swap_total)}`}
@@ -132,22 +137,22 @@ export function SystemPanel({ onActionChange }: SystemPanelShape) {
                 </p>
               </div>
               <div className="absolute inset-x-0 bottom-0 h-24 opacity-25 pointer-events-none">
-                <TimeSeriesChart mini data={sysHistory.map((p) => ({ ts: p.ts, mem: p.mem_total > 0 ? (p.mem_used / p.mem_total) * 100 : 0 }))} series={[{ dataKey: 'mem', label: 'Mem %', color: '#9141ac' }]} height={96} />
+                <TimeSeriesChart mini data={memData} series={[{ dataKey: 'mem', label: 'Mem %', color: SERIES.mem }]} height={96} />
               </div>
             </Card>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {[
-              { label: 'IPv4 Neighbors', total: v4Total, reachable: v4Reachable, color: 'text-primary' },
-              { label: 'IPv6 Neighbors', total: v6Total, reachable: v6Reachable, color: 'text-[#26a269]' },
-            ].map(({ label, total, reachable, color }) => (
+              { label: 'IPv4 Neighbors', total: v4Total, reachable: v4Reachable },
+              { label: 'IPv6 Neighbors', total: v6Total, reachable: v6Reachable },
+            ].map(({ label, total, reachable }) => (
               <Card key={label}>
                 <CardContent className="px-5 py-4">
                   <p className="text-xs text-muted-foreground font-medium">{label}</p>
-                  <p className={`text-3xl font-bold mt-1 ${color}`}>{total}</p>
+                  <p className="mt-1 text-3xl font-bold">{total}</p>
                   {total > 0 && <p className="text-xs text-muted-foreground mt-0.5">{reachable} reachable</p>}
-                  {total === 0 && <p className="text-xs text-muted-foreground mt-0.5 italic">no data yet</p>}
+                  {total === 0 && <p className="text-xs text-muted-foreground mt-0.5">No data</p>}
                 </CardContent>
               </Card>
             ))}
@@ -162,44 +167,42 @@ export function SystemPanel({ onActionChange }: SystemPanelShape) {
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border text-xs text-muted-foreground">
-                      <th className="text-left py-2 pr-4">Interface</th>
-                      <th className="text-left py-2 pr-4">State</th>
-                      <th className="text-right py-2 pr-4">RX Rate</th>
-                      <th className="text-right py-2 pr-4">TX Rate</th>
-                      <th className="text-right py-2 pr-4">RX Total</th>
-                      <th className="text-right py-2 pr-4">TX Total</th>
-                      <th className="text-right py-2">Errors</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                <Table className="w-full text-sm">
+                  <TableHeader>
+                    <TableRow className="border-b border-border text-xs text-muted-foreground">
+                      <TableHead className="text-left py-2 pr-4">Interface</TableHead>
+                      <TableHead className="text-left py-2 pr-4">State</TableHead>
+                      <TableHead className="text-right py-2 pr-4">RX Rate</TableHead>
+                      <TableHead className="text-right py-2 pr-4">TX Rate</TableHead>
+                      <TableHead className="text-right py-2 pr-4">RX Total</TableHead>
+                      <TableHead className="text-right py-2 pr-4">TX Total</TableHead>
+                      <TableHead className="text-right py-2">Errors</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {Object.entries(stats.interfaces ?? {}).sort(([a], [b]) => a.localeCompare(b)).map(([name, iface]) => (
-                      <tr key={name} className="border-b border-border/50 hover:bg-muted/30 cursor-pointer" onClick={() => setSelectedInterface(name)}>
-                        <td className="py-2 pr-4 font-mono font-medium"><button type="button" className="text-primary hover:underline focus-visible:underline" onClick={(event) => { event.stopPropagation(); setSelectedInterface(name) }} aria-label={`Show ${name} interface status`}>{name}</button></td>
-                        <td className="py-2 pr-4">
+                      <TableRow key={name} role="button" tabIndex={0} className="cursor-pointer" onClick={() => setSelectedInterface(name)} onKeyDown={onActivate(() => setSelectedInterface(name))}>
+                        <TableCell className="py-2 pr-4 font-mono font-medium">{name}</TableCell>
+                        <TableCell className="py-2 pr-4">
                           {vrrpByIface[name] ? (
                             <StateChip state={vrrpByIface[name]} />
                           ) : (
-                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${iface.operstate === 'up' ? 'bg-success text-success-foreground' : 'bg-secondary text-secondary-foreground'}`}>
-                              {iface.operstate}
-                            </span>
+                            <StateChip state={iface.operstate} />
                           )}
-                        </td>
-                        <td className="py-2 pr-4 text-right font-mono text-xs text-primary">{rates[name] ? fmtBytes(rates[name].rx) + '/s' : '-'}</td>
-                        <td className="py-2 pr-4 text-right font-mono text-xs text-success">{rates[name] ? fmtBytes(rates[name].tx) + '/s' : '-'}</td>
-                        <td className="py-2 pr-4 text-right font-mono text-xs text-muted-foreground">{fmtBytes(iface.rx_bytes)}</td>
-                        <td className="py-2 pr-4 text-right font-mono text-xs text-muted-foreground">{fmtBytes(iface.tx_bytes)}</td>
-                        <td className="py-2 text-right font-mono text-xs">
+                        </TableCell>
+                        <TableCell className="py-2 pr-4 text-right font-mono text-xs text-primary">{rates[name] ? fmtBytes(rates[name].rx) + '/s' : '-'}</TableCell>
+                        <TableCell className="py-2 pr-4 text-right font-mono text-xs text-success">{rates[name] ? fmtBytes(rates[name].tx) + '/s' : '-'}</TableCell>
+                        <TableCell className="py-2 pr-4 text-right font-mono text-xs text-muted-foreground">{fmtBytes(iface.rx_bytes)}</TableCell>
+                        <TableCell className="py-2 pr-4 text-right font-mono text-xs text-muted-foreground">{fmtBytes(iface.tx_bytes)}</TableCell>
+                        <TableCell className="py-2 text-right font-mono text-xs">
                           {iface.rx_errors + iface.tx_errors > 0
                             ? <span className="text-danger">{iface.rx_errors + iface.tx_errors}</span>
                             : <span className="text-muted-foreground">0</span>}
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             </CardContent>
           </Card>

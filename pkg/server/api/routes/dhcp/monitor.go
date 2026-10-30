@@ -2,14 +2,15 @@ package dhcp
 
 import (
 	"bufio"
-	"fmt"
 	"net/http"
 	"os/exec"
 	"strings"
 
 	"github.com/ChevalRouting/routier/pkg/daemon/kea"
+	"github.com/ChevalRouting/routier/pkg/server/api/sse"
 	"github.com/ChevalRouting/routier/pkg/svc"
 	"github.com/ChevalRouting/routier/pkg/types"
+
 	"github.com/rs/zerolog/log"
 )
 
@@ -66,14 +67,6 @@ func LeaseStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("X-Accel-Buffering", "no")
-
-	flusher, hasFlusher := w.(http.Flusher)
-	send := func(line string) { leaseStreamCallback(w, flusher, hasFlusher, line) }
-
 	args := append([]string{"-n", "50", "-F"}, files...)
 	cmd := exec.CommandContext(r.Context(), "tail", args...)
 
@@ -93,9 +86,9 @@ func LeaseStream(w http.ResponseWriter, r *http.Request) {
 		_ = cmd.Wait()
 	}()
 
-	if hasFlusher {
-		_, _ = fmt.Fprint(w, ": connected\n\n")
-		flusher.Flush()
+	stream := sse.Start(w)
+	if !stream.Write(": connected\n\n") {
+		return
 	}
 
 	scanner := bufio.NewScanner(stdout)
@@ -106,13 +99,8 @@ func LeaseStream(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		send(line)
-	}
-}
-
-func leaseStreamCallback(w http.ResponseWriter, flusher http.Flusher, hasFlusher bool, line string) {
-	_, _ = fmt.Fprintf(w, "data: %s\n\n", strings.ReplaceAll(line, "\n", " "))
-	if hasFlusher {
-		flusher.Flush()
+		if !stream.Data(line) {
+			return
+		}
 	}
 }

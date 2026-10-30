@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/ChevalRouting/routier/pkg/host/live"
 	"github.com/ChevalRouting/routier/pkg/host/motd"
 	"github.com/spf13/cobra"
 )
@@ -14,6 +15,11 @@ func newWriteMOTDCommand() *cobra.Command {
 		Short:  "write /etc/motd (version + interfaces + optional credentials)",
 		Hidden: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if live.Booted(live.MountsPath) {
+				writeLiveBanner(globalIPv4())
+				return nil
+			}
+
 			motd.Write(cmd.Context(), user, pass)
 			return nil
 		},

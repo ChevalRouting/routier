@@ -9,8 +9,10 @@ import (
 
 	"github.com/ChevalRouting/routier/pkg/apply"
 	"github.com/ChevalRouting/routier/pkg/config"
+	"github.com/ChevalRouting/routier/pkg/render"
 	"github.com/ChevalRouting/routier/pkg/state/applylog"
 	"github.com/ChevalRouting/routier/pkg/svc"
+	"github.com/rs/zerolog/log"
 )
 
 func Rollback(id string) (string, error) {
@@ -29,7 +31,7 @@ func RollbackSource(id, source string) (resolvedID string, err error) {
 	defer release()
 
 	rec := applylog.Start(source, "")
-	defer func() { rollbackSourceCallback(resolvedID, err, rec) }()
+	defer func() { finishRollback(resolvedID, err, rec) }()
 
 	if id == "" {
 		if data, err := os.ReadFile(pendingFile); err == nil {
@@ -42,6 +44,7 @@ func RollbackSource(id, source string) (resolvedID string, err error) {
 		}
 	}
 
+	rolledBackSwitches := render.ReadSwitchArtifacts()
 	names, err := apply.Rollback(id)
 	if err != nil {
 		return "", err
@@ -56,8 +59,12 @@ func RollbackSource(id, source string) (resolvedID string, err error) {
 		return id, fmt.Errorf("rollback: could not load restored config for netlink reconcile: %w", lerr)
 	}
 
-	if err = svc.ReloadFromOutputs(names, restoredCfg, false, false); err != nil {
+	if err = svc.ReloadFromOutputs(names, restoredCfg, false); err != nil {
 		return id, err
+	}
+
+	if serr := restoreSwitches(ctx, names, restoredCfg, rolledBackSwitches, id); serr != nil {
+		log.Error().Err(serr).Msg("rollback: switches could not be restored, check them by hand")
 	}
 
 	_ = os.Remove(pendingFile)
@@ -80,7 +87,7 @@ func loadRollbackConfig(path string) (*config.Config, error) {
 	return cfg, nil
 }
 
-func rollbackSourceCallback(resolvedID string, err error, rec *applylog.Recorder) {
+func finishRollback(resolvedID string, err error, rec *applylog.Recorder) {
 	result := "rolledback"
 	if err != nil {
 		result = "failed"

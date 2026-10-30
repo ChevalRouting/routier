@@ -12,8 +12,8 @@ func newCollectStatsCommand() *cobra.Command {
 		Use:    "collect-stats",
 		Short:  "collect interface, BGP, protocol, neighbor and LLDP stats into the database",
 		Hidden: true,
-		RunE: func(cmd *cobra.Command, unusedArg3 []string) error {
-			return newCollectStatsCommandCallback(dbPath, configPath, cmd, unusedArg3)
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runCollectStats(dbPath, configPath, cmd)
 		},
 	}
 
@@ -22,7 +22,7 @@ func newCollectStatsCommand() *cobra.Command {
 	return cmd
 }
 
-func newCollectStatsCommandCallback(dbPath string, configPath string, cmd *cobra.Command, _ []string) error {
+func runCollectStats(dbPath string, configPath string, cmd *cobra.Command) error {
 	if err := collect.Run(cmd.Context(), dbPath, configPath); err != nil {
 		return err
 	}

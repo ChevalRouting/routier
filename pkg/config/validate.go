@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/base64"
 	"fmt"
 	"net"
 	"path/filepath"
@@ -22,6 +23,12 @@ func isPositiveInt(s string) bool {
 func isValidCIDR(s string) bool {
 	_, _, err := net.ParseCIDR(s)
 	return err == nil
+}
+
+func sameFamily(cidr, ip string) bool {
+	_, network, err := net.ParseCIDR(cidr)
+	address := net.ParseIP(ip)
+	return err == nil && address != nil && (network.IP.To4() == nil) == (address.To4() == nil)
 }
 
 var dhcpTokens = map[string]bool{
@@ -311,8 +318,7 @@ func Validate(cfg *Config, resolveIfaces bool) []error {
 
 	validateRouting(cfg, add)
 	validateHA(cfg, add)
-	validateTunnels(cfg, add)
-	validateWireguard(cfg, add)
+	validateVPN(cfg, add)
 	validateNftables(cfg, add)
 	validateFriends(cfg, add)
 	validateUsers(cfg, add)
@@ -322,6 +328,8 @@ func Validate(cfg *Config, resolveIfaces bool) []error {
 	validateSSH(cfg, add)
 	validateDHCP(cfg, add)
 	validateMonitoring(cfg, add)
+	validateSwitches(cfg, add)
+	validateWeb(cfg, add)
 
 	return errs
 }
@@ -365,6 +373,8 @@ func validateMonitoring(cfg *Config, add addfunc) {
 			}
 		}
 	}
+
+	validateFlows(cfg, add)
 }
 
 func validateVXLANPorts(cfg *Config, add addfunc) {
@@ -376,7 +386,7 @@ func validateVXLANPorts(cfg *Config, add addfunc) {
 
 	byPort := map[int][]vxlanDev{}
 	for name, iface := range cfg.Interfaces {
-		if iface.Type != "vxlan" || iface.VXLAN == nil {
+		if (iface.Type != "vxlan" && iface.Type != "vxlan-bridge") || iface.VXLAN == nil {
 			continue
 		}
 
@@ -385,7 +395,7 @@ func validateVXLANPorts(cfg *Config, add addfunc) {
 			port = 4789
 		}
 
-		byPort[port] = append(byPort[port], vxlanDev{name, iface.VXLAN.External, iface.VXLAN.VNIFilter})
+		byPort[port] = append(byPort[port], vxlanDev{name, iface.VXLAN.External || iface.Type == "vxlan-bridge", iface.VXLAN.VNIFilter})
 	}
 
 	for port, devs := range byPort {
@@ -403,18 +413,19 @@ func validateVXLANPorts(cfg *Config, add addfunc) {
 
 func validateInterfaces(cfg *Config, add addfunc) {
 	validateVXLANPorts(cfg, add)
+	validateVNets(cfg, add)
 
 	for name, iface := range cfg.Interfaces {
-		if iface.Select == "" && iface.Type != "dummy" && iface.Type != "bridge" && iface.Type != "vxlan" && iface.Type != "bond" {
+		if iface.Select == "" && iface.Type != "dummy" && iface.Type != "bridge" && iface.Type != "vxlan" && iface.Type != "bond" && iface.Type != "vxlan-bridge" && iface.Type != "tunnel" {
 			add("interfaces.%s: select is required", name)
 		}
 
-		if iface.Type == "dummy" || iface.Type == "bridge" || iface.Type == "vxlan" || iface.Type == "bond" || iface.Type == "vlan" {
+		if iface.Type == "dummy" || iface.Type == "bridge" || iface.Type == "vxlan" || iface.Type == "bond" || iface.Type == "vlan" || iface.Type == "vxlan-bridge" || iface.Type == "vnet" || iface.Type == "tunnel" {
 			validateDeviceName("interfaces", name, add)
 		}
 
-		if iface.Type == "vxlan" {
-			validateVXLAN(name, iface.VXLAN, cfg, add)
+		if iface.Type == "vxlan" || iface.Type == "vxlan-bridge" {
+			validateVXLAN(name, InterfaceVXLAN(iface), cfg, add)
 
 			if iface.Bridge != nil {
 				add("interfaces.%s: vxlan interfaces cannot also be bridges", name)
@@ -444,7 +455,7 @@ func validateInterfaces(cfg *Config, add addfunc) {
 		}
 
 		if iface.Bridge != nil {
-			if len(iface.Bridge.Members) == 0 {
+			if len(iface.Bridge.Members) == 0 && iface.Type != "vnet" {
 				add("interfaces.%s.bridge: at least one member is required", name)
 			}
 
@@ -687,7 +698,7 @@ func validateRouting(cfg *Config, add addfunc) {
 	}
 
 	if r.PBR != nil {
-		validatePBR(r.PBR, add)
+		validatePBR(r.PBR, vrfNames, add)
 	}
 
 	for vrfName, vrfRouting := range r.VRFs {
@@ -754,6 +765,40 @@ func validateHA(cfg *Config, add addfunc) {
 		if v.Transport != "" && !isKnownInterface(v.Transport, cfg.Interfaces) {
 			add("ha.vrrp[%d]: transport %q not found in interfaces", i, v.Transport)
 		}
+
+		validateVRRPPrepend(cfg, v.BGPPrepend, i, add)
+	}
+}
+
+func validateVRRPPrepend(cfg *Config, p *VRRPBGPPrepend, i int, add addfunc) {
+	if p == nil {
+		return
+	}
+
+	if cfg.Routing == nil || cfg.Routing.BGP == nil {
+		add("ha.vrrp[%d].bgp_prepend: needs routing.bgp", i)
+		return
+	}
+
+	if p.Count < 0 || p.Count > 10 {
+		add("ha.vrrp[%d].bgp_prepend: count must be 1-10", i)
+	}
+
+	known := map[string]bool{}
+	for _, n := range cfg.Routing.BGP.Neighbors {
+		known[n.Address] = true
+	}
+
+	for j, addr := range p.Neighbors {
+		if !known[addr] {
+			add("ha.vrrp[%d].bgp_prepend.neighbors[%d]: %q is not a bgp neighbor", i, j, addr)
+		}
+	}
+
+	for j, prefix := range p.Prefixes {
+		if !isValidCIDR(prefix) {
+			add("ha.vrrp[%d].bgp_prepend.prefixes[%d]: %q is not a valid CIDR", i, j, prefix)
+		}
 	}
 }
 
@@ -777,12 +822,37 @@ func validateStaticRoutes(routes []StaticRoute, path string, add addfunc) {
 			seen[key] = true
 		}
 
-		if s.Via == "" && s.Dev == "" {
-			add("%s[%d]: via or dev is required", path, i)
+		switch s.Type {
+		case "":
+			if s.Via == "" && s.Dev == "" {
+				add("%s[%d]: via or dev is required", path, i)
+			}
+		case "blackhole", "unreachable", "prohibit":
+			if s.Via != "" || s.Dev != "" || s.Src != "" || s.Scope != "" {
+				add("%s[%d]: a %s route takes no via, dev, src or scope", path, i, s.Type)
+			}
+		default:
+			add("%s[%d]: type %q is not one of blackhole, unreachable, prohibit", path, i, s.Type)
 		}
 
 		if s.Via != "" && !isValidIP(s.Via) {
 			add("%s[%d]: via %q is not a valid IP", path, i, s.Via)
+		}
+
+		if s.Src != "" && !isValidIP(s.Src) {
+			add("%s[%d]: src %q is not a valid IP", path, i, s.Src)
+		} else if s.Src != "" && isValidCIDR(s.Destination) && !sameFamily(s.Destination, s.Src) {
+			add("%s[%d]: src %q is not in the same address family as %q", path, i, s.Src, s.Destination)
+		}
+
+		switch s.Scope {
+		case "", "global", "universe", "site", "link", "host":
+		default:
+			add("%s[%d]: scope %q is not one of global, site, link, host", path, i, s.Scope)
+		}
+
+		if s.Via != "" && s.Scope != "" && s.Scope != "global" && s.Scope != "universe" {
+			add("%s[%d]: scope %q is not allowed with via (gatewayed routes are always global scope)", path, i, s.Scope)
 		}
 	}
 }
@@ -815,12 +885,31 @@ func validateBFD(bfd *BFD, path string, add addfunc) {
 	}
 }
 
+const friendPolicyPrefix = "friends_"
+
+func isFriendPolicyRef(name string) bool {
+	return strings.HasPrefix(name, friendPolicyPrefix)
+}
+
+type bgpPolicies struct {
+	routeMaps   map[string][]RouteMapEntry
+	prefixLists map[string][]PrefixEntry
+}
+
+func (p bgpPolicies) hasRouteMap(name string) bool {
+	_, ok := p.routeMaps[name]
+	return name == "" || isFriendPolicyRef(name) || ok
+}
+
+func (p bgpPolicies) hasPrefixList(name string) bool {
+	_, ok := p.prefixLists[name]
+	return name == "" || isFriendPolicyRef(name) || ok
+}
+
 func validateBGP(bgp *BGP, global *BGP, path string, vrfNames map[string]bool, bfdProfiles map[string]bool, add addfunc) {
-	var routeMaps map[string][]RouteMapEntry
-	var prefixLists map[string][]PrefixEntry
+	var policies bgpPolicies
 	if global != nil {
-		routeMaps = global.RouteMaps
-		prefixLists = global.PrefixLists
+		policies = bgpPolicies{routeMaps: global.RouteMaps, prefixLists: global.PrefixLists}
 	}
 
 	if bgp.ASN == 0 {
@@ -833,7 +922,26 @@ func validateBGP(bgp *BGP, global *BGP, path string, vrfNames map[string]bool, b
 		add("%s: router_id %q is not a valid IP", path, bgp.RouterID)
 	}
 
+	validateBGPPrefixLists(bgp, path, add)
+	validateBGPRouteMaps(bgp, policies, path, add)
+	validateBGPShared(bgp, path, add)
+	for af, afConfig := range bgp.AddressFamilies {
+		if afConfig != nil {
+			validateBGPAddressFamily(af, afConfig, policies, vrfNames, path, add)
+		}
+	}
+
+	for i, n := range bgp.Neighbors {
+		validateBGPNeighbor(fmt.Sprintf("%s.neighbors[%d]", path, i), n, policies, bfdProfiles, add)
+	}
+}
+
+func validateBGPPrefixLists(bgp *BGP, path string, add addfunc) {
 	for plName, entries := range bgp.PrefixLists {
+		if strings.HasPrefix(plName, friendPolicyPrefix) {
+			add("%s.prefix_lists.%s: name must not start with %q (reserved for imported friend policy)", path, plName, friendPolicyPrefix)
+		}
+
 		seen := map[int]int{}
 		for i, e := range entries {
 			if prev, dup := seen[e.Seq]; dup {
@@ -851,8 +959,14 @@ func validateBGP(bgp *BGP, global *BGP, path string, vrfNames map[string]bool, b
 			}
 		}
 	}
+}
 
+func validateBGPRouteMaps(bgp *BGP, policies bgpPolicies, path string, add addfunc) {
 	for rmName, entries := range bgp.RouteMaps {
+		if strings.HasPrefix(rmName, friendPolicyPrefix) {
+			add("%s.route_maps.%s: name must not start with %q (reserved for imported friend policy)", path, rmName, friendPolicyPrefix)
+		}
+
 		seen := map[int]int{}
 		for i, e := range entries {
 			if prev, dup := seen[e.Seq]; dup {
@@ -865,10 +979,8 @@ func validateBGP(bgp *BGP, global *BGP, path string, vrfNames map[string]bool, b
 				add("%s.route_maps.%s[%d]: action must be permit or deny", path, rmName, i)
 			}
 
-			if e.Call != "" {
-				if _, ok := routeMaps[e.Call]; !ok {
-					add("%s.route_maps.%s[%d]: call %q not found", path, rmName, i, e.Call)
-				}
+			if !policies.hasRouteMap(e.Call) {
+				add("%s.route_maps.%s[%d]: call %q not found", path, rmName, i, e.Call)
 			}
 
 			if e.OnMatch != "" && e.OnMatch != "next" {
@@ -878,99 +990,107 @@ func validateBGP(bgp *BGP, global *BGP, path string, vrfNames map[string]bool, b
 			}
 		}
 	}
+}
 
-	for af, afConfig := range bgp.AddressFamilies {
-		if afConfig == nil {
-			continue
-		}
-
-		hasEVPNOptions := afConfig.AdvertiseAllVNI || afConfig.AdvertiseDefaultGateway || afConfig.AdvertiseSVIIP ||
-			len(afConfig.Advertise) > 0 || len(afConfig.RouteTargetImport) > 0 || len(afConfig.RouteTargetExport) > 0
-		if af != "l2vpn-evpn" && hasEVPNOptions {
-			add("%s.address_families.%s: EVPN options require the l2vpn-evpn address family", path, af)
-		}
-
-		hasVPNOptions := afConfig.RD != "" || len(afConfig.RTVPNImport) > 0 || len(afConfig.RTVPNExport) > 0 ||
-			afConfig.LabelVPNExportAuto || afConfig.ImportVPN || afConfig.ExportVPN ||
-			afConfig.RouteMapVPNImport != "" || afConfig.RouteMapVPNExport != ""
-		if af != "ipv4-unicast" && af != "ipv6-unicast" && hasVPNOptions {
-			add("%s.address_families.%s: VPN route-leak options require the ipv4-unicast or ipv6-unicast address family", path, af)
-		}
-
-		if afConfig.RouteMapVPNImport != "" {
-			if _, ok := routeMaps[afConfig.RouteMapVPNImport]; !ok {
-				add("%s.address_families.%s: route_map_vpn_import %q not found in route_maps", path, af, afConfig.RouteMapVPNImport)
-			}
-		}
-
-		if afConfig.RouteMapVPNExport != "" {
-			if _, ok := routeMaps[afConfig.RouteMapVPNExport]; !ok {
-				add("%s.address_families.%s: route_map_vpn_export %q not found in route_maps", path, af, afConfig.RouteMapVPNExport)
-			}
-		}
-
-		for i, advertisedAF := range afConfig.Advertise {
-			if !slices.Contains([]string{"ipv4-unicast", "ipv6-unicast"}, advertisedAF) {
-				add("%s.address_families.%s.advertise[%d]: must be ipv4-unicast or ipv6-unicast", path, af, i)
-			}
-		}
-
-		for i, vrfName := range afConfig.ImportVRF {
-			if vrfName != "default" && vrfName != "main" && !vrfNames[vrfName] {
-				add("%s.address_families.%s.import_vrf[%d]: vrf %q not declared in vrfs", path, af, i, vrfName)
-			}
+func validateBGPShared(bgp *BGP, path string, add addfunc) {
+	for _, name := range bgp.SharedPrefixLists {
+		if _, ok := bgp.PrefixLists[name]; !ok {
+			add("%s.shared_prefix_lists: %q not found in prefix_lists", path, name)
 		}
 	}
 
-	for i, n := range bgp.Neighbors {
-		if n.Address == "" {
-			add("%s.neighbors[%d]: address required", path, i)
-		} else if !isValidIP(n.Address) {
-			add("%s.neighbors[%d]: address %q is not a valid IP", path, i, n.Address)
+	for _, name := range bgp.SharedRouteMaps {
+		if _, ok := bgp.RouteMaps[name]; !ok {
+			add("%s.shared_route_maps: %q not found in route_maps", path, name)
+		}
+	}
+}
+
+func validateBGPAddressFamily(af string, afConfig *BGPAddressFamily, policies bgpPolicies, vrfNames map[string]bool, path string, add addfunc) {
+	hasEVPNOptions := afConfig.AdvertiseAllVNI || afConfig.AdvertiseDefaultGateway || afConfig.AdvertiseSVIIP ||
+		len(afConfig.Advertise) > 0 || len(afConfig.RouteTargetImport) > 0 || len(afConfig.RouteTargetExport) > 0
+	if af != "l2vpn-evpn" && hasEVPNOptions {
+		add("%s.address_families.%s: EVPN options require the l2vpn-evpn address family", path, af)
+	}
+
+	hasVPNOptions := afConfig.RD != "" || len(afConfig.RTVPNImport) > 0 || len(afConfig.RTVPNExport) > 0 ||
+		afConfig.LabelVPNExportAuto || afConfig.ImportVPN || afConfig.ExportVPN ||
+		afConfig.RouteMapVPNImport != "" || afConfig.RouteMapVPNExport != ""
+	if af != "ipv4-unicast" && af != "ipv6-unicast" && hasVPNOptions {
+		add("%s.address_families.%s: VPN route-leak options require the ipv4-unicast or ipv6-unicast address family", path, af)
+	}
+
+	if !policies.hasRouteMap(afConfig.RouteMapVPNImport) {
+		add("%s.address_families.%s: route_map_vpn_import %q not found in route_maps", path, af, afConfig.RouteMapVPNImport)
+	}
+
+	if !policies.hasRouteMap(afConfig.RouteMapVPNExport) {
+		add("%s.address_families.%s: route_map_vpn_export %q not found in route_maps", path, af, afConfig.RouteMapVPNExport)
+	}
+
+	for i, advertisedAF := range afConfig.Advertise {
+		if !slices.Contains([]string{"ipv4-unicast", "ipv6-unicast"}, advertisedAF) {
+			add("%s.address_families.%s.advertise[%d]: must be ipv4-unicast or ipv6-unicast", path, af, i)
+		}
+	}
+
+	if afConfig.ImportVRFRouteMap != "" && (len(afConfig.ImportVRF) == 0 || (af != "ipv4-unicast" && af != "ipv6-unicast")) {
+		add("%s.address_families.%s: import_vrf_route_map needs import_vrf in ipv4-unicast or ipv6-unicast", path, af)
+	}
+
+	if !policies.hasRouteMap(afConfig.ImportVRFRouteMap) {
+		add("%s.address_families.%s: import_vrf_route_map %q not found in route_maps", path, af, afConfig.ImportVRFRouteMap)
+	}
+
+	for i, vrfName := range afConfig.ImportVRF {
+		if vrfName != "default" && vrfName != "main" && !vrfNames[vrfName] {
+			add("%s.address_families.%s.import_vrf[%d]: vrf %q not declared in vrfs", path, af, i, vrfName)
+		}
+	}
+}
+
+func validateBGPNeighbor(path string, n BGPNeighbor, policies bgpPolicies, bfdProfiles map[string]bool, add addfunc) {
+	if n.Address == "" {
+		add("%s: address required", path)
+	} else if !isValidIP(n.Address) {
+		add("%s: address %q is not a valid IP", path, n.Address)
+	}
+
+	if n.RemoteASN == 0 {
+		add("%s: remote_asn required", path)
+	}
+
+	if n.EBGPMultihop < 0 {
+		add("%s: ebgp_multihop need to be positive", path)
+	}
+
+	if n.BFDProfile != "" && !n.BFD {
+		add("%s: bfd_profile set but bfd is not enabled", path)
+	}
+
+	if n.BFDProfile != "" && !bfdProfiles[n.BFDProfile] {
+		add("%s: bfd_profile %q not found in routing.bfd.profiles", path, n.BFDProfile)
+	}
+
+	for af, naf := range n.AddressFamilies {
+		if naf == nil {
+			continue
 		}
 
-		if n.RemoteASN == 0 {
-			add("%s.neighbors[%d]: remote_asn required", path, i)
+		if !policies.hasPrefixList(naf.PrefixListIn) {
+			add("%s.address_families.%s: prefix_list_in %q not found", path, af, naf.PrefixListIn)
 		}
 
-		if n.EBGPMultihop < 0 {
-			add("%s.neighbors[%d]: ebgp_multihop need to be positive", path, i)
+		if !policies.hasPrefixList(naf.PrefixListOut) {
+			add("%s.address_families.%s: prefix_list_out %q not found", path, af, naf.PrefixListOut)
 		}
 
-		if n.BFDProfile != "" {
-			if !n.BFD {
-				add("%s.neighbors[%d]: bfd_profile set but bfd is not enabled", path, i)
-			}
-
-			if !bfdProfiles[n.BFDProfile] {
-				add("%s.neighbors[%d]: bfd_profile %q not found in routing.bfd.profiles", path, i, n.BFDProfile)
-			}
+		if !policies.hasRouteMap(naf.RouteMapIn) {
+			add("%s.address_families.%s: route_map_in %q not found", path, af, naf.RouteMapIn)
 		}
 
-		for af, nafConfig := range n.AddressFamilies {
-			if nafConfig.PrefixListIn != "" {
-				if _, ok := prefixLists[nafConfig.PrefixListIn]; !ok {
-					add("%s.neighbors[%d].address_families.%s: prefix_list_in %q not found", path, i, af, nafConfig.PrefixListIn)
-				}
-			}
-
-			if nafConfig.PrefixListOut != "" {
-				if _, ok := prefixLists[nafConfig.PrefixListOut]; !ok {
-					add("%s.neighbors[%d].address_families.%s: prefix_list_out %q not found", path, i, af, nafConfig.PrefixListOut)
-				}
-			}
-
-			if nafConfig.RouteMapIn != "" {
-				if _, ok := routeMaps[nafConfig.RouteMapIn]; !ok {
-					add("%s.neighbors[%d].address_families.%s: route_map_in %q not found", path, i, af, nafConfig.RouteMapIn)
-				}
-			}
-
-			if nafConfig.RouteMapOut != "" {
-				if _, ok := routeMaps[nafConfig.RouteMapOut]; !ok {
-					add("%s.neighbors[%d].address_families.%s: route_map_out %q not found", path, i, af, nafConfig.RouteMapOut)
-				}
-			}
+		if !policies.hasRouteMap(naf.RouteMapOut) {
+			add("%s.address_families.%s: route_map_out %q not found", path, af, naf.RouteMapOut)
 		}
 	}
 }
@@ -1124,7 +1244,7 @@ func validateRADVD(radvd *RADVDConfig, ifaces map[string]*Interface, add addfunc
 	}
 }
 
-func validatePBR(pbr *PBR, add addfunc) {
+func validatePBR(pbr *PBR, vrfNames map[string]bool, add addfunc) {
 	for name, group := range pbr.NexthopGroups {
 		if len(group.Nexthops) == 0 {
 			add("routing.pbr.nexthop_groups.%s: at least one nexthop is required", name)
@@ -1156,12 +1276,17 @@ func validatePBR(pbr *PBR, add addfunc) {
 				add("routing.pbr.maps.%s[%d]: match_dst must be a valid CIDR (e.g. 10.0.0.0/8)", name, i)
 			}
 
-			if e.SetNexthopGroup == "" && e.SetNexthop == "" {
-				add("routing.pbr.maps.%s[%d]: set_nexthop_group or set_nexthop is required", name, i)
+			actions := pbrActionCount(e)
+			if actions == 0 {
+				add("routing.pbr.maps.%s[%d]: one of set_nexthop_group, set_nexthop or set_vrf is required", name, i)
 			}
 
-			if e.SetNexthopGroup != "" && e.SetNexthop != "" {
-				add("routing.pbr.maps.%s[%d]: set_nexthop_group and set_nexthop are mutually exclusive", name, i)
+			if actions > 1 {
+				add("routing.pbr.maps.%s[%d]: set_nexthop_group, set_nexthop and set_vrf are mutually exclusive", name, i)
+			}
+
+			if e.SetVRF != "" && e.SetVRF != "unchanged" && !vrfNames[e.SetVRF] {
+				add("routing.pbr.maps.%s[%d]: set_vrf %q is neither unchanged nor a vrf declared in vrfs", name, i, e.SetVRF)
 			}
 
 			if e.SetNexthopGroup != "" {
@@ -1183,37 +1308,58 @@ func validatePBR(pbr *PBR, add addfunc) {
 	}
 }
 
+func pbrActionCount(e *PBRMapEntry) int {
+	count := 0
+	for _, action := range []string{e.SetNexthopGroup, e.SetNexthop, e.SetVRF} {
+		if action != "" {
+			count++
+		}
+	}
+
+	return count
+}
+
+func validateVPN(cfg *Config, add addfunc) {
+	validateTunnels(cfg, add)
+	validateWireguard(cfg, add)
+	for name := range cfg.VPN.Wireguard {
+		if cfg.Interfaces[name] != nil {
+			add("vpn: interface %q is configured in both vpn.wireguard and interfaces", name)
+		}
+	}
+}
+
 func validateTunnels(cfg *Config, add addfunc) {
 	tunnelModes := []string{"gre", "gretap", "sit", "vti", "ipip", "ip6tnl", "ip6ip6", "ip6gre"}
-	for name, t := range cfg.Tunnels {
-		validateDeviceName("tunnels", name, add)
+	for name, t := range cfg.Tunnels() {
+		validateDeviceName("interfaces", name, add)
 
 		if t.Mode == "" {
-			add("tunnels.%s: mode is required", name)
+			add("interfaces.%s: mode is required", name)
 		} else if !slices.Contains(tunnelModes, t.Mode) {
-			add("tunnels.%s: mode %q must be one of: %s", name, t.Mode, strings.Join(tunnelModes, ", "))
+			add("interfaces.%s: mode %q must be one of: %s", name, t.Mode, strings.Join(tunnelModes, ", "))
 		}
 
 		if t.Local == "" && t.Remote == "" {
-			add("tunnels.%s: at least one of local or remote is required", name)
+			add("interfaces.%s: at least one of local or remote is required", name)
 		}
 
 		if t.Local != "" && !isValidIP(t.Local) {
-			add("tunnels.%s: local %q is not a valid IP", name, t.Local)
+			add("interfaces.%s: local %q is not a valid IP", name, t.Local)
 		}
 
 		if t.Remote != "" && !isValidIP(t.Remote) {
-			add("tunnels.%s: remote %q is not a valid IP", name, t.Remote)
+			add("interfaces.%s: remote %q is not a valid IP", name, t.Remote)
 		}
 
 		for i, addr := range t.Addresses {
 			if !isValidCIDR(addr) {
-				add("tunnels.%s.addresses[%d]: %q is not a valid CIDR", name, i, addr)
+				add("interfaces.%s.addresses[%d]: %q is not a valid CIDR", name, i, addr)
 			}
 		}
 
 		if t.MTU != 0 && !isValidMTU(t.MTU) {
-			add("tunnels.%s: mtu must be between 576 and 9000", name)
+			add("interfaces.%s: mtu must be between 576 and 9000", name)
 		}
 	}
 }
@@ -1224,58 +1370,58 @@ func validateWireguard(cfg *Config, add addfunc) {
 		friendNames[f.Name] = true
 	}
 
-	for name, wg := range cfg.Wireguard {
-		validateDeviceName("wireguard", name, add)
+	for name, wg := range cfg.VPN.Wireguard {
+		validateDeviceName("vpn.wireguard", name, add)
 
 		if wg.Friend != "" && !friendNames[wg.Friend] {
-			add("wireguard.%s.friend: %q does not reference an existing friend", name, wg.Friend)
+			add("vpn.wireguard.%s.friend: %q does not reference an existing friend", name, wg.Friend)
 		}
 
 		if wg.PrivateKey == "" && wg.PrivateKeyFile == "" {
-			add("wireguard.%s: private_key or private_key_file required", name)
+			add("vpn.wireguard.%s: private_key or private_key_file required", name)
 		}
 
 		if wg.PrivateKey != "" && wg.PrivateKeyFile != "" {
-			add("wireguard.%s: private_key and private_key_file are mutually exclusive", name)
+			add("vpn.wireguard.%s: private_key and private_key_file are mutually exclusive", name)
 		}
 
 		if wg.ListenPort != 0 && !isValidPort(wg.ListenPort) {
-			add("wireguard.%s: listen_port must be between 1 and 65535", name)
+			add("vpn.wireguard.%s: listen_port must be between 1 and 65535", name)
 		}
 
 		for i, addr := range wg.Addresses {
 			if !isValidCIDR(addr) {
-				add("wireguard.%s.addresses[%d]: %q is not a valid CIDR", name, i, addr)
+				add("vpn.wireguard.%s.addresses[%d]: %q is not a valid CIDR", name, i, addr)
 			}
 		}
 
 		if wg.MTU != 0 && !isValidMTU(wg.MTU) {
-			add("wireguard.%s: mtu must be between 576 and 9000", name)
+			add("vpn.wireguard.%s: mtu must be between 576 and 9000", name)
 		}
 
 		for i, p := range wg.Peers {
 			if p.PublicKey == "" {
-				add("wireguard.%s.peers[%d]: public_key required", name, i)
+				add("vpn.wireguard.%s.peers[%d]: public_key required", name, i)
 			}
 
 			if p.PresharedKey != "" && p.PresharedKeyFile != "" {
-				add("wireguard.%s.peers[%d]: preshared_key and preshared_key_file are mutually exclusive", name, i)
+				add("vpn.wireguard.%s.peers[%d]: preshared_key and preshared_key_file are mutually exclusive", name, i)
 			}
 
 			if p.Endpoint != "" {
 				if _, _, err := net.SplitHostPort(p.Endpoint); err != nil {
-					add("wireguard.%s.peers[%d]: endpoint %q is not a valid host:port", name, i, p.Endpoint)
+					add("vpn.wireguard.%s.peers[%d]: endpoint %q is not a valid host:port", name, i, p.Endpoint)
 				}
 			}
 
 			for j, ip := range p.AllowedIPs {
 				if !isValidCIDR(ip) {
-					add("wireguard.%s.peers[%d].allowed_ips[%d]: %q is not a valid CIDR", name, i, j, ip)
+					add("vpn.wireguard.%s.peers[%d].allowed_ips[%d]: %q is not a valid CIDR", name, i, j, ip)
 				}
 			}
 
 			if p.Keepalive < 0 || p.Keepalive > 65535 {
-				add("wireguard.%s.peers[%d]: keepalive must be between 0 and 65535", name, i)
+				add("vpn.wireguard.%s.peers[%d]: keepalive must be between 0 and 65535", name, i)
 			}
 		}
 	}
@@ -1367,7 +1513,40 @@ var friendSyncSections = map[string]bool{
 	"conntrackd": true,
 }
 
+var userNamePattern = regexp.MustCompile(`^[a-z_][a-z0-9_.-]{0,31}$`)
+
 func validateUsers(cfg *Config, add addfunc) {
+	for name, u := range cfg.Users {
+		if !userNamePattern.MatchString(name) {
+			add("users.%s: name must start with a lowercase letter or underscore and use only lowercase letters, digits, '.', '_' and '-'", name)
+		}
+
+		if u == nil {
+			continue
+		}
+
+		if strings.ContainsAny(u.PasswordHash, ": \t\r\n\x00") {
+			add("users.%s: password_hash must be a single crypt hash", name)
+		}
+
+		if !validUserPath(u.Shell) {
+			add("users.%s: shell must be an absolute path", name)
+		}
+
+		if !validUserPath(u.Home) {
+			add("users.%s: home must be an absolute path", name)
+		}
+
+		for i, g := range u.Groups {
+			if !userNamePattern.MatchString(g) {
+				add("users.%s: groups[%d] %q is not a valid group name", name, i, g)
+			}
+		}
+	}
+}
+
+func validUserPath(p string) bool {
+	return p == "" || filepath.IsAbs(p) && !strings.ContainsAny(p, "\r\n\x00")
 }
 
 var allowedServiceDestPrefixes = []string{
@@ -1458,6 +1637,10 @@ func validateDNSMode(s *DNSServer, add addfunc) {
 
 func validateDNSServer(cfg *Config, add addfunc) {
 	s := cfg.DNS.Server
+	if s != nil {
+		validateDNSVRFs(cfg, s, add)
+	}
+
 	if s == nil || !s.Enabled {
 		return
 	}
@@ -1501,6 +1684,8 @@ func validateDNSServer(cfg *Config, add addfunc) {
 	if s.Threads < 0 {
 		add("dns.server: threads must be positive")
 	}
+
+	validateDNSTransferKeys(cfg, add)
 
 	zones := validateDNSZones(s.Zones, "dns.server", add)
 	validateDNSForwards(s.Forward, "dns.server", zones, add)
@@ -1695,11 +1880,8 @@ func validateDNSZones(zones []DNSZone, base string, add addfunc) map[string]stri
 			add("%s: ttl must be positive", path)
 		}
 
-		switch {
-		case len(z.Records) > 0 && len(z.Primaries) > 0:
+		if len(z.Records) > 0 && len(z.Primaries) > 0 {
 			add("%s: records and primaries are mutually exclusive", path)
-		case len(z.Records) == 0 && len(z.Primaries) == 0:
-			add("%s: either records or primaries is required", path)
 		}
 
 		for j, ns := range z.Nameservers {
@@ -1708,9 +1890,39 @@ func validateDNSZones(zones []DNSZone, base string, add addfunc) map[string]stri
 				continue
 			}
 
-			if len(z.Records) > 0 && !hasNameserverGlue(z, ns) {
+			if len(z.Primaries) == 0 && !hasNameserverGlue(z, ns) {
 				add("%s.nameservers[%d]: %q is inside the zone but has no A or AAAA record; "+
 					"add one or use a nameserver outside the zone", path, j, ns)
+			}
+		}
+
+		if len(z.Primaries) > 0 && len(z.Secondaries) > 0 {
+			add("%s: secondaries may only be configured on primary zones", path)
+		}
+
+		for j, secondary := range z.Secondaries {
+			if !isValidIP(secondary) {
+				add("%s.secondaries[%d]: %q is not a valid IP address", path, j, secondary)
+			}
+		}
+
+		if len(z.Primaries) == 0 && (z.TransferSource != "" || z.TransferSourceV6 != "") {
+			add("%s: transfer_source and transfer_source_v6 require a secondary zone; use notify_source and notify_source_v6 on a primary", path)
+		}
+
+		validateDNSTransferSource(z.NotifySource, false, path+".notify_source", add)
+		validateDNSTransferSource(z.NotifySourceV6, true, path+".notify_source_v6", add)
+		validateDNSTransferSource(z.TransferSource, false, path+".transfer_source", add)
+		validateDNSTransferSource(z.TransferSourceV6, true, path+".transfer_source_v6", add)
+
+		if key := z.TransferKey; key != nil {
+			if !isValidDNSName(key.Name) {
+				add("%s.transfer_key.name: a valid DNS name is required", path)
+			}
+
+			decoded, err := base64.StdEncoding.DecodeString(key.Secret)
+			if err != nil || len(decoded) < 16 {
+				add("%s.transfer_key.secret: a base64 secret of at least 16 bytes is required", path)
 			}
 		}
 
@@ -1782,7 +1994,7 @@ func validateDNSRecords(z DNSZone, path string, add addfunc) {
 			add("%s: ttl must be positive", p)
 		}
 
-		owner := strings.ToLower(r.Name)
+		owner := recordOwner(r.Name, z.Name)
 		if _, ok := byOwner[owner]; !ok {
 			owners = append(owners, owner)
 		}
@@ -1806,6 +2018,19 @@ func validateDNSRecords(z DNSZone, path string, add addfunc) {
 		if cnameCount > 0 && len(types) > cnameCount {
 			add("%s: owner %q has a CNAME alongside other records", path, owner)
 		}
+	}
+}
+
+func recordOwner(name, zone string) string {
+	name = strings.ToLower(strings.TrimSpace(name))
+	zone = strings.TrimSuffix(strings.ToLower(strings.TrimSpace(zone)), ".")
+	switch {
+	case name == "@":
+		return zone
+	case strings.HasSuffix(name, "."):
+		return strings.TrimSuffix(name, ".")
+	default:
+		return name + "." + zone
 	}
 }
 
@@ -1942,6 +2167,71 @@ func validateDHCP(cfg *Config, add addfunc) {
 	validateKeaSubnets(d.Subnets4, false, "dhcp.subnets4", cfg, add)
 	validateKeaSubnets(d.Subnets6, true, "dhcp.subnets6", cfg, add)
 	validateDDNS(cfg, add)
+	validateDHCPHA(cfg, add)
+}
+
+var dhcpHARoles = map[string][]string{
+	DHCPHAHotStandby:    {"primary", "standby", "backup"},
+	DHCPHALoadBalancing: {"primary", "secondary", "backup"},
+}
+
+func validateDHCPHA(cfg *Config, add addfunc) {
+	h := cfg.DHCP.HA
+	if h == nil || !h.Enabled {
+		return
+	}
+
+	mode := h.ModeOrDefault()
+	roles, ok := dhcpHARoles[mode]
+	if !ok {
+		add("dhcp.ha.mode: %q is not supported (hot-standby, load-balancing)", h.Mode)
+		return
+	}
+
+	if h.Interface == "" {
+		add("dhcp.ha.interface: is required")
+	} else if _, ok := cfg.Interfaces[h.Interface]; !ok {
+		add("dhcp.ha.interface: %q is not a configured interface", h.Interface)
+	}
+
+	p4, p6 := h.Ports()
+	if p4 < 1 || p4 > 65535 || p6 < 1 || p6 > 65535 {
+		add("dhcp.ha: ports must be between 1 and 65535")
+	} else if p4 == p6 {
+		add("dhcp.ha: port and port6 must differ")
+	}
+
+	names := map[string]bool{}
+	counts := map[string]int{}
+	for i, peer := range h.Peers {
+		p := fmt.Sprintf("dhcp.ha.peers[%d]", i)
+		if peer.Name == "" {
+			add("%s: name is required", p)
+		} else if names[peer.Name] {
+			add("%s: duplicate peer name %q", p, peer.Name)
+		}
+
+		names[peer.Name] = true
+		if !isValidIP(peer.Address) {
+			add("%s: address %q is not a valid IP address", p, peer.Address)
+		}
+
+		if !slices.Contains(roles, peer.Role) {
+			add("%s: role %q is not valid in %s mode (%s)", p, peer.Role, mode, strings.Join(roles, ", "))
+		}
+
+		counts[peer.Role]++
+	}
+
+	for _, role := range roles[:2] {
+		if counts[role] != 1 {
+			add("dhcp.ha.peers: %s mode needs exactly one %s peer", mode, role)
+		}
+	}
+
+	if this := h.ThisServerName(cfg.Hostname); !names[this] {
+		add("dhcp.ha.this_server: %q is not one of the peers", this)
+	}
 }
 
 func validateDDNS(cfg *Config, add addfunc) {
@@ -2117,4 +2407,54 @@ func NewValidationErrors(before map[string]struct{}, cfg *Config) []string {
 	}
 
 	return added
+}
+
+func validateDNSTransferKeys(cfg *Config, add addfunc) {
+	s := cfg.DNS.Server
+	zones := append([]DNSZone{}, s.Zones...)
+	for _, view := range s.Views {
+		zones = append(zones, view.Zones...)
+	}
+
+	keys := map[string]string{}
+	for _, zone := range zones {
+		key := zone.TransferKey
+		if key == nil {
+			continue
+		}
+
+		name := NormalizeDNSName(key.Name)
+		if name == "rndc-key." {
+			add("dns.server: transfer key name rndc-key is reserved for BIND control")
+		}
+
+		if secret, exists := keys[name]; exists && secret != key.Secret {
+			add("dns.server: transfer key %q has conflicting secrets", key.Name)
+		}
+
+		if cfg.DHCP != nil && cfg.DHCP.DDNS != nil && cfg.DHCP.DDNS.Enabled && name == "routier-ddns." {
+			add("dns.server: transfer key %q conflicts with the DHCP update key", key.Name)
+		}
+
+		keys[name] = key.Secret
+	}
+}
+
+func validateDNSTransferSource(source string, ipv6 bool, path string, add addfunc) {
+	if source == "" || source == "*" {
+		return
+	}
+
+	ip := net.ParseIP(source)
+	if ipv6 {
+		if ip == nil || ip.To4() != nil {
+			add("%s: an IPv6 address or * is required", path)
+		}
+
+		return
+	}
+
+	if ip == nil || ip.To4() == nil || strings.Contains(source, ":") {
+		add("%s: an IPv4 address or * is required", path)
+	}
 }

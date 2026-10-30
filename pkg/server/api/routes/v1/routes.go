@@ -7,10 +7,10 @@ import (
 )
 
 func Routes(r chi.Router, authMiddleware func(http.Handler) http.Handler) {
-	r.Route("/api/v1", func(r chi.Router) { routesCallback(authMiddleware, r) })
+	r.Route("/api/v1", func(r chi.Router) { mountAuthenticated(authMiddleware, r) })
 }
 
-func routesHandler(r chi.Router) {
+func mountSession(r chi.Router) {
 	r.Use(v1SessionMiddleware)
 
 	r.Get("/", handleV1GetSession)
@@ -32,6 +32,10 @@ func routesHandler(r chi.Router) {
 
 	r.Get("/dns", handleV1GetDNS)
 	r.Put("/dns", handleV1PutDNS)
+	r.Get("/dhcp", handleV1GetDHCP)
+	r.Put("/dhcp", handleV1PutDHCP)
+	r.Get("/vpn", handleV1GetVPN)
+	r.Put("/vpn", handleV1PutVPN)
 	r.Get("/routing", handleV1GetRouting)
 	r.Put("/routing", handleV1PutRouting)
 	r.Get("/logging", handleV1GetLogging)
@@ -46,11 +50,14 @@ func routesHandler(r chi.Router) {
 	r.Put("/monitoring", handleV1PutMonitoring)
 
 	v1MapRoutes(r, "interfaces", handleV1GetInterfaces, handleV1PutInterfaces, handleV1GetInterface, handleV1PutInterface, handleV1DeleteInterface)
+	v1MapRoutes(r, "vpn/tunnels", handleV1GetTunnels, handleV1PutTunnels, handleV1GetTunnel, handleV1PutTunnel, handleV1DeleteTunnel)
+	v1MapRoutes(r, "vpn/wireguard", handleV1GetWireguards, handleV1PutWireguards, handleV1GetWireguard, handleV1PutWireguard, handleV1DeleteWireguard)
 	v1MapRoutes(r, "tunnels", handleV1GetTunnels, handleV1PutTunnels, handleV1GetTunnel, handleV1PutTunnel, handleV1DeleteTunnel)
 	v1MapRoutes(r, "wireguard", handleV1GetWireguards, handleV1PutWireguards, handleV1GetWireguard, handleV1PutWireguard, handleV1DeleteWireguard)
 	v1MapRoutes(r, "users", handleV1GetUsers, handleV1PutUsers, handleV1GetUser, handleV1PutUser, handleV1DeleteUser)
 	v1MapRoutes(r, "services", handleV1GetServices, handleV1PutServices, handleV1GetService, handleV1PutService, handleV1DeleteService)
 	v1MapRoutes(r, "vrfs", handleV1GetVRFs, handleV1PutVRFs, handleV1GetVRF, handleV1PutVRF, handleV1DeleteVRF)
+	v1MapRoutes(r, "switches", handleV1GetSwitches, handleV1PutSwitches, handleV1GetSwitch, handleV1PutSwitch, handleV1DeleteSwitch)
 
 	r.Get("/nftables", handleV1GetNftables)
 	r.Put("/nftables", handleV1PutNftables)
@@ -58,16 +65,12 @@ func routesHandler(r chi.Router) {
 	r.Put("/boot_modules", handleV1PutBootModules)
 }
 
-func routesCallback(authMiddleware func(http.Handler) http.Handler, r chi.Router) {
-	r.Group(func(r chi.Router) { routesCallbackCallback(authMiddleware, r) })
-}
-
-func routesCallbackCallback(authMiddleware func(http.Handler) http.Handler, r chi.Router) {
+func mountAuthenticated(authMiddleware func(http.Handler) http.Handler, r chi.Router) {
 	r.Use(authMiddleware)
 
 	r.Get("/config", handleV1GetConfig)
 	r.Post("/sessions", handleV1CreateSession)
 	r.Get("/sessions", handleV1ListSessions)
 
-	r.Route("/sessions/{sessionID}", routesHandler)
+	r.Route("/sessions/{sessionID}", mountSession)
 }

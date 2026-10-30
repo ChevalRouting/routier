@@ -3,6 +3,7 @@ name: nightly
 on:
   push:
     branches: [main]
+    tags: ['v*']
   workflow_dispatch:
 
 concurrency:
@@ -16,6 +17,7 @@ jobs:
   build:
     runs-on: [self-hosted, sn]
     outputs:
+      channel: ${{ steps.v.outputs.channel }}
       version: ${{ steps.v.outputs.version }}
       commit: ${{ steps.v.outputs.commit }}
       arch: ${{ steps.v.outputs.arch }}
@@ -34,14 +36,20 @@ jobs:
       - name: Compute version
         id: v
         run: |
-          base="$(git describe --tags --abbrev=0 2>/dev/null || echo v0.0.0)"
-          base="${base#v}"
-          count="$(git rev-list --count HEAD)"
           commit="$(git rev-parse --short HEAD)"
-          echo "version=${base}_git${count}" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            channel=stable
+            version="${GITHUB_REF_NAME#v}"
+          else
+            channel=nightly
+            base="$(git describe --tags --abbrev=0 2>/dev/null || echo v0.0.0)"
+            version="${base#v}_git$(git rev-list --count HEAD)"
+          fi
+          echo "channel=${channel}" >> "$GITHUB_OUTPUT"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "commit=${commit}" >> "$GITHUB_OUTPUT"
           echo "arch=$(uname -m)" >> "$GITHUB_OUTPUT"
-          echo "building ${base}_git${count} (${commit}) for $(uname -m)"
+          echo "building ${version} (${commit}) for the ${channel} channel on $(uname -m)"
 
       - name: Install Task
         uses: go-task/setup-task@v2
@@ -58,33 +66,16 @@ jobs:
           chmod 600 ~/.ssh/routier_static
           printf '%s\n' "${{ secrets.ROUTIER_STATIC_KNOWN_HOSTS }}" > ~/.ssh/routier_static_known_hosts
 
-      - name: Publish and reindex on the repo host
+      - name: Publish to the ${{ steps.v.outputs.channel }} channel
         env:
-          SSH_TARGET: "${{ vars.ROUTIER_STATIC_USER }}@${{ vars.ROUTIER_STATIC_HOST }}"
-          REPO_PATH: "${{ vars.ROUTIER_REPO_PATH || '/var/www/repo' }}"
-          ARCH: "${{ steps.v.outputs.arch }}"
+          REPO_TARGET: "${{ vars.ROUTIER_STATIC_USER }}@${{ vars.ROUTIER_STATIC_HOST }}:${{ vars.ROUTIER_REPO_PATH || '/srv/routier/repo' }}"
+          CHANNEL: ${{ steps.v.outputs.channel }}
+          VERSION: ${{ steps.v.outputs.version }}
+          ARCH: ${{ steps.v.outputs.arch }}
+          CONTAINER: podman
         run: |
-          podman run --rm \
-            -e SSH_TARGET -e REPO_PATH -e ARCH -e ALPINE_IMAGE \
-            -v "$PWD/dist/$ARCH:/pkgs:ro" \
-            -v "$PWD/routier.rsa:/priv/routier.rsa:ro" \
-            -v "$PWD/routier.rsa.pub:/pub/routier.rsa.pub:ro" \
-            -v "$PWD/scripts/repo-reindex.sh:/repo-reindex.sh:ro" \
-            -v "$HOME/.ssh:/ssh:ro" \
-            "$ALPINE_IMAGE" \
-            sh -c 'set -e
-              apk add --no-cache rsync openssh-client >/dev/null
-              SSH="ssh -i /ssh/routier_static -o IdentitiesOnly=yes -o UserKnownHostsFile=/ssh/routier_static_known_hosts"
-              rsync -az --mkpath --include="*.apk" --exclude="*" -e "$SSH" \
-                /pkgs/ "$SSH_TARGET:$REPO_PATH/nightly/$ARCH/"
-              rsync -az --mkpath -e "$SSH" /pub/routier.rsa.pub "$SSH_TARGET:$REPO_PATH/routier.rsa.pub"
-              KEYDIR=$($SSH "$SSH_TARGET" "mktemp -d")
-              rsync -az -e "$SSH" /priv/routier.rsa /pub/routier.rsa.pub "$SSH_TARGET:$KEYDIR/"
-              set +e
-              $SSH "$SSH_TARGET" "ALPINE_IMAGE=$ALPINE_IMAGE sh -s -- $REPO_PATH/nightly/$ARCH $ARCH 30 $KEYDIR/routier.rsa" < /repo-reindex.sh
-              rc=$?
-              $SSH "$SSH_TARGET" "rm -rf $KEYDIR"
-              exit $rc'
+          SSH_KEY="$HOME/.ssh/routier_static" KNOWN_HOSTS="$HOME/.ssh/routier_static_known_hosts" \
+            sh scripts/repo-publish.sh
 
       - name: Clean up secrets
         if: always()
@@ -107,6 +98,7 @@ jobs:
             -e npm_config_cache=/tmp/.npm-cache \
             -e SITE_URL=https://routier.cloud \
             -e SITE_BASE_URL=/ \
+            -e REPO_URL=https://repo.routier.cloud \
             -e SITE_COMMIT='${{ needs.build.outputs.commit }}' \
             -e SITE_VERSION='${{ needs.build.outputs.version }}' \
             docker.io/library/node:24-bookworm-slim \
@@ -123,7 +115,7 @@ jobs:
 
       - name: Deploy over rsync
         env:
-          TARGET: "${{ vars.ROUTIER_STATIC_USER }}@${{ vars.ROUTIER_STATIC_HOST }}:${{ vars.ROUTIER_STATIC_PATH }}/"
+          TARGET: "${{ vars.ROUTIER_STATIC_USER }}@${{ vars.ROUTIER_STATIC_HOST }}:${{ vars.ROUTIER_STATIC_PATH || '/srv/routier/site' }}/"
         run: |
           podman run --rm \
             -e TARGET \

@@ -21,6 +21,9 @@ linters:
     errcheck:
       check-blank: false
       disable-default-exclusions: true
+    misspell:
+      ignore-rules:
+        - routeros
     nolintlint:
       require-specific: true
       require-explanation: false

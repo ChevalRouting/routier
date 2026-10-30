@@ -134,7 +134,7 @@ func TestNamedConfChangeReconfigures(t *testing.T) {
 	defer svc.SetCommandRunner(rec.run)()
 	defer bind.SetRunner(rec.rndc)()
 
-	if err := svc.ReloadFromOutputs([]string{render.NamedConfName}, dnsServerConfig(), false, true); err != nil {
+	if err := svc.ReloadFromOutputs([]string{render.NamedConfName}, dnsServerConfig(), false); err != nil {
 		t.Fatalf("reload: %v", err)
 	}
 
@@ -146,8 +146,28 @@ func TestNamedConfChangeReconfigures(t *testing.T) {
 		t.Fatalf("expected reconfig, control: %v", rec.controlCmds())
 	}
 
+	if !rec.sawControl("querylog off") {
+		t.Fatalf("expected query logging switched off after reconfig, control: %v", rec.controlCmds())
+	}
+
 	if rec.sawNamedVerb("restart") {
 		t.Fatalf("must not restart when reconfig succeeded: %v", rec.cmds)
+	}
+}
+
+func TestNamedReconfigSwitchesQueryLogOn(t *testing.T) {
+	rec := &namedRunner{running: true}
+	defer svc.SetCommandRunner(rec.run)()
+	defer bind.SetRunner(rec.rndc)()
+
+	cfg := dnsServerConfig()
+	cfg.DNS.Server.LogQueries = true
+	if err := svc.ReloadFromOutputs([]string{render.NamedConfName}, cfg, false); err != nil {
+		t.Fatalf("reload: %v", err)
+	}
+
+	if !rec.sawControl("querylog on") {
+		t.Fatalf("rndc reconfig ignores querylog, expected an explicit querylog on, control: %v", rec.controlCmds())
 	}
 }
 
@@ -157,7 +177,7 @@ func TestNamedZoneOnlyChangeReloadsZone(t *testing.T) {
 	defer bind.SetRunner(rec.rndc)()
 
 	names := []string{render.NamedZoneName + "42.school.zone"}
-	if err := svc.ReloadFromOutputs(names, dnsServerConfig(), false, true); err != nil {
+	if err := svc.ReloadFromOutputs(names, dnsServerConfig(), false); err != nil {
 		t.Fatalf("reload: %v", err)
 	}
 
@@ -183,7 +203,7 @@ func TestNamedControlFailureFallsBackToRestart(t *testing.T) {
 	defer svc.SetCommandRunner(rec.run)()
 	defer bind.SetRunner(rec.rndc)()
 
-	if err := svc.ReloadFromOutputs([]string{render.NamedConfName}, dnsServerConfig(), false, true); err != nil {
+	if err := svc.ReloadFromOutputs([]string{render.NamedConfName}, dnsServerConfig(), false); err != nil {
 		t.Fatalf("reload: %v", err)
 	}
 
@@ -197,7 +217,7 @@ func TestNamedStartsWhenStopped(t *testing.T) {
 	defer svc.SetCommandRunner(rec.run)()
 	defer bind.SetRunner(rec.rndc)()
 
-	if err := svc.ReloadFromOutputs([]string{render.NamedConfName}, dnsServerConfig(), false, true); err != nil {
+	if err := svc.ReloadFromOutputs([]string{render.NamedConfName}, dnsServerConfig(), false); err != nil {
 		t.Fatalf("reload: %v", err)
 	}
 
@@ -215,7 +235,7 @@ func TestNamedValidationFailureAbortsApply(t *testing.T) {
 	defer svc.SetCommandRunner(rec.run)()
 	defer bind.SetRunner(rec.rndc)()
 
-	err := svc.ReloadFromOutputs([]string{render.NamedConfName}, dnsServerConfig(), false, true)
+	err := svc.ReloadFromOutputs([]string{render.NamedConfName}, dnsServerConfig(), false)
 	if err == nil {
 		t.Fatal("expected a failed named-checkconf to abort the apply")
 	}
@@ -241,7 +261,7 @@ func TestNamedDryRunIsInert(t *testing.T) {
 	defer bind.SetRunner(rec.rndc)()
 
 	names := []string{render.NamedConfName, render.NamedZoneName + "42.school.zone"}
-	if err := svc.ReloadFromOutputs(names, dnsServerConfig(), true, true); err != nil {
+	if err := svc.ReloadFromOutputs(names, dnsServerConfig(), true); err != nil {
 		t.Fatalf("dry-run reload: %v", err)
 	}
 
@@ -269,7 +289,7 @@ func TestNamedZoneReloadDoesNotReconfigure(t *testing.T) {
 	cfg.DNS.Server.Cache = &config.DNSCache{Size: "64m"}
 
 	names := []string{render.NamedZoneName + "42.school.zone"}
-	if err := svc.ReloadFromOutputs(names, cfg, false, true); err != nil {
+	if err := svc.ReloadFromOutputs(names, cfg, false); err != nil {
 		t.Fatalf("reload: %v", err)
 	}
 
@@ -286,7 +306,7 @@ func TestNamedReloadsBeforeKea(t *testing.T) {
 	defer bind.SetRunner(rec.rndc)()
 
 	names := []string{render.NamedConfName, "kea/kea-dhcp4.conf"}
-	_ = svc.ReloadFromOutputs(names, dnsServerConfig(), false, true)
+	_ = svc.ReloadFromOutputs(names, dnsServerConfig(), false)
 
 	rec.mu.Lock()
 	defer rec.mu.Unlock()

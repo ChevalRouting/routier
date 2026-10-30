@@ -25,7 +25,7 @@ func newFailuresListCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
 		Short: "list preserved failed-apply bundles",
-		RunE:  newFailuresListCommandHandler,
+		RunE:  runFailuresList,
 	}
 }
 
@@ -34,7 +34,7 @@ func newFailuresShowCommand() *cobra.Command {
 		Use:   "show <id>",
 		Short: "show a failed-apply bundle",
 		Args:  cobra.ExactArgs(1),
-		RunE:  newFailuresShowCommandHandler,
+		RunE:  runFailuresShow,
 	}
 }
 
@@ -45,8 +45,8 @@ func newFailuresExportCommand() *cobra.Command {
 		Use:   "export <id>",
 		Short: "export a failed-apply bundle as a tar.gz for sharing",
 		Args:  cobra.ExactArgs(1),
-		RunE: func(unusedArg2 *cobra.Command, args []string) error {
-			return newFailuresExportCommandCallback(out, noRedact, unusedArg2, args)
+		RunE: func(_ *cobra.Command, args []string) error {
+			return runFailuresExport(out, noRedact, args)
 		},
 	}
 
@@ -66,7 +66,7 @@ func newFailuresRemoveCommand() *cobra.Command {
 	}
 }
 
-func newFailuresListCommandHandler(_ *cobra.Command, _ []string) error {
+func runFailuresList(_ *cobra.Command, _ []string) error {
 	metas := failures.List()
 	if len(metas) == 0 {
 		_, _ = fmt.Println("no failures")
@@ -82,7 +82,7 @@ func newFailuresListCommandHandler(_ *cobra.Command, _ []string) error {
 	return tw.Flush()
 }
 
-func newFailuresShowCommandHandler(_ *cobra.Command, args []string) error {
+func runFailuresShow(_ *cobra.Command, args []string) error {
 	m, err := failures.Get(args[0])
 	if err != nil {
 		return err
@@ -117,7 +117,7 @@ func newFailuresShowCommandHandler(_ *cobra.Command, args []string) error {
 	return nil
 }
 
-func newFailuresExportCommandCallback(out string, noRedact bool, _ *cobra.Command, args []string) error {
+func runFailuresExport(out string, noRedact bool, args []string) error {
 	w := os.Stdout
 	if out != "" {
 		f, err := os.Create(out)

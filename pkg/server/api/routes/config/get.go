@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -16,19 +17,18 @@ import (
 // @Summary  Get the staged config
 // @Tags config
 // @Produce json
-// @Param layer query string false "configuration layer" Enums(advanced, simple)
+// @Param source query string false "staging (the caller's staged copy when it has one) or running" Enums(staging, running)
 // @Success 200 {object} types.Response[config.Config]
 // @Security BearerAuth
 // @Router /api/config [get]
 func GetConfig(w http.ResponseWriter, r *http.Request) {
 	app := appctx.FromContext(r.Context())
-	layer, appErr := requestLayer(r)
-	if appErr != nil {
-		types.Error(log.Logger, w, appErr)
+	cfg, err := readSource(r, app.ConfigPath)
+	if errors.Is(err, errUnknownSource) {
+		types.Error(log.Logger, w, types.Errorf(http.StatusBadRequest, "unknown config source: %s", r.URL.Query().Get("source")))
 		return
 	}
 
-	cfg, err := cfgstore.ReadLayer(app.ConfigPath, appctx.UsernameFromContext(r.Context()), layer.Name())
 	if err != nil {
 		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "failed to read config"))
 		return
@@ -52,18 +52,7 @@ func GetConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	projected, err := layer.Project(cfg)
-	if err != nil {
-		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "failed to project config"))
-		return
-	}
-
-	if layer.Name() == "advanced" {
-		types.OK(w, cfg)
-		return
-	}
-
-	types.OK(w, projected)
+	types.OK(w, cfg)
 }
 
 func sealForFriend(app *appctx.App, cfg *cfgpkg.Config, friendName string, payload any) ([]byte, error) {
@@ -82,4 +71,17 @@ func sealForFriend(app *appctx.App, cfg *cfgpkg.Config, friendName string, paylo
 	}
 
 	return app.Identity.Seal(f.Identity.X25519PublicKey, env)
+}
+
+var errUnknownSource = errors.New("unknown config source")
+
+func readSource(r *http.Request, configPath string) (*cfgpkg.Config, error) {
+	switch r.URL.Query().Get("source") {
+	case "", "staging":
+		return cfgstore.Read(configPath, appctx.UsernameFromContext(r.Context()))
+	case "running":
+		return cfgstore.ReadRunning(configPath)
+	default:
+		return nil, errUnknownSource
+	}
 }

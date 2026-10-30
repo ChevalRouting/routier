@@ -1,4 +1,6 @@
-import { Badge, Button, EmptyState, Input, PreferencesColumns, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Sheet } from 'cheval-ui'
+import { plural } from '@/lib/utils'
+import { EntityRow } from '@/components/ui/EntityRow'
+import { Badge, Button, EmptyState, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Sheet, StatusChip, PreferencesGroup } from 'cheval-ui'
 import { Plus, Radio, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -91,7 +93,7 @@ export function RouteRow({
         placeholder="lifetime"
         className="font-mono text-xs h-8 w-24"
       />
-      <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 hover:text-destructive" onClick={onDelete}>
+      <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 hover:text-destructive" onClick={onDelete} aria-label="Remove Route" title="Remove Route">
         <Trash2 className="h-3.5 w-3.5" />
       </Button>
     </div>
@@ -166,60 +168,34 @@ export default function RadvdTab({
         <EmptyState
           className="max-w-2xl mx-auto"
           icon={<Radio />}
-          title="No RADVD interfaces"
-          message="Add an interface to start advertising IPv6 prefixes."
+          title="No RADVD Interfaces"
           action={
             <Button variant="outline" size="sm" onClick={handleAddNew} className="gap-1.5">
-              <Plus className="h-3.5 w-3.5" />Add interface
+              <Plus className="h-3.5 w-3.5" />Add Interface…
             </Button>
           }
         />
       ) : (
-        <PreferencesColumns
+        <PreferencesGroup
           title="Interfaces"
           header={
             <Button variant="outline" size="sm" onClick={handleAddNew} className="gap-1.5">
-              <Plus className="h-4 w-4" />Add
+              <Plus className="h-4 w-4" />Add Interface…
             </Button>
           }
         >
           {rows.map(([name, iface]) => {
             const prefixCount = iface.prefixes?.length ?? 0
             return (
-              <div
-                key={name}
-                onClick={() => { setPendingName(name); setOpenIface(name) }}
-                className="flex items-center gap-3 px-4 py-3 hover:bg-accent/50 cursor-pointer transition-colors"
-              >
-              <span className="font-mono font-semibold text-sm w-32 shrink-0 truncate">{name}</span>
-              <div className="flex flex-wrap gap-1 flex-1 min-w-0">
-                <Badge variant={iface.adv_send_advert ? 'default' : 'secondary'} className="text-xs">
-                  {iface.adv_send_advert ? 'RA on' : 'RA off'}
-                </Badge>
-                {prefixCount > 0 && (
-                  <Badge variant="outline" className="text-xs font-mono">
-                    {prefixCount} prefix{prefixCount !== 1 ? 'es' : ''}
-                  </Badge>
-                )}
-                {iface.rdnss?.servers?.length ? (
-                  <Badge variant="outline" className="text-xs">RDNSS</Badge>
-                ) : null}
-                {(iface.routes?.length ?? 0) > 0 && (
-                  <Badge variant="outline" className="text-xs">{iface.routes!.length} route{iface.routes!.length !== 1 ? 's' : ''}</Badge>
-                )}
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => { e.stopPropagation(); deleteIface(name) }}
-                className="h-7 w-7 p-0 hover:text-destructive shrink-0"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
-              </div>
+              <EntityRow key={name} title={name} onOpen={() => { setPendingName(name); setOpenIface(name) }} onRemove={() => deleteIface(name)} removeLabel="Remove Interface">
+                <StatusChip intent={iface.adv_send_advert ? 'success' : 'neutral'} label={iface.adv_send_advert ? 'Advertising' : 'Not Advertising'} />
+                {prefixCount > 0 && <Badge variant="outline">{plural(prefixCount, 'prefix', 'prefixes')}</Badge>}
+                {iface.rdnss?.servers?.length ? <Badge variant="outline">RDNSS</Badge> : null}
+                {(iface.routes?.length ?? 0) > 0 && <Badge variant="outline">{plural(iface.routes!.length, 'route')}</Badge>}
+              </EntityRow>
             )
           })}
-        </PreferencesColumns>
+        </PreferencesGroup>
       )}
 
       <Sheet open={openIface !== null} onClose={handleCloseSheet} title={sheetTitle}>

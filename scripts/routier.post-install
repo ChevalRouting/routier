@@ -4,14 +4,20 @@ set -eu
 install -dm700 /var/lib/routier
 install -dm700 /var/lib/routier/snapshots
 
+live=
+[ -e /run/openrc/softlevel ] && live=1
+
+password=
 if ! id routier >/dev/null 2>&1; then
 	adduser -D -s /bin/ash -h /home/routier routier
 	for grp in root wheel; do
 		addgroup routier "$grp" 2>/dev/null || true
 	done
 
-	if [ -e /run/openrc/softlevel ]; then
-		printf 'routier:routier\n' | chpasswd
+	if [ -n "$live" ]; then
+		password=$(openssl rand -base64 18 | tr -d '/+=' | cut -c1-16)
+		printf 'routier:%s\n' "$password" | chpasswd >/dev/null
+		(umask 077 && printf '%s\n' "$password" > /var/lib/routier/ui-seed-password)
 	fi
 fi
 
@@ -28,29 +34,16 @@ fi
 if [ -x /usr/bin/routier ]; then
 	/usr/bin/routier version > /etc/routier/version 2>/dev/null || true
 	/usr/bin/routier issue > /etc/issue 2>/dev/null || true
-	if [ -e /run/openrc/softlevel ]; then
-		/usr/bin/routier takeover || echo "routier: network takeover skipped (see warnings above)"
-	fi
 fi
 
-rc-update add routier-net boot 2>/dev/null || true
-rc-update add routier default 2>/dev/null || true
-rc-update add routier-ui default 2>/dev/null || true
-rc-update add cronie default 2>/dev/null || true
+[ -n "$live" ] || exit 0
 
-for _svc in keepalived radvd conntrackd; do
-    rc-update del "$_svc" default 2>/dev/null || true
-done
+urls=$(ip -4 -o addr show scope global 2>/dev/null | awk '{ split($4, a, "/"); printf "  https://%s:8080\n", a[1] }')
 
-if [ -e /run/openrc/softlevel ]; then
-	rc-service cronie start 2>/dev/null || true
+printf '\nroutier installed. Networking is unchanged until you apply and confirm a configuration.\n\n'
+printf 'Web UI:\n%s\n' "${urls:-  https://<host>:8080}"
+if [ -n "$password" ]; then
+	printf '\nLogin: routier / %s\n(one-time password, changed at first login)\n\n' "$password"
+else
+	printf '\nLogin: routier with its existing password\n\n'
 fi
-
-cat <<'EOF'
-
-routier installed.
-  • Web UI:        browse https://<host>:8080 (routier-ui starts automatically)
-  • Native net:    backed up under /var/lib/routier/host-backup/latest
-  • To roll back:  /var/lib/routier/host-backup/latest/restore.sh
-
-EOF

@@ -8,9 +8,9 @@ export type PrefixListRow = PrefixEntry & PrefixListRowShape
 
 export const PREFIX_PRESETS: PREFIXPRESETSShape[] = [
   { label: 'Any', desc: 'permit 0.0.0.0/0 le 32', entries: [{ action: 'permit', prefix: '0.0.0.0/0', le: 32 }] },
-  { label: 'Default only', desc: 'permit 0.0.0.0/0', entries: [{ action: 'permit', prefix: '0.0.0.0/0' }] },
-  { label: 'Default only (v6)', desc: 'permit ::/0', entries: [{ action: 'permit', prefix: '::/0' }] },
-  { label: 'Deny default', desc: 'deny 0.0.0.0/0', entries: [{ action: 'deny', prefix: '0.0.0.0/0' }] },
+  { label: 'Default Only', desc: 'permit 0.0.0.0/0', entries: [{ action: 'permit', prefix: '0.0.0.0/0' }] },
+  { label: 'Default Only (v6)', desc: 'permit ::/0', entries: [{ action: 'permit', prefix: '::/0' }] },
+  { label: 'Deny Default', desc: 'deny 0.0.0.0/0', entries: [{ action: 'deny', prefix: '0.0.0.0/0' }] },
   {
     label: 'RFC1918', desc: 'permit the three private ranges',
     entries: [

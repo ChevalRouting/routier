@@ -114,3 +114,47 @@ func TestRenderKeaDisabled(t *testing.T) {
 type renderKeaLocalCase struct {
 	Dhcp4 map[string]json.RawMessage `json:"Dhcp4"`
 }
+
+func TestRenderKeaHA(t *testing.T) {
+	cfg := &config.Config{
+		Hostname:   "gw1",
+		Interfaces: map[string]*config.Interface{"lan": {Device: "eth0"}, "sync": {Device: "eth1"}},
+		DHCP: &config.DHCP{
+			Enabled:  true,
+			Subnets4: []config.KeaSubnet{{Subnet: "10.0.0.0/24", Interface: "lan"}},
+			Subnets6: []config.KeaSubnet{{Subnet: "2001:db8::/64", Interface: "lan"}},
+			HA: &config.DHCPHA{
+				Enabled:      true,
+				Interface:    "sync",
+				AllowInbound: true,
+				Peers: []config.DHCPHAPeer{
+					{Name: "gw1", Address: "10.9.0.1", Role: "primary"},
+					{Name: "gw2", Address: "fd00::2", Role: "standby"},
+				},
+			},
+		},
+	}
+
+	m := keaOutputs(t, cfg)
+
+	wantLines(t, "kea-dhcp4.conf", m["/etc/kea/kea-dhcp4.conf"],
+		"libdhcp_ha.so",
+		`"this-server-name": "gw1"`,
+		`"mode": "hot-standby"`,
+		`"http-dedicated-listener": true`,
+		`"url": "http://10.9.0.1:8004/"`,
+		`"url": "http://[fd00::2]:8004/"`,
+		`"role": "standby"`,
+		`"auto-failover": true`,
+	)
+
+	wantLines(t, "kea-dhcp6.conf", m["/etc/kea/kea-dhcp6.conf"], "libdhcp_ha.so", `"url": "http://10.9.0.1:8006/"`)
+
+	nft := m["/etc/nftables.d/routier.nft"]
+	wantLines(t, "nftables", nft, `iifname "eth1" tcp dport { 8004, 8006 } accept comment "routier: kea ha"`)
+
+	cfg.DHCP.HA.Enabled = false
+	if strings.Contains(keaOutputs(t, cfg)["/etc/kea/kea-dhcp4.conf"], "libdhcp_ha.so") {
+		t.Error("ha hook rendered while ha is disabled")
+	}
+}

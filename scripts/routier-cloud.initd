@@ -1,0 +1,16 @@
+#!/sbin/openrc-run
+
+name="routier-cloud"
+description="Provision routier from the cloud-init user-data"
+
+depend() {
+	need localmount
+	after cloud-final routier
+	keyword -timeout
+}
+
+start() {
+	ebegin "Provisioning routier from cloud-init"
+	/usr/bin/routier cloud
+	eend $?
+}

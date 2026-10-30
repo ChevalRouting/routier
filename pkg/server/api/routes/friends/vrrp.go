@@ -94,12 +94,22 @@ func ConfigureVRRP(w http.ResponseWriter, r *http.Request) {
 
 	cfgpkg.ResolveInterfaces(cfg)
 
-	persist := func() error { return cfgstore.WriteLive(app.ConfigPath, cfg) }
-	opts := managers.ApplyOptions{Source: "web", ConfigPath: app.ConfigPath}
-
-	if err := managers.CoordinatedApply(r.Context(), f, payload, persist, cfg, friendcache.InterpolationVars(), opts); err != nil {
-		types.Error(log.Logger, w, types.Wrap(http.StatusBadGateway, err, "coordinated vrrp apply failed"))
+	persist, err := cfgstore.MarshalLive(cfg)
+	if err != nil {
+		types.Error(log.Logger, w, types.Wrap(http.StatusBadRequest, err, "invalid config"))
 		return
+	}
+
+	opts := managers.ApplyOptions{Source: "web", ConfigPath: app.ConfigPath, PersistConfig: persist}
+
+	warning, err := managers.CoordinatedApply(r.Context(), f, payload, cfg, friendcache.InterpolationVars(), opts)
+	if err != nil {
+		types.Error(log.Logger, w, cfgstore.ApplyError(err, http.StatusBadGateway, "coordinated vrrp apply failed"))
+		return
+	}
+
+	if warning != "" {
+		log.Warn().Str("friend", f.Name).Msg(warning)
 	}
 
 	types.OK(w, types.ConfigureVRRPResult{Status: "applied"})

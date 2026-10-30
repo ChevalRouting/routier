@@ -1,4 +1,4 @@
-version: v3.0.0
+version: v5.0.0
 
 hostname: edge-gw-01
 
@@ -73,20 +73,21 @@ routing:
     passive_interfaces: [eth0]
     redistribute: [static, bgp]
 
-wireguard:
-  wg0:
-    listen_port: 51820
-    private_key_file: /etc/wireguard/wg0.key
-    addresses: [10.10.0.1/24]
-    peers:
-      - name: remote-office
-        public_key: "YWJjMTIzNDU2Nzg5MGFiY2RlZjAxMjM0NTY3ODkwYWI="
-        allowed_ips: [10.10.0.2/32, 192.168.1.0/24]
-        endpoint: remote.example.com:51820
-        keepalive: 25
-      - name: admin-laptop
-        public_key: "ZGVmMDEyMzQ1Njc4OTBhYmNkZWYwMTIzNDU2Nzg5MGE="
-        allowed_ips: [10.10.0.10/32]
+vpn:
+  wireguard:
+    wg0:
+      listen_port: 51820
+      private_key_file: /etc/wireguard/wg0.key
+      addresses: [10.10.0.1/24]
+      peers:
+        - name: remote-office
+          public_key: "YWJjMTIzNDU2Nzg5MGFiY2RlZjAxMjM0NTY3ODkwYWI="
+          allowed_ips: [10.10.0.2/32, 192.168.1.0/24]
+          endpoint: remote.example.com:51820
+          keepalive: 25
+        - name: admin-laptop
+          public_key: "ZGVmMDEyMzQ1Njc4OTBhYmNkZWYwMTIzNDU2Nzg5MGE="
+          allowed_ips: [10.10.0.10/32]
 
 sysctl:
   net.ipv4.ip_forward: "1"

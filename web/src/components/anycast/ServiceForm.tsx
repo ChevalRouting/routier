@@ -1,7 +1,7 @@
 import { EndpointEditor } from '@/components/anycast/EndpointEditor'
 import { AnycastService, Endpoint, ServiceFormProps, emptyEndpoint } from '@/components/anycast/shared'
 import { checkIPOrCIDR } from '@/lib/validate'
-import { Button, EntryRow, Label, PreferencesGroup, SwitchRow, TagInput } from 'cheval-ui'
+import { Button, EntryRow, PreferencesGroup, SwitchRow, TagInput } from 'cheval-ui'
 import {
   Plus
 } from 'lucide-react'
@@ -52,33 +52,24 @@ export function ServiceForm({ service, onChange, onAdd, onDone }: ServiceFormPro
         </div>
       </PreferencesGroup>
 
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label className="text-sm font-semibold">
-            Endpoints
-            <span className="ml-1 text-xs font-normal text-muted-foreground">
-              ({(service.endpoints ?? []).length})
-            </span>
-          </Label>
-          <Button type="button" variant="outline" size="sm" onClick={addEndpoint} className="h-7 gap-1 text-xs">
-            <Plus className="h-3 w-3" />Add Endpoint
-          </Button>
-        </div>
-        {(service.endpoints ?? []).length === 0 && (
-          <p className="text-sm text-muted-foreground italic">No endpoints configured.</p>
-        )}
-        {(service.endpoints ?? []).map((ep, idx) => (
-          <EndpointEditor
-            key={idx}
-            endpoint={ep}
-            onChange={(updated) => updateEndpoint(idx, updated)}
-            onDelete={() => deleteEndpoint(idx)}
-          />
-        ))}
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-sm font-semibold">Endpoints</h2>
+        <Button type="button" variant="outline" size="sm" onClick={addEndpoint} className="gap-1.5">
+          <Plus className="h-4 w-4" />Add Endpoint
+        </Button>
       </div>
+      {(service.endpoints ?? []).length === 0 && <p className="text-sm text-muted-foreground">No endpoints</p>}
+      {(service.endpoints ?? []).map((ep, idx) => (
+        <EndpointEditor
+          key={idx}
+          endpoint={ep}
+          onChange={(updated) => updateEndpoint(idx, updated)}
+          onDelete={() => deleteEndpoint(idx)}
+        />
+      ))}
 
       <div className="flex justify-end gap-2 pt-2">
-        <Button variant="outline" onClick={onDone}>{onAdd ? 'Cancel' : 'Done'}</Button>
+        <Button variant="outline" onClick={onDone}>{onAdd ? 'Cancel' : 'Close'}</Button>
         {onAdd && <Button onClick={onAdd}>Add Service</Button>}
       </div>
     </>

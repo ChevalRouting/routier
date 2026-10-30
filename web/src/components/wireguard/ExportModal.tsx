@@ -1,10 +1,10 @@
 import { api } from '@/lib/client'
 import { useFetch } from '@/lib/useFetch'
-import { Button, CopyButton, Dialog, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Separator } from 'cheval-ui'
-import { Download, Shuffle } from 'lucide-react'
+import { Button, ComboRow, CopyButton, Dialog, EntryRow, PreferencesGroup, Row, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from 'cheval-ui'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { KeyField, WgPeer } from './shared'
+import { KeyRow, WgPeer } from './shared'
+import { CodeBlock } from '@/components/ui/CodeBlock'
 
 type VrrpShape = { vips?: string[] }
 
@@ -124,122 +124,67 @@ export function ExportModal({ peer, serverPubKey, serverPort, serverAddresses: _
     <Dialog
       open
       onClose={onClose}
-      title="Export peer config"
+      title="Export Peer Config"
       description={<>{peer.name ? `“${peer.name}”` : 'Unnamed peer'} on interface <span className="font-mono">{ifaceName}</span></>}
       className="max-w-2xl"
       footer={
         <>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={downloadConf} className="gap-2">
-            <Download className="h-4 w-4" />
-            Download .conf
-          </Button>
+          <Button variant="suggested" onClick={downloadConf}>Download</Button>
         </>
       }
     >
-      <div className="space-y-5">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm font-semibold">Client key pair</Label>
-              <Button variant="outline" size="sm" onClick={generateClientKeys} disabled={generating} className="gap-1.5 h-7 text-xs">
-                <Shuffle className="h-3.5 w-3.5" />
-                {generating ? 'Generating…' : 'Generate new keys'}
-              </Button>
-            </div>
-            <div className="space-y-2">
-              <KeyField
-                label="Client Private Key"
-                value={clientPrivKey}
-                onChange={setClientPrivKey}
-                placeholder="Leave blank if managing keys yourself"
-              />
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Client public key (stored on server as this peer's key)</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={clientPubKey}
-                    onChange={(e) => { setClientPubKey(e.target.value) }}
-                    className="font-mono text-xs"
-                    placeholder="Base64 public key"
-                  />
-                  {clientPubKey && <CopyButton text={clientPubKey} />}
-                </div>
-                {keysChanged && (
-                  <p className="text-xs text-warning">
-                    Downloading will save the new key pair to this peer in the config.
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
+      <div className="space-y-6">
+        <PreferencesGroup
+          title="Client Key Pair"
+          header={(
+            <Button variant="outline" size="sm" onClick={generateClientKeys} disabled={generating}>
+              {generating ? 'Generating…' : 'Generate New Keys'}
+            </Button>
+          )}
+          description={keysChanged ? 'Downloading saves the new key pair to this peer' : undefined}
+        >
+          <KeyRow title="Private Key" value={clientPrivKey} onChange={setClientPrivKey} placeholder="Base64 private key" />
+          <EntryRow
+            title="Public Key"
+            value={clientPubKey}
+            onChange={(e) => setClientPubKey(e.target.value)}
+            className="font-mono"
+            placeholder="Base64 public key"
+            help="Stored on the router as this peer's key"
+            suffix={clientPubKey ? <CopyButton text={clientPubKey} /> : undefined}
+          />
+        </PreferencesGroup>
 
-          <Separator />
+        <PreferencesGroup title="Client Interface">
+          <EntryRow title="Addresses" value={clientAddresses} onChange={(e) => setClientAddresses(e.target.value)} placeholder="10.0.0.2/32" className="font-mono" />
+          <EntryRow title="DNS" value={dns} onChange={(e) => setDns(e.target.value)} placeholder="1.1.1.1" className="font-mono" />
+        </PreferencesGroup>
 
-          <div className="space-y-3">
-            <Label className="text-sm font-semibold">Client interface</Label>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Client address(es)</Label>
-                <Input value={clientAddresses} onChange={(e) => setClientAddresses(e.target.value)}
-                  placeholder="10.0.0.2/32" className="font-mono text-sm" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">DNS <span className="text-muted-foreground">(optional)</span></Label>
-                <Input value={dns} onChange={(e) => setDns(e.target.value)}
-                  placeholder="1.1.1.1" className="font-mono text-sm" />
-              </div>
-            </div>
-          </div>
+        <PreferencesGroup title="Server Peer">
+          <EntryRow title="Endpoint" value={endpoint} onChange={(e) => setEndpoint(e.target.value)} placeholder="vpn.example.com:51820" className="font-mono" help="Add the hostname before the colon" />
+          {hostIPs.length > 0 && (
+            <ComboRow title="Use Address">
+              <Select value="" onValueChange={selectHost}>
+                <SelectTrigger><SelectValue placeholder="Interface or VRRP address" /></SelectTrigger>
+                <SelectContent>
+                  {hostIPs.map((ip) => <SelectItem key={ip} value={ip} className="font-mono">{ip}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </ComboRow>
+          )}
+          <Row title="Public Key">
+            <span className="truncate font-mono text-sm">{serverPubKey || 'Set a private key on the interface'}</span>
+            {serverPubKey && <CopyButton text={serverPubKey} />}
+          </Row>
+          <Row title="Allowed IPs" subtitle="Inherited from the peer">
+            <span className="font-mono text-sm">{(peer.allowed_ips ?? []).length ? peer.allowed_ips.join(', ') : '0.0.0.0/0, ::/0'}</span>
+          </Row>
+        </PreferencesGroup>
 
-          <Separator />
-
-          <div className="space-y-3">
-            <Label className="text-sm font-semibold">Server peer</Label>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Server endpoint</Label>
-                <Input value={endpoint} onChange={(e) => setEndpoint(e.target.value)}
-                  placeholder="vpn.example.com:51820" className="font-mono text-sm" />
-                {hostIPs.length > 0 && (
-                  <Select value="" onValueChange={selectHost}>
-                    <SelectTrigger className="h-8 w-full text-xs">
-                      <SelectValue placeholder="Use an interface or VRRP address" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {hostIPs.map((ip) => (
-                        <SelectItem key={ip} value={ip} className="font-mono text-xs">{ip}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-                <p className="text-[11px] text-muted-foreground">hostname:port, add your hostname before the colon</p>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Server public key</Label>
-                <div className="flex items-center gap-2">
-                  <Input value={serverPubKey} readOnly className="font-mono text-xs bg-muted" placeholder="(not derivable, set private key on interface)" />
-                  {serverPubKey && <CopyButton text={serverPubKey} />}
-                </div>
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Allowed IPs (routes sent through tunnel)</Label>
-              <Input
-                value={(peer.allowed_ips ?? []).length ? peer.allowed_ips.join(', ') : '0.0.0.0/0, ::/0'}
-                readOnly className="font-mono text-xs bg-muted"
-              />
-              <p className="text-[11px] text-muted-foreground">Inherited from peer's AllowedIPs. Edit on the peer to change.</p>
-            </div>
-          </div>
-
-          <Separator />
-
-          <div className="space-y-2">
-            <Label className="text-sm font-semibold">Config preview</Label>
-            <pre className="bg-zinc-950 text-zinc-100 font-mono text-xs p-3 rounded-md overflow-auto max-h-52 whitespace-pre-wrap">
-              {conf}
-            </pre>
-          </div>
+        <PreferencesGroup title="Config Preview">
+          <CodeBlock className="max-h-52 rounded-none">{conf}</CodeBlock>
+        </PreferencesGroup>
       </div>
     </Dialog>
   )

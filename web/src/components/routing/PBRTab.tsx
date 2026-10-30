@@ -1,7 +1,10 @@
+import { plural } from '@/lib/utils'
+import { EntityRow } from '@/components/ui/EntityRow'
 import { VarPickerInput } from '@/components/VarPickerInput'
-import { Badge, Button, Card, EmptyState, Input, Label, PreferencesColumns, SectionNav, Sheet, useTabState } from 'cheval-ui'
+import { Badge, Button, EmptyState, Input, Sheet, PreferencesGroup, EntryRow, ComboRow } from 'cheval-ui'
 import { Plus, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { PBRMapEntryCard } from '@/components/routing/PBRTabParts/PBRMapEntryCard'
 import { newId } from './shared'
 import { PBRConfig, PBRMapEntry, PBRNexthop, PBRNexthopGroup, PBRSubTab } from './types'
 
@@ -16,6 +19,7 @@ type PbrToRowsShape = {
 }
 
 type PBRTabShape = {
+  section: PBRSubTab
   pbr: PBRConfig
   setPBR: (p: PBRConfig) => void
   vrfNames: string[]
@@ -24,7 +28,6 @@ type PBRTabShape = {
 
 type EShape = { _id: number }
 
-type SubTabsShape = { key: PBRSubTab; label: string }
 
 export interface PBRNexthopGroupRow { _id: number; name: string; nexthops: (PBRNexthop & NexthopsShape)[] }
 export interface PBRMapRow { _id: number; name: string; entries: (PBRMapEntry & EntriesShape)[] }
@@ -77,13 +80,12 @@ export function rowsToPBR(
 }
 
 export function PBRTab({
-  pbr, setPBR, vrfNames, onDirty,
+  section: subTab, pbr, setPBR, vrfNames, onDirty,
 }: PBRTabShape) {
   const [groups, setGroups] = useState<PBRNexthopGroupRow[]>([])
   const [maps, setMaps] = useState<PBRMapRow[]>([])
   const [policies, setPolicies] = useState<PBRPolicyRow[]>([])
   const [inited, setInited] = useState(false)
-  const [subTab, setSubTab] = useTabState<PBRSubTab>('routing.pbr', 'nexthop-groups')
   const [openGroupId, setOpenGroupId] = useState<number | null>(null)
   const [openMapId, setOpenMapId] = useState<number | null>(null)
   const [pendingGroupNew, setPendingGroupNew] = useState(false)
@@ -187,7 +189,8 @@ export function PBRTab({
     if (openMapId === id) { setOpenMapId(null); setPendingMapNew(false) }
   }
   const addEntry = (mid: number) => {
-    const e: PBRMapEntry & EShape = { _id: newId(), seq: 10, match_src: '', match_dst: '', set_nexthop_group: '', set_nexthop: '' }
+    const seq = Math.max(0, ...(maps.find((m) => m._id === mid)?.entries.map((x) => x.seq) ?? [])) + 10
+    const e: PBRMapEntry & EShape = { _id: newId(), seq, match_src: '', match_dst: '', set_nexthop_group: '', set_nexthop: '', set_vrf: '' }
     const next = maps.map((m) => m._id === mid ? { ...m, entries: [...m.entries, e] } : m)
     setMaps(next)
     if (!pendingMapNew) sync(groups, next, policies)
@@ -213,80 +216,53 @@ export function PBRTab({
   const openGroup = openGroupId !== null ? groups.find((g) => g._id === openGroupId) ?? null : null
   const openMap = openMapId !== null ? maps.find((m) => m._id === openMapId) ?? null : null
 
-  const subTabs: SubTabsShape[] = [
-    { key: 'nexthop-groups', label: groups.length ? `Nexthop Groups (${groups.length})` : 'Nexthop Groups' },
-    { key: 'maps', label: maps.length ? `Maps (${maps.length})` : 'Maps' },
-    { key: 'policies', label: policies.length ? `Policies (${policies.length})` : 'Policies' },
-  ]
-
   return (
     <div className="space-y-5">
-      <p className="text-sm text-muted-foreground">
-        Policy-Based Routing (PBR) forwards traffic by policy rather than destination alone: match on
-        source/destination and steer matching flows to nexthop groups.
-      </p>
-      <SectionNav items={subTabs} active={subTab} onChange={setSubTab}>
       {subTab === 'nexthop-groups' && (
         <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={handleAddGroup} className="gap-1.5">
-              <Plus className="h-4 w-4" />Add Group
-            </Button>
-          </div>
           {groups.length === 0 ? (
             <EmptyState className="py-10"
-              title="No nexthop groups"
-              message="Group nexthops to load-balance or fail over policy-routed traffic."
-              action={<Button variant="outline" size="sm" onClick={handleAddGroup} className="gap-2"><Plus className="h-4 w-4" />Add group</Button>}
+              title="No Nexthop Groups"
+              action={<Button variant="outline" size="sm" onClick={handleAddGroup} className="gap-1.5"><Plus className="h-4 w-4" />Add Group…</Button>}
             />
           ) : (
-            <PreferencesColumns>
+            <PreferencesGroup
+              title="Nexthop Groups"
+              header={<Button variant="outline" size="sm" onClick={handleAddGroup} className="gap-1.5"><Plus className="h-4 w-4" />Add Group…</Button>}
+            >
               {groups.map((g) => (
-                <div key={g._id} onClick={() => setOpenGroupId(g._id)} className="flex items-start gap-3 px-4 py-3 hover:bg-accent/50 cursor-pointer transition-colors">
-                  <span className="font-mono font-semibold text-sm w-28 shrink-0 truncate pt-0.5">{g.name || <span className="text-muted-foreground italic font-normal">unnamed</span>}</span>
-                  <div className="flex flex-wrap gap-1 flex-1 min-w-0">
-                    <Badge variant="outline" className="text-xs">{g.nexthops.length} nexthop{g.nexthops.length !== 1 ? 's' : ''}</Badge>
-                    {g.nexthops.slice(0, 3).map((nh) => (
-                      <Badge key={nh._id} variant="outline" className="text-xs font-mono">{nh.address || nh.dev || nh.nexthop_vrf || '-'}</Badge>
-                    ))}
-                  </div>
-                  <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); removeGroup(g._id) }} className="h-7 w-7 p-0 hover:text-destructive shrink-0">
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
+                <EntityRow key={g._id} title={g.name} onOpen={() => setOpenGroupId(g._id)} onRemove={() => removeGroup(g._id)} removeLabel="Remove Group">
+                  <Badge variant="outline">{plural(g.nexthops.length, 'nexthop')}</Badge>
+                  {g.nexthops.slice(0, 3).map((nh) => (
+                    <Badge key={nh._id} variant="outline" className="font-mono">{nh.address || nh.dev || nh.nexthop_vrf || '-'}</Badge>
+                  ))}
+                </EntityRow>
               ))}
-            </PreferencesColumns>
+            </PreferencesGroup>
           )}
 
           <Sheet open={openGroupId !== null} onClose={handleCloseGroupSheet} title={openGroup?.name || 'New Nexthop Group'}>
             {openGroup && (
-              <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label>Name</Label>
-                  <Input
-                    autoFocus={pendingGroupNew}
-                    value={openGroup.name}
-                    onChange={(e) => updateGroup(openGroup._id, { name: e.target.value })}
-                    placeholder="group-name"
-                    className="font-mono text-sm"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Nexthops</Label>
+              <div className="space-y-6">
+                <PreferencesGroup>
+                  <EntryRow title="Name" autoFocus={pendingGroupNew} value={openGroup.name} onChange={(e) => updateGroup(openGroup._id, { name: e.target.value })} placeholder="group-name" className="font-mono" />
+                </PreferencesGroup>
+                <PreferencesGroup
+                  title="Nexthops"
+                  header={<Button variant="outline" size="sm" className="gap-1.5" onClick={() => addNexthop(openGroup._id)}><Plus className="h-4 w-4" />Add Nexthop</Button>}
+                >
+                  {openGroup.nexthops.length === 0 && <p className="px-4 py-3 text-sm text-muted-foreground">No nexthops</p>}
                   {openGroup.nexthops.map((nh) => (
-                    <div key={nh._id} className="flex items-center gap-2">
-                      <Input value={nh.address ?? ''} onChange={(e) => updateNexthop(openGroup._id, nh._id, { address: e.target.value })} placeholder="address" className="font-mono text-xs h-8 flex-1" />
-                      <Input value={nh.dev ?? ''} onChange={(e) => updateNexthop(openGroup._id, nh._id, { dev: e.target.value })} placeholder="interface" className="font-mono text-xs h-8 w-28" />
-                      <VarPickerInput value={nh.nexthop_vrf ?? ''} onChange={(v) => updateNexthop(openGroup._id, nh._id, { nexthop_vrf: v })} vars={vrfNames} placeholder="nexthop-vrf" prefix="" label="VRFs" mono className="text-xs h-8" wrapperClassName="w-32" />
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0" onClick={() => removeNexthop(openGroup._id, nh._id)}>
-                        <Trash2 className="h-3.5 w-3.5" />
+                    <div key={nh._id} className="flex flex-wrap items-center gap-2 px-4 py-2 sm:flex-nowrap">
+                      <Input value={nh.address ?? ''} onChange={(e) => updateNexthop(openGroup._id, nh._id, { address: e.target.value })} placeholder="address" aria-label="Address" className="min-w-0 flex-1 basis-64 font-mono" />
+                      <Input value={nh.dev ?? ''} onChange={(e) => updateNexthop(openGroup._id, nh._id, { dev: e.target.value })} placeholder="interface" aria-label="Interface" className="w-32 font-mono" />
+                      <VarPickerInput value={nh.nexthop_vrf ?? ''} onChange={(v) => updateNexthop(openGroup._id, nh._id, { nexthop_vrf: v })} vars={vrfNames} placeholder="nexthop-vrf" prefix="" label="VRFs" mono wrapperClassName="w-44" />
+                      <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeNexthop(openGroup._id, nh._id)} aria-label="Remove Nexthop" title="Remove Nexthop">
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   ))}
-                  <Button variant="outline" size="sm" className="gap-1 h-7 text-xs" onClick={() => addNexthop(openGroup._id)}>
-                    <Plus className="h-3 w-3" />Add nexthop
-                  </Button>
-                </div>
+                </PreferencesGroup>
               </div>
             )}
           </Sheet>
@@ -295,95 +271,47 @@ export function PBRTab({
 
       {subTab === 'maps' && (
         <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={handleAddMap} className="gap-1.5">
-              <Plus className="h-4 w-4" />Add Map
-            </Button>
-          </div>
           {maps.length === 0 ? (
             <EmptyState className="py-10"
-              title="No maps"
-              message="Maps hold ordered match/action entries applied to inbound traffic."
-              action={<Button variant="outline" size="sm" onClick={handleAddMap} className="gap-2"><Plus className="h-4 w-4" />Add map</Button>}
+              title="No Maps"
+              action={<Button variant="outline" size="sm" onClick={handleAddMap} className="gap-1.5"><Plus className="h-4 w-4" />Add Map…</Button>}
             />
           ) : (
-            <PreferencesColumns>
+            <PreferencesGroup
+              title="Maps"
+              header={<Button variant="outline" size="sm" onClick={handleAddMap} className="gap-1.5"><Plus className="h-4 w-4" />Add Map…</Button>}
+            >
               {maps.map((m) => (
-                <div key={m._id} onClick={() => setOpenMapId(m._id)} className="flex items-start gap-3 px-4 py-3 hover:bg-accent/50 cursor-pointer transition-colors">
-                  <span className="font-mono font-semibold text-sm w-28 shrink-0 truncate pt-0.5">{m.name || <span className="text-muted-foreground italic font-normal">unnamed</span>}</span>
-                  <div className="flex flex-wrap gap-1 flex-1 min-w-0">
-                    <Badge variant="outline" className="text-xs">{m.entries.length} entr{m.entries.length !== 1 ? 'ies' : 'y'}</Badge>
-                  </div>
-                  <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); removeMap(m._id) }} className="h-7 w-7 p-0 hover:text-destructive shrink-0">
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
+                <EntityRow key={m._id} title={m.name} onOpen={() => setOpenMapId(m._id)} onRemove={() => removeMap(m._id)} removeLabel="Remove Map">
+                  <Badge variant="outline">{plural(m.entries.length, 'entry', 'entries')}</Badge>
+                </EntityRow>
               ))}
-            </PreferencesColumns>
+            </PreferencesGroup>
           )}
 
-          <Sheet open={openMapId !== null} onClose={handleCloseMapSheet} title={openMap?.name || 'New Map'} className="max-w-2xl">
+          <Sheet open={openMapId !== null} onClose={handleCloseMapSheet} title={openMap?.name || 'New Map'}>
             {openMap && (
-              <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label>Name</Label>
-                  <Input
-                    autoFocus={pendingMapNew}
-                    value={openMap.name}
-                    onChange={(e) => updateMap(openMap._id, { name: e.target.value })}
-                    placeholder="map-name"
-                    className="font-mono text-sm"
-                  />
-                </div>
-                <div className="space-y-2">
+              <div className="space-y-6">
+                <PreferencesGroup>
+                  <EntryRow title="Name" autoFocus={pendingMapNew} value={openMap.name} onChange={(e) => updateMap(openMap._id, { name: e.target.value })} placeholder="map-name" className="font-mono" />
+                </PreferencesGroup>
+                <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <Label>Entries</Label>
-                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => addEntry(openMap._id)}>
-                      <Plus className="h-3 w-3" />Add entry
+                    <h2 className="text-sm font-semibold">Entries</h2>
+                    <Button variant="outline" size="sm" className="gap-1.5" onClick={() => addEntry(openMap._id)}>
+                      <Plus className="h-4 w-4" />Add Entry
                     </Button>
                   </div>
-                  {openMap.entries.length > 0 && (
-                    <div className="rounded bg-card shadow-[var(--card-shadow)] overflow-x-auto">
-                      <table className="w-full text-xs">
-                        <thead className="bg-muted/50">
-                          <tr>
-                            <th className="text-left px-2 py-1.5 font-medium text-muted-foreground w-16">Seq</th>
-                            <th className="text-left px-2 py-1.5 font-medium text-muted-foreground">Src match</th>
-                            <th className="text-left px-2 py-1.5 font-medium text-muted-foreground">Dst match</th>
-                            <th className="text-left px-2 py-1.5 font-medium text-muted-foreground">Set nexthop group</th>
-                            <th className="text-left px-2 py-1.5 font-medium text-muted-foreground">Set nexthop</th>
-                            <th className="w-8" />
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y">
-                          {openMap.entries.map((e) => (
-                            <tr key={e._id}>
-                              <td className="px-2 py-1">
-                                <Input value={e.seq || ''} onChange={(ev) => updateEntry(openMap._id, e._id, { seq: Number(ev.target.value) || 0 })} placeholder="10" className="font-mono h-7 border-0 shadow-none focus-visible:ring-1 w-14" />
-                              </td>
-                              <td className="px-2 py-1">
-                                <Input value={e.match_src ?? ''} onChange={(ev) => updateEntry(openMap._id, e._id, { match_src: ev.target.value })} placeholder="10.0.0.0/8" className="font-mono h-7 border-0 shadow-none focus-visible:ring-1" />
-                              </td>
-                              <td className="px-2 py-1">
-                                <Input value={e.match_dst ?? ''} onChange={(ev) => updateEntry(openMap._id, e._id, { match_dst: ev.target.value })} placeholder="0.0.0.0/0" className="font-mono h-7 border-0 shadow-none focus-visible:ring-1" />
-                              </td>
-                              <td className="px-2 py-1">
-                                <VarPickerInput value={e.set_nexthop_group ?? ''} onChange={(v) => updateEntry(openMap._id, e._id, { set_nexthop_group: v, set_nexthop: v ? '' : e.set_nexthop })} vars={groupNames} placeholder="group-name" prefix="" label="Nexthop groups" mono className="h-7 border-0 shadow-none focus-visible:ring-1" />
-                              </td>
-                              <td className="px-2 py-1">
-                                <Input value={e.set_nexthop ?? ''} onChange={(ev) => updateEntry(openMap._id, e._id, { set_nexthop: ev.target.value, set_nexthop_group: ev.target.value ? '' : e.set_nexthop_group })} placeholder="192.168.1.1" className="font-mono h-7 border-0 shadow-none focus-visible:ring-1" />
-                              </td>
-                              <td className="px-1">
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => removeEntry(openMap._id, e._id)}>
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
+                  {openMap.entries.map((e) => (
+                    <PBRMapEntryCard
+                      key={e._id}
+                      entry={e}
+                      groupNames={groupNames}
+                      vrfNames={vrfNames}
+                      onChange={(patch) => updateEntry(openMap._id, e._id, patch)}
+                      onRemove={() => removeEntry(openMap._id, e._id)}
+                    />
+                  ))}
                 </div>
               </div>
             )}
@@ -393,44 +321,36 @@ export function PBRTab({
 
       {subTab === 'policies' && (
         <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={addPolicy} className="gap-1.5">
-              <Plus className="h-4 w-4" />Add Policy
-            </Button>
-          </div>
           {policies.length === 0 ? (
             <EmptyState className="py-10"
-              title="No policies"
-              message="Policies bind a map to an interface."
-              action={<Button variant="outline" size="sm" onClick={addPolicy} className="gap-2"><Plus className="h-4 w-4" />Add policy</Button>}
+              title="No Policies"
+              action={<Button variant="outline" size="sm" onClick={addPolicy} className="gap-1.5"><Plus className="h-4 w-4" />Add Policy</Button>}
             />
           ) : (
-            <div className="grid gap-3 md:grid-cols-2">
+            <div className="space-y-6">
+              <div className="flex justify-end">
+                <Button variant="outline" size="sm" onClick={addPolicy} className="gap-1.5"><Plus className="h-4 w-4" />Add Policy</Button>
+              </div>
               {policies.map((p) => (
-                <Card key={p._id} className="space-y-4 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="font-mono text-sm font-semibold">{p.iface || 'New policy'}</span>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => removePolicy(p._id)}>
-                      <Trash2 className="h-3.5 w-3.5" />
+                <PreferencesGroup
+                  key={p._id}
+                  title={p.iface || 'New Policy'}
+                  header={(
+                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => removePolicy(p._id)} aria-label="Remove Policy" title="Remove Policy">
+                      <Trash2 className="h-4 w-4" />
                     </Button>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Interface</Label>
-                      <Input value={p.iface} onChange={(e) => updatePolicy(p._id, { iface: e.target.value })} placeholder="eth0" className="font-mono text-sm" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Map</Label>
-                      <VarPickerInput value={p.map} onChange={(v) => updatePolicy(p._id, { map: v })} vars={maps.map((m) => m.name)} placeholder="map-name" prefix="" label="Route maps" mono className="text-sm" />
-                    </div>
-                  </div>
-                </Card>
+                  )}
+                >
+                  <EntryRow title="Interface" value={p.iface} onChange={(e) => updatePolicy(p._id, { iface: e.target.value })} placeholder="eth0" className="font-mono" />
+                  <ComboRow title="Map">
+                    <VarPickerInput value={p.map} onChange={(v) => updatePolicy(p._id, { map: v })} vars={maps.map((m) => m.name)} placeholder="map-name" prefix="" label="Route Maps" mono />
+                  </ComboRow>
+                </PreferencesGroup>
               ))}
             </div>
           )}
         </div>
       )}
-      </SectionNav>
     </div>
   )
 }

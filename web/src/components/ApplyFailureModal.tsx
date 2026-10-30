@@ -1,6 +1,6 @@
 import type { TypesArtifactContent, TypesFailureRecord } from '@/api'
 import type { ApplyFailure } from '@/lib/applyFailure'
-import { api, configLayerRequest } from '@/lib/client'
+import { api, apiRequest } from '@/lib/client'
 import { Button, ComboRow, Dialog, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from 'cheval-ui'
 import { useEffect, useState } from 'react'
 
@@ -26,7 +26,7 @@ export default function ApplyFailureModal({ failure, onClose }: ApplyFailureModa
     const load = async () => {
       const [metadata, log] = await Promise.allSettled([
         failure.bundleID
-          ? configLayerRequest<TypesFailureRecord>(`/api/failures/${encodeURIComponent(failure.bundleID)}`)
+          ? apiRequest<TypesFailureRecord>(`/api/failures/${encodeURIComponent(failure.bundleID)}`)
           : Promise.resolve(null),
         failure.logID
           ? api.apiApplyLogsIdGet({ id: failure.logID })
@@ -53,7 +53,7 @@ export default function ApplyFailureModal({ failure, onClose }: ApplyFailureModa
     let active = true
     setContent(null)
     setArtifactError(null)
-    configLayerRequest<TypesArtifactContent>(`/api/failures/${encodeURIComponent(failure.bundleID)}/artifact?dest=${encodeURIComponent(artifact)}`)
+    apiRequest<TypesArtifactContent>(`/api/failures/${encodeURIComponent(failure.bundleID)}/artifact?dest=${encodeURIComponent(artifact)}`)
       .then((result) => { if (active) setContent(result.content) })
       .catch((err: unknown) => { if (active) setArtifactError((err as Error).message) })
     return () => { active = false }
@@ -66,16 +66,15 @@ export default function ApplyFailureModal({ failure, onClose }: ApplyFailureModa
     <Dialog
       open
       onClose={onClose}
-      title="Apply failure"
-      description="Review the failure, apply log, and rendered artifacts from this attempt"
+      title="Apply Failure"
       className="max-w-4xl"
       footer={<Button variant="outline" onClick={onClose}>Close</Button>}
     >
       <div className="space-y-4">
         <div role="alert" className="rounded border border-danger/30 bg-danger/10 p-3 text-sm text-danger">
-          <p className="break-words font-medium">{failure.message}</p>
+          <p className="whitespace-pre-wrap break-words font-medium">{failure.message}</p>
           {errors.length > 0 && <ul className="mt-2 space-y-1 text-xs">
-            {errors.map((error, index) => <li key={index} className="break-words">
+            {errors.map((error, index) => <li key={index} className="whitespace-pre-wrap break-words">
               {error.tool && <span className="font-medium">{error.tool}: </span>}
               {error.dest && <span className="font-mono">{error.dest}{error.line > 0 ? `:${error.line}` : ''}: </span>}
               {error.message}
@@ -85,13 +84,13 @@ export default function ApplyFailureModal({ failure, onClose }: ApplyFailureModa
         {loading && <p role="status" className="text-sm text-muted-foreground">Loading diagnostics…</p>}
         {loadError && <p role="alert" className="whitespace-pre-wrap text-sm text-danger">{loadError}</p>}
         <div className="space-y-2">
-          <h3 className="text-sm font-semibold">Apply log</h3>
+          <h3 className="text-sm font-semibold">Apply Log</h3>
           {failure.logID && <p className="font-mono text-xs text-muted-foreground">{failure.logID}</p>}
-          {logs !== null ? <pre className="max-h-64 overflow-auto rounded bg-muted/40 p-3 text-xs">{logs || 'No log output was recorded.'}</pre>
-            : !loading && !failure.logID && <p className="text-xs text-muted-foreground">No apply log was created for this failure.</p>}
+          {logs !== null ? <pre className="max-h-[60vh] overflow-auto whitespace-pre-wrap break-words rounded bg-muted/40 p-3 text-xs">{logs || 'No log output was recorded.'}</pre>
+            : !loading && !failure.logID && <p className="text-xs text-muted-foreground">No apply log</p>}
         </div>
         <div className="space-y-2">
-          <h3 className="text-sm font-semibold">Rendered artifacts</h3>
+          <h3 className="text-sm font-semibold">Rendered Artifacts</h3>
           {bundle?.artifacts?.length ? <>
             <ComboRow title="Artifact">
               <Select value={artifact} onValueChange={setArtifact}>
@@ -107,7 +106,7 @@ export default function ApplyFailureModal({ failure, onClose }: ApplyFailureModa
             {content !== null ? <pre className="max-h-80 overflow-auto rounded bg-muted/40 p-3 text-xs">{content.split('\n').map((line, index) =>
               <span key={index} className={`block ${errorLines.has(index + 1) ? 'bg-danger/15 text-danger' : ''}`}><span className="mr-4 inline-block w-8 select-none text-right text-muted-foreground">{index + 1}</span>{line || ' '}</span>)}</pre>
               : !artifactError && <p role="status" className="text-xs text-muted-foreground">Loading artifact…</p>}
-          </> : !loading && <p className="text-xs text-muted-foreground">No rendered artifacts are available for this attempt.</p>}
+          </> : !loading && <p className="text-xs text-muted-foreground">No rendered artifacts</p>}
         </div>
       </div>
     </Dialog>

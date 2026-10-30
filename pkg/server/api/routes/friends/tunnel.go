@@ -84,23 +84,33 @@ func DeriveTunnel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if cfg.Tunnels == nil {
-		cfg.Tunnels = map[string]*cfgpkg.Tunnel{}
+	if cfg.Interfaces == nil {
+		cfg.Interfaces = map[string]*cfgpkg.Interface{}
 	}
 
-	cfg.Tunnels[res.InterfaceName] = res.Local
+	cfg.Interfaces[res.InterfaceName] = res.Local.Interface()
 
 	payload := managers.PushPayload{Config: &cfgpkg.Config{
-		Version: cfg.Version,
-		Tunnels: map[string]*cfgpkg.Tunnel{res.InterfaceName: res.Counterpart},
+		Version:    cfg.Version,
+		Interfaces: map[string]*cfgpkg.Interface{res.InterfaceName: res.Counterpart.Interface()},
 	}}
 
 	cfgpkg.ResolveInterfaces(cfg)
-	persist := func() error { return cfgstore.WriteLive(app.ConfigPath, cfg) }
-	opts := managers.ApplyOptions{Source: "web", ConfigPath: app.ConfigPath}
-	if err := managers.CoordinatedApply(r.Context(), f, payload, persist, cfg, friendcache.InterpolationVars(), opts); err != nil {
-		types.Error(log.Logger, w, types.Wrap(http.StatusBadGateway, err, "coordinated tunnel apply failed"))
+	persist, err := cfgstore.MarshalLive(cfg)
+	if err != nil {
+		types.Error(log.Logger, w, types.Wrap(http.StatusBadRequest, err, "invalid config"))
 		return
+	}
+
+	opts := managers.ApplyOptions{Source: "web", ConfigPath: app.ConfigPath, PersistConfig: persist}
+	warning, err := managers.CoordinatedApply(r.Context(), f, payload, cfg, friendcache.InterpolationVars(), opts)
+	if err != nil {
+		types.Error(log.Logger, w, cfgstore.ApplyError(err, http.StatusBadGateway, "coordinated tunnel apply failed"))
+		return
+	}
+
+	if warning != "" {
+		log.Warn().Str("friend", f.Name).Msg(warning)
 	}
 
 	types.OK(w, types.DeriveTunnelResult{Interface: res.InterfaceName, Friend: f.Name, Pushed: true})

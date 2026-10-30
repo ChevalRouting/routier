@@ -1,8 +1,11 @@
 import type { TypesLearnedRoute as LearnedRoute } from '@/api'
 import { NodePositions } from '@/components/routing-overview/shared'
+import { BGPPeerSessions } from '@/components/routing/overview/BGPPeerSessions'
+import { groupBGPPeers } from '@/components/routing/overview/bgpPeers'
 import { buildGraph, protoForNode } from '@/components/routing/overview/graph'
 import { KernelRouteTable } from '@/components/routing/overview/KernelRouteTable'
 import {
+  edgeTypes,
   FitViewOnChange,
   nodeTypes,
 } from '@/components/routing/overview/nodes'
@@ -12,6 +15,7 @@ import {
   WgIface,
 } from '@/components/routing/overview/types'
 import { api } from '@/lib/client'
+import { BORDER, PRIMARY, topoNodeColor } from '@/lib/palette'
 import { useFetch } from '@/lib/useFetch'
 import {
   Background,
@@ -24,10 +28,12 @@ import {
   applyNodeChanges,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { Badge, Card, CardContent, CardHeader, CardTitle, EmptyState, useTheme } from 'cheval-ui'
-import { ChevronDown, ChevronRight, RefreshCw } from 'lucide-react'
+import { Badge, Card, CardContent, CardHeader, CardTitle, EmptyState, useTheme, Spinner, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Button } from 'cheval-ui'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+
+interface TunnelInterface extends Tunnel { type?: string }
 
 type RoutingOverviewShape4 = { hostname?: string }
 
@@ -47,15 +53,15 @@ export default function RoutingOverview() {
 	const { data: fullConfig } = useFetch<RoutingOverviewShape4>(
 		() => api.apiConfigGet() as unknown as Promise<RoutingOverviewShape3>,
 	)
-	const { data: tunnelsData } = useFetch<Record<string, Tunnel>>(
+	const { data: interfacesData } = useFetch<Record<string, TunnelInterface>>(
 		() =>
-			api.apiConfigSectionGet({ section: 'tunnels' }) as Promise<
-				Record<string, Tunnel>
+			api.apiConfigSectionGet({ section: 'interfaces' }) as Promise<
+				Record<string, TunnelInterface>
 			>,
 	)
 	const { data: wireguardData } = useFetch<Record<string, WgIface>>(
 		() =>
-			api.apiConfigSectionGet({ section: 'wireguard' }) as Promise<
+			api.apiConfigSectionGet({ section: 'vpn.wireguard' }) as Promise<
 				Record<string, WgIface>
 			>,
 	)
@@ -89,29 +95,36 @@ export default function RoutingOverview() {
 
 	const kernelRoutes = useMemo(() => kernelRoutesData?.routes ?? [], [kernelRoutesData])
 
+	const bgpPeers = useMemo(
+		() => groupBGPPeers(routing?.bgp?.neighbors ?? [], wireguardData ?? {}, statsData?.bgp?.peers ?? []),
+		[routing, wireguardData, statsData],
+	)
+
 	const { nodes: baseNodes, edges } = useMemo(
 		() =>
 			buildGraph({
 				routing: routing ?? {},
-				tunnels: tunnelsData ?? {},
+				tunnels: Object.fromEntries(Object.entries(interfacesData ?? {}).filter(([, iface]) => iface.type === 'tunnel')),
 				wireguard: wireguardData ?? {},
 				hostname: fullConfig?.hostname ?? 'router',
+				bgpPeers,
 				ospfNeighbors: statsData?.ospf?.neighbors ?? [],
 				vrrpInstances: haStatus?.vrrp ?? [],
 				kernelRoutes,
 				vrfDeclarations: vrfDeclarationsData ?? {},
-				selectedProto,
+				selectedNodeId,
 			}),
 		[
 			routing,
-			tunnelsData,
+			interfacesData,
 			wireguardData,
 			fullConfig,
+			bgpPeers,
 			statsData,
 			haStatus,
 			kernelRoutes,
 			vrfDeclarationsData,
-			selectedProto,
+			selectedNodeId,
 		],
 	)
 
@@ -162,6 +175,11 @@ export default function RoutingOverview() {
 		)
 	}, [])
 
+	const showAll = () => {
+		setSelectedProto('all')
+		setSelectedNodeId(null)
+	}
+
 	const resetLayout = useCallback(() => {
 		flowNodesRef.current = []
 		api.apiUiLayoutPut({ body: {} })
@@ -195,7 +213,7 @@ export default function RoutingOverview() {
 		[navigate],
 	)
 
-	const tunnelCount = Object.keys(tunnelsData ?? {}).length
+	const tunnelCount = Object.values(interfacesData ?? {}).filter((iface) => iface.type === 'tunnel').length
 	const wgCount = Object.keys(wireguardData ?? {}).length
 
 	const vrfCount = Object.keys(routing?.vrfs ?? {}).length
@@ -214,7 +232,7 @@ export default function RoutingOverview() {
 	if (isLoading) {
 		return (
 			<div className="flex items-center justify-center h-64">
-				<RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+				<Spinner />
 			</div>
 		)
 	}
@@ -226,6 +244,8 @@ export default function RoutingOverview() {
 			selectedProto ??
 			'')
 		: (selectedProto ?? '')
+
+	const selectedPeer = bgpPeers.find((p) => p.id === selectedNodeId)
 
 	const frrProtoKey =
 		selectedProto === 'ospf' || selectedProto === 'bgp' ? selectedProto : null
@@ -242,22 +262,15 @@ export default function RoutingOverview() {
 
 	return (
 		<div className="space-y-6">
-			<div>
-				<h1 className="text-2xl font-bold tracking-tight">Routing</h1>
-				<p className="text-muted-foreground">
-					Click any node to inspect its routes · click router for the full table
-				</p>
-			</div>
-
 			<div className="flex flex-wrap gap-2">
 				{routing?.bgp && (
-					<Badge className="bg-blue-600 text-white">
+					<Badge variant="secondary">
 						BGP AS{routing.bgp.asn} · {routing.bgp.neighbors?.length ?? 0}{' '}
 						neighbor{routing.bgp.neighbors?.length !== 1 ? 's' : ''}
 					</Badge>
 				)}
 				{routing?.ospf && (
-					<Badge className="bg-purple-600 text-white">
+					<Badge variant="secondary">
 						OSPF · {routing.ospf.areas?.length ?? 0} area
 						{routing.ospf.areas?.length !== 1 ? 's' : ''}
 						{(statsData?.ospf?.neighbors?.length ?? 0) > 0
@@ -266,41 +279,41 @@ export default function RoutingOverview() {
 					</Badge>
 				)}
 				{routing?.ospf6 && (
-					<Badge className="text-white" style={{ background: '#0d9488' }}>
+					<Badge variant="secondary">
 						OSPFv3 · {routing.ospf6.areas?.length ?? 0} area
 						{routing.ospf6.areas?.length !== 1 ? 's' : ''}
 					</Badge>
 				)}
 				{(routing?.static?.length ?? 0) > 0 && (
-					<Badge className="bg-green-600 text-white">
+					<Badge variant="secondary">
 						{routing!.static!.length} static route
 						{routing!.static!.length !== 1 ? 's' : ''}
 					</Badge>
 				)}
 				{kernelRoutes.length > 0 && (
-					<Badge className="bg-green-600 text-white">
+					<Badge variant="secondary">
 						{kernelRoutes.length} default route
 						{kernelRoutes.length !== 1 ? 's' : ''}
 					</Badge>
 				)}
 				{(routing?.anycast?.services?.length ?? 0) > 0 && (
-					<Badge className="bg-orange-600 text-white">
+					<Badge variant="secondary">
 						Anycast · {routing!.anycast!.services!.length} service
 						{routing!.anycast!.services!.length !== 1 ? 's' : ''}
 					</Badge>
 				)}
 				{vrfCount > 0 && (
-					<Badge className="text-white" style={{ background: '#b45309' }}>
+					<Badge variant="secondary">
 						VRFs · {vrfCount}
 					</Badge>
 				)}
 				{tunnelCount > 0 && (
-					<Badge className="bg-cyan-600 text-white">
+					<Badge variant="secondary">
 						{tunnelCount} tunnel{tunnelCount !== 1 ? 's' : ''}
 					</Badge>
 				)}
 				{wgCount > 0 && (
-					<Badge className="bg-indigo-600 text-white">
+					<Badge variant="secondary">
 						WireGuard · {wgCount} interface{wgCount !== 1 ? 's' : ''}
 					</Badge>
 				)}
@@ -310,36 +323,22 @@ export default function RoutingOverview() {
 			<Card>
 				<CardHeader className="pb-4">
 					<div className="flex items-center justify-between">
-						<CardTitle className="text-sm">
-							Topology
+						<div>
 							{selectedProto && selectedProto !== 'all' && (
-								<button
-									className="ml-3 text-[11px] font-normal text-muted-foreground underline"
-									onClick={() => {
-										setSelectedProto('all')
-										setSelectedNodeId(null)
-									}}
-								>
-									show all
-								</button>
+								<Button variant="link" size="sm" className="h-auto p-0" onClick={showAll}>Show All</Button>
 							)}
-						</CardTitle>
-						<button
-							className="text-[11px] text-muted-foreground hover:text-foreground underline"
-							onClick={resetLayout}
-							title="Reset node positions to default"
-						>
-							Reset layout
-						</button>
+						</div>
+						<Button variant="ghost" size="sm" onClick={resetLayout}>Reset Layout</Button>
 					</div>
 				</CardHeader>
 				<CardContent className="p-0">
-					<div style={{ height: 600 }}>
+					<div className="h-[60dvh] min-h-80 md:h-[600px]">
 						{hasContent ? (
 							<ReactFlow
 								nodes={flowNodes}
 								edges={edges}
 								nodeTypes={nodeTypes}
+								edgeTypes={edgeTypes}
 								onNodesChange={onNodesChange}
 								onNodeDragStop={onNodeDragStop}
 								onNodeClick={onNodeClick}
@@ -352,31 +351,18 @@ export default function RoutingOverview() {
 								proOptions={{ hideAttribution: true }}
 							>
 								<FitViewOnChange version={fitVersion} />
-								<Background gap={16} color="hsl(var(--border))" />
+								<Background gap={16} color={BORDER} />
 								<Controls showInteractive={false} />
 								<MiniMap
-									nodeColor={(n) => {
-										if (n.id === 'router') return 'hsl(var(--primary))'
-										if (n.id.startsWith('bgp')) return '#2563eb'
-										if (n.id.startsWith('static')) return '#16a34a'
-										if (n.id.startsWith('ospfn')) return '#9333ea'
-										if (n.id.startsWith('ospf6')) return '#0d9488'
-										if (n.id.startsWith('ospf')) return '#9333ea'
-										if (n.id.startsWith('anycast')) return '#ea580c'
-										if (n.id.startsWith('tunnel')) return '#0891b2'
-										if (n.id.startsWith('wg')) return '#4f46e5'
-										if (n.id.startsWith('vrrp')) return '#0f766e'
-										if (n.id.startsWith('vrf')) return '#b45309'
-										return '#888'
-									}}
+									className="max-md:!hidden"
+									nodeColor={(n) => n.id === 'router' ? PRIMARY : topoNodeColor(n.id)}
 								/>
 							</ReactFlow>
 						) : (
 							<div className="flex h-full items-center justify-center">
 								<EmptyState
 									className="border-0"
-									title="No routing data"
-									message="Configure interfaces, BGP, OSPF, static routes, tunnels or WireGuard to populate the topology."
+									title="No Routing Data"
 								/>
 							</div>
 						)}
@@ -393,16 +379,17 @@ export default function RoutingOverview() {
 								<CardTitle className="text-sm">{routeTableTitle}</CardTitle>
 							</CardHeader>
 							<CardContent className="pt-0 space-y-4">
+								{selectedPeer && <BGPPeerSessions peer={selectedPeer} />}
 								<KernelRouteTable proto={selectedProto} />
 								{frrRoutes.length > 0 && (
 									<div className="space-y-1.5">
-										<div className="text-[11px] text-muted-foreground font-medium">
+										<div className="text-xs text-muted-foreground font-medium">
 											FRR RIB ({frrRoutes.length})
 										</div>
 										<div className="max-h-96 overflow-auto rounded-xl bg-card shadow-[var(--card-shadow)]">
-											<table className="w-full text-xs font-mono">
-												<thead className="sticky top-0 z-10 bg-card">
-													<tr className="text-muted-foreground border-b border-border">
+											<Table className="w-full text-xs font-mono">
+												<TableHeader className="sticky top-0 z-10 bg-card">
+													<TableRow className="text-muted-foreground border-b border-border">
 														{[
 															'Prefix',
 															'Next Hop',
@@ -410,34 +397,34 @@ export default function RoutingOverview() {
 															'Metric',
 															'Distance',
 														].map((h) => (
-															<th
+															<TableHead
 																key={h}
 																className="px-3 py-2 text-left font-medium"
 															>
 																{h}
-															</th>
+															</TableHead>
 														))}
-													</tr>
-												</thead>
-												<tbody>
+													</TableRow>
+												</TableHeader>
+												<TableBody>
 													{frrRoutes.map((r, i) => (
-														<tr
+														<TableRow
 															key={i}
 															className="border-b border-border/40 last:border-0 hover:bg-muted/30"
 														>
-															<td className="px-3 py-1">{r.prefix}</td>
-															<td className="px-3 py-1 text-muted-foreground">
+															<TableCell className="px-3 py-1">{r.prefix}</TableCell>
+															<TableCell className="px-3 py-1 text-muted-foreground">
 																{r.nexthop ?? '-'}
-															</td>
-															<td className="px-3 py-1 text-muted-foreground">
+															</TableCell>
+															<TableCell className="px-3 py-1 text-muted-foreground">
 																{r.interface ?? '-'}
-															</td>
-															<td className="px-3 py-1">{r.metric ?? '-'}</td>
-															<td className="px-3 py-1">{r.distance ?? '-'}</td>
-														</tr>
+															</TableCell>
+															<TableCell className="px-3 py-1">{r.metric ?? '-'}</TableCell>
+															<TableCell className="px-3 py-1">{r.distance ?? '-'}</TableCell>
+														</TableRow>
 													))}
-												</tbody>
-											</table>
+												</TableBody>
+											</Table>
 										</div>
 									</div>
 								)}
@@ -599,8 +586,7 @@ export default function RoutingOverview() {
 					{(['ospf', 'bgp'] as const).map((proto) => {
 						const list = learnedRoutes?.[proto] ?? []
 						if (list.length === 0) return null
-						const color = proto === 'ospf' ? 'bg-purple-600' : 'bg-blue-600'
-						const open = learnedOpen[proto] ?? true
+						const open = learnedOpen[proto] ?? false
 						return (
 							<Card key={proto}>
 								<CardHeader
@@ -617,7 +603,7 @@ export default function RoutingOverview() {
 										)}
 										<CardTitle className="text-sm">
 											{proto.toUpperCase()} Learned Routes
-											<Badge className={`ml-2 ${color} text-white text-[10px]`}>
+											<Badge variant="secondary" className="ml-2">
 												{list.length}
 											</Badge>
 										</CardTitle>
@@ -625,35 +611,35 @@ export default function RoutingOverview() {
 								</CardHeader>
 								{open && (
 									<CardContent className="pt-0">
-										<table className="w-full text-xs font-mono">
-											<thead>
-												<tr className="text-muted-foreground border-b">
-													<th className="text-left py-1 pr-4">Prefix</th>
-													<th className="text-left py-1 pr-4">Next Hop</th>
-													<th className="text-left py-1 pr-4">Interface</th>
-													<th className="text-left py-1 pr-4">Metric</th>
-													<th className="text-left py-1">Distance</th>
-												</tr>
-											</thead>
-											<tbody>
+										<Table className="w-full text-xs font-mono">
+											<TableHeader>
+												<TableRow className="text-muted-foreground border-b">
+													<TableHead className="text-left py-1 pr-4">Prefix</TableHead>
+													<TableHead className="text-left py-1 pr-4">Next Hop</TableHead>
+													<TableHead className="text-left py-1 pr-4">Interface</TableHead>
+													<TableHead className="text-left py-1 pr-4">Metric</TableHead>
+													<TableHead className="text-left py-1">Distance</TableHead>
+												</TableRow>
+											</TableHeader>
+											<TableBody>
 												{list.map((r, i) => (
-													<tr
+													<TableRow
 														key={i}
 														className="border-b border-border/40 hover:bg-muted/30"
 													>
-														<td className="py-1 pr-4">{r.prefix}</td>
-														<td className="py-1 pr-4 text-muted-foreground">
+														<TableCell className="py-1 pr-4">{r.prefix}</TableCell>
+														<TableCell className="py-1 pr-4 text-muted-foreground">
 															{r.nexthop ?? '-'}
-														</td>
-														<td className="py-1 pr-4 text-muted-foreground">
+														</TableCell>
+														<TableCell className="py-1 pr-4 text-muted-foreground">
 															{r.interface ?? '-'}
-														</td>
-														<td className="py-1 pr-4">{r.metric ?? '-'}</td>
-														<td className="py-1">{r.distance ?? '-'}</td>
-													</tr>
+														</TableCell>
+														<TableCell className="py-1 pr-4">{r.metric ?? '-'}</TableCell>
+														<TableCell className="py-1">{r.distance ?? '-'}</TableCell>
+													</TableRow>
 												))}
-											</tbody>
-										</table>
+											</TableBody>
+										</Table>
 									</CardContent>
 								)}
 							</Card>

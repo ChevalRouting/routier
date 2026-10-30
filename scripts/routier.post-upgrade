@@ -14,6 +14,17 @@ rc-update add routier default 2>/dev/null || true
 rc-update add routier-ui default 2>/dev/null || true
 rc-update add cronie default 2>/dev/null || true
 
+native=
+for lvl in boot default; do
+	for svc in networking dhcpcd; do
+		[ -e "/etc/runlevels/$lvl/$svc" ] && native=1
+	done
+done
+
+if [ -z "$native" ] && [ ! -e /var/lib/routier/taken-over ] && [ -e /var/lib/routier/host-backup/latest/manifest.txt ]; then
+	date -Iseconds > /var/lib/routier/taken-over
+fi
+
 if rc-service routier-ui status >/dev/null 2>&1; then
 	rc-service routier-ui restart
 fi

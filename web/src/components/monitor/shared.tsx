@@ -1,4 +1,4 @@
-
+import { SERIES } from '@/lib/palette'
 export type VRRPState = 'MASTER' | 'BACKUP' | 'FAULT' | 'UNKNOWN'
 export type TabAction = React.ReactNode
 export type OnActionChange = (a: TabAction) => void
@@ -12,6 +12,6 @@ export const PERIODS = [
   { label: '7d',  minutes: 10080 },
   { label: '30d', minutes: 43200 },
 ]
-export const C = { rx: '#3584e4', tx: '#26a269' }
+export const C = { rx: SERIES.rx, tx: SERIES.tx }
 
 export { ChartLegend as Legend } from 'cheval-ui'

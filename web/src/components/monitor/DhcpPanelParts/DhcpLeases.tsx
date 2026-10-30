@@ -1,8 +1,8 @@
 import type { DhcpLeaseView as DhcpLeaseRow, KeaSubnet } from '@/api'
 import { DnsServerSection, LeaseFamily, NO_ZONE, forwardZoneNames, subnetService } from '@/components/monitor/DhcpPanel'
 import { api } from '@/lib/client'
-import { AlertDialog, Badge, Button, Card, CardContent, CardHeader, CardTitle, Dialog, EmptyState, Input, Label, Pagination, Segmented, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, usePagination } from 'cheval-ui'
-import { Pin, RefreshCw, Search, Trash2 } from 'lucide-react'
+import { AlertDialog, Badge, Button, Card, CardContent, CardHeader, CardTitle, EmptyState, Input, Pagination, Segmented, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Sheet, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, usePagination, ReloadButton, PreferencesGroup, EntryRow, ComboRow, Row } from 'cheval-ui'
+import { Pin, Search, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -140,10 +140,7 @@ export function DhcpLeases() {
       <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 pb-2">
         <CardTitle className="text-sm">Active leases ({filtered.length})</CardTitle>
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" disabled={loading} onClick={() => load(q)} className="gap-1.5">
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
+          <ReloadButton onClick={() => load(q)} loading={loading} />
           <Segmented
             value={family}
             onChange={changeFamily}
@@ -166,21 +163,21 @@ export function DhcpLeases() {
               })}
             </SelectContent>
           </Select>
-          <div className="relative w-64 max-w-full">
+          <div className="relative w-72 max-w-full">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search IP, MAC, DUID, hostname" className="h-8 pl-8 text-xs" />
           </div>
         </div>
       </CardHeader>
       <CardContent>
-        {loadError && <p role="alert" className="mb-3 text-sm text-destructive">Unable to refresh leases: {loadError}{rows.length > 0 ? ' Showing the last successful result.' : ''}</p>}
+        {loadError && <p role="alert" className="mb-3 text-sm text-danger">Unable to refresh leases: {loadError}{rows.length > 0 ? ' Showing the last successful result.' : ''}</p>}
         {filtered.length === 0 && (loadError || loading) ? (
           loading && !loadError ? <p className="py-10 text-sm text-muted-foreground">Loading leases…</p> : null
         ) : filtered.length === 0 ? (
           q || family !== 'all' || subnetKey !== 'all' ? (
-            <p className="text-sm text-muted-foreground italic">No leases match.</p>
+            <p className="text-sm text-muted-foreground">No Results</p>
           ) : (
-            <EmptyState className="py-10" title="No active leases" message="Leases show up here as clients obtain addresses." />
+            <EmptyState className="py-10" title="No Active Leases" />
           )
         ) : (
           <div className="overflow-x-auto">
@@ -203,7 +200,7 @@ export function DhcpLeases() {
                     <TableCell className="font-mono text-xs whitespace-nowrap">{l.service === 'dhcp6' ? l.duid : (l.hw_address || l.duid || '')}</TableCell>
                     <TableCell>{l.hostname || <span className="text-muted-foreground">-</span>}</TableCell>
                     <TableCell>
-                      <Badge variant={l.reserved ? 'default' : 'secondary'} className="text-[10px]">
+                      <Badge variant={l.reserved ? 'default' : 'secondary'} className="text-xs">
                         {l.reserved ? 'Reservation' : 'Dynamic'}
                       </Badge>
                     </TableCell>
@@ -211,17 +208,17 @@ export function DhcpLeases() {
                       {!l.reserved && (
                         <Button
                           variant="ghost" size="sm" className="gap-1.5" disabled={busy}
-                          title="Create a reservation for this host and clear the lease"
+                          title="Create a Reservation for This Host and Clear the Lease"
                           onClick={() => openReserve(l)}
                         >
-                          <Pin className="h-3.5 w-3.5" />Reserve
+                          <Pin className="h-3.5 w-3.5" />Reserve…
                         </Button>
                       )}
                       <Button
                         variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                        title="Clear lease" disabled={busy}
+                        disabled={busy}
                         onClick={() => setClearing(ip)}
-                      >
+                        aria-label="Clear Lease" title="Clear Lease">
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </TableCell>
@@ -237,73 +234,54 @@ export function DhcpLeases() {
       <AlertDialog
         open={clearing !== null}
         busy={busy}
-        title={`Clear lease ${clearing ?? ''}?`}
+        title={`Clear Lease ${clearing ?? ''}?`}
         confirmLabel="Clear"
         destructive
         onCancel={() => setClearing(null)}
         onConfirm={handleConfirm}
       />
 
-      <Dialog
+      <Sheet
         open={reserving !== null}
         onClose={() => setReserving(null)}
-        title="Reserve host"
-        description="Reserves this address for the host, applies it, and clears the current lease so the client picks up its new address."
-        footer={
-          <>
-            <Button variant="outline" onClick={() => setReserving(null)} disabled={busy}>Cancel</Button>
-            <Button onClick={doReserve} disabled={busy || resIP.trim() === '' || (resZone !== NO_ZONE && resDnsName.trim() === '')}>Reserve</Button>
-          </>
-        }
+        title="Reserve Host"
       >
         {reserving && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-[7rem_1fr] items-baseline gap-x-3 gap-y-1.5 text-sm">
-              <span className="text-muted-foreground">Current IP</span>
-              <span className="font-mono break-all">{reserving.ip_address}</span>
-              <span className="text-muted-foreground">{reserving.service === 'dhcp6' ? 'DUID' : 'MAC'}</span>
-              <span className="font-mono break-all">{reserving.service === 'dhcp6' ? reserving.duid : (reserving.hw_address || reserving.duid || '-')}</span>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Hostname</Label>
-              <Input value={resHostname} onChange={(e) => setResHostname(e.target.value)} placeholder="hostname (optional)" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Reservation IP</Label>
-              <Input value={resIP} onChange={(e) => setResIP(e.target.value)} placeholder="pre-filled with a free address" className="font-mono" />
-              <p className="text-[11px] text-muted-foreground">Pre-filled with a free out-of-pool address; change it if you like.</p>
-            </div>
+          <div className="space-y-6">
+            <PreferencesGroup description="Applies the reservation and clears the current lease so the client renews">
+              <Row title="Current IP"><span className="break-all font-mono text-sm">{reserving.ip_address}</span></Row>
+              <Row title={reserving.service === 'dhcp6' ? 'DUID' : 'MAC'}>
+                <span className="break-all font-mono text-sm">{reserving.service === 'dhcp6' ? reserving.duid : (reserving.hw_address || reserving.duid || '-')}</span>
+              </Row>
+              <EntryRow title="Hostname" value={resHostname} onChange={(e) => setResHostname(e.target.value)} />
+              <EntryRow title="Reservation IP" value={resIP} onChange={(e) => setResIP(e.target.value)} className="font-mono" />
+            </PreferencesGroup>
             {zones.length > 0 && (
-              <div className="space-y-1.5 rounded-md bg-muted/30 p-3">
-                <Label>DNS record (optional)</Label>
-                <div className="flex gap-2">
-                  <Input
-                    value={resDnsName}
-                    onChange={(e) => setResDnsName(e.target.value)}
-                    placeholder="name"
-                    className="font-mono"
-                    disabled={resZone === NO_ZONE}
-                  />
+              <PreferencesGroup
+                title="DNS Record"
+                description={resZone === NO_ZONE
+                  ? 'Pick a zone to also create an A or AAAA record, and a PTR when a reverse zone exists'
+                  : `Creates ${resDnsName.trim() || 'name'}.${resZone} pointing at the reserved address`}
+              >
+                <ComboRow title="Zone">
                   <Select value={resZone} onValueChange={setResZone}>
-                    <SelectTrigger className="w-52 font-mono text-xs"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="font-mono"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={NO_ZONE} className="text-xs">No DNS record</SelectItem>
-                      {zones.map((z) => (
-                        <SelectItem key={z} value={z} className="font-mono text-xs">{z}</SelectItem>
-                      ))}
+                      <SelectItem value={NO_ZONE}>No DNS record</SelectItem>
+                      {zones.map((z) => <SelectItem key={z} value={z} className="font-mono">{z}</SelectItem>)}
                     </SelectContent>
                   </Select>
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  {resZone === NO_ZONE
-                    ? 'Pick a zone to also create an A/AAAA record (and a PTR when a reverse zone exists).'
-                    : `Creates ${resDnsName.trim() || 'name'}.${resZone} pointing at the reserved address.`}
-                </p>
-              </div>
+                </ComboRow>
+                <EntryRow title="Name" value={resDnsName} onChange={(e) => setResDnsName(e.target.value)} className="font-mono" disabled={resZone === NO_ZONE} />
+              </PreferencesGroup>
             )}
           </div>
         )}
-      </Dialog>
+        <div className="mt-6 flex justify-end gap-2">
+          <Button variant="outline" onClick={() => setReserving(null)} disabled={busy}>Cancel</Button>
+          <Button onClick={doReserve} disabled={busy || resIP.trim() === '' || (resZone !== NO_ZONE && resDnsName.trim() === '')} variant="suggested">Reserve</Button>
+        </div>
+      </Sheet>
     </Card>
   )
 }

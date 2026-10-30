@@ -5,6 +5,12 @@ flush ruleset
 {{ nftDefines }}
 {{ nftUserDefines }}
 {{ nftRoutierTable }}
+{{- with nftFlowsTable }}
+{{ . }}
+{{- end }}
+{{- with nftAnycastTable }}
+{{ . }}
+{{- end }}
 {{- range nftIncludes }}
 # --- include ---
 {{ . }}

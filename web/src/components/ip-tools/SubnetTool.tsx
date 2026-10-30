@@ -42,7 +42,7 @@ export function SubnetTool() {
     <div className="space-y-4">
       <ToolInput
         label="Address or CIDR"
-        hint="e.g. 100.64.12.192/27 or 2001:db8::/64. A bare address is treated as a host route."
+        hint="A bare address is treated as a host route"
         value={input}
         onChange={(e) => setInput(e.target.value)}
         placeholder="100.64.12.192/27"

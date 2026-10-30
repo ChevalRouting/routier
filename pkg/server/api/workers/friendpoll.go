@@ -1,7 +1,8 @@
 package workers
 
 import (
-	"math/rand"
+	"context"
+	"math/rand/v2"
 	"time"
 
 	"github.com/ChevalRouting/routier/pkg/server/api/friendcache"
@@ -9,13 +10,10 @@ import (
 
 const friendPollInterval = 10 * time.Second
 
-func StartFriendPoll(configPath string) {
-	go func() { startFriendPollCallback(configPath) }()
+func StartFriendPoll(ctx context.Context, g *Group, configPath string) {
+	g.Go(func() { every(ctx, friendPollJitter, func() { friendcache.Poll(configPath) }) })
 }
 
-func startFriendPollCallback(configPath string) {
-	for {
-		friendcache.Poll(configPath)
-		time.Sleep(friendPollInterval + time.Duration(rand.Int63n(int64(3*time.Second))))
-	}
+func friendPollJitter() time.Duration {
+	return friendPollInterval + rand.N(3*time.Second)
 }

@@ -1,4 +1,4 @@
-import { Label, TagInput } from 'cheval-ui'
+import { PreferencesGroup, TagInput } from 'cheval-ui'
 
 type ExtraDirectivesShape = {
   label?: string
@@ -7,17 +7,17 @@ type ExtraDirectivesShape = {
   placeholder?: string
 }
 
-export function ExtraDirectives({ label = 'Additional directives', values, onChange, placeholder }: ExtraDirectivesShape) {
+export function ExtraDirectives({ label = 'Additional Directives', values, onChange, placeholder }: ExtraDirectivesShape) {
   return (
-    <div className="space-y-1.5">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
-      <TagInput
-        values={values ?? []}
-        onChange={(v) => onChange(v.length ? v : undefined)}
-        placeholder={placeholder ?? 'e.g. timers throttle spf 200 400 2000'}
-        mono
-      />
-      <p className="text-[11px] text-muted-foreground">Raw FRR directives, rendered verbatim into this block.</p>
-    </div>
+    <PreferencesGroup title={label} description="Rendered verbatim">
+      <div className="px-4 py-3">
+        <TagInput
+          values={values ?? []}
+          onChange={(v) => onChange(v.length ? v : undefined)}
+          placeholder={placeholder ?? 'timers throttle spf 200 400 2000'}
+          mono
+        />
+      </div>
+    </PreferencesGroup>
   )
 }

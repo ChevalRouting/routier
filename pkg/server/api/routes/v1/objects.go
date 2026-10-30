@@ -29,6 +29,29 @@ func handleV1PutDNS(w http.ResponseWriter, r *http.Request) {
 	v1PutObject(w, r, func(c *config.Config, v *config.DNS) { c.DNS = v })
 }
 
+// @Summary  Get session dhcp
+// @Tags v1-config
+// @Produce json
+// @Param sessionID path string true "session id"
+// @Success 200 {object} object
+// @Security BearerAuth
+// @Router /api/v1/sessions/{sessionID}/dhcp [get]
+func handleV1GetDHCP(w http.ResponseWriter, r *http.Request) {
+	v1GetObject(w, r, func(c *config.Config) *config.DHCP { return c.DHCP })
+}
+
+// @Summary  Replace session dhcp
+// @Tags v1-config
+// @Accept json
+// @Produce json
+// @Param sessionID path string true "session id"
+// @Success 200 {object} object
+// @Security BearerAuth
+// @Router /api/v1/sessions/{sessionID}/dhcp [put]
+func handleV1PutDHCP(w http.ResponseWriter, r *http.Request) {
+	v1PutObject(w, r, func(c *config.Config, v *config.DHCP) { c.DHCP = v })
+}
+
 // @Summary  Get session routing
 // @Tags v1-config
 // @Produce json

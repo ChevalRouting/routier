@@ -34,7 +34,7 @@ func newApplyCommand() *cobra.Command {
 		Short: "apply config with rollback safety",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return newApplyCommandCallback(timeout, noArm, noDiff, source, friendsCache, cmd, args)
+			return runApply(timeout, noArm, noDiff, source, friendsCache, cmd, args)
 		},
 	}
 
@@ -194,7 +194,7 @@ func printChangedLines(lines []types.DiffLine) {
 	}
 }
 
-func newApplyCommandCallback(timeout int, noArm bool, noDiff bool, source string, friendsCache string, cmd *cobra.Command, args []string) error {
+func runApply(timeout int, noArm bool, noDiff bool, source string, friendsCache string, cmd *cobra.Command, args []string) error {
 	c, err := contextFromContext(cmd)
 	if err != nil {
 		return err

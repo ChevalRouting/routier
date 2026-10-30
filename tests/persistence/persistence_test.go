@@ -51,12 +51,16 @@ func TestBackupRoundTrip(t *testing.T) {
 		t.Fatalf("create backup: %v", err)
 	}
 
-	restoredPath, err := backup.Restore(archive)
+	result, err := backup.Restore(archive, cfgPath)
 	if err != nil {
 		t.Fatalf("restore backup: %v", err)
 	}
 
-	restored, err := config.Load(restoredPath)
+	if result.ConfigPath != cfgPath || string(result.Config) != testkit.MinimalConfig {
+		t.Fatalf("restored config %s = %q, want the archived config for %s held back from disk", result.ConfigPath, result.Config, cfgPath)
+	}
+
+	restored, err := config.LoadBytes(result.Config)
 	if err != nil {
 		t.Fatalf("load restored: %v", err)
 	}

@@ -53,16 +53,37 @@ are fine.
 
 ## Frontend (web/)
 
+UI rules, adapted from the GNOME HIG, live in [ui-guidelines.md](ui-guidelines.md).
+
 * Pages under `src/pages/` stay thin: layout, data fetching, and wiring. Reusable or
   sizeable UI belongs in `src/components/` (feature components) or `src/components/ui/`
   (primitives).
 * One component per file when the component exceeds a screenful; group related small
   components in a single file only when they are private to a feature.
 * Follow Adwaita/GNOME patterns with the existing primitives.
+* Use Cheval UI `Sheet` for creating or editing an entity, including DHCP
+  reservations and friend tunnels. Keep the form and its actions in the sheet.
+* Use Cheval UI `Dialog` (a modal) for read-only information such as monitoring
+  details, logs, diffs, exports, and results, and for action confirmations.
+  Use `AlertDialog` for destructive confirmations. An entity being editable
+  elsewhere does not make its read-only monitoring details an editor. Filters,
+  export options, and confirmation controls do not turn a modal into an editor.
+* Choose the overlay by the current interaction, consistently across features:
+  BGP neighbor status and interface status use modals; BGP neighbor configuration
+  and interface configuration use sheets. Navigation drawers follow the shell's
+  responsive navigation pattern.
+* Switch ports are the exception: clicking a port opens one modal that shows its
+  status and edits its role, VLANs and bond, so a click never chains a modal into
+  a sheet.
 * Configuration forms use Cheval UI controls. Use `PreferencesGroup` with
   `EntryRow`, `ComboRow`, and `SwitchRow` so labels, descriptions, and controls
   align consistently. Do not recreate field grids or use native inputs and
   selects when a shared control exists.
+* Configuration editors register `DraftControls` with the main layout. The compact
+  configuration header appears only for edits, saved staging changes, or apply
+  errors. It shows Save Draft and Discard Edits for unsaved changes,
+  then Apply for saved staging changes. Do not add separate page or form save
+  buttons. Discard Edits restores the saved draft; Discard Draft removes staging.
 * Preference rows use the shared 20rem control column on desktop so every
   input, select, switch, and custom control starts at the same position. The
   control column becomes full-width on mobile.

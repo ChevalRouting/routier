@@ -21,7 +21,6 @@ type queryRequest struct {
 
 // @Summary  Flush the resolver cache, or one name within it
 // @Tags dns
-// @Accept json
 // @Produce json
 // @Param request body dns.flushRequest false "name to flush; the whole cache when empty"
 // @Success 200 {object} types.Response[string]
@@ -77,7 +76,6 @@ func Restart(w http.ResponseWriter, r *http.Request) {
 
 // @Summary  Resolve a name through the local resolver
 // @Tags dns
-// @Accept json
 // @Produce json
 // @Param request body dns.queryRequest true "name and record type to resolve"
 // @Success 200 {object} types.Response[bind.QueryResult]

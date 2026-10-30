@@ -1,0 +1,12 @@
+id: mikrotik-crs310-8g-2s
+vendor: mikrotik
+name: CRS310-8G+2S+
+driver: routeros-rest
+match:
+  sys_descr: 'CRS310-8G\+2S\+'
+credentials:
+  - { key: username, label: Username, type: text, default: admin, required: true }
+  - { key: password, label: Password, type: password, required: true }
+faceplate:
+  - { group: "2.5GBASE-T", ports: "ether[1-8]", kind: rj45, rows: 1 }
+  - { group: "10G SFP+", ports: "sfp-sfpplus[1-2]", kind: sfp-plus, rows: 1 }

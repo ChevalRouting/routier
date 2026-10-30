@@ -130,13 +130,13 @@ func Import(w http.ResponseWriter, r *http.Request) {
 }
 
 func mergeIncoming(local, incoming *cfgpkg.Config) {
-	if incoming.Tunnels != nil {
-		if local.Tunnels == nil {
-			local.Tunnels = make(map[string]*cfgpkg.Tunnel)
+	if incoming.Interfaces != nil {
+		if local.Interfaces == nil {
+			local.Interfaces = make(map[string]*cfgpkg.Interface)
 		}
 
-		for name, t := range incoming.Tunnels {
-			local.Tunnels[name] = t
+		for name, t := range incoming.Interfaces {
+			local.Interfaces[name] = t
 		}
 	}
 
@@ -148,13 +148,13 @@ func mergeIncoming(local, incoming *cfgpkg.Config) {
 		mergeHA(local, incoming.HA)
 	}
 
-	if incoming.Wireguard != nil {
-		if local.Wireguard == nil {
-			local.Wireguard = make(map[string]*cfgpkg.Wireguard)
+	if incoming.VPN.Wireguard != nil {
+		if local.VPN.Wireguard == nil {
+			local.VPN.Wireguard = make(map[string]*cfgpkg.Wireguard)
 		}
 
-		for name, wg := range incoming.Wireguard {
-			local.Wireguard[name] = wg
+		for name, wg := range incoming.VPN.Wireguard {
+			local.VPN.Wireguard[name] = wg
 		}
 	}
 

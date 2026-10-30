@@ -22,15 +22,6 @@ func MustParam[T Parseable](r *http.Request, param string) (T, error) {
 	return parse[T](raw, val)
 }
 
-func QueryParam[T Parseable](r *http.Request, param string, def T) (T, error) {
-	raw := r.URL.Query().Get(param)
-	if raw == "" {
-		return def, nil
-	}
-
-	return parse[T](raw, def)
-}
-
 func parse[T Parseable](raw string, fallback T) (T, error) {
 	switch any(fallback).(type) {
 	case bool:

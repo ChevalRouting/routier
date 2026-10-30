@@ -14,7 +14,7 @@ CLI equivalent. Most commands take an optional `[config]` path argument
 | `routier apply [config]` | render + apply with armed rollback |
 | `routier confirm` | confirm a pending apply (disarm rollback) |
 | `routier rollback` | roll back to the previous snapshot |
-| `routier migrate [config]` | migrate config file(s) to the current schema (`--dry-run`) |
+| `routier migrate [config]` | migrate the config file to the current schema (`--dry-run`) |
 | `routier snapshots` | list snapshots |
 | `routier history` | apply history |
 | `routier backups [config]` / `routier restore <archive>` | export / import full config |
@@ -60,7 +60,8 @@ See [dhcp.md](dhcp.md).
 
 ## HA and macros
 
-- `routier switchover` / `routier activate` - VRRP BACKUP/MASTER hooks.
+- `routier vrrp-notify INSTANCE <name> <state>` - reconcile the VRRP transition hooks with the live VIP state (called by keepalived).
+- `routier vrrp-sync` - the same reconcile without a keepalived event (run from cron every 30 seconds).
 - `routier macros list|show|apply|delete` - manage macros.
 
 ## IP tools

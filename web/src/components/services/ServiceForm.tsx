@@ -16,7 +16,7 @@ export function ServiceForm({ service, rows, onServiceChange, onRowsChange, name
       <PreferencesGroup>
         {onNameChange !== undefined && (
           <EntryRow
-            title="Service name"
+            title="Service Name"
             autoFocus
             value={nameInput ?? ''}
             onChange={(e) => onNameChange(e.target.value)}
@@ -40,8 +40,7 @@ export function ServiceForm({ service, rows, onServiceChange, onRowsChange, name
       </PreferencesGroup>
 
       <PreferencesGroup
-        title="Config files"
-        description="Files deployed to the target when this service is applied."
+        title="Config Files"
         header={
           <Button variant="outline" size="sm" onClick={addRow} className="gap-1.5">
             <Plus className="h-4 w-4" />Add
@@ -49,7 +48,7 @@ export function ServiceForm({ service, rows, onServiceChange, onRowsChange, name
         }
       >
         {rows.length === 0 ? (
-          <p className="px-4 py-3 text-sm text-muted-foreground">No config files, this service runs without any file deployments.</p>
+          <p className="px-4 py-3 text-sm text-muted-foreground">No config files</p>
         ) : (
           rows.map((row) => (
             <div key={row.id} className="flex items-center gap-2 px-4 py-2">
@@ -77,7 +76,7 @@ export function ServiceForm({ service, rows, onServiceChange, onRowsChange, name
                 size="icon"
                 className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
                 onClick={() => delRow(row.id)}
-              >
+               aria-label="Remove File" title="Remove File">
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
             </div>
@@ -86,8 +85,8 @@ export function ServiceForm({ service, rows, onServiceChange, onRowsChange, name
       </PreferencesGroup>
 
       <div className="flex justify-end gap-2 pt-2">
-        <Button variant="outline" onClick={onDone}>{onAdd ? 'Cancel' : 'Done'}</Button>
-        {onAdd && <Button onClick={onAdd}>Add service</Button>}
+        <Button variant="outline" onClick={onDone}>{onAdd ? 'Cancel' : 'Close'}</Button>
+        {onAdd && <Button onClick={onAdd}>Add Service</Button>}
       </div>
     </div>
   )

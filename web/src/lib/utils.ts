@@ -5,6 +5,18 @@ type AShape = { dst: string; family: string }
 
 type BShape = { dst: string; family: string }
 
+export function onActivate(action: () => void) {
+  return (event: React.KeyboardEvent) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return
+    event.preventDefault()
+    action()
+  }
+}
+
+export function plural(count: number, noun: string, many = `${noun}s`): string {
+  return `${count} ${count === 1 ? noun : many}`
+}
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }

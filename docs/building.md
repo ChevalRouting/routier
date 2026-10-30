@@ -62,8 +62,8 @@ architecture-specific artifacts:
 task mcp VERSION=0.5.4
 ```
 
-The output is `dist/<arch>/routier-mcp`. `task mcp-dist` is an equivalent
-explicit target. Override `ARCH=aarch64` or `ARCH=x86_64` to select the target
+The output is `dist/<arch>/routier-mcp`. Override `ARCH=aarch64` or
+`ARCH=x86_64` to select the target
 architecture; the MCP server is built without CGO and can be copied directly
 to another Linux host.
 
@@ -85,20 +85,13 @@ task apk VERSION=0.5.4 LOCAL_ANYK=1  # build against a local ../anyk checkout
 task apk_debug VERSION=0.5.4         # interactive shell in the builder image
 ```
 
-## Assemble and serve a repository
+## Local repository
 
-```bash
-task apk-index VERSION=0.5.4   # builds + signs APKINDEX.tar.gz in dist/<arch>/
-task www VERSION=0.5.4         # copies apks + index + public key to WWW_DIR
-```
-
-`WWW_DIR` (default `/var/lib/Routier`) can be served by any static HTTP
-server. Clients consume it with:
-
-```bash
-wget -qO /etc/apk/keys/routier.rsa.pub %%REPO_URL%%/routier.rsa.pub
-apk add --repository %%REPO_URL%% routier
-```
+`task apk` leaves a signed repository in `dist/<arch>/`: the packages, a signed
+`APKINDEX.tar.gz` and the public key. Serve `dist/` with any static HTTP
+server to test an upgrade on a lab box, or lay it out like the public
+repository with `task publish REPO_TARGET=/some/dir` (see
+[Package repository](#package-repository)).
 
 ## Test a package
 
@@ -112,11 +105,23 @@ apk add --repository %%REPO_URL%% routier
   `stable` (mainline stable, from the community repo), default `lts`. The arch is
   encoded in the filename, so a mismatched arch will not boot the target
   hardware. `task iso-all` builds every arch/flavor combination.
+- `task iso FLAVOR=installer` builds a light installer ISO instead of the
+  run-from-RAM appliance. The live system boots a minimal RAM footprint (disk
+  tools, DHCP on every interface, the `routier` binary and the web UI, no
+  router daemons), and the full appliance closure rides along as an on-media
+  apk cache. Install from the web UI or with `setup-routier` on the console
+  (see [installation.md](installation.md#installation-media)). This is the path
+  for machines that cannot hold the full stack in a tmpfs.
+- `task cloud VERSION=0.5.4` builds a UEFI qcow2 cloud image under
+  `dist/cloud`, provisioned at boot by cloud-init (see
+  [installation.md](installation.md#cloud-images)). The image is 2G and grows
+  with the instance disk; `SIZE` and `KFLAVOR` (default `virt`) override the
+  defaults. It needs a privileged container for loop devices.
 - `task run-iso` boots the ISO in QEMU; `task run-disk` boots the installed
   disk image. This is the quickest way to test install, takeover, firstboot
   and onboarding end to end.
-- To test an upgrade on a live box, point it at your repository and run
-  `apk upgrade routier`.
+- To test an upgrade on a live box, point it at a repository (a
+  [local one](#local-repository) or a channel) and run `apk upgrade routier`.
 
 ## Documentation site
 
@@ -129,9 +134,26 @@ Host it anywhere static; for a custom domain, build with
 `SITE_URL=%%SITE_URL%% task website`. Public URLs come from one place
 (`website/src/remark/domains.ts`); override them with `SITE_URL` / `REPO_URL`.
 
+### Versioning
+
+The repo-root `docs/` is always the in-development version, edited in place. At
+release time, snapshot it as a released version:
+
+```bash
+task website-version VERSION=0.5   # snapshot current docs as the 0.5 line
+```
+
+This writes `website/versioned_docs/version-0.5/` and updates
+`website/versions.json`; commit both. Use the `MAJOR.MINOR` line, not the patch
+version, so patch releases reuse the same docs.
+
+Once at least one version exists, the in-development `docs/` is hidden from the
+built site: `/docs` serves the newest released version and the navbar dropdown
+switches between the released lines.
+
 ## Database generation
 
-The host development prerequisites are Docker, Make, and Git. Go, sqlc, swag,
+The host development prerequisites are Docker, Task, and Git. Go, sqlc, swag,
 oapi-codegen, OpenAPI Generator, Java, and Node-based generation tools run from
 the pinned `tools` image defined in `dev/docker-compose.yml`.
 
@@ -161,65 +183,100 @@ task sqlc
 schema and query sources. Runtime database upgrades use the same embedded
 migrations; sqlc is not required on an appliance.
 
-### Versioning
+## Package repository
 
-The repo-root `docs/` is always the in-development version, edited in place. At
-release time, snapshot it as a released version:
+The public repository is a static tree served by Caddy:
 
-```bash
-task website-version VERSION=0.5   # snapshot current docs as the 0.5 line
+```
+%%REPO_URL%%/
+  routier.rsa.pub            public signing key
+  nightly/<arch>/            a build of every push to main, kept 30 days
+  stable/<arch>/             tagged releases (v*), kept
+  iso/                       installation media, routier-latest-<arch>.iso
 ```
 
-This writes `website/versioned_docs/version-0.5/` and updates
-`website/versions.json`; commit both. Use the `MAJOR.MINOR` line, not the patch
-version, so patch releases reuse the same docs.
-
-Once at least one version exists, the in-development `docs/` is hidden from the
-built site: `/docs` serves the newest released version and the navbar dropdown
-switches between the released lines.
-
-## Continuous packaging (GitHub Actions)
-
-`.github/workflows/nightly.yml` runs on every push to `main` (and on manual
-`workflow_dispatch`). On the self-hosted runner it:
-
-1. Computes a version `<last tag>_git<commit count>` (for example
-   `0.5.4_git128`), a monotonic value valid for an apk `pkgver`.
-2. Builds and signs the packages with `task apk`, using the `ROUTIER_RSA`
-   secret (PEM private key) and the `ROUTIER_RSA_PUB` variable (public key).
-3. rsyncs the new apks over SSH to the repository host under
-   `nightly/<arch>/`, publishes the public key at the repository root, then
-   regenerates and signs `APKINDEX.tar.gz` on the host. Packages older than
-   30 days are pruned.
-4. Builds this documentation site and deploys it to the same host.
-
-Consume the nightly channel like any apk repository:
+Clients add a channel to `/etc/apk/repositories`, so `apk upgrade` and the
+System › General › Updates page follow it:
 
 ```bash
 wget -qO /etc/apk/keys/routier.rsa.pub %%REPO_URL%%/routier.rsa.pub
-apk add --repository %%REPO_URL%%/nightly routier
+echo %%REPO_URL%%/nightly >> /etc/apk/repositories
+apk update && apk add routier
 ```
+
+ISO and cloud builds write the same line into the installed system:
+`task iso CHANNEL=stable` follows the stable channel, and `PUBLIC_REPO_URL`
+points the image at another repository. Offline ISOs (`OFFLINE=1`) list no
+repository at all.
+
+### Publish
+
+```bash
+task publish REPO_TARGET=routier@repo-host:/srv/routier/repo VERSION=0.5.4 RELEASE=1
+task publish REPO_TARGET=routier@repo-host:/srv/routier/repo VERSION=0.6.0 CHANNEL=stable
+```
+
+`scripts/repo-publish.sh` runs in an Alpine container on the build machine. It
+pulls the packages of the channel, adds the new `routier` and `routier-openrc`
+apks, prunes nightly packages older than `KEEP_DAYS` (30), rebuilds and signs
+`APKINDEX.tar.gz`, and pushes the result: packages first, then the index, then
+the pruning, so clients never see an index that names a missing package. The
+private key never leaves the build machine; the host only stores files.
+`REPO_TARGET` may also be a local directory, which is the quickest way to test
+a change to the script.
+
+SSH goes through `SSH_KEY` when set (CI), otherwise through the ssh agent
+(OrbStack and Docker Desktop forward it on macOS). Host keys come from
+`KNOWN_HOSTS`, default `~/.ssh/known_hosts`.
+
+### Continuous packaging (GitHub Actions)
+
+`.github/workflows/nightly.yml` runs on every push to `main`, on `v*` tags and
+on manual `workflow_dispatch`. On the self-hosted runner it:
+
+1. computes the channel and version: `<last tag>_git<commit count>` on the
+   nightly channel (for example `0.5.4_git128`, monotonic and valid for an apk
+   `pkgver`), the tag without its `v` on the stable channel,
+2. builds and signs the packages with `task apk`,
+3. publishes them with `scripts/repo-publish.sh`,
+4. builds this documentation site and deploys it to the same host.
 
 The workflow needs these repository secrets and variables:
 
-- secrets: `ROUTIER_RSA` (PEM private signing key), `ROUTIER_STATIC_SSH_KEY`,
-  `ROUTIER_STATIC_KNOWN_HOSTS`
-- variables: `ROUTIER_RSA_PUB`, `ROUTIER_STATIC_USER`, `ROUTIER_STATIC_HOST`,
-  `ROUTIER_STATIC_PATH`, `ROUTIER_REPO_PATH`
+- secrets: `ROUTIER_RSA` (PEM private signing key), `ROUTIER_RSA_PUB`,
+  `ROUTIER_STATIC_SSH_KEY`, `ROUTIER_STATIC_KNOWN_HOSTS`
+- variables: `ROUTIER_STATIC_USER`, `ROUTIER_STATIC_HOST`, and optionally
+  `ROUTIER_REPO_PATH` (default `/srv/routier/repo`) and `ROUTIER_STATIC_PATH`
+  (default `/srv/routier/site`)
 
-Use the same signing key as your manual builds so the CI and self-hosted
-repositories are interchangeable for clients.
+Use the same signing key as your manual builds so CI and hand-published
+packages are interchangeable for clients.
 
-## Manual release flow
+### Host
 
-The manual builder loop still works unchanged for a self-hosted repository;
-only the signing key must match:
+One small VM serves the site and the repository. On Debian or Ubuntu:
 
-```bash
-git pull && task www VERSION=0.5.4
-```
+1. point DNS for the site (`routier.cloud`) and the repository
+   (`repo.routier.cloud`) at the VM, and open ports 80 and 443;
+2. install Caddy from its official apt repository, plus `rsync`;
+3. create the deploy user and the web roots it owns:
 
-### Task runner
+   ```bash
+   sudo adduser --disabled-password --gecos "" routier
+   sudo install -d -o routier -g routier /srv/routier/site /srv/routier/repo
+   ```
+
+4. add the CI and maintainer SSH keys to `~routier/.ssh/authorized_keys`;
+5. install the Caddy configuration: `/etc/caddy/Caddyfile` serves
+   `/srv/routier/site` on the site host, redirects the old `/repo/` paths and
+   serves `/srv/routier/repo` with a browsable index on the repository host,
+   with certificates from Let's Encrypt. `ROUTIER_SITE_HOST` and
+   `ROUTIER_REPO_HOST` in Caddy's environment override the host names.
+
+The first `task publish` creates the channel directories and uploads the
+public key.
+
+## Task runner
 
 Build commands are defined in `Taskfile.yml` (Task v3). Install Task with
 `brew install go-task` on macOS, or follow the [Task installation guide](https://taskfile.dev/docs/installation).
@@ -230,7 +287,7 @@ Container builds remain the default; `NATIVE=true` uses tools installed on the h
 Packaging allocates a terminal only when run interactively; set `PODMAN_TTY=`
 to disable it explicitly or `PODMAN_TTY=-it` to force it.
 
-### Deploy directly to a host
+## Deploy directly to a router
 
 ```bash
 task deploy HOST=root@router VERSION=0.5.4 RELEASE=1

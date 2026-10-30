@@ -1,9 +1,10 @@
+import { systemSections } from '@/lib/navigation'
 import type { TypesApplyLogRecord as ApplyLogRecord, ConfigMonitoringConfig as MonitoringConfig } from '@/api'
 import { api } from '@/lib/client'
 import { useDataRefresh } from '@/lib/dataVersion'
 import { useFetch } from '@/lib/useFetch'
 import { usePageSave } from '@/lib/usePageSave'
-import { Badge, Button, EntryRow, PreferencesGroup, SectionLabel, Spinner } from 'cheval-ui'
+import { Badge, Button, EntryRow, PreferencesGroup, Spinner } from 'cheval-ui'
 import { ExternalLink, FileJson } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 
@@ -11,7 +12,7 @@ type HostnameTabShape = { onStateChange: OnStateChange }
 
 type INTERVALKEYSShape = { key: keyof NonNullable<MonitoringConfig['collection']>; label: string }
 
-type SYSTEMTABSShape = { key: SystemTab; label: string }
+type SYSTEMTABSShape = { key: SystemTab; label: string; group: string }
 
 export interface TabSaveState {
   isDirty: boolean
@@ -40,15 +41,14 @@ export function HostnameTab({ onStateChange }: HostnameTabShape) {
   if (isLoading) return <Spinner />
 
   return (
-    <div className="max-w-xl">
-      <PreferencesGroup description="Written to /etc/hostname and applied immediately on config apply.">
+    <div className="max-w-3xl">
+      <PreferencesGroup description="Written to /etc/hostname on apply">
         <EntryRow
           id="hostname"
           title="Hostname"
           value={hostname}
           onChange={(e) => { setHostname(e.target.value); markDirty() }}
           placeholder="router.example.com"
-          className="font-mono"
         />
       </PreferencesGroup>
     </div>
@@ -94,19 +94,15 @@ export function resultBadge(r: ApplyLogRecord) {
 export function ApiDocsTab() {
   return (
     <div className="space-y-4">
-      <SectionLabel>API Documentation</SectionLabel>
-      <p className="text-sm text-muted-foreground">
-        Interactive OpenAPI documentation for the Routier API, generated from the server.
-      </p>
       <div className="flex flex-wrap gap-2">
         <Button asChild variant="outline" className="gap-2">
           <a href="/api/v1/docs/" target="_blank" rel="noopener noreferrer">
-            <ExternalLink className="h-4 w-4" />Open API docs
+            <ExternalLink className="h-4 w-4" />Open API Docs
           </a>
         </Button>
         <Button asChild variant="outline" className="gap-2">
           <a href="/api/v1/docs/openapi.json" target="_blank" rel="noopener noreferrer">
-            <FileJson className="h-4 w-4" />OpenAPI spec
+            <FileJson className="h-4 w-4" />OpenAPI Spec
           </a>
         </Button>
       </div>
@@ -121,26 +117,12 @@ export const INTERVAL_KEYS: Array<INTERVALKEYSShape> = [
   { key: 'proto',     label: 'Protocols' },
   { key: 'neighbors', label: 'Neighbors' },
   { key: 'lldp',      label: 'LLDP / CDP' },
-  { key: 'routes',    label: 'Route cache TTL' },
+  { key: 'routes',    label: 'Route Cache TTL' },
 ]
 
-export type SystemTab = 'services' | 'users' | 'hostname' | 'dns' | 'ssh' | 'sysctl' | 'monitoring' | 'updates' | 'apply' | 'snapshots' | 'backup' | 'apikeys' | 'apidocs'
+export type SystemTab = 'general' | 'services' | 'users' | 'hostname' | 'dns' | 'ssh' | 'sysctl' | 'monitoring' | 'updates' | 'apply' | 'snapshots' | 'backup' | 'apikeys' | 'apidocs'
 
-export const SYSTEM_TABS: SYSTEMTABSShape[] = [
-  { key: 'hostname',  label: 'Hostname' },
-  { key: 'dns',       label: 'DNS' },
-  { key: 'ssh',       label: 'SSH' },
-  { key: 'users',     label: 'Users' },
-  { key: 'services',  label: 'Services' },
-  { key: 'sysctl',    label: 'Sysctl' },
-  { key: 'monitoring', label: 'Monitoring' },
-  { key: 'updates',   label: 'Updates' },
-  { key: 'apply',     label: 'Apply History' },
-  { key: 'snapshots', label: 'Snapshots' },
-  { key: 'backup',    label: 'Backup' },
-  { key: 'apikeys',   label: 'API Keys' },
-  { key: 'apidocs',   label: 'API Docs' },
-]
+export const SYSTEM_TABS: SYSTEMTABSShape[] = systemSections.map(({ key, label, group }) => ({ key: key as SystemTab, label, group }))
 
 export const CONFIG_TABS: SystemTab[] = ['hostname', 'dns', 'ssh', 'sysctl', 'monitoring']
 

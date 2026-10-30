@@ -3,13 +3,14 @@ package db
 import (
 	"context"
 	"database/sql"
+	"errors"
 
 	"github.com/ChevalRouting/routier/pkg/db/generated"
 )
 
 func UILayout(ctx context.Context, db *DB, key string) (string, error) {
 	val, err := db.queries.GetUILayout(ctx, key)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return "", nil
 	}
 

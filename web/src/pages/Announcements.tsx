@@ -112,10 +112,9 @@ export default function Announcements() {
     <div className="space-y-6">
       <PageHeader
         title="Announcements"
-        description="Banner messages shown at the top of every page"
         action={!adding && (
           <Button variant="outline" size="sm" onClick={() => setAdding(true)} className="gap-1.5">
-            <Plus className="h-4 w-4" />New
+            <Plus className="h-4 w-4" />New Announcement…
           </Button>
         )}
       />
@@ -125,18 +124,17 @@ export default function Announcements() {
       {items.length === 0 && !adding ? (
         <EmptyState
           icon={<Megaphone />}
-          title="No announcements"
-          message="Create a banner to notify users (maintenance windows, notices, hostname, etc.)."
-          action={<Button variant="outline" size="sm" onClick={() => setAdding(true)} className="gap-2"><Plus className="h-4 w-4" />New announcement</Button>}
+          title="No Announcements"
+          action={<Button variant="outline" size="sm" onClick={() => setAdding(true)} className="gap-2"><Plus className="h-4 w-4" />New Announcement…</Button>}
         />
       ) : (
         <div className="space-y-4">
           {items.map((a) => (
             <div key={a.id} className="space-y-2">
               <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-[10px]">{a.level}</Badge>
-                {!a.enabled && <Badge variant="secondary" className="text-[10px]">disabled</Badge>}
-                <Button variant="ghost" size="icon" className="ml-auto h-7 w-7 hover:text-destructive" onClick={() => remove(a.id)}>
+                <Badge variant="outline" className="text-xs">{a.level}</Badge>
+                {!a.enabled && <Badge variant="secondary" className="text-xs">disabled</Badge>}
+                <Button variant="ghost" size="icon" className="ml-auto h-7 w-7 hover:text-destructive" onClick={() => remove(a.id)} aria-label="Delete Announcement" title="Delete Announcement">
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </div>

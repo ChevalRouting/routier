@@ -25,6 +25,10 @@ func OSPFNeighborsJSON() ([]byte, error) {
 	return runVtysh("show ip ospf neighbor json")
 }
 
+func BGPNeighbor(addr string) ([]byte, error) {
+	return runVtysh("show bgp neighbors " + addr)
+}
+
 func RoutesJSON(af string) ([]byte, error) {
 	return runVtysh("show " + af + " route json")
 }

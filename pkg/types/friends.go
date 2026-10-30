@@ -20,6 +20,7 @@ type FriendPoll struct {
 }
 
 type FriendsHello struct {
+	DNSVRF              bool             `json:"dns_vrf"`
 	Hostname            string           `json:"hostname"`
 	IdentityFingerprint string           `json:"identity_fingerprint"`
 	IdentityPublicKey   string           `json:"identity_public_key"`
@@ -132,7 +133,8 @@ type ConfigureConntrackRequest struct {
 }
 
 type ConfigureConntrackResult struct {
-	Status string `json:"status"`
+	Status  string `json:"status"`
+	Warning string `json:"warning,omitempty" validate:"optional"`
 }
 
 type FriendTaggedSection struct {

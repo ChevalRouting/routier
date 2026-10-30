@@ -1,0 +1,23 @@
+name: Feedback or idea
+description: A missing feature, a confusing workflow or a question
+labels: [feedback]
+body:
+  - type: textarea
+    id: network
+    attributes:
+      label: What are you trying to build?
+      description: The network or the task, in your own words
+    validations:
+      required: true
+  - type: textarea
+    id: friction
+    attributes:
+      label: What got in the way?
+      description: What was missing, unclear or harder than it should be
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Ideas
+      description: Anything you would like Routier to do differently

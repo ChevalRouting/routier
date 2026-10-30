@@ -1,7 +1,7 @@
 import { numOrUndef, PREFERENCES, PrefixRow, RADVDInterface, RADVDPrefix, RADVDRoute, RouteRow } from '@/components/routing/RadvdTab'
 import { VarPickerInput } from '@/components/VarPickerInput'
 import { checkIP } from '@/lib/validate'
-import { Button, ComboRow, EntryRow, Label, PreferencesGroup, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SwitchRow, TagInput } from 'cheval-ui'
+import { Button, ComboRow, EntryRow, PreferencesGroup, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SwitchRow, TagInput } from 'cheval-ui'
 import { Plus } from 'lucide-react'
 
 type InterfaceSheetShape = {
@@ -66,7 +66,7 @@ export function InterfaceSheet({
   return (
     <div className="space-y-5">
       <PreferencesGroup>
-        <ComboRow title="Interface name">
+        <ComboRow title="Interface Name">
           <VarPickerInput
             value={name}
             onChange={onChangeName}
@@ -78,17 +78,17 @@ export function InterfaceSheet({
           />
         </ComboRow>
         <SwitchRow
-          title="Send router advertisements"
+          title="Send Router Advertisements"
           checked={!!iface.adv_send_advert}
           onCheckedChange={(v) => set('adv_send_advert', v || undefined)}
         />
       </PreferencesGroup>
 
       <PreferencesGroup title="Advertisement">
-        <EntryRow title="Min interval (s)" value={iface.min_rtr_adv_interval ?? ''} onChange={(e) => set('min_rtr_adv_interval', numOrUndef(e.target.value))} placeholder="200" className="font-mono" />
-        <EntryRow title="Max interval (s)" value={iface.max_rtr_adv_interval ?? ''} onChange={(e) => set('max_rtr_adv_interval', numOrUndef(e.target.value))} placeholder="600" className="font-mono" />
-        <EntryRow title="Default lifetime (s)" value={iface.adv_default_lifetime ?? ''} onChange={(e) => set('adv_default_lifetime', numOrUndef(e.target.value))} placeholder="1800" className="font-mono" />
-        <ComboRow title="Default preference">
+        <EntryRow title="Min Interval (s)" value={iface.min_rtr_adv_interval ?? ''} onChange={(e) => set('min_rtr_adv_interval', numOrUndef(e.target.value))} placeholder="200" className="font-mono" />
+        <EntryRow title="Max Interval (s)" value={iface.max_rtr_adv_interval ?? ''} onChange={(e) => set('max_rtr_adv_interval', numOrUndef(e.target.value))} placeholder="600" className="font-mono" />
+        <EntryRow title="Default Lifetime (s)" value={iface.adv_default_lifetime ?? ''} onChange={(e) => set('adv_default_lifetime', numOrUndef(e.target.value))} placeholder="1800" className="font-mono" />
+        <ComboRow title="Default Preference">
           <Select value={iface.adv_default_preference ?? '_none'} onValueChange={(v) => set('adv_default_preference', v === '_none' ? undefined : v)}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -98,9 +98,7 @@ export function InterfaceSheet({
           </Select>
         </ComboRow>
         <EntryRow title="Link MTU" value={iface.adv_link_mtu ?? ''} onChange={(e) => set('adv_link_mtu', numOrUndef(e.target.value))} placeholder="1500" className="font-mono" />
-        <div className="px-4 py-3 space-y-1.5">
-          <Label>RA source address</Label>
-          <p className="text-xs text-muted-foreground">Link-local addresses radvd sends advertisements from, in order of preference. Use a VRRP virtual link-local address so the RA source fails over with the router.</p>
+        <ComboRow title="RA Source Address" subtitle="A VRRP virtual link-local address lets the RA source fail over">
           <TagInput
             values={iface.adv_ra_src_address ?? []}
             onChange={(v) => set('adv_ra_src_address', v.length ? v : undefined)}
@@ -108,28 +106,27 @@ export function InterfaceSheet({
             validate={checkIP}
             mono
           />
-        </div>
+        </ComboRow>
         <SwitchRow
           title="Stateful DHCPv6"
-          subtitle="Advertise Managed + Other flags and mark prefixes non-autonomous so hosts get addresses from the DHCPv6 server."
+          subtitle="Sets the Managed and Other flags and marks prefixes non-autonomous"
           checked={dhcp6Managed}
           onCheckedChange={setStatefulDhcp6}
         />
         <SwitchRow title="Managed (M flag)" checked={!!iface.adv_managed_flag} onCheckedChange={(v) => set('adv_managed_flag', v || undefined)} />
-        <SwitchRow title="Other config (O flag)" checked={!!iface.adv_other_config_flag} onCheckedChange={(v) => set('adv_other_config_flag', v || undefined)} />
+        <SwitchRow title="Other Config (O flag)" checked={!!iface.adv_other_config_flag} onCheckedChange={(v) => set('adv_other_config_flag', v || undefined)} />
       </PreferencesGroup>
 
       <PreferencesGroup
         title="Prefixes"
-        description="Address prefixes advertised to clients."
         header={
           <Button type="button" variant="outline" size="sm" onClick={addPrefix} className="gap-1.5">
-            <Plus className="h-4 w-4" />Add
+            <Plus className="h-4 w-4" />Add Prefix
           </Button>
         }
       >
         {prefixes.length === 0 && (
-          <p className="px-4 py-3 text-xs text-muted-foreground italic">No prefixes, clients will not receive address info.</p>
+          <p className="px-4 py-3 text-sm text-muted-foreground">No prefixes, clients receive no addresses</p>
         )}
         {prefixes.map((p, i) => (
           <div key={i} className="px-4 py-3">
@@ -138,8 +135,8 @@ export function InterfaceSheet({
         ))}
       </PreferencesGroup>
 
-      <PreferencesGroup title="RDNSS" description="Recursive DNS servers advertised to clients.">
-        <div className="px-4 py-3">
+      <PreferencesGroup title="RDNSS">
+        <ComboRow title="Servers">
           <TagInput
             values={iface.rdnss?.servers ?? []}
             onChange={(v) => set('rdnss', v.length ? { ...iface.rdnss, servers: v } : undefined)}
@@ -147,7 +144,7 @@ export function InterfaceSheet({
             validate={checkIP}
             mono
           />
-        </div>
+        </ComboRow>
         <EntryRow
           title="Lifetime (s)"
           value={iface.rdnss?.lifetime ?? ''}
@@ -161,15 +158,15 @@ export function InterfaceSheet({
       </PreferencesGroup>
 
       <PreferencesGroup
-        title="Advertised routes"
+        title="Advertised Routes"
         header={
           <Button type="button" variant="outline" size="sm" onClick={addRoute} className="gap-1.5">
-            <Plus className="h-4 w-4" />Add
+            <Plus className="h-4 w-4" />Add Route
           </Button>
         }
       >
         {routes.length === 0 && (
-          <p className="px-4 py-3 text-xs text-muted-foreground italic">No extra routes advertised.</p>
+          <p className="px-4 py-3 text-sm text-muted-foreground">No extra routes</p>
         )}
         {routes.map((r, i) => (
           <div key={i} className="px-4 py-3">
@@ -179,7 +176,7 @@ export function InterfaceSheet({
       </PreferencesGroup>
 
       <div className="flex justify-end gap-2 pt-2">
-        <Button variant="outline" onClick={onClose}>{onAdd ? 'Cancel' : 'Done'}</Button>
+        <Button variant="outline" onClick={onClose}>{onAdd ? 'Cancel' : 'Close'}</Button>
         {onAdd && <Button onClick={onAdd}>Add Interface</Button>}
       </div>
     </div>

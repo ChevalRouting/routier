@@ -28,10 +28,10 @@ func validateLogLevel() error {
 }
 
 func validateConfigFileFunc(path string) validationFunc {
-	return func() error { return validateConfigFileFuncCallback(path) }
+	return func() error { return requireConfigFile(path) }
 }
 
-func validateConfigFileFuncCallback(path string) error {
+func requireConfigFile(path string) error {
 	s, err := os.Stat(path)
 	if err != nil || s.IsDir() {
 		return fmt.Errorf("unable to open config file %q: %w", path, err)

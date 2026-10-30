@@ -5,8 +5,9 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/managers"
+	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
+	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
 	"github.com/ChevalRouting/routier/pkg/server/api/friendcache"
 	backuppkg "github.com/ChevalRouting/routier/pkg/state/backup"
 	"github.com/ChevalRouting/routier/pkg/types"
@@ -20,6 +21,7 @@ import (
 // @Security BearerAuth
 // @Router /api/backup/import [post]
 func Import(w http.ResponseWriter, r *http.Request) {
+	app := appctx.FromContext(r.Context())
 	if err := r.ParseMultipartForm(32 << 20); err != nil {
 		types.Err(http.StatusBadRequest, "invalid upload").Write(w)
 		return
@@ -49,22 +51,22 @@ func Import(w http.ResponseWriter, r *http.Request) {
 
 	_ = tmp.Close()
 
-	cfgPath, err := backuppkg.Restore(tmpPath)
+	restored, err := backuppkg.Restore(tmpPath, app.ConfigPath)
 	if err != nil {
 		types.Error(log.Logger, w, types.Wrap(http.StatusBadRequest, err, "invalid backup archive"))
 		return
 	}
 
-	cfg, err := config.LoadAndValidate(cfgPath, true)
+	cfg, err := restored.Load()
 	if err != nil {
 		types.Error(log.Logger, w, types.Wrap(http.StatusBadRequest, err, "restored config is invalid"))
 		return
 	}
 
 	res, err := managers.Apply(r.Context(), cfg, friendcache.InterpolationVars(),
-		managers.ApplyOptions{Source: "restore", ConfigPath: cfgPath}, managers.WatchdogTimeout)
+		managers.ApplyOptions{Source: "restore", ConfigPath: restored.ConfigPath, PersistConfig: restored.Config}, managers.WatchdogTimeout)
 	if err != nil {
-		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "apply failed (rolled back)"))
+		types.Error(log.Logger, w, cfgstore.ApplyError(err, http.StatusInternalServerError, "apply failed (rolled back)"))
 		return
 	}
 

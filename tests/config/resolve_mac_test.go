@@ -37,6 +37,23 @@ func TestResolveMACBondIdentity(t *testing.T) {
 	}
 }
 
+func TestResolveMACPrefersPlainVirtualNICOverStackedDevices(t *testing.T) {
+	root := t.TempDir()
+	mac := "02:42:0a:50:00:11"
+	for _, name := range []string{"eth0", "lan10", "br0"} {
+		writeMACFixture(t, root, name, "address", mac)
+	}
+
+	writeMACFixture(t, root, "lan10", "uevent", "DEVTYPE=vlan\nINTERFACE=lan10\n")
+	writeMACFixture(t, root, "br0", "uevent", "DEVTYPE=bridge\nINTERFACE=br0\n")
+	writeMACFixture(t, root, "eth0", "uevent", "INTERFACE=eth0\n")
+
+	got, err := config.ResolveMACAt(root, mac)
+	if err != nil || got != "eth0" {
+		t.Fatalf("got %q, %v; want eth0", got, err)
+	}
+}
+
 func TestResolveMembersDoesNotAccumulate(t *testing.T) {
 	cfg := &config.Config{Interfaces: map[string]*config.Interface{
 		"port1": {Type: "dummy"},

@@ -1,3 +1,5 @@
+import { useHasParam } from '@/lib/useHasParam'
+import { DraftControls } from '@/components/DraftControls'
 import { DdnsPanel } from '@/components/monitor/DdnsPanel'
 import { DnsPanel } from '@/components/monitor/DnsPanel'
 import { DnsQueriesPanel } from '@/components/monitor/DnsQueriesPanel'
@@ -11,7 +13,7 @@ import {
   ZoneEditor,
   type DnsServerData, type IfaceData,
 } from '@/pages/DnsConfig'
-import { PageHeader, SaveButton, SectionNav, Spinner, useTabState } from 'cheval-ui'
+import { PageHeader, SectionNav, Spinner, useTabState } from 'cheval-ui'
 import { useEffect, useState } from 'react'
 
 type DnsPageShape2 = { vrrp?: VrrpShape2[] }
@@ -31,6 +33,7 @@ export default function DnsPage() {
   const [cfg, setCfg] = useState<DnsServerData>({})
   const [initialized, setInitialized] = useState(false)
   const [section, setSection] = useTabState<string>('dns', 'overview')
+  const deepLinked = useHasParam('dns')
   const { isDirty, markDirty, save, saving, reset } = usePageSave('dns_server')
   useDataRefresh(() => setInitialized(false))
 
@@ -67,12 +70,12 @@ export default function DnsPage() {
 
   const items = [
     { key: 'overview', label: 'Overview' },
-    { key: 'queries', label: 'Live queries' },
+    { key: 'queries', label: 'Live Queries' },
     { key: 'ddns', label: 'Dynamic DNS' },
     { key: 'resolver', label: 'Resolver' },
     { key: 'cache', label: 'Cache' },
     ...zones.map((z, i) => ({ key: `zone.${i}`, label: z.name || 'new zone' })),
-    { key: ADD_ZONE, label: '+ Add zone' },
+    { key: ADD_ZONE, label: '+ Add Zone' },
   ]
 
   const zoneIndex = section.startsWith('zone.') ? Number(section.slice(5)) : -1
@@ -93,22 +96,24 @@ export default function DnsPage() {
     <div className="space-y-6">
       <PageHeader
         title="DNS"
-        action={<SaveButton isDirty={isDirty} saving={saving} onClick={() => save(cfg)} onCancel={handleCancel} />}
+        action={<DraftControls isDirty={isDirty} saving={saving} onClick={() => save(cfg)} onCancel={handleCancel} />}
       />
-      <SectionNav items={items} active={active} onChange={onChange}>
+      <SectionNav items={items} active={active} onChange={onChange} initiallyEntered={deepLinked}>
         {active === 'overview' && <DnsPanel />}
         {active === 'queries' && <DnsQueriesPanel />}
         {active === 'ddns' && <DdnsPanel />}
-        {active === 'resolver' && <ResolverSettings cfg={cfg} set={set} ifaces={ifaces ?? {}} ifaceNames={ifaceNames} vrrpIfaces={vrrpIfaces} />}
-        {active === 'cache' && <CacheSettings cfg={cfg} set={set} />}
+        {active === 'resolver' && <div className="max-w-3xl"><ResolverSettings cfg={cfg} set={set} ifaces={ifaces ?? {}} ifaceNames={ifaceNames} vrrpIfaces={vrrpIfaces} /></div>}
+        {active === 'cache' && <div className="max-w-3xl"><CacheSettings cfg={cfg} set={set} /></div>}
         {zoneActive && (
-          <ZoneEditor
+          <div className="max-w-3xl">
+            <ZoneEditor
             zone={zones[zoneIndex]}
             onChange={(z) => set('zones', zones.map((x, j) => (j === zoneIndex ? z : x)))}
             onRemove={() => removeZone(zoneIndex)}
             zones={zones}
             onZonesChange={(z) => set('zones', z.length ? z : undefined)}
           />
+          </div>
         )}
       </SectionNav>
     </div>

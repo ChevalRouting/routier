@@ -25,6 +25,8 @@ export default tseslint.config(
     rules: {
       'routier/no-comments': 'error',
       'routier/shared-controls': 'error',
+      'routier/semantic-palette': 'error',
+      'routier/accessible-icon-actions': 'error',
       'routier/named-handlers': 'error',
       'routier/named-types': 'error',
       'stylistic/no-trailing-spaces': 'error',
@@ -44,6 +46,12 @@ export default tseslint.config(
         'error',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
       ],
+    },
+  },
+  {
+    files: ['src/lib/palette.ts', 'src/lib/nftables-lang.ts'],
+    rules: {
+      'routier/semantic-palette': 'off',
     },
   },
 )

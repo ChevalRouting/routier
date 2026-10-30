@@ -15,7 +15,7 @@ func newValidateCommand() *cobra.Command {
 			return validateConfig(validateConfigFileFunc(configArg(args)))
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return newValidateCommandCallback(skipResolve, cmd, args)
+			return runValidate(skipResolve, cmd, args)
 		},
 	}
 
@@ -23,7 +23,7 @@ func newValidateCommand() *cobra.Command {
 	return cmd
 }
 
-func newValidateCommandCallback(skipResolve bool, cmd *cobra.Command, args []string) error {
+func runValidate(skipResolve bool, cmd *cobra.Command, args []string) error {
 	c, err := contextFromContext(cmd)
 	if err != nil {
 		return err
@@ -55,8 +55,8 @@ func newValidateCommandCallback(skipResolve bool, cmd *cobra.Command, args []str
 		}
 	}
 
-	if len(cfg.Wireguard) > 0 {
-		log.Info().Int("count", len(cfg.Wireguard)).Msg("wireguard tunnels")
+	if len(cfg.VPN.Wireguard) > 0 {
+		log.Info().Int("count", len(cfg.VPN.Wireguard)).Msg("wireguard tunnels")
 	}
 
 	if len(cfg.Sysctl) > 0 {

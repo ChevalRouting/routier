@@ -21,8 +21,8 @@ func newUpdateCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update",
 		Short: "refresh package indexes and list available upgrades",
-		RunE: func(cmd *cobra.Command, unusedArg2 []string) error {
-			return newUpdateCommandCallback(asJSON, cmd, unusedArg2)
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runUpdate(asJSON, cmd)
 		},
 	}
 
@@ -139,7 +139,7 @@ func confirmUpgrade(cmd *cobra.Command) bool {
 	return line == "y" || line == "yes"
 }
 
-func newUpdateCommandCallback(asJSON bool, cmd *cobra.Command, _ []string) error {
+func runUpdate(asJSON bool, cmd *cobra.Command) error {
 	avail, err := updates.Check(cmd.Context())
 	if err != nil {
 		return err

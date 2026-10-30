@@ -49,8 +49,8 @@ func newOnboardingStatusCommand(dbPath *string) *cobra.Command {
 	return &cobra.Command{
 		Use:   "status",
 		Short: "print whether onboarding is complete",
-		RunE: func(cmd *cobra.Command, unusedArg2 []string) error {
-			return newOnboardingStatusCommandCallback(dbPath, cmd, unusedArg2)
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runOnboardingStatus(dbPath, cmd)
 		},
 	}
 }
@@ -72,7 +72,7 @@ func setOnboardingComplete(cmd *cobra.Command, dbPath, value string) error {
 	return nil
 }
 
-func newOnboardingStatusCommandCallback(dbPath *string, cmd *cobra.Command, _ []string) error {
+func runOnboardingStatus(dbPath *string, cmd *cobra.Command) error {
 	ctx := cmd.Context()
 	db, err := webdb.InitDB(ctx, *dbPath)
 	if err != nil {

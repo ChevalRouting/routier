@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-var secretLine = regexp.MustCompile(`(?i)(private[_-]?key|preshared[_-]?key|password|secret|psk)(\s*[:=]\s*)(\S+)`)
+var secretLine = regexp.MustCompile(`(?i)(private[_-]?key|preshared[_-]?key|eab[_-]?key|password|secret|psk)(\s*[:=]\s*)(\S+)`)
 
 func redactBytes(b []byte) []byte {
 	return secretLine.ReplaceAll(b, []byte("${1}${2}REDACTED"))
@@ -32,7 +32,7 @@ func Export(id string, w io.Writer, redact bool) error {
 	tw := tar.NewWriter(gz)
 
 	walkErr := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		return exportCallback(redact, root, tw, path, d, err)
+		return exportFailureFile(redact, root, tw, path, d, err)
 	})
 	if walkErr != nil {
 		_ = tw.Close()
@@ -48,7 +48,7 @@ func Export(id string, w io.Writer, redact bool) error {
 	return gz.Close()
 }
 
-func exportCallback(redact bool, root string, tw *tar.Writer, path string, d fs.DirEntry, err error) error {
+func exportFailureFile(redact bool, root string, tw *tar.Writer, path string, d fs.DirEntry, err error) error {
 	if err != nil {
 		return err
 	}

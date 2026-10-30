@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"errors"
+	"io/fs"
 	"net/http"
 	"sync"
 	"time"
@@ -74,7 +76,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cfg, err := config.Load(app.ConfigPath)
+	cfg, err := loadAdminConfig(app.ConfigPath)
 	if err != nil {
 		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "failed to read config"))
 		return
@@ -120,6 +122,15 @@ func Login(w http.ResponseWriter, r *http.Request) {
 }
 
 const builtinAdmin = "routier"
+
+func loadAdminConfig(path string) (*config.Config, error) {
+	cfg, err := config.Load(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return &config.Config{}, nil
+	}
+
+	return cfg, err
+}
 
 func isUIAdmin(cfg *config.Config, username string) bool {
 	if username == "" || username == "root" {

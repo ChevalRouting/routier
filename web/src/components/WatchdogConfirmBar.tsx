@@ -1,5 +1,5 @@
 import { api } from '@/lib/client'
-import { Button } from 'cheval-ui'
+import { Button, cn } from 'cheval-ui'
 import { AlertTriangle } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
@@ -8,6 +8,8 @@ type WatchdogConfirmBarShape = {
   pollKey?: number
   onKept?: () => void
   onRolledBack?: () => void
+  onPendingChange?: (pending: boolean) => void
+  className?: string
 }
 
 type Done = 'kept' | 'gone' | null
@@ -16,6 +18,8 @@ export function WatchdogConfirmBar({
   pollKey = 0,
   onKept,
   onRolledBack,
+  onPendingChange,
+  className,
 }: WatchdogConfirmBarShape) {
   const [armed, setArmed] = useState(false)
   const [remaining, setRemaining] = useState(0)
@@ -26,6 +30,8 @@ export function WatchdogConfirmBar({
   const confirmationVersion = useRef(0)
   const onClosed = useRef(onRolledBack)
   onClosed.current = onRolledBack
+  const onPending = useRef(onPendingChange)
+  onPending.current = onPendingChange
 
   useEffect(() => {
     let cancelled = false
@@ -39,6 +45,7 @@ export function WatchdogConfirmBar({
         if (cancelled || version !== confirmationVersion.current) return
         setError(null)
         setArmed(p.pending)
+        onPending.current?.(p.pending)
         if (p.pending) {
           wasPending.current = true
           setDone(null)
@@ -74,6 +81,7 @@ export function WatchdogConfirmBar({
       wasPending.current = false
       setDone('kept')
       setArmed(false)
+      onPending.current?.(false)
       setError(null)
       toast.success('Changes kept.')
       onKept?.()
@@ -83,14 +91,16 @@ export function WatchdogConfirmBar({
   }
 
   return (
-    <div className="flex items-center gap-3 rounded-md border border-warning/30 bg-warning/8 px-4 py-2.5 text-sm">
-      <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
-      <span className="text-warning font-medium">{armed ? 'Apply pending confirmation' : 'Checking apply confirmation'}</span>
-      <span className="text-muted-foreground">{error || 'Keep the changes to disarm the automatic rollback.'}</span>
-      {armed && <div className="ml-auto flex items-center gap-3">
-        <span className="font-mono tabular-nums font-semibold">{remaining}s</span>
-        <Button size="sm" onClick={keep} disabled={confirming}>{confirming ? 'Confirming…' : 'Keep changes'}</Button>
-      </div>}
+    <div role="status" className={cn('flex items-center gap-3 rounded-md border border-warning/30 bg-warning/8 px-3 py-2 text-sm', className)}>
+      <AlertTriangle className="h-4 w-4 shrink-0 text-warning" />
+      <div className="min-w-0 flex-1">
+        <p className="flex min-w-0 gap-1 font-medium text-warning">
+          <span className="truncate">{armed ? 'Rolling back in' : 'Checking apply confirmation'}</span>
+          {armed && <span className="shrink-0 font-mono tabular-nums">{remaining}s</span>}
+        </p>
+        {error && <p className="line-clamp-2 break-words text-xs text-muted-foreground">{error}</p>}
+      </div>
+      {armed && <Button size="sm" className="shrink-0" onClick={keep} disabled={confirming}>{confirming ? 'Confirming…' : 'Keep Changes'}</Button>}
     </div>
   )
 }

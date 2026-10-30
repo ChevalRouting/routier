@@ -1,20 +1,21 @@
 package dns
 
-import io "io"
-
 import (
 	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
+	io "io"
 	"net/http"
 	"os/exec"
 	"time"
 
 	"github.com/ChevalRouting/routier/pkg/daemon/bind"
 	"github.com/ChevalRouting/routier/pkg/render"
+	"github.com/ChevalRouting/routier/pkg/server/api/sse"
 	"github.com/ChevalRouting/routier/pkg/svc"
 	"github.com/ChevalRouting/routier/pkg/types"
+
 	"github.com/rs/zerolog/log"
 )
 
@@ -81,17 +82,13 @@ func QueryStream(w http.ResponseWriter, r *http.Request) {
 	}
 
 	defer func() { cancel(); _ = cmd.Wait() }()
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("X-Accel-Buffering", "no")
-	flusher, _ := w.(http.Flusher)
-	send := func(frame string) bool { return queryStreamCallback(w, flusher, frame) }
-	if !send(": connected\n\n") {
+	stream := sse.Start(w)
+	if !stream.Write(": connected\n\n") {
 		return
 	}
 
 	lines := make(chan string)
-	go func() { queryStreamCallback2(ctx, stdout, lines) }()
+	go scanLines(ctx, stdout, lines)
 	heartbeat := time.NewTicker(15 * time.Second)
 	defer heartbeat.Stop()
 	for {
@@ -99,7 +96,7 @@ func QueryStream(w http.ResponseWriter, r *http.Request) {
 		case <-ctx.Done():
 			return
 		case <-heartbeat.C:
-			if !send(": heartbeat\n\n") {
+			if !stream.Write(": heartbeat\n\n") {
 				return
 			}
 		case line, ok := <-lines:
@@ -113,26 +110,14 @@ func QueryStream(w http.ResponseWriter, r *http.Request) {
 			}
 
 			payload, err := json.Marshal(query)
-			if err == nil && !send(fmt.Sprintf("data: %s\n\n", payload)) {
+			if err == nil && !stream.Write(fmt.Sprintf("data: %s\n\n", payload)) {
 				return
 			}
 		}
 	}
 }
 
-func queryStreamCallback(w http.ResponseWriter, flusher http.Flusher, frame string) bool {
-	if _, err := fmt.Fprint(w, frame); err != nil {
-		return false
-	}
-
-	if flusher != nil {
-		flusher.Flush()
-	}
-
-	return true
-}
-
-func queryStreamCallback2(ctx context.Context, stdout io.ReadCloser, lines chan string) {
+func scanLines(ctx context.Context, stdout io.ReadCloser, lines chan string) {
 	defer close(lines)
 	scanner := bufio.NewScanner(stdout)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)

@@ -5,15 +5,17 @@ package motd
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
 	"time"
 
 	webdb "github.com/ChevalRouting/routier/pkg/db"
 	"github.com/ChevalRouting/routier/pkg/net/iproute"
-	"github.com/ChevalRouting/routier/pkg/net/netlink"
 	"github.com/ChevalRouting/routier/pkg/telemetry/stats"
+	vnl "github.com/vishvananda/netlink"
 )
 
 const dbPath = "/var/lib/routier/web.db"
@@ -77,7 +79,7 @@ func Render(version string, ifaces []string, routes RouteSummary, bw *Bandwidth,
 	}
 
 	if user != "" && pass != "" {
-		_, _ = fmt.Fprintf(&b, "  Initial credentials (change via web UI at https://<ip>:8443):\n")
+		_, _ = fmt.Fprintf(&b, "  Initial credentials (change via web UI at https://<ip>:8080):\n")
 		_, _ = fmt.Fprintf(&b, "    username: %s\n", user)
 		_, _ = fmt.Fprintf(&b, "    password: %s\n", pass)
 		_, _ = fmt.Fprintln(&b)
@@ -176,19 +178,41 @@ func routierVersion() string {
 }
 
 func ifaceAddrs() []string {
-	nics, err := netlink.SystemNics()
+	links, err := vnl.LinkList()
 	if err != nil {
 		return nil
 	}
 
+	sort.Slice(links, func(i, j int) bool { return links[i].Attrs().Name < links[j].Attrs().Name })
+
 	var lines []string
-	for _, n := range nics {
-		if len(n.Addrs) > 0 {
-			lines = append(lines, fmt.Sprintf("%-12s  %s", n.Name, strings.Join(n.Addrs, "  ")))
-		} else {
-			lines = append(lines, fmt.Sprintf("%-12s  (no address)", n.Name))
+	for _, link := range links {
+		addrs, _ := vnl.AddrList(link, vnl.FAMILY_ALL)
+		if line := interfaceLine(link, addrs); line != "" {
+			lines = append(lines, line)
 		}
 	}
 
 	return lines
+}
+
+func interfaceLine(link vnl.Link, addrs []vnl.Addr) string {
+	if link.Attrs().Flags&net.FlagLoopback != 0 {
+		return ""
+	}
+
+	var addresses []string
+	for _, addr := range addrs {
+		if addr.IP.IsLinkLocalUnicast() || addr.IP.IsLinkLocalMulticast() {
+			continue
+		}
+
+		addresses = append(addresses, addr.IPNet.String())
+	}
+
+	if len(addresses) == 0 {
+		return ""
+	}
+
+	return fmt.Sprintf("%-12s  %s", link.Attrs().Name, strings.Join(addresses, "  "))
 }

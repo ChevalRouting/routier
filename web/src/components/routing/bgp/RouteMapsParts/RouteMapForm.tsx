@@ -25,7 +25,7 @@ export function RouteMapForm({
   return (
     <div className="space-y-4">
       {rows.length === 0 ? (
-        <p className="text-sm text-muted-foreground italic px-1">No entries. Add one to define match/set rules.</p>
+        <p className="text-sm text-muted-foreground px-1">No entries</p>
       ) : (
         [...rows].sort((a, b) => a.seq - b.seq).map((row) => (
           <RouteMapEntryCard
@@ -42,7 +42,7 @@ export function RouteMapForm({
         <Button variant="outline" size="sm" className="gap-1.5" onClick={addEntry}>
           <Plus className="h-3.5 w-3.5" />Add Entry
         </Button>
-        <Button variant="outline" onClick={onDone}>Done</Button>
+        <Button variant="outline" onClick={onDone}>Close</Button>
       </div>
     </div>
   )

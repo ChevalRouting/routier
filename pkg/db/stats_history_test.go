@@ -71,7 +71,7 @@ func TestBGPHistoryUsesLatestRowPerBucket(t *testing.T) {
 	ctx := t.Context()
 
 	insert := func(ts int64, state string, msgRcvd int) {
-		testBGPHistoryUsesLatestRowPerBucketCallback(t, db, ctx, ts, state, msgRcvd)
+		insertBGPPeerStat(t, db, ctx, ts, state, msgRcvd)
 	}
 
 	insert(1000, "Idle", 500)
@@ -136,7 +136,7 @@ func TestAnnouncementUpdateDeleteReportMissing(t *testing.T) {
 	}
 }
 
-func testBGPHistoryUsesLatestRowPerBucketCallback(t *testing.T, db *DB, ctx context.Context, ts int64, state string, msgRcvd int) {
+func insertBGPPeerStat(t *testing.T, db *DB, ctx context.Context, ts int64, state string, msgRcvd int) {
 	if err := InsertBGPStats(ctx, db, ts, &types.BGPStats{Peers: []types.BGPPeerSummary{
 		{Address: "10.0.0.1", State: state, MsgRcvd: msgRcvd},
 	}}); err != nil {

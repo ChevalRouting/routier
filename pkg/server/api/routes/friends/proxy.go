@@ -50,8 +50,8 @@ func Proxy(w http.ResponseWriter, r *http.Request) {
 
 	rp := &httputil.ReverseProxy{
 		Transport:      transport,
-		Director:       func(req *http.Request) { proxyCallback(target, rest, token, req) },
-		ModifyResponse: proxyHandler,
+		Director:       func(req *http.Request) { directToFriend(target, rest, token, req) },
+		ModifyResponse: hideUpstreamUnauthorized,
 		ErrorHandler: func(w http.ResponseWriter, _ *http.Request, err error) {
 			types.Error(log.Logger, w, types.Wrap(http.StatusBadGateway, err, "friend \""+name+"\" unreachable"))
 		},
@@ -60,7 +60,7 @@ func Proxy(w http.ResponseWriter, r *http.Request) {
 	rp.ServeHTTP(w, r)
 }
 
-func proxyHandler(resp *http.Response) error {
+func hideUpstreamUnauthorized(resp *http.Response) error {
 	if resp.StatusCode == http.StatusUnauthorized {
 		resp.StatusCode = http.StatusBadGateway
 		resp.Status = http.StatusText(http.StatusBadGateway)
@@ -69,7 +69,7 @@ func proxyHandler(resp *http.Response) error {
 	return nil
 }
 
-func proxyCallback(target *url.URL, rest string, token string, req *http.Request) {
+func directToFriend(target *url.URL, rest string, token string, req *http.Request) {
 	req.URL.Scheme = target.Scheme
 	req.URL.Host = target.Host
 	req.Host = target.Host

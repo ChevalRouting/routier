@@ -1,10 +1,11 @@
-import type { ConfigLLDPConfig as LLDPConfig, ConfigMonitoringConfig as MonitoringConfig } from '@/api'
+import type { ConfigFlowsConfig as FlowsConfig, ConfigLLDPConfig as LLDPConfig, ConfigMonitoringConfig as MonitoringConfig } from '@/api'
+import { FlowSettings } from '@/components/system-config/MonitoringParts/FlowSettings'
 import { INTERVAL_KEYS, OnStateChange } from '@/components/system-config/shared'
 import { api } from '@/lib/client'
 import { useDataRefresh } from '@/lib/dataVersion'
 import { useFetch } from '@/lib/useFetch'
 import { usePageSave } from '@/lib/usePageSave'
-import { Input, Label, PreferencesGroup, Spinner, SwitchRow, TagInput } from 'cheval-ui'
+import { PreferencesGroup, Spinner, SwitchRow, TagInput, EntryRow } from 'cheval-ui'
 import { useCallback, useEffect, useState } from 'react'
 
 type MonitoringTabShape = { onStateChange: OnStateChange }
@@ -39,29 +40,22 @@ export function MonitoringTab({ onStateChange }: MonitoringTabShape) {
 
   const lldp = monitoring.lldp ?? {}
   const patchLldp = (next: Partial<LLDPConfig>) => { setMonitoring((prev) => ({ ...prev, lldp: { ...prev.lldp, ...next } })); markDirty() }
+  const setFlows = (flows: FlowsConfig) => { setMonitoring((prev) => ({ ...prev, flows })); markDirty() }
 
   if (isLoading) return <Spinner />
 
   return (
-    <div className="max-w-2xl space-y-6">
-      <PreferencesGroup title="Collection intervals" description="How often each metric is sampled, in seconds (minimum 10).">
-        <div className="grid gap-3 grid-cols-2 px-4 py-3">
-          {INTERVAL_KEYS.map(({ key, label }) => (
-            <div key={key} className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">{label}</Label>
-              <div className="flex items-center gap-1.5">
-                <Input value={intervalRaw[key] ?? ''} onChange={(e) => updateInterval(key, e.target.value)} className="font-mono text-xs h-8" placeholder="60" />
-                <span className="text-xs text-muted-foreground shrink-0">s</span>
-              </div>
-            </div>
-          ))}
-        </div>
+    <div className="space-y-6">
+      <PreferencesGroup title="Collection Intervals" description="In seconds, minimum 10">
+        {INTERVAL_KEYS.map(({ key, label }) => (
+          <EntryRow key={key} title={label} value={intervalRaw[key] ?? ''} onChange={(e) => updateInterval(key, e.target.value)} className="font-mono" placeholder="60" suffix={<span className="text-xs text-muted-foreground">s</span>} />
+        ))}
       </PreferencesGroup>
 
-      <PreferencesGroup title="Link-layer discovery (LLDP / CDP)" description="Discover directly connected switches and routers. Discovered devices appear in Monitor > Neighbors.">
+      <PreferencesGroup title="Link-Layer Discovery (LLDP / CDP)" description="Discovered devices appear in Monitoring › Network › Neighbors">
         <SwitchRow
-          title="Enable LLDP / CDP"
-          subtitle="Run lldpd to discover directly connected devices"
+          title="LLDP / CDP"
+          subtitle="Run lldpd"
           checked={!!lldp.enabled}
           onCheckedChange={(v) => patchLldp({ enabled: v })}
         />
@@ -77,20 +71,22 @@ export function MonitoringTab({ onStateChange }: MonitoringTabShape) {
               onCheckedChange={(v) => patchLldp({ cdp: v })}
             />
             <SwitchRow
-              title="Advertise this router"
-              subtitle="Transmit LLDP so upstream devices can discover this router. When off, lldpd only listens."
+              title="Advertise This Router"
+              subtitle="When off, lldpd only listens"
               checked={!!lldp.transmit}
               onCheckedChange={(v) => patchLldp({ transmit: v })}
             />
           </PreferencesGroup>
 
-          <PreferencesGroup title="Interfaces" description="Restrict discovery to these interfaces. Leave empty for all.">
+          <PreferencesGroup title="Interfaces" description="Empty uses every interface">
             <div className="px-4 py-3">
               <TagInput values={lldp.interfaces ?? []} onChange={(v) => patchLldp({ interfaces: v })} placeholder="eth1" mono />
             </div>
           </PreferencesGroup>
         </>
       )}
+
+      <FlowSettings flows={monitoring.flows ?? {}} onChange={setFlows} />
     </div>
   )
 }

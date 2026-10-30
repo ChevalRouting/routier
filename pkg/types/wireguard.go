@@ -41,3 +41,20 @@ type DeriveTunnelResult struct {
 	Pushed    bool   `json:"pushed"`
 	PushError string `json:"push_error,omitempty" validate:"optional"`
 }
+
+type WireguardPeerStatus struct {
+	Name            string   `json:"name,omitempty" validate:"optional"`
+	PublicKey       string   `json:"public_key"`
+	Endpoint        string   `json:"endpoint,omitempty" validate:"optional"`
+	AllowedIPs      []string `json:"allowed_ips"`
+	LatestHandshake int64    `json:"latest_handshake"`
+	RxBytes         int64    `json:"rx_bytes"`
+	TxBytes         int64    `json:"tx_bytes"`
+}
+
+type WireguardInterfaceStatus struct {
+	Interface  string                `json:"interface"`
+	PublicKey  string                `json:"public_key"`
+	ListenPort int                   `json:"listen_port"`
+	Peers      []WireguardPeerStatus `json:"peers"`
+}

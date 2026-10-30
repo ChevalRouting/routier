@@ -6,10 +6,10 @@ pkgdesc="Declarative router/firewall manager with web UI (BGP/OSPF, nftables, Wi
 url="https://github.com/ChevalRouting/routier"
 arch="all"
 license="MIT"
-depends="nftables frr wireguard-tools iproute2 dhcpcd cronie frr-pythontools openssl chrony keepalived conntrack-tools zstd rrdtool radvd kea-dhcp4 kea-dhcp6 kea-dhcp-ddns kea-hook-lease-cmds bind mtr traceroute iputils bind-tools curl nmap lldpd"
+depends="doas nftables frr wireguard-tools iproute2 dhcpcd cronie frr-pythontools openssl chrony keepalived conntrack-tools zstd rrdtool radvd kea-dhcp4 kea-dhcp6 kea-dhcp-ddns kea-hook-lease-cmds kea-hook-ha bind mtr traceroute iputils bind-tools curl nmap lldpd"
 makedepends="go nodejs npm build-base"
 options="net"
-install="$pkgname.post-install $pkgname.post-upgrade $pkgname.pre-deinstall"
+install="$pkgname.post-install $pkgname.post-upgrade $pkgname.pre-deinstall $pkgname-openrc.post-install $pkgname-openrc.pre-deinstall"
 subpackages="$pkgname-openrc"
 source="$pkgname-$pkgver.tar.gz"
 
@@ -46,6 +46,7 @@ package() {
 	install -Dm755 scripts/routier.commit-hook "$pkgdir/etc/apk/commit_hooks.d/10-routier"
 	install -Dm644 scripts/routier.profile "$pkgdir/etc/profile.d/routier.sh"
 	install -Dm644 scripts/routier-bonding.modprobe "$pkgdir/etc/modprobe.d/routier-bonding.conf"
+	install -Dm644 scripts/routier-dummy.modprobe "$pkgdir/etc/modprobe.d/routier-dummy.conf"
 	install -dm750 "$pkgdir/etc/routier"
 	install -dm755 "$pkgdir/etc/routier/templates"
 	install -dm755 "$pkgdir/etc/nftables.d"
@@ -59,4 +60,6 @@ openrc() {
 	install -Dm755 "$builddir/scripts/routier-ui.initd" "$subpkgdir/etc/init.d/routier-ui"
 	install -Dm755 "$builddir/scripts/routier-firstboot.initd" "$subpkgdir/etc/init.d/routier-firstboot"
 	install -Dm755 "$builddir/scripts/routier-upgrade.initd" "$subpkgdir/etc/init.d/routier-upgrade"
+	install -Dm755 "$builddir/scripts/routier-live.initd" "$subpkgdir/etc/init.d/routier-live"
+	install -Dm755 "$builddir/scripts/routier-cloud.initd" "$subpkgdir/etc/init.d/routier-cloud"
 }

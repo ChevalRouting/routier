@@ -87,6 +87,28 @@ func TestAPIStagingDiffAndDiscard(t *testing.T) {
 	}
 }
 
+func TestAPIRunningConfigIgnoresStaging(t *testing.T) {
+	n := testkit.NewNode(t, testkit.MinimalConfig)
+
+	if status, raw := n.Do(t, http.MethodPut, "/api/config/hostname", "staged"); status != http.StatusOK {
+		t.Fatalf("put hostname %d: %s", status, raw)
+	}
+
+	_, raw := n.Do(t, http.MethodGet, "/api/config", nil)
+	if cfg := testkit.DecodeData[map[string]any](t, raw); cfg["hostname"] != "staged" {
+		t.Fatalf("staging read hostname = %v", cfg["hostname"])
+	}
+
+	_, raw = n.Do(t, http.MethodGet, "/api/config?source=running", nil)
+	if cfg := testkit.DecodeData[map[string]any](t, raw); cfg["hostname"] != "rtr1" {
+		t.Fatalf("running read hostname = %v", cfg["hostname"])
+	}
+
+	if status, _ := n.Do(t, http.MethodGet, "/api/config?source=bogus", nil); status != http.StatusBadRequest {
+		t.Fatalf("expected 400 for an unknown source, got %d", status)
+	}
+}
+
 func TestAPIWireguardKeygen(t *testing.T) {
 	n := testkit.NewNode(t, testkit.MinimalConfig)
 
@@ -137,5 +159,29 @@ func TestAPINftablesVarsAndSnapshots(t *testing.T) {
 
 	if status, _ := n.Do(t, http.MethodGet, "/api/snapshots", nil); status != http.StatusOK {
 		t.Fatalf("snapshots endpoint failed: %d", status)
+	}
+}
+
+func TestAPISetupNetworkStagesTheFirstRun(t *testing.T) {
+	n := testkit.NewNode(t, testkit.MinimalConfig)
+
+	status, raw := n.Do(t, http.MethodPut, "/api/setup/network", map[string]any{
+		"hostname": "edge-1",
+		"uplink":   map[string]any{"select": "eth0", "mode": "dhcp"},
+		"lans":     []map[string]any{{"name": "home", "select": "eth1", "address": "192.168.10.1/24"}},
+	})
+	if status != http.StatusOK {
+		t.Fatalf("setup network %d: %s", status, raw)
+	}
+
+	_, raw = n.Do(t, http.MethodGet, "/api/config", nil)
+	cfg := testkit.DecodeData[map[string]any](t, raw)
+	interfaces, _ := cfg["interfaces"].(map[string]any)
+	if cfg["hostname"] != "edge-1" || interfaces["wan"] == nil || interfaces["home"] == nil {
+		t.Fatalf("staged config %+v", cfg)
+	}
+
+	if status, _ := n.Do(t, http.MethodPut, "/api/setup/network", map[string]any{"hostname": "edge-1", "uplink": map[string]any{"mode": "dhcp"}}); status != http.StatusBadRequest {
+		t.Fatalf("an uplink without a port must be refused, got %d", status)
 	}
 }

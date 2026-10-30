@@ -4,6 +4,7 @@ import (
 	"github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/friends"
 	"github.com/ChevalRouting/routier/pkg/host/motd"
+	"github.com/ChevalRouting/routier/pkg/host/takeover"
 	"github.com/ChevalRouting/routier/pkg/managers"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -14,13 +15,18 @@ func newBootCommand() *cobra.Command {
 		Use:   "boot [config]",
 		Short: "apply config on boot without rollback timer",
 		Args:  cobra.MaximumNArgs(1),
-		RunE:  newBootCommandHandler,
+		RunE:  runBoot,
 	}
 
 	return cmd
 }
 
-func newBootCommandHandler(cmd *cobra.Command, args []string) error {
+func runBoot(cmd *cobra.Command, args []string) error {
+	if !takeover.Done() && takeover.NativeEnabled("/") {
+		log.Warn().Msg("native networking still active, skipping boot apply until the first confirmed apply")
+		return nil
+	}
+
 	cfg, err := config.LoadAndValidate(configArg(args), true)
 	if err != nil {
 		return err

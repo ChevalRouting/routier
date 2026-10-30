@@ -220,9 +220,11 @@ dns:
           - { name: "10", type: PTR, value: nas.home.arpa. }
 ```
 
-A zone carries either `records` (a primary zone, rendered to a zone file) or
-`primaries` (a secondary zone, transferred in from those addresses), never
-both. Supported record types are `A`, `AAAA`, `CNAME`, `MX`, `TXT`, `SRV`,
+A zone with `primaries` is a secondary zone, transferred in from those addresses;
+it cannot also carry local `records`. Otherwise it is a primary zone and renders
+a zone file, even when `records` is empty or omitted. Routier still generates SOA
+and NS records from the zone metadata. An empty primary zone needs nameservers
+and `soa.email`; nameservers inside the zone still need A or AAAA glue records. Supported record types are `A`, `AAAA`, `CNAME`, `MX`, `TXT`, `SRV`,
 `PTR`, `NS`, `CAA`, `SSHFP` and `TLSA`; `priority` applies to `MX` and `SRV`
 only. `soa.email` is written in either form, `hostmaster@home.arpa` or
 `hostmaster.home.arpa.`, and converted to zone-file form on render.
@@ -236,17 +238,81 @@ zone would be rejected at apply time. Validation catches it first, with a
 message naming the nameserver. A nameserver outside the zone needs no glue and
 is accepted as-is.
 
-### Serials are content-hashed, never timestamps
+### Primary and secondary zone transfers
 
-If `soa.serial` is set, it is used verbatim. Otherwise the serial is an FNV-32
-hash of the rendered zone content, so it changes exactly when the zone changes
-and never otherwise.
+The zone editor offers a Primary/Secondary role selector. Switching to secondary
+removes local records from the staged zone: its contents are supplied by the
+primary. Enter primary IPs under Primary servers. On the primary, enter the
+secondary IPs under Secondary servers. NS records remain independent of these
+transfer permissions.
 
-This matters because `routier plan` and `GET /api/config/render-diff` diff
-rendered output, and the apply step skips writing files whose content is
-unchanged. A timestamp serial would make every plan show a phantom diff and
-every apply rewrite every zone file, and, because each zone is its own render
-artifact, reload every zone that did not actually change.
+```yaml
+# Primary router
+zones:
+  - name: example.net
+    nameservers: [ns1.example.net.]
+    soa: { email: hostmaster@example.net }
+    records:
+      - { name: ns1, type: A, value: 192.0.2.1 }
+    secondaries: [192.0.2.2]
+    transfer_key:
+      name: transfer.example.net
+      secret: REPLACE_WITH_BASE64_SECRET
+
+# Secondary router
+zones:
+  - name: example.net
+    primaries: [192.0.2.1]
+    transfer_key:
+      name: transfer.example.net
+      secret: REPLACE_WITH_SAME_BASE64_SECRET
+```
+
+Generate a key once in the zone editor, then show and copy its name and secret
+to the other router's import fields. Both use HMAC-SHA256. Secrets are masked
+by default; removing the key selects IP-only authorization. Keys live in the
+configuration and are included in config exports and backups. The rendered
+`named.conf` is restricted to root and the named group (0640). A key name reused
+across zones must have the same secret.
+
+Secondary zones support `transfer_source` and `transfer_source_v6` to select the
+local IPv4 and IPv6 addresses BIND uses for outgoing transfer requests and SOA
+refreshes. Primary zones use `notify_source` and `notify_source_v6` for outgoing
+notifications instead. The zone editor shows the fields appropriate to the role
+and carries the source addresses across when changing roles. Leave them empty
+or use `*` for automatic selection. Transfer sources must be authorized by the
+primary; notify sources must be recognized by the secondary as its primary or
+allowed through `allow-notify`. Transfer-source fields on primary zones are
+rejected before apply because BIND does not allow them there.
+
+```yaml
+zones:
+  - name: example.net
+    primaries: [198.51.100.12, "fd00:42::2"]
+    transfer_source: 198.51.100.11
+    transfer_source_v6: fd00:42::1
+```
+
+`secondaries` renders a zone-specific `allow-transfer`, requiring the source IP
+and the TSIG key when configured, plus explicit notifications to those peers.
+Without configured secondaries, ordinary zones retain the global transfer deny.
+Transfers use TCP on the configured DNS port; notifications and SOA checks also
+need DNS reachability. Include peer addresses in `allow_from` where SOA queries
+need access, and permit the relevant interfaces through `allow_inbound`.
+Secondary zone files are stored under `/var/bind`, where named can write them.
+This supports ordinary and view-scoped zones. With views, peer queries must match
+the intended view. DHCP-generated zones retain their existing update-key transfer
+policy; declared DHCP-managed zones can use `secondaries` to override it.
+
+### Automatic serials
+
+If `soa.serial` is set, it is used verbatim and the operator must advance it
+when editing the zone. Otherwise pure rendering uses a deterministic content
+hash. Under the apply lock, Routier compares the rendered zone with its existing
+file while ignoring the serial: unchanged content keeps the existing serial,
+and changed content advances it by one with 32-bit wraparound. Initial zones
+use the rendered hash. CLI plans and API render diffs use the same read-only
+serial preparation against existing files. DHCP-managed zones retain their dynamic serial handling.
 
 ### Reverse zones
 
@@ -361,6 +427,40 @@ failure mode 1 in full.
 `dns.server.dnssec` (the server-level flag) controls whether validation runs at
 all, `dnssec-validation auto` when set, `no` when not. It is off by default.
 
+## Resolvers in VRFs
+
+`dns.server.vrfs` maps an existing VRF name to a resolver of its own. Each
+entry takes the same fields as `dns.server`: `enabled`, `listen`, `allow_from`,
+`upstreams`, `forward`, `zones` and `views`. Nested `vrfs` are rejected.
+
+Each enabled instance runs BIND through `ip vrf exec`, so its sockets and
+upstream traffic belong to that VRF. Its configuration, primary zone files,
+secondary copies, cache, logs and runtime files are kept apart under
+`/etc/bind/vrfs/<name>/`, which lets instances in different VRFs use the same
+listen addresses and zone names. Listen addresses must belong to interfaces in
+the named VRF.
+
+Apply validates each configuration with `named-checkconf -z`, starts missing
+instances and reloads running ones with SIGHUP. Removing or disabling an entry
+stops its process, and reapplying restarts any that are missing. The main
+resolver keeps its own service and control channel. VRF instances have no
+rndc listener, so inspect them through their configuration and logs. Primary
+zone serials advance automatically in their zone files too.
+
+Use `allow_inbound` with interfaces of the VRF to open DNS in the generated
+firewall, or write explicit rules. Clients are allowed by `allow_from`. An
+instance does not import routes or allow traffic between VRFs: its upstreams
+must be reachable from the VRF, including through any route leak configured
+for Internet access.
+
+The host needs Linux VRF process support (`ip vrf exec` and its cgroup
+support). An instance that fails to start fails the apply. Each instance uses
+one worker thread unless `threads` is set. DHCP dynamic updates stay on the
+main resolver.
+
+Friend hello reports `dns_vrf: true`, so fleet controllers can refuse to stage
+these settings on routers that do not support them.
+
 ## How Routier talks to named
 
 BIND is driven over its **rndc control channel** on `127.0.0.1:953`, keyed by
@@ -403,7 +503,19 @@ before DHCP starts handing its address out to clients. See
 
 ## Firewall
 
-DNS is opt-in per interface through `allow_inbound`:
+In DNS settings, **Disable automatic DNS firewall rules** sits beside
+**Open the firewall on**. Enabling it hides the interface selector and suppresses
+only automatic DNS allow rules. Existing interface selections are retained, so
+turning it off restores them. BIND listen addresses and client access settings
+continue to apply. Other services keep their automatic firewall rules.
+
+```yaml
+dns:
+  server:
+    disable_auto_rules: true
+```
+
+With automatic DNS rules enabled, DNS is opt-in per interface through `allow_inbound`:
 
 ```yaml
 dns:

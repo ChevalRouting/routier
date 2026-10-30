@@ -4,6 +4,8 @@ import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
 import Layout from "@theme/Layout";
 import CodeBlock from "@theme/CodeBlock";
 
+import { GITHUB_URL, REPO_URL } from "../remark/domains";
+import dashboard from "../../../docs/screenshots/routier-dashboard.png";
 import styles from "./index.module.css";
 
 type Feature = {
@@ -11,30 +13,82 @@ type Feature = {
 	body: string;
 };
 
+type Audience = {
+	title: string;
+	body: string;
+};
+
+type TryPath = {
+	title: string;
+	body: string;
+	to: string;
+	action: string;
+	code?: string;
+};
+
+const audiences: Audience[] = [
+	{
+		title: "Home and homelab",
+		body: "A guided setup on first sign-in covers the Internet uplink and local networks, then every section stays one page away.",
+	},
+	{
+		title: "Small offices and branch sites",
+		body: "WireGuard between sites, a DHCP and DNS server, a stateful firewall and two-router failover, managed from a browser or a phone.",
+	},
+	{
+		title: "Network engineers",
+		body: "BGP, OSPF and BFD through FRR, VRFs, policy routing, sFlow export, managed switches, and every change available as YAML, CLI and API.",
+	},
+];
+
 const features: Feature[] = [
 	{
-		title: "Declarative config",
-		body: "Describe networking, routing, firewall, and services in a single YAML document. Routier renders and applies the state you want.",
+		title: "One declarative config",
+		body: "Interfaces, routing, firewall and services live in a single YAML document. Routier renders it and applies only what changed.",
 	},
 	{
-		title: "Safe apply with rollback",
-		body: "Every apply snapshots the previous state and arms a rollback watchdog, so even a bad firewall rule cannot lock you out of a remote box.",
+		title: "Rollback on every change",
+		body: "Each apply takes a snapshot and arms a watchdog. If you lose access and do not confirm, the previous state comes back in 60 seconds.",
 	},
 	{
-		title: "UI, API, and CLI",
-		body: "A web UI and an HTTP API sit on top of the same engine, and everything they can do has a routier CLI equivalent.",
+		title: "Web UI, API and CLI",
+		body: "A responsive web UI and an HTTP API sit on the same engine as the routier command, so every action has three ways in.",
 	},
 	{
 		title: "Full networking stack",
-		body: "Interfaces, VLANs, bridges, VRFs, static and dynamic routing (BGP, OSPF, BFD), WireGuard tunnels, and an nftables firewall.",
+		body: "VLANs, bridges, bonds, VRFs, static and dynamic routing, WireGuard, Kea DHCP, BIND DNS and an nftables firewall.",
 	},
 	{
-		title: "Friends",
-		body: "Mutually-authenticated peer routers that exchange liveness and derive configuration from each other's configs over an encrypted channel.",
+		title: "High availability",
+		body: "Two routers share virtual addresses with VRRP and replicate connection state with conntrackd, so failover keeps sessions alive.",
 	},
 	{
-		title: "Runs on plain Alpine",
-		body: "Install the apk package or boot the prebuilt ISO to turn a fresh Alpine Linux box into a router and firewall appliance.",
+		title: "Built on plain Alpine",
+		body: "Install from an ISO, a cloud image or a signed apk package. Updates arrive through the same package manager as the rest of the system.",
+	},
+];
+
+const tryPaths: TryPath[] = [
+	{
+		title: "In a virtual machine",
+		body: "Boot the ISO with two network adapters, open the web UI and follow the setup. Your own network stays untouched.",
+		to: "/docs/quickstart",
+		action: "Try it in a VM",
+	},
+	{
+		title: "On a cloud provider",
+		body: "Launch the qcow2 cloud image and pass a password and a config through cloud-init user-data.",
+		to: "/docs/installation#cloud-images",
+		action: "Use the cloud image",
+	},
+	{
+		title: "On an Alpine Linux box",
+		body: "Add the signed repository and install the package. Networking is left alone until you apply and confirm.",
+		to: "/docs/installation#package-install",
+		action: "Install the package",
+		code: `wget -qO /etc/apk/keys/routier.rsa.pub ${REPO_URL}/routier.rsa.pub
+echo ${REPO_URL}/nightly >> /etc/apk/repositories
+apk update && apk add routier`,
 	},
 ];
 
@@ -68,62 +122,156 @@ nftables:
         iifname lo accept
         ct state established,related accept
         ct state invalid drop
-        icmp type echo-request accept
-        icmpv6 type { echo-request, nd-neighbor-solicit, nd-neighbor-advert, nd-router-solicit } accept
-        iifname $lan_interfaces ip saddr $lan_network tcp dport { 22, 8080 } accept comment "Allow Routier UI and SSH from lan"
+        meta l4proto { icmp, icmpv6 } accept
+        iifname $lan_interfaces tcp dport { 22, 8080 } accept
         iifname $lan_interfaces udp dport 67 accept
     forward:
       policy: drop
       rules: |
         ct state established,related accept
-        ct state invalid drop
         iifname $lan_interfaces oifname $wan_interfaces accept
     postrouting:
       rules: |
         oifname $wan_interfaces masquerade
 
-sysctl:
-  net.ipv4.ip_forward: "1"
-  net.ipv6.conf.all.forwarding: "1"
-
 dns:
   nameservers: [1.1.1.1, 9.9.9.9]
-
-ssh:
-  port: 22
-  permit_root_login: "no"
-  password_auth: "no"
-
-users:
-  admin:
-    uid: 1000
-    shell: /bin/ash
-    groups: [wheel]
-    ssh_keys:
-      - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExample alice@home"
 `;
 
 function Hero(): ReactNode {
 	const { siteConfig } = useDocusaurusContext();
 	return (
 		<header className={styles.hero}>
-			<img className={styles.heroLogo} src="/img/logo.svg" alt="Routier" />
+			<img className={styles.heroLogo} src="/img/logo.svg" alt="" />
 			<h1 className={styles.heroTitle}>{siteConfig.title}</h1>
+			<p className={styles.heroLead}>
+				A router and firewall for Alpine Linux, configured from one YAML file,
+				a web UI or an API, with a rollback safety net on every change.
+			</p>
 			<p className={styles.heroTagline}>
 				{"Déjà vu, I've just been in this state before."}
 			</p>
 			<div className={styles.buttons}>
-				<Link className="button button--primary button--lg" to="/docs/">
-					Get started
+				<Link className="button button--primary button--lg" to="/docs/quickstart">
+					Try it in a VM
+				</Link>
+				<Link className="button button--secondary button--lg" to="/docs/">
+					Read the docs
+				</Link>
+			</div>
+			<p className={styles.heroNote}>Free and open source, MIT licensed.</p>
+		</header>
+	);
+}
+
+function Showcase(): ReactNode {
+	return (
+		<section className={styles.showcase}>
+			<img
+				className={styles.screenshot}
+				src={dashboard}
+				alt="The Routier dashboard with interface status, resource usage and traffic charts"
+			/>
+		</section>
+	);
+}
+
+function Audiences(): ReactNode {
+	return (
+		<section className={styles.section}>
+			<h2 className={styles.sectionTitle}>Who it is for</h2>
+			<div className={styles.grid3}>
+				{audiences.map((audience) => (
+					<div className={styles.card} key={audience.title}>
+						<div className={styles.cardTitle}>{audience.title}</div>
+						<p className={styles.cardBody}>{audience.body}</p>
+					</div>
+				))}
+			</div>
+		</section>
+	);
+}
+
+function Features(): ReactNode {
+	return (
+		<section className={styles.section}>
+			<h2 className={styles.sectionTitle}>What you get</h2>
+			<div className={styles.grid3}>
+				{features.map((feature) => (
+					<div className={styles.card} key={feature.title}>
+						<div className={styles.cardTitle}>{feature.title}</div>
+						<p className={styles.cardBody}>{feature.body}</p>
+					</div>
+				))}
+			</div>
+		</section>
+	);
+}
+
+function Example(): ReactNode {
+	return (
+		<section className={styles.example}>
+			<h2 className={styles.sectionTitle}>A whole router, in one file</h2>
+			<p className={styles.sectionLead}>
+				The web UI writes the same document you can edit by hand. Run{" "}
+				<code>routier plan</code> to see what changes and{" "}
+				<code>routier apply</code> to apply it.
+			</p>
+			<CodeBlock language="yaml" title="/etc/routier/config.yml">
+				{exampleConfig}
+			</CodeBlock>
+			<p className={styles.exampleLink}>
+				<Link to="/docs/configuration">See the configuration model →</Link>
+			</p>
+		</section>
+	);
+}
+
+function TryIt(): ReactNode {
+	return (
+		<section className={styles.section}>
+			<h2 className={styles.sectionTitle}>Three ways to try it</h2>
+			<div className={styles.grid3}>
+				{tryPaths.map((path) => (
+					<div className={`${styles.card} ${styles.tryCard}`} key={path.title}>
+						<div className={styles.cardTitle}>{path.title}</div>
+						<p className={styles.cardBody}>{path.body}</p>
+						{path.code && (
+							<CodeBlock language="bash" className={styles.tryCode}>
+								{path.code}
+							</CodeBlock>
+						)}
+						<Link className={styles.tryLink} to={path.to}>
+							{path.action} →
+						</Link>
+					</div>
+				))}
+			</div>
+		</section>
+	);
+}
+
+function HelpTest(): ReactNode {
+	return (
+		<section className={styles.callout}>
+			<h2 className={styles.sectionTitle}>Help shape Routier</h2>
+			<p className={styles.sectionLead}>
+				Routier is young and moves quickly. Reports from hardware, networks and
+				workflows we do not have are the most useful contribution right now,
+				whether it is a crash or a label that did not make sense.
+			</p>
+			<div className={styles.buttons}>
+				<Link className="button button--primary button--lg" to="/docs/help-test">
+					How to help test
 				</Link>
 				<Link
 					className="button button--secondary button--lg"
-					to="/docs/installation"
+					href={`${GITHUB_URL}/issues/new/choose`}
 				>
-					Install
+					Report an issue
 				</Link>
 			</div>
-		</header>
+		</section>
 	);
 }
 
@@ -133,32 +281,12 @@ export default function Home(): ReactNode {
 		<Layout title={siteConfig.title} description={siteConfig.tagline}>
 			<Hero />
 			<main>
-				<section className={styles.example}>
-					<h2 className={styles.sectionTitle}>A whole router, in one file</h2>
-					<p className={styles.sectionLead}>
-						Interfaces, DHCP, Nftables, DNS, SSH, BGP, OSPF and more in a single
-						YAML document. Run <code>routier apply</code> and it renders and
-						applies the state, with a snapshot and rollback watchdog on every
-						change.
-					</p>
-					<CodeBlock language="yaml" title="config.yml">
-						{exampleConfig}
-					</CodeBlock>
-					<p className={styles.exampleLink}>
-						<Link to="/docs/configuration">
-							See the full configuration model →
-						</Link>
-					</p>
-				</section>
-
-				<section className={styles.features}>
-					{features.map((feature) => (
-						<div className={styles.card} key={feature.title}>
-							<div className={styles.cardTitle}>{feature.title}</div>
-							<p className={styles.cardBody}>{feature.body}</p>
-						</div>
-					))}
-				</section>
+				<Showcase />
+				<Audiences />
+				<TryIt />
+				<Features />
+				<Example />
+				<HelpTest />
 			</main>
 		</Layout>
 	);

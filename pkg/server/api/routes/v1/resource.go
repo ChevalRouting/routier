@@ -25,7 +25,7 @@ func v1MapRoutes(r chi.Router, name string, list, replace, getOne, putOne, delet
 func v1Mutate(r *http.Request, fn func(c *config.Config) error) error {
 	app := appctx.FromContext(r.Context())
 	sess := v1SessionFromCtx(r.Context())
-	return v1WithLock(sess.ID, func() error { return v1MutateCallback(r, fn, app, sess) })
+	return v1WithLock(sess.ID, func() error { return mutateSessionLocked(r, fn, app, sess) })
 }
 
 func validationSet(cfg *config.Config) map[string]struct{} {
@@ -120,7 +120,7 @@ func v1MapDeleteKey[T any](w http.ResponseWriter, r *http.Request, get func(c *c
 	types.OK(w, types.StatusResponse{Status: "deleted"})
 }
 
-func v1MutateCallback(r *http.Request, fn func(c *config.Config) error, app *appctx.App, sess *v1Session) error {
+func mutateSessionLocked(r *http.Request, fn func(c *config.Config) error, app *appctx.App, sess *v1Session) error {
 	s, err := webdb.LoadSession(r.Context(), app.DB, sess.ID)
 	if err != nil || s == nil {
 		return types.NewError(http.StatusNotFound, "session not found")

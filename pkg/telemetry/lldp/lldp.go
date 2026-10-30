@@ -3,6 +3,7 @@ package lldp
 import (
 	"encoding/json"
 	"os/exec"
+	"sort"
 	"strings"
 )
 
@@ -81,13 +82,13 @@ func ShowNeighbors() []Neighbor {
 	}
 
 	var out []Neighbor
-	for name, body := range namedEntries(doc.LLDP.Interface) {
+	for _, entry := range namedEntries(doc.LLDP.Interface) {
 		var iface ifaceBody
-		if err := json.Unmarshal(body, &iface); err != nil {
+		if err := json.Unmarshal(entry.raw, &iface); err != nil {
 			continue
 		}
 
-		out = append(out, neighborFrom(name, iface))
+		out = append(out, neighborFrom(entry.name, iface))
 	}
 
 	return out
@@ -103,13 +104,13 @@ func neighborFrom(name string, iface ifaceBody) Neighbor {
 		VLAN:       parseVLAN(iface.VLAN),
 	}
 
-	for chassisName, chassisRaw := range namedEntries(iface.Chassis) {
+	for _, entry := range namedEntries(iface.Chassis) {
 		var chassis chassisBody
-		if err := json.Unmarshal(chassisRaw, &chassis); err != nil {
+		if err := json.Unmarshal(entry.raw, &chassis); err != nil {
 			continue
 		}
 
-		n.ChassisName = chassisName
+		n.ChassisName = entry.name
 		n.ChassisID = chassis.ID.Value
 		n.SysDescr = chassis.Descr
 		n.MgmtIP = parseMgmtIP(chassis.MgmtIP)
@@ -120,27 +121,41 @@ func neighborFrom(name string, iface ifaceBody) Neighbor {
 	return n
 }
 
-func namedEntries(raw json.RawMessage) map[string]json.RawMessage {
+type namedEntry struct {
+	name string
+	raw  json.RawMessage
+}
+
+func namedEntries(raw json.RawMessage) []namedEntry {
 	if len(raw) == 0 {
 		return nil
 	}
 
-	out := map[string]json.RawMessage{}
-	if err := json.Unmarshal(raw, &out); err == nil {
+	var arr []map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &arr); err == nil {
+		var out []namedEntry
+		for _, m := range arr {
+			out = append(out, sortedEntries(m)...)
+		}
+
 		return out
 	}
 
-	var arr []map[string]json.RawMessage
-	if err := json.Unmarshal(raw, &arr); err != nil {
+	var obj map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &obj); err != nil {
 		return nil
 	}
 
-	for _, m := range arr {
-		for k, v := range m {
-			out[k] = v
-		}
+	return sortedEntries(obj)
+}
+
+func sortedEntries(m map[string]json.RawMessage) []namedEntry {
+	out := make([]namedEntry, 0, len(m))
+	for name, raw := range m {
+		out = append(out, namedEntry{name: name, raw: raw})
 	}
 
+	sort.Slice(out, func(i, j int) bool { return out[i].name < out[j].name })
 	return out
 }
 

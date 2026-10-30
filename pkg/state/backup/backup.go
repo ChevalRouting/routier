@@ -3,6 +3,7 @@ package backup
 import (
 	"archive/tar"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -18,6 +19,19 @@ import (
 
 const userTemplatesDir = "/etc/routier/templates"
 
+func (r Restored) Load() (*config.Config, error) {
+	if r.Config == nil {
+		return config.LoadAndValidate(r.ConfigPath, true)
+	}
+
+	return config.LoadBytesAndValidate(r.ConfigPath, r.Config, true)
+}
+
+type Restored struct {
+	ConfigPath string
+	Config     []byte
+}
+
 type manifest struct {
 	Version    string    `json:"version"`
 	CreatedAt  time.Time `json:"created_at"`
@@ -31,7 +45,7 @@ func Create(outputPath, configPath string, cfg *config.Config) error {
 	}
 
 	removeOnErr := true
-	defer func() { createCallback(outputPath, out, removeOnErr) }()
+	defer func() { closeArchive(outputPath, out, removeOnErr) }()
 
 	if err := Write(out, configPath, cfg); err != nil {
 		return err
@@ -94,43 +108,49 @@ func Write(w io.Writer, configPath string, cfg *config.Config) error {
 	return nil
 }
 
-func Restore(archivePath string) (configPath string, err error) {
+func Restore(archivePath, configPath string) (Restored, error) {
+	root, err := restoreRoot(configPath)
+	if err != nil {
+		return Restored{}, err
+	}
+
 	zstdCmd := exec.Command("zstd", "-d", "-c", archivePath)
 	stdout, err := zstdCmd.StdoutPipe()
 	if err != nil {
-		return "", err
+		return Restored{}, err
 	}
 
 	if err := zstdCmd.Start(); err != nil {
-		return "", fmt.Errorf("zstd: %w", err)
+		return Restored{}, fmt.Errorf("zstd: %w", err)
 	}
 
 	tr := tar.NewReader(stdout)
 	var m *manifest
 	var count int
+	var restored Restored
 
 	for {
 		hdr, err := tr.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 
 		if err != nil {
 			_ = zstdCmd.Wait()
-			return "", fmt.Errorf("reading archive: %w", err)
+			return Restored{}, fmt.Errorf("reading archive: %w", err)
 		}
 
 		if hdr.Name == "manifest.json" {
 			data, err := io.ReadAll(tr)
 			if err != nil {
 				_ = zstdCmd.Wait()
-				return "", fmt.Errorf("reading manifest: %w", err)
+				return Restored{}, fmt.Errorf("reading manifest: %w", err)
 			}
 
 			m = &manifest{}
 			if err := json.Unmarshal(data, m); err != nil {
 				_ = zstdCmd.Wait()
-				return "", fmt.Errorf("parsing manifest: %w", err)
+				return Restored{}, fmt.Errorf("parsing manifest: %w", err)
 			}
 
 			continue
@@ -139,25 +159,45 @@ func Restore(archivePath string) (configPath string, err error) {
 		dest, err := safePath(hdr.Name)
 		if err != nil {
 			_ = zstdCmd.Wait()
-			return "", fmt.Errorf("unsafe path %q: %w", hdr.Name, err)
+			return Restored{}, fmt.Errorf("unsafe path %q: %w", hdr.Name, err)
+		}
+
+		if hdr.Typeflag != tar.TypeReg {
+			continue
+		}
+
+		if m != nil && dest == filepath.Clean(m.ConfigPath) {
+			data, err := io.ReadAll(tr)
+			if err != nil {
+				_ = zstdCmd.Wait()
+				return Restored{}, fmt.Errorf("reading %s: %w", dest, err)
+			}
+
+			restored.Config = data
+			continue
+		}
+
+		if !within(root, dest) {
+			log.Warn().Str("file", dest).Str("root", root).Msg("restore: skipping file outside the config directory")
+			continue
 		}
 
 		if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
 			_ = zstdCmd.Wait()
-			return "", err
+			return Restored{}, err
 		}
 
 		f, err := os.OpenFile(dest, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.FileMode(hdr.Mode)&0777)
 		if err != nil {
 			_ = zstdCmd.Wait()
-			return "", err
+			return Restored{}, err
 		}
 
 		_, copyErr := io.Copy(f, tr)
 		_ = f.Close()
 		if copyErr != nil {
 			_ = zstdCmd.Wait()
-			return "", fmt.Errorf("extracting %s: %w", dest, copyErr)
+			return Restored{}, fmt.Errorf("extracting %s: %w", dest, copyErr)
 		}
 
 		log.Debug().Str("file", dest).Msg("restored")
@@ -165,45 +205,50 @@ func Restore(archivePath string) (configPath string, err error) {
 	}
 
 	if err := zstdCmd.Wait(); err != nil {
-		return "", fmt.Errorf("zstd: %w", err)
+		return Restored{}, fmt.Errorf("zstd: %w", err)
 	}
 
 	if m == nil {
-		return "", fmt.Errorf("archive has no manifest.json")
+		return Restored{}, fmt.Errorf("archive has no manifest.json")
 	}
 
 	log.Info().Int("files", count).Msg("archive extracted")
-	return m.ConfigPath, nil
+	restored.ConfigPath = configPath
+	return restored, nil
+}
+
+func restoreRoot(configPath string) (string, error) {
+	abs, err := filepath.Abs(configPath)
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Dir(abs), nil
+}
+
+func within(root, path string) bool {
+	rel, err := filepath.Rel(root, path)
+	return err == nil && rel != "." && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 func collectFiles(configPath string, cfg *config.Config) ([]string, error) {
 	seen := map[string]bool{}
 	var paths []string
 
-	add := func(p string) { collectFilesCallback(seen, &paths, p) }
+	add := func(p string) { addBackupPath(seen, &paths, p) }
 
-	resolve := func(p string) string { return collectFilesCallback2(cfg, p) }
+	resolve := func(p string) string { return resolveBackupPath(cfg, p) }
 
 	absConfig, err := filepath.Abs(configPath)
 	if err != nil {
 		return nil, err
 	}
 
-	info, err := os.Stat(absConfig)
-	if err != nil {
+	if _, err := os.Stat(absConfig); err != nil {
 		return nil, err
 	}
 
-	if info.IsDir() {
-		for _, ext := range []string{"*.yml", "*.yaml"} {
-			found, _ := filepath.Glob(filepath.Join(absConfig, ext))
-			for _, f := range found {
-				add(f)
-			}
-		}
-	} else {
-		add(absConfig)
-	}
+	add(absConfig)
 
 	if cfg.Nftables != nil {
 		for _, ch := range cfg.Nftables.Chains {
@@ -217,7 +262,7 @@ func collectFiles(configPath string, cfg *config.Config) ([]string, error) {
 		}
 	}
 
-	for _, wg := range cfg.Wireguard {
+	for _, wg := range cfg.VPN.Wireguard {
 		if wg.PrivateKeyFile != "" {
 			add(resolve(wg.PrivateKeyFile))
 		}
@@ -229,7 +274,7 @@ func collectFiles(configPath string, cfg *config.Config) ([]string, error) {
 		}
 	}
 
-	_ = filepath.WalkDir(userTemplatesDir, func(path string, d fs.DirEntry, err error) error { return collectFilesCallback3(add, path, d, err) })
+	_ = filepath.WalkDir(userTemplatesDir, func(path string, d fs.DirEntry, err error) error { return visitBackupFile(add, path, d, err) })
 
 	return paths, nil
 }
@@ -288,14 +333,14 @@ func safePath(name string) (string, error) {
 	return cleaned, nil
 }
 
-func createCallback(outputPath string, out *os.File, removeOnErr bool) {
+func closeArchive(outputPath string, out *os.File, removeOnErr bool) {
 	_ = out.Close()
 	if removeOnErr {
 		_ = os.Remove(outputPath)
 	}
 }
 
-func collectFilesCallback(seen map[string]bool, paths *[]string, p string) {
+func addBackupPath(seen map[string]bool, paths *[]string, p string) {
 	abs := filepath.Clean(p)
 	if seen[abs] {
 		return
@@ -307,10 +352,10 @@ func collectFilesCallback(seen map[string]bool, paths *[]string, p string) {
 	}
 
 	seen[abs] = true
-	(*paths) = append((*paths), abs)
+	*paths = append(*paths, abs)
 }
 
-func collectFilesCallback2(cfg *config.Config, p string) string {
+func resolveBackupPath(cfg *config.Config, p string) string {
 	if filepath.IsAbs(p) {
 		return p
 	}
@@ -318,8 +363,13 @@ func collectFilesCallback2(cfg *config.Config, p string) string {
 	return filepath.Join(cfg.BaseDir, p)
 }
 
-func collectFilesCallback3(add func(p string), path string, d fs.DirEntry, err error) error {
-	if err != nil || d.IsDir() {
+func visitBackupFile(add func(p string), path string, d fs.DirEntry, err error) error {
+	if err != nil {
+		log.Warn().Err(err).Str("file", path).Msg("backup: skipping unreadable file")
+		return nil
+	}
+
+	if d.IsDir() {
 		return nil
 	}
 

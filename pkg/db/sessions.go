@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -38,7 +39,7 @@ func InsertSession(ctx context.Context, db *DB, id, username string, createdAt t
 
 func LoadSession(ctx context.Context, db *DB, id string) (*Session, error) {
 	row, err := db.queries.LoadSession(ctx, id)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 

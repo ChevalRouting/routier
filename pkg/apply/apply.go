@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/ChevalRouting/routier/pkg/render"
@@ -56,6 +57,10 @@ func Write(outputs []render.Output, dryRun bool, snapshotAlso ...string) (snapID
 }
 
 func modeFor(dest string) os.FileMode {
+	if dest == render.NamedConfDest || (strings.HasPrefix(dest, render.DNSVRFRoot+"/") && filepath.Base(dest) == "named.conf") {
+		return 0640
+	}
+
 	if filepath.Dir(dest) == "/etc/wireguard" || filepath.Ext(dest) == ".yml" {
 		return 0600
 	}
@@ -128,6 +133,10 @@ func Rollback(id string) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	if !validSnapshotID(id) {
+		return nil, fmt.Errorf("invalid snapshot id %q", id)
 	}
 
 	path := filepath.Join(stateDir, "snapshots", id+".json")

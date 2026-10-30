@@ -39,17 +39,6 @@ func ZoneOriginFromName(name string) string {
 	return strings.TrimSuffix(strings.TrimSuffix(base, namedZoneSufx), ".")
 }
 
-func NamedZonesFromNames(names []string) []string {
-	var zones []string
-	for _, n := range names {
-		if strings.HasPrefix(n, namedZonePfx) {
-			zones = append(zones, ZoneOriginFromName(n))
-		}
-	}
-
-	return zones
-}
-
 const (
 	defaultZoneTTL    = 3600
 	defaultSOARefresh = 3600
@@ -129,7 +118,7 @@ func DNSListensOnVIP(cfg *config.Config) bool {
 }
 
 func sortIPStrings(addrs []string) {
-	sort.Slice(addrs, func(i, j int) bool { return sortIPStringsCallback(addrs, i, j) })
+	sort.Slice(addrs, func(i, j int) bool { return ipStringLess(addrs, i, j) })
 }
 
 func bindAllowFrom(cfg *config.Config) []string {
@@ -227,7 +216,7 @@ func dnsInsecureDomains(cfg *config.Config) []string {
 
 	var names []string
 	seen := make(map[string]bool)
-	collect := func(raw string, signed bool) { dnsInsecureDomainsCallback(&names, seen, raw, signed) }
+	collect := func(raw string, signed bool) { addInsecureDomain(&names, seen, raw, signed) }
 
 	for _, f := range s.Forward {
 		collect(f.Domain, f.DNSSEC)
@@ -428,7 +417,7 @@ func zoneSerial(z config.DNSZone, soa soaValues, lines []zoneLine) string {
 	}
 
 	h := fnv.New32a()
-	write := func(parts ...string) { zoneSerialCallback(h, parts...) }
+	write := func(parts ...string) { hashFields(h, parts...) }
 
 	write(config.NormalizeDNSName(z.Name), strconv.Itoa(zoneTTL(z)), soa.Primary, soa.Email,
 		strconv.Itoa(soa.Refresh), strconv.Itoa(soa.Retry), strconv.Itoa(soa.Expire), strconv.Itoa(soa.Minimum))
@@ -575,7 +564,7 @@ func ddnsForwardZones(cfg *config.Config) []string {
 
 	seen := make(map[string]bool)
 	var names []string
-	add := func(domain string) { ddnsForwardZonesCallback(cfg, seen, &names, domain) }
+	add := func(domain string) { addForwardUpdateZone(cfg, seen, &names, domain) }
 
 	add(cfg.DHCP.DDNS.Domain)
 	for _, list := range [][]config.KeaSubnet{cfg.DHCP.Subnets4, cfg.DHCP.Subnets6} {
@@ -738,18 +727,16 @@ func renderDNSZones(cfg *config.Config) ([]Output, error) {
 				return nil, fmt.Errorf("DDNS zones in DNS views are not supported")
 			}
 
-			if len(z.Records) > 0 {
-				out = append(out, Output{
-					Name:    namedZonePfx + ZoneFileName(z.Name),
-					Dest:    staticShadowPath(z.Name),
-					Content: renderZoneFile(z),
-				})
-			}
+			out = append(out, Output{
+				Name:    namedZonePfx + ZoneFileName(z.Name),
+				Dest:    staticShadowPath(z.Name),
+				Content: renderZoneFile(z),
+			})
 
 			continue
 		}
 
-		if len(z.Records) == 0 {
+		if len(z.Primaries) > 0 {
 			continue
 		}
 
@@ -763,7 +750,7 @@ func renderDNSZones(cfg *config.Config) ([]Output, error) {
 	return out, nil
 }
 
-func sortIPStringsCallback(addrs []string, i, j int) bool {
+func ipStringLess(addrs []string, i, j int) bool {
 	a, b := net.ParseIP(addrs[i]), net.ParseIP(addrs[j])
 	if a == nil || b == nil {
 		return addrs[i] < addrs[j]
@@ -777,29 +764,29 @@ func sortIPStringsCallback(addrs []string, i, j int) bool {
 	return bytes.Compare(a.To16(), b.To16()) < 0
 }
 
-func dnsInsecureDomainsCallback(names *[]string, seen map[string]bool, raw string, signed bool) {
+func addInsecureDomain(names *[]string, seen map[string]bool, raw string, signed bool) {
 	name := strings.TrimSuffix(config.NormalizeDNSName(raw), ".")
 	if signed || name == "" || seen[name] {
 		return
 	}
 
 	seen[name] = true
-	(*names) = append((*names), name)
+	*names = append(*names, name)
 }
 
-func zoneSerialCallback(h hash.Hash32, parts ...string) {
+func hashFields(h hash.Hash32, parts ...string) {
 	for _, p := range parts {
 		_, _ = h.Write([]byte(p))
 		_, _ = h.Write([]byte{0})
 	}
 }
 
-func ddnsForwardZonesCallback(cfg *config.Config, seen map[string]bool, names *[]string, domain string) {
+func addForwardUpdateZone(cfg *config.Config, seen map[string]bool, names *[]string, domain string) {
 	name := ddnsForwardUpdateZone(cfg, domain)
 	if name == "" || seen[name] {
 		return
 	}
 
 	seen[name] = true
-	(*names) = append((*names), name)
+	*names = append(*names, name)
 }

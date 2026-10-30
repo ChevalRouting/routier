@@ -1,4 +1,8 @@
+import { useHasParam } from '@/lib/useHasParam'
+import { monitorSections, type MonitorGroup, type MonitorSectionKey } from '@/lib/navigation'
 import { BGPPanel } from '@/components/monitor/BGPPanel'
+import { FlowsPanel } from '@/components/monitor/FlowsPanel'
+import { LiveTrafficPanel } from '@/components/monitor/LiveTrafficPanel'
 import { LogsPanel } from '@/components/monitor/LogsPanel'
 import { NeighborsPanel } from '@/components/monitor/NeighborsPanel'
 import { ProbesPanel } from '@/components/monitor/ProbesPanel'
@@ -6,71 +10,40 @@ import { ProcessesPanel } from '@/components/monitor/ProcessesPanel'
 import { TabAction } from '@/components/monitor/shared'
 import { SystemPanel } from '@/components/monitor/SystemPanel'
 import { TrafficPanel } from '@/components/monitor/TrafficPanel'
-import { PageHeader, Tabs, useTabState } from 'cheval-ui'
-import { useEffect, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { PageHeader, SectionNav, Spinner, useTabState } from 'cheval-ui'
+import { lazy, Suspense, useState } from 'react'
 
-type MONITORTABSShape = { key: MonitorTab; label: string }
+const Topology = lazy(() => import('@/pages/RoutingOverview'))
 
-type MonitorTab = 'system' | 'bgp' | 'traffic' | 'logs' | 'neighbors' | 'processes' | 'probes'
+type MonitorShape = { group: MonitorGroup }
 
-const MONITOR_TABS: MONITORTABSShape[] = [
-  { key: 'system',     label: 'System' },
-  { key: 'processes',  label: 'Processes' },
-  { key: 'bgp',        label: 'BGP' },
-  { key: 'traffic',    label: 'Traffic' },
-  { key: 'logs',       label: 'Logs' },
-  { key: 'neighbors',  label: 'Neighbors' },
-  { key: 'probes',     label: 'Probes' },
-]
-
-const MOVED: Record<string, string> = { dhcp: '/dhcp', dns: '/dns' }
-
-export default function Monitor() {
-  const [activeTab, setActiveTab] = useTabState<MonitorTab>('monitor', 'system' as MonitorTab)
+export default function Monitor({ group }: MonitorShape) {
+  const tabs = monitorSections.filter((section) => section.group === group).map(({ key, label, group }) => ({ key, label, group }))
+  const [requested, setActiveTab] = useTabState<MonitorSectionKey>('monitor', tabs[0].key)
+  const activeTab = tabs.some((tab) => tab.key === requested) ? requested : tabs[0].key
+  const deepLinked = useHasParam('monitor')
   const [tabAction, setTabAction] = useState<TabAction>(null)
-  const [searchParams, setSearchParams] = useSearchParams()
-  const navigate = useNavigate()
 
-  useEffect(() => {
-    const requested = searchParams.get('tab') ?? searchParams.get('monitor')
-    const t = requested === 'nics' ? 'system' : requested
-    if ((activeTab as string) === 'nics') setActiveTab('system')
-    if (t && MOVED[t]) {
-      navigate(MOVED[t], { replace: true })
-      return
-    }
-
-    if (t && MONITOR_TABS.some((m) => m.key === t)) {
-      setActiveTab(t as MonitorTab)
-      setTabAction(null)
-      searchParams.delete('tab')
-      setSearchParams(searchParams, { replace: true })
-    }
-  }, [activeTab, navigate, searchParams, setActiveTab, setSearchParams])
-
-  const handleTabChange = (tab: MonitorTab) => {
+  const handleTabChange = (tab: MonitorSectionKey) => {
     setActiveTab(tab)
     setTabAction(null)
   }
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Monitor"
-        description="Live system statistics, traffic, logs, and network state"
-        action={tabAction}
-      />
-      <Tabs tabs={MONITOR_TABS} active={activeTab} onChange={handleTabChange} />
-      <div>
+      <PageHeader title={group} action={tabAction} />
+      <SectionNav items={tabs} active={activeTab} onChange={handleTabChange} initiallyEntered={deepLinked}>
         {activeTab === 'system'     && <SystemPanel onActionChange={setTabAction} />}
         {activeTab === 'processes'  && <ProcessesPanel onActionChange={setTabAction} />}
-        {activeTab === 'bgp'        && <BGPPanel onActionChange={setTabAction} />}
-        {activeTab === 'traffic'    && <TrafficPanel />}
         {activeTab === 'logs'       && <LogsPanel />}
+        {activeTab === 'topology'   && <Suspense fallback={<Spinner />}><Topology /></Suspense>}
+        {activeTab === 'traffic'    && <TrafficPanel />}
+        {activeTab === 'live'       && <LiveTrafficPanel />}
+        {activeTab === 'flows'      && <FlowsPanel />}
+        {activeTab === 'bgp'        && <BGPPanel onActionChange={setTabAction} />}
         {activeTab === 'neighbors'  && <NeighborsPanel />}
         {activeTab === 'probes'     && <ProbesPanel onActionChange={setTabAction} />}
-      </div>
+      </SectionNav>
     </div>
   )
 }

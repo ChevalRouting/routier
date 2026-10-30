@@ -1,6 +1,5 @@
-import { activeBaseUrl } from '@/lib/instance'
-import { getToken } from '@/lib/utils'
-import { Button, Card, CardContent, cn, Input } from 'cheval-ui'
+import { readEventStream } from '@/lib/eventStream'
+import { Button, Card, CardContent, cn, Input, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from 'cheval-ui'
 import { ChevronDown, ChevronRight, Search, Trash2 } from 'lucide-react'
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 
@@ -47,6 +46,14 @@ function shortTime(time: string): string {
 
 let counter = 0
 
+function parseQuery(data: string): DnsQuery | null {
+  try {
+    return JSON.parse(data) as DnsQuery
+  } catch {
+    return null
+  }
+}
+
 export function DnsQueriesPanel() {
   const [rows, setRows] = useState<Row[]>([])
   const [live, setLive] = useState(true)
@@ -67,39 +74,22 @@ export function DnsQueriesPanel() {
     abortRef.current = controller
 
     let retry: ReturnType<typeof setTimeout>
+    const addQuery = (data: string) => {
+      const parsed = parseQuery(data)
+      if (parsed) setRows((prev) => [{ ...parsed, id: counter++ }, ...prev].slice(0, 500))
+    }
+
+    const markLive = () => {
+      connectedRef.current = true
+      setStatus('Live')
+    }
+
     const run = async () => {
       setStatus('Connecting…')
+      const history = connectedRef.current ? '?history=0' : ''
       try {
-        const res = await fetch(`${activeBaseUrl()}/api/dns/queries/stream${connectedRef.current ? '?history=0' : ''}`, {
-          headers: { Authorization: `Bearer ${getToken() ?? ''}` },
-          signal: controller.signal,
-        })
-        if (!res.ok || !res.body) throw new Error(`Unable to stream queries (HTTP ${res.status})`)
-        setStatus('Live')
-        connectedRef.current = true
-        const reader = res.body.getReader()
-        const decoder = new TextDecoder()
-        let buffer = ''
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) throw new Error('Query stream disconnected')
-          buffer += decoder.decode(value, { stream: true })
-          const parts = buffer.split('\n\n')
-          buffer = parts.pop() ?? ''
-          for (const part of parts) {
-            const line = part.split('\n').filter((line) => line.startsWith('data:')).map((line) => line.slice(5).trimStart()).join('\n')
-            if (!line) continue
-            try {
-              const parsed = JSON.parse(line) as DnsQuery
-              setRows((prev) => {
-                const next = [{ ...parsed, id: counter++ }, ...prev]
-                return next.length > 500 ? next.slice(0, 500) : next
-              })
-            } catch {
-
-            }
-          }
-        }
+        await readEventStream(`/api/dns/queries/stream${history}`, controller.signal, addQuery, markLive)
+        throw new Error('Query stream disconnected')
       } catch (err) {
         if (!controller.signal.aborted) {
           setStatus(`${err instanceof Error ? err.message : 'Connection failed'}, retrying…`)
@@ -139,7 +129,7 @@ export function DnsQueriesPanel() {
             onClick={() => setLive((v) => !v)}
             className="gap-1.5"
           >
-            <span className={cn('h-1.5 w-1.5 rounded-full inline-block', live && status === 'Live' ? 'bg-white animate-pulse' : 'bg-muted-foreground')} />
+            <span className={cn('h-1.5 w-1.5 rounded-full inline-block', live && status === 'Live' ? 'bg-success' : 'bg-muted-foreground')} />
             {live ? 'Pause' : 'Resume'}
           </Button>
           <Button size="sm" variant="ghost" onClick={() => setRows([])} className="gap-1.5 text-muted-foreground">
@@ -151,49 +141,49 @@ export function DnsQueriesPanel() {
       <Card>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-left">
-                  <th className="w-8" />
-                  <th className="px-3 py-2.5 font-medium text-muted-foreground w-28">Time</th>
-                  <th className="px-3 py-2.5 font-medium text-muted-foreground">Client</th>
-                  <th className="px-3 py-2.5 font-medium text-muted-foreground">Name</th>
-                  <th className="px-3 py-2.5 font-medium text-muted-foreground w-20">Type</th>
-                  <th className="px-3 py-2.5 font-medium text-muted-foreground w-16">Class</th>
-                  <th className="px-3 py-2.5 font-medium text-muted-foreground w-24">Flags</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table className="w-full text-sm">
+              <TableHeader>
+                <TableRow className="border-b border-border text-left">
+                  <TableHead className="w-8" />
+                  <TableHead className="px-3 py-2.5 font-medium text-muted-foreground w-28">Time</TableHead>
+                  <TableHead className="px-3 py-2.5 font-medium text-muted-foreground">Client</TableHead>
+                  <TableHead className="px-3 py-2.5 font-medium text-muted-foreground">Name</TableHead>
+                  <TableHead className="px-3 py-2.5 font-medium text-muted-foreground w-20">Type</TableHead>
+                  <TableHead className="px-3 py-2.5 font-medium text-muted-foreground w-16">Class</TableHead>
+                  <TableHead className="px-3 py-2.5 font-medium text-muted-foreground w-24">Flags</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="px-4 py-8 text-center text-sm text-muted-foreground">
-                      {q && rows.length > 0 ? 'No queries match your filter.' : live ? 'Waiting for queries… (enable query logging in Resolver settings if none appear)' : 'Paused.'}
-                    </td>
-                  </tr>
+                  <TableRow>
+                    <TableCell colSpan={7} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                      {q && rows.length > 0 ? 'No Results' : live ? 'Waiting for Queries' : 'Paused'}
+                    </TableCell>
+                  </TableRow>
                 ) : filtered.map((r) => {
                   const open = expanded === r.id
                   return (
                     <Fragment key={r.id}>
-                      <tr
+                      <TableRow
                         className="border-b border-border last:border-b-0 hover:bg-muted/30 cursor-pointer"
                         onClick={() => setExpanded(open ? null : r.id)}
                       >
-                        <td className="pl-3 text-muted-foreground">
+                        <TableCell className="pl-3 text-muted-foreground">
                           {open ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-                        </td>
-                        <td className="px-3 py-2 font-mono text-xs text-muted-foreground tabular-nums">{shortTime(r.time)}</td>
-                        <td className="px-3 py-2 font-mono text-xs">{r.client}</td>
-                        <td className="px-3 py-2 font-mono truncate max-w-xs">{r.name}</td>
-                        <td className="px-3 py-2 font-mono text-xs">
+                        </TableCell>
+                        <TableCell className="px-3 py-2 font-mono text-xs text-muted-foreground tabular-nums">{shortTime(r.time)}</TableCell>
+                        <TableCell className="px-3 py-2 font-mono text-xs">{r.client}</TableCell>
+                        <TableCell className="px-3 py-2 font-mono truncate max-w-xs">{r.name}</TableCell>
+                        <TableCell className="px-3 py-2 font-mono text-xs">
                           <span className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2 py-0.5">{r.type}</span>
-                        </td>
-                        <td className="px-3 py-2 font-mono text-xs text-muted-foreground">{r.class}</td>
-                        <td className="px-3 py-2 font-mono text-xs text-muted-foreground">{r.flags}</td>
-                      </tr>
+                        </TableCell>
+                        <TableCell className="px-3 py-2 font-mono text-xs text-muted-foreground">{r.class}</TableCell>
+                        <TableCell className="px-3 py-2 font-mono text-xs text-muted-foreground">{r.flags}</TableCell>
+                      </TableRow>
                       {open && (
-                        <tr className="border-b border-border bg-muted/20">
-                          <td />
-                          <td colSpan={6} className="px-3 py-3">
+                        <TableRow className="border-b border-border bg-muted/20">
+                          <TableCell />
+                          <TableCell colSpan={6} className="px-3 py-3">
                             <dl className="grid grid-cols-[7rem_1fr] gap-x-4 gap-y-1 text-xs">
                               <dt className="text-muted-foreground">Timestamp</dt>
                               <dd className="font-mono">{r.time || '–'}</dd>
@@ -207,14 +197,14 @@ export function DnsQueriesPanel() {
                               <dt className="text-muted-foreground">Raw</dt>
                               <dd className="font-mono break-all text-muted-foreground">{r.raw}</dd>
                             </dl>
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       )}
                     </Fragment>
                   )
                 })}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </CardContent>
       </Card>

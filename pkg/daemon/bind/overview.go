@@ -13,12 +13,12 @@ type Overview struct {
 	Stats   []Stat     `json:"stats,omitempty"  validate:"optional"`
 }
 
-func (c *Client) Overview(in OverviewInput) (*Overview, error) {
+func (c *Client) Overview(in OverviewInput) *Overview {
 	out := &Overview{Listen: in.Listen, Zones: DeclaredZones(in.Zones)}
 
 	status, err := c.Status()
 	if err != nil {
-		return out, nil
+		return out
 	}
 
 	out.Status = status
@@ -29,5 +29,5 @@ func (c *Client) Overview(in OverviewInput) (*Overview, error) {
 		out.Stats = KeyStatistics(stats)
 	}
 
-	return out, nil
+	return out
 }

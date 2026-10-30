@@ -1,7 +1,10 @@
+import { Checkbox } from '@/components/ui/Checkbox'
 import { DnsRecord, DnsZone, fqdn, ownerFqdn, parseRecordLines, ptrExists, RECORD_TYPES, reverseTarget } from '@/components/dns-config/shared'
-import { Button, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Textarea, Switch } from 'cheval-ui'
+import { Button, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Textarea, Label } from 'cheval-ui'
 import { Plus, Search, Trash2 } from 'lucide-react'
 import { useState } from 'react'
+import { AutoTextarea } from '@/components/ui/AutoTextarea'
+import { plural } from '@/lib/utils'
 
 type RecordRowsProps = {
   records: DnsRecord[]
@@ -17,16 +20,95 @@ type IndexedRecord = { r: DnsRecord; i: number }
 
 type RecordIndex = { i: number }
 
+type ReverseRecord = { index: number; owner: string; value: string }
+
+type ReverseMove = { from: ReverseRecord; to: ReverseRecord | null }
+
+function sameReverse(a: ReverseRecord | null, b: ReverseRecord | null): boolean {
+  return !!a && !!b && a.index === b.index && a.owner === b.owner && fqdn(a.value) === fqdn(b.value)
+}
+
+function isAddress(r: DnsRecord): boolean {
+  return r.type === 'A' || r.type === 'AAAA'
+}
+
+function withoutPtr(zones: DnsZone[], ptr: ReverseRecord): DnsZone[] {
+  return zones.map((z, i) => {
+    if (i !== ptr.index) return z
+    const records = (z.records ?? []).filter((x) => !(x.type === 'PTR' && x.name.trim() === ptr.owner && fqdn(x.value) === fqdn(ptr.value)))
+    return { ...z, records: records.length ? records : undefined }
+  })
+}
+
+function withPtr(zones: DnsZone[], ptr: ReverseRecord): DnsZone[] {
+  if (ptrExists(zones[ptr.index], ptr.owner, ptr.value)) return zones
+  return zones.map((z, i) => (i === ptr.index ? { ...z, records: [...(z.records ?? []), { name: ptr.owner, type: 'PTR', value: ptr.value }] } : z))
+}
+
+function remapIndices(indices: Set<number>, aligned: (DnsRecord | null)[]): Set<number> {
+  const moved = new Set<number>()
+  let kept = 0
+  aligned.forEach((r, i) => {
+    if (r === null) return
+    if (indices.has(i)) moved.add(kept)
+    kept++
+  })
+  return moved
+}
+
 export function RecordRows({ records, onChange, zoneName, zones, onZonesChange }: RecordRowsProps) {
   const [filter, setFilter] = useState('')
+  const [pinned, setPinned] = useState<Set<number>>(new Set())
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [editing, setEditing] = useState<Set<number>>(new Set())
   const [pasteOpen, setPasteOpen] = useState(false)
   const [pasteText, setPasteText] = useState('')
 
-  const set = (i: number, next: DnsRecord) => onChange(records.map((r, j) => (j === i ? next : r)))
-
   const reverseEnabled = !!(zoneName && zones && onZonesChange)
+
+  const reverseOf = (r: DnsRecord): ReverseRecord | null => {
+    if (!reverseEnabled || !isAddress(r) || !r.value.trim()) return null
+
+    const target = reverseTarget(r.value, zones!)
+    if (!target) return null
+
+    return { index: target.index, owner: target.owner, value: ownerFqdn(r.name, zoneName!) }
+  }
+
+  const reverseMove = (r: DnsRecord, i: number, aligned: (DnsRecord | null)[], next: DnsRecord[]): ReverseMove[] => {
+    const from = reverseOf(r)
+    if (!from || !ptrExists(zones![from.index], from.owner, from.value)) return []
+
+    const replacement = aligned[i]
+    const to = replacement ? reverseOf(replacement) : null
+    if (sameReverse(from, to)) return []
+    if (replacement && !to && isAddress(replacement)) return []
+    if (!to && next.some((candidate) => sameReverse(reverseOf(candidate), from))) return []
+
+    return [{ from, to }]
+  }
+
+  const commit = (aligned: (DnsRecord | null)[]) => {
+    const next = aligned.filter((r): r is DnsRecord => r !== null)
+    const changed = aligned.flatMap((r, i) => (r !== null && r !== records[i] ? [i] : []))
+    setPinned(remapIndices(new Set([...pinned, ...changed]), aligned))
+    const forward = reverseEnabled ? zones!.findIndex((z) => z.name === zoneName) : -1
+    const moves = forward < 0 ? [] : records.flatMap((r, i) => reverseMove(r, i, aligned, next))
+    if (moves.length === 0) {
+      onChange(next)
+      return
+    }
+
+    let updated = zones!.map((z, i) => (i === forward ? { ...z, records: next.length ? next : undefined } : z))
+    for (const { from, to } of moves) {
+      updated = withoutPtr(updated, from)
+      if (to) updated = withPtr(updated, to)
+    }
+
+    onZonesChange!(updated)
+  }
+
+  const set = (i: number, next: DnsRecord) => commit(records.map((r, j) => (j === i ? next : r)))
 
   const reverseInfoFor = (r: DnsRecord) => {
     if (!reverseEnabled || (r.type !== 'A' && r.type !== 'AAAA') || !r.value.trim()) return null
@@ -55,7 +137,17 @@ export function RecordRows({ records, onChange, zoneName, zones, onZonesChange }
   const q = filter.trim().toLowerCase()
   const shown = records
     .map((r, i) => ({ r, i }))
-    .filter(({ r }) => !q || `${r.name} ${r.type} ${r.value}`.toLowerCase().includes(q))
+    .filter(({ r, i }) => !q || pinned.has(i) || editing.has(i) || `${r.name} ${r.type} ${r.value}`.toLowerCase().includes(q))
+
+  const add = (added: DnsRecord[]) => {
+    onChange([...records, ...added])
+    setPinned((prev) => new Set([...prev, ...added.map((_, k) => records.length + k)]))
+  }
+
+  const search = (value: string) => {
+    setFilter(value)
+    setPinned(new Set())
+  }
 
   const groups: RecordGroup[] = []
   const groupOf = new Map<string, number>()
@@ -104,28 +196,27 @@ export function RecordRows({ records, onChange, zoneName, zones, onZonesChange }
 
   const renameGroup = (items: RecordIndex[], name: string) => {
     const idx = new Set(items.map(({ i }) => i))
-    onChange(records.map((r, j) => (idx.has(j) ? { ...r, name } : r)))
+    commit(records.map((r, j) => (idx.has(j) ? { ...r, name } : r)))
   }
 
   const deleteSelected = () => {
-    onChange(records.filter((_, i) => !selected.has(i)))
+    commit(records.map((r, i) => (selected.has(i) ? null : r)))
     setSelected(new Set())
   }
 
   const parsed = parseRecordLines(pasteText)
   const append = () => {
     if (parsed.records.length === 0) return
-    onChange([...records, ...parsed.records])
+    add(parsed.records)
     setPasteText('')
     setPasteOpen(false)
-    setFilter('')
   }
 
   return (
     <div className="space-y-2">
       {records.length > 0 && (
         <div className="flex items-center gap-2">
-          <Switch
+          <Checkbox
             className="shrink-0"
             checked={allShownSelected}
             onCheckedChange={toggleAll}
@@ -138,7 +229,7 @@ export function RecordRows({ records, onChange, zoneName, zones, onZonesChange }
               className="h-8 pl-7 font-mono text-xs"
               placeholder={`Filter ${records.length} records`}
               value={filter}
-              onChange={(e) => setFilter(e.target.value)}
+              onChange={(e) => search(e.target.value)}
             />
           </div>
           {selected.size > 0 && (
@@ -151,7 +242,8 @@ export function RecordRows({ records, onChange, zoneName, zones, onZonesChange }
 
       {groups.map((g) => {
         const name = g.items[0].r.name
-        const ownerRecords = records.filter((r) => r.name.trim().toLowerCase() === name.trim().toLowerCase())
+        const ownerKey = (n: string) => (zoneName ? ownerFqdn(n, zoneName) : n.trim().toLowerCase())
+        const ownerRecords = records.filter((r) => ownerKey(r.name) === ownerKey(name))
         const cnameCount = ownerRecords.filter((r) => r.type.toUpperCase() === 'CNAME').length
         const cnameError = cnameCount > 1
           ? 'Only one CNAME target is allowed per name. For multiple addresses, use A/AAAA records.'
@@ -159,44 +251,41 @@ export function RecordRows({ records, onChange, zoneName, zones, onZonesChange }
             ? 'A CNAME cannot share its name with other records.'
             : null
         return (
-          <div key={g.items[0].i} className="space-y-1.5 rounded-md border border-border/60 p-2">
+          <div key={g.items[0].i} className="space-y-2 rounded-xl bg-card p-3 [box-shadow:var(--card-shadow)]">
             <div className="flex items-center gap-2">
-              <Switch
+              <Checkbox
                 className="shrink-0"
                 aria-label={`Select records for ${name}`}
                 checked={groupSelected(g.items)}
                 onCheckedChange={() => toggleGroup(g.items)}
               />
-              <Input
-                className="h-8 w-40 font-mono text-xs"
+              <AutoTextarea
+                className="min-w-0 flex-1 font-mono text-xs sm:w-56 sm:flex-none"
                 placeholder="@"
                 value={name}
                 onFocus={() => setEditing(new Set(g.items.map(({ i }) => i)))}
                 onBlur={() => setEditing(new Set())}
-                onChange={(e) => renameGroup(g.items, e.target.value)}
+                onChange={(v) => renameGroup(g.items, v)}
               />
-              <span className="text-xs text-muted-foreground">{g.items.length} record{g.items.length > 1 ? 's' : ''}</span>
-              <div className="flex-1" />
+              <span className="hidden text-xs text-muted-foreground sm:inline">{plural(g.items.length, 'record')}</span>
+              <div className="hidden flex-1 sm:block" />
               <Button
                 variant="ghost"
                 size="sm"
                 className="h-7 gap-1 text-xs text-muted-foreground"
-                onClick={() => { onChange([...records, { name, type: 'A', value: '' }]); setFilter('') }}
+                onClick={() => add([{ name, type: 'A', value: '' }])}
               >
-                <Plus className="h-3 w-3" /> Add type
+                <Plus className="h-3 w-3" /> Add Type
               </Button>
             </div>
 
-            {cnameError && <p role="alert" className="pl-6 text-xs text-destructive">{cnameError}</p>}
-            {cnameCount === 1 && !cnameError && (
-              <p className="pl-6 text-xs text-muted-foreground">A CNAME supports one target and cannot share its name with other records.</p>
-            )}
+            {cnameError && <p role="alert" className="text-xs text-danger sm:pl-6">{cnameError}</p>}
 
             {g.items.map(({ r, i }) => {
               const rev = reverseInfoFor(r)
               return (
-                <div key={i} className="flex items-center gap-2 pl-6">
-                  <Switch
+                <div key={i} className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-2 sm:flex-nowrap sm:border-0 sm:pt-0 sm:pl-6">
+                  <Checkbox
                     className="shrink-0"
                     aria-label={`Select ${r.type} record for ${r.name}`}
                     checked={selected.has(i)}
@@ -208,12 +297,6 @@ export function RecordRows({ records, onChange, zoneName, zones, onZonesChange }
                       {RECORD_TYPES.map((t) => <SelectItem key={t} value={t} className="font-mono text-xs">{t}</SelectItem>)}
                     </SelectContent>
                   </Select>
-                  <Input
-                    className="h-8 flex-1 font-mono text-xs"
-                    placeholder="value"
-                    value={r.value}
-                    onChange={(e) => set(i, { ...r, value: e.target.value })}
-                  />
                   {(r.type === 'MX' || r.type === 'SRV') && (
                     <Input
                       className="h-8 w-20 font-mono text-xs"
@@ -222,18 +305,25 @@ export function RecordRows({ records, onChange, zoneName, zones, onZonesChange }
                       onChange={(e) => set(i, { ...r, priority: e.target.value ? Number(e.target.value) : undefined })}
                     />
                   )}
+                  <AutoTextarea
+                    className="order-last w-full font-mono text-xs sm:order-none sm:w-auto sm:flex-1"
+                    placeholder="value"
+                    value={r.value}
+                    onChange={(v) => set(i, { ...r, value: v })}
+                  />
+                  <div className="flex-1 sm:hidden" />
                   {rev && (
-                    <label className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground" title={`Create the reverse (PTR) record in ${rev.zoneName}`}>
-                      <Switch
+                    <Label className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground" title={`Create Reverse Record in ${rev.zoneName}`}>
+                      <Checkbox
                         className="shrink-0"
-                        aria-label="Create reverse record"
+                        aria-label="Create Reverse Record"
                         checked={rev.checked}
                         onCheckedChange={(checked) => toggleReverse(r, checked)}
                       />
                       PTR
-                    </label>
+                    </Label>
                   )}
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { onChange(records.filter((_, j) => j !== i)); setSelected(new Set()) }}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { commit(records.map((x, j) => (j === i ? null : x))); setSelected(new Set()) }} aria-label="Remove Record" title="Remove Record">
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
@@ -248,11 +338,11 @@ export function RecordRows({ records, onChange, zoneName, zones, onZonesChange }
       )}
 
       <div className="flex gap-2">
-        <Button variant="outline" size="sm" onClick={() => { onChange([...records, { name: '@', type: 'A', value: '' }]); setFilter('') }}>
-          <Plus className="mr-1 h-3 w-3" /> Add record
+        <Button variant="outline" size="sm" onClick={() => add([{ name: '@', type: 'A', value: '' }])}>
+          <Plus className="mr-1 h-3 w-3" /> Add Record
         </Button>
         <Button variant="outline" size="sm" onClick={() => setPasteOpen((v) => !v)}>
-          Paste records
+          Paste Records
         </Button>
       </div>
 
@@ -269,9 +359,9 @@ export function RecordRows({ records, onChange, zoneName, zones, onZonesChange }
               Append {parsed.records.length || ''}
             </Button>
             <p className="text-xs text-muted-foreground">
-              One record per line: <code>name [ttl] type value</code>.
+              One record per line: <code>name [ttl] type value</code>
               {parsed.errors.length > 0 && (
-                <span className="text-amber-600 dark:text-amber-500"> {parsed.errors.length} line(s) unparsed.</span>
+                <span className="text-warning">, {plural(parsed.errors.length, 'line')} not parsed</span>
               )}
             </p>
           </div>

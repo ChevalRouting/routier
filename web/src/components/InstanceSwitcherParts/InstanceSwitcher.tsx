@@ -34,7 +34,7 @@ export function InstanceSwitcher({ collapsed }: InstanceSwitcherShape) {
         onClick={() => setOpen((o) => !o)}
         title={collapsed ? active.label : undefined}
         className={cn(
-          'flex items-center rounded-md text-[13px] font-medium transition-colors w-full',
+          'flex items-center rounded-md text-sm font-medium transition-colors w-full',
           'text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground',
           isFriend && 'bg-info/15 text-info hover:bg-info/20 hover:text-info',
           collapsed ? 'justify-center py-2 h-9' : 'gap-2 px-2.5 py-1.5',

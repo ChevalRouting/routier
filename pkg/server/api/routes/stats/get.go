@@ -3,6 +3,7 @@ package stats
 import (
 	"net/http"
 
+	"github.com/ChevalRouting/routier/pkg/config"
 	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	"github.com/ChevalRouting/routier/pkg/server/api/cfgstore"
 	"github.com/ChevalRouting/routier/pkg/server/api/workers"
@@ -25,6 +26,7 @@ func Get(w http.ResponseWriter, r *http.Request) {
 		Interfaces: stats.ReadIfaceStats(),
 		System:     snap.Sys,
 	}
+	addIfaceAliases(app.ConfigPath, resp.Interfaces)
 	resp.BGP = snap.BGP
 	resp.OSPF = snap.OSPF
 
@@ -45,4 +47,18 @@ func Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	types.OK(w, resp)
+}
+
+func addIfaceAliases(configPath string, ifaces map[string]*types.IfaceStats) {
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		return
+	}
+
+	config.ResolveInterfaces(cfg)
+	for name, iface := range cfg.Interfaces {
+		if st, ok := ifaces[iface.Device]; ok && iface.Device != name {
+			st.Alias = name
+		}
+	}
 }

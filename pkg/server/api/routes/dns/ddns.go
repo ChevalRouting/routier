@@ -1,6 +1,7 @@
 package dns
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -70,7 +71,6 @@ func DDNS(w http.ResponseWriter, r *http.Request) {
 
 // @Summary  Clear a single dynamic record from a DDNS-managed zone
 // @Tags dns
-// @Accept json
 // @Produce json
 // @Param zone path string true "zone name"
 // @Param request body dns.ddnsDeleteRequest true "record to delete"
@@ -107,7 +107,13 @@ func DeleteDDNSRecord(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := client.DeleteRecord(config.NormalizeDNSName(zone), config.NormalizeDNSName(req.Name), req.Type, req.Value); err != nil {
+	err = client.DeleteRecord(config.NormalizeDNSName(zone), config.NormalizeDNSName(req.Name), req.Type, req.Value)
+	if errors.Is(err, bind.ErrInvalidRecord) {
+		types.Err(http.StatusBadRequest, err.Error()).Write(w)
+		return
+	}
+
+	if err != nil {
 		types.Error(log.Logger, w, types.Wrap(http.StatusBadGateway, err, "failed to delete the record"))
 		return
 	}

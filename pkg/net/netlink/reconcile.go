@@ -12,6 +12,10 @@ func Reconcile(cfg *config.Config, dryRun bool) error {
 		return err
 	}
 
+	return ReconcileAddressesAndRoutes(cfg, dryRun)
+}
+
+func ReconcileAddressesAndRoutes(cfg *config.Config, dryRun bool) error {
 	if err := reconcileAddrs(cfg, dryRun); err != nil {
 		return err
 	}

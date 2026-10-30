@@ -19,8 +19,8 @@ func newBackupsCommand() *cobra.Command {
 		Aliases: []string{"export"},
 		Short:   "create a backup archive of config and referenced files",
 		Args:    cobra.MaximumNArgs(1),
-		RunE: func(unusedArg1 *cobra.Command, args []string) error {
-			return newBackupsCommandCallback(&output, unusedArg1, args)
+		RunE: func(_ *cobra.Command, args []string) error {
+			return runBackups(&output, args)
 		},
 	}
 
@@ -38,7 +38,7 @@ func newRestoreCommand() *cobra.Command {
 		Short: "restore config from backup archive and apply",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return newRestoreCommandCallback(timeout, noArm, cmd, args)
+			return runRestore(timeout, noArm, cmd, args)
 		},
 	}
 
@@ -47,27 +47,27 @@ func newRestoreCommand() *cobra.Command {
 	return cmd
 }
 
-func newBackupsCommandCallback(output *string, _ *cobra.Command, args []string) error {
+func runBackups(output *string, args []string) error {
 	cfgPath := configArg(args)
 	cfg, err := config.Load(cfgPath)
 	if err != nil {
 		return err
 	}
 
-	if (*output) == "" {
-		(*output) = fmt.Sprintf("routier-backup-%s.tar.zst", time.Now().Format("20060102-150405"))
+	if *output == "" {
+		*output = fmt.Sprintf("routier-backup-%s.tar.zst", time.Now().Format("20060102-150405"))
 	}
 
-	return backup.Create((*output), cfgPath, cfg)
+	return backup.Create(*output, cfgPath, cfg)
 }
 
-func newRestoreCommandCallback(timeout int, noArm bool, cmd *cobra.Command, args []string) error {
-	cfgPath, err := backup.Restore(args[0])
+func runRestore(timeout int, noArm bool, cmd *cobra.Command, args []string) error {
+	restored, err := backup.Restore(args[0], defaultConfigPath)
 	if err != nil {
 		return err
 	}
 
-	cfg, err := config.LoadAndValidate(cfgPath, true)
+	cfg, err := restored.Load()
 	if err != nil {
 		return err
 	}
@@ -78,7 +78,7 @@ func newRestoreCommandCallback(timeout int, noArm bool, cmd *cobra.Command, args
 	}
 
 	res, err := managers.Apply(cmd.Context(), cfg, friends.LoadCacheVars(defaultFriendsCache),
-		managers.ApplyOptions{Source: "restore", ConfigPath: cfgPath}, armTimeout)
+		managers.ApplyOptions{Source: "restore", ConfigPath: restored.ConfigPath, PersistConfig: restored.Config}, armTimeout)
 	if err != nil {
 		return err
 	}

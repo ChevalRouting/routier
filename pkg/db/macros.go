@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -57,7 +58,7 @@ func macro(row generated.Macro) *Macro {
 
 func LoadMacro(ctx context.Context, db *DB, id string) (*Macro, error) {
 	row, err := db.queries.LoadMacro(ctx, id)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 
@@ -70,7 +71,7 @@ func LoadMacro(ctx context.Context, db *DB, id string) (*Macro, error) {
 
 func LoadMacroByName(ctx context.Context, db *DB, name string) (*Macro, error) {
 	row, err := db.queries.LoadMacroByName(ctx, name)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 

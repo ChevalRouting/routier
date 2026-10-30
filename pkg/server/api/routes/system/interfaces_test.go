@@ -21,7 +21,7 @@ func TestReadInterfaceLink(t *testing.T) {
 		{"bond0", `[{"ifname":"bond0","linkinfo":{"info_kind":"bond","info_data":{"mode":"802.3ad","miimon":100}}}]`},
 		{"br0", `[{"ifname":"br0","linkinfo":{"info_kind":"bridge","info_data":{"stp_state":1}}}]`},
 	} {
-		t.Run(tc.name, func(t *testing.T) { testReadInterfaceLinkCallback(&tc, t) })
+		t.Run(tc.name, func(t *testing.T) { checkReadInterfaceLink(&tc, t) })
 	}
 }
 
@@ -94,31 +94,31 @@ type interfaceStatusResponseCase struct {
 	Result interfaceStatus `json:"result"`
 }
 
-func testReadInterfaceLinkCallback(tc *readInterfaceLinkCase, t *testing.T) {
-	link, err := readInterfaceLink(context.Background(), (*tc).name, func(unusedArg2 context.Context, args ...string) ([]byte, error) {
-		return testReadInterfaceLinkCallbackCallback(tc, t, unusedArg2, args...)
+func checkReadInterfaceLink(tc *readInterfaceLinkCase, t *testing.T) {
+	link, err := readInterfaceLink(context.Background(), tc.name, func(ctx context.Context, args ...string) ([]byte, error) {
+		return fakeIPLinkOutput(tc, t, ctx, args...)
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if link["ifname"] != (*tc).name {
+	if link["ifname"] != tc.name {
 		t.Fatalf("wrong link: %v", link)
 	}
 
-	if (*tc).name == "eth0" && link["stats64"].(map[string]any)["rx"].(map[string]any)["bytes"].(interface{ String() string }).String() != "9007199254740993" {
+	if tc.name == "eth0" && link["stats64"].(map[string]any)["rx"].(map[string]any)["bytes"].(interface{ String() string }).String() != "9007199254740993" {
 		t.Fatal("counter precision lost")
 	}
 
-	if (*tc).name != "eth0" && link["linkinfo"] == nil {
+	if tc.name != "eth0" && link["linkinfo"] == nil {
 		t.Fatal("type details lost")
 	}
 }
 
-func testReadInterfaceLinkCallbackCallback(tc *readInterfaceLinkCase, t *testing.T, _ context.Context, args ...string) ([]byte, error) {
-	if !reflect.DeepEqual(args, []string{"-j", "-d", "-s", "link", "show", "dev", (*tc).name}) {
+func fakeIPLinkOutput(tc *readInterfaceLinkCase, t *testing.T, _ context.Context, args ...string) ([]byte, error) {
+	if !reflect.DeepEqual(args, []string{"-j", "-d", "-s", "link", "show", "dev", tc.name}) {
 		t.Fatalf("arguments: %v", args)
 	}
 
-	return []byte((*tc).payload), nil
+	return []byte(tc.payload), nil
 }

@@ -1,3 +1,4 @@
+import { onActivate } from '@/lib/utils'
 import { HwField, IfaceCardProps } from '@/components/interfaces/shared'
 import { Badge, Button } from 'cheval-ui'
 import {
@@ -16,20 +17,20 @@ export function IfaceCard({ name, iface, nic, hasVrrp, onEdit, onDelete }: Iface
   const speed = nic?.speed ? `${nic.speed} Mbps${nic.duplex ? ` ${nic.duplex}` : ''}` : ''
 
   return (
-    <div onClick={onEdit} className="flex cursor-pointer flex-col gap-3 rounded-lg bg-card p-4 shadow-[var(--card-shadow)] transition-colors hover:bg-accent/40">
+    <div role="button" tabIndex={0} onClick={onEdit} onKeyDown={onActivate(onEdit)} className="flex cursor-pointer flex-col gap-3 rounded-lg bg-card p-4 shadow-[var(--card-shadow)] transition-colors hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
       <div className="flex items-center gap-2">
         {up !== undefined && (
-          <span className={`h-2 w-2 shrink-0 rounded-full ${up ? 'bg-success' : 'bg-muted-foreground'}`} title={up ? 'link up' : 'link down'} />
+          <span className={`h-2 w-2 shrink-0 rounded-full ${up ? 'bg-success' : 'bg-muted-foreground'}`} title={up ? 'Link Up' : 'Link Down'} />
         )}
         <span className="truncate font-mono text-sm font-semibold">{name}</span>
         {nic && nic.name !== name && (
           <span className="shrink-0 font-mono text-xs text-muted-foreground" title="kernel device">→ {nic.name}</span>
         )}
         <div className="ml-auto flex shrink-0 items-center gap-1">
-          <Badge variant="secondary" className="font-mono text-xs">{iface.type || 'physical'}</Badge>
-          {iface.vrf && <Badge variant="secondary" className="font-mono text-xs">vrf:{iface.vrf}</Badge>}
+          <Badge variant="secondary" className="font-mono">{iface.type || 'physical'}</Badge>
+          {iface.vrf && <Badge variant="secondary" className="font-mono">vrf:{iface.vrf}</Badge>}
           <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive"
-            onClick={(e) => { e.stopPropagation(); onDelete() }}>
+            onClick={(e) => { e.stopPropagation(); onDelete() }} aria-label="Remove Interface" title="Remove Interface">
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
         </div>
@@ -40,21 +41,21 @@ export function IfaceCard({ name, iface, nic, hasVrrp, onEdit, onDelete }: Iface
           {staticAddrs.length === 0 && dynamicAddrs.length === 0
             ? <span className="text-xs text-muted-foreground">no addresses</span>
             : (<>
-                {staticAddrs.map((addr) => <Badge key={addr} variant="outline" className="font-mono text-xs">{addr}</Badge>)}
-                {dynamicAddrs.map((addr) => <Badge key={addr} variant="info" className="font-mono text-xs" title="obtained via DHCP/SLAAC">{addr}</Badge>)}
+                {staticAddrs.map((addr) => <Badge key={addr} variant="outline" className="font-mono">{addr}</Badge>)}
+                {dynamicAddrs.map((addr) => <Badge key={addr} variant="info" className="font-mono" title="Obtained via DHCP/SLAAC">{addr}</Badge>)}
               </>)}
           {iface.type === 'tunnel' && (iface.local || iface.remote) && (
-            <Badge variant="outline" className="font-mono text-xs">{iface.local || '-'} → {iface.remote || '-'}</Badge>
+            <Badge variant="outline" className="font-mono">{iface.local || '-'} → {iface.remote || '-'}</Badge>
           )}
         </div>
 
         {hasModePills && (
           <div className="flex flex-wrap gap-1">
-            {modeAddrs.map((m) => <Badge key={m} variant="secondary" className="font-mono text-xs">{m}</Badge>)}
-            {isVlan && <Badge variant="outline" className="text-xs">vlan {iface.vlan?.id ?? 0}{iface.select ? ` · ${iface.select}` : ''}</Badge>}
-            {iface.bridge && <Badge variant="outline" className="text-xs">bridge</Badge>}
-            {iface.bond && <Badge variant="outline" className="text-xs">{iface.bond.mode || 'balance-rr'} · {iface.bond.members?.length ?? 0}</Badge>}
-            {hasVrrp && <Badge variant="outline" className="text-xs">VRRP</Badge>}
+            {modeAddrs.map((m) => <Badge key={m} variant="secondary" className="font-mono">{m}</Badge>)}
+            {isVlan && <Badge variant="outline">vlan {iface.vlan?.id ?? 0}{iface.select ? ` · ${iface.select}` : ''}</Badge>}
+            {iface.bridge && <Badge variant="outline">bridge</Badge>}
+            {iface.bond && <Badge variant="outline">{iface.bond.mode || 'balance-rr'} · {iface.bond.members?.length ?? 0}</Badge>}
+            {hasVrrp && <Badge variant="outline">VRRP</Badge>}
           </div>
         )}
       </div>

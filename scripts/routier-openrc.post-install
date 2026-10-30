@@ -1,0 +1,14 @@
+#!/bin/sh
+rc-update add routier-net boot 2>/dev/null || true
+rc-update add routier default 2>/dev/null || true
+rc-update add routier-ui default 2>/dev/null || true
+rc-update add cronie default 2>/dev/null || true
+
+for _svc in keepalived radvd conntrackd; do
+	rc-update del "$_svc" default 2>/dev/null || true
+done
+
+if [ -e /run/openrc/softlevel ]; then
+	rc-service cronie start 2>/dev/null || true
+	rc-service routier-ui start >/dev/null 2>&1 || true
+fi

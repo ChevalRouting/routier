@@ -41,9 +41,9 @@ const applyLockFile = "/var/lib/routier/apply.lock"
 type ApplyOptions struct {
 	DryRun        bool
 	ReloadAll     bool
-	SkipWireguard bool
 	Source        string
 	ConfigPath    string
+	PersistConfig []byte
 }
 
 func acquireApplyLock(ctx context.Context) (func(), error) {
@@ -94,10 +94,15 @@ func rawArtifactErrors(err error) []types.ArtifactError {
 	return []types.ArtifactError{{Message: err.Error()}}
 }
 
-func ApplyConfig(ctx context.Context, cfg *config.Config, outputs []render.Output, opts ApplyOptions) (snapID string, changed []string, err error) {
+func ApplyConfig(ctx context.Context, cfg *config.Config, outputs []render.Output, opts ApplyOptions, warn ...*[]string) (snapID string, changed []string, err error) {
 	source := opts.Source
 	if source == "" {
 		source = "cli"
+	}
+
+	var warnings *[]string
+	if len(warn) > 0 {
+		warnings = warn[0]
 	}
 
 	var rec *applylog.Recorder
@@ -110,7 +115,11 @@ func ApplyConfig(ctx context.Context, cfg *config.Config, outputs []render.Outpu
 		defer release()
 
 		rec = applylog.Start(source, opts.ConfigPath)
-		defer func() { applyConfigCallback(cfg, outputs, snapID, &err, source, rec) }()
+		defer func() { finishApply(cfg, outputs, snapID, &err, source, rec) }()
+	}
+
+	if err := apply.PrepareDNSZoneSerials(cfg, outputs); err != nil {
+		return "", nil, err
 	}
 
 	if !opts.DryRun {
@@ -134,13 +143,10 @@ func ApplyConfig(ctx context.Context, cfg *config.Config, outputs []render.Outpu
 		return "", nil, err
 	}
 
+	previousSwitches := render.ReadSwitchArtifacts()
 	if len(outputs) > 0 {
 		snapshotAlso := []string{LastAppliedPath}
-		configPath := opts.ConfigPath
-		if configPath == "" {
-			configPath = "/etc/routier/config.yml"
-		}
-
+		configPath := opts.configPath()
 		if info, serr := os.Stat(configPath); serr == nil && info.Mode().IsRegular() {
 			snapshotAlso = append(snapshotAlso, configPath)
 		}
@@ -159,7 +165,11 @@ func ApplyConfig(ctx context.Context, cfg *config.Config, outputs []render.Outpu
 		}
 	}
 
-	if err := svc.ReloadFromOutputs(reloadNames, cfg, opts.DryRun, opts.SkipWireguard); err != nil {
+	if err := svc.ReloadFromOutputs(reloadNames, cfg, opts.DryRun, warnings); err != nil {
+		return snapID, changed, err
+	}
+
+	if err := reconcileSwitches(ctx, reloadNames, cfg, previousSwitches, snapID, opts.DryRun, source == "boot", warnings); err != nil {
 		return snapID, changed, err
 	}
 
@@ -179,6 +189,7 @@ func ApplyConfig(ctx context.Context, cfg *config.Config, outputs []render.Outpu
 
 	if !opts.DryRun {
 		saveLastApplied(cfg)
+		pruneSwitchImages()
 	}
 
 	return snapID, changed, nil
@@ -242,11 +253,11 @@ func preserveApplyFailure(rec *applylog.Recorder, source, snapID string, cfg *co
 	return diagnostic
 }
 
-func applyConfigCallback(cfg *config.Config, outputs []render.Output, snapID string, err *error, source string, rec *applylog.Recorder) {
+func finishApply(cfg *config.Config, outputs []render.Output, snapID string, err *error, source string, rec *applylog.Recorder) {
 	result := "applied"
-	if (*err) != nil {
+	if *err != nil {
 		result = "failed"
-		(*err) = preserveApplyFailure(rec, source, snapID, cfg, outputs, (*err))
+		*err = preserveApplyFailure(rec, source, snapID, cfg, outputs, *err)
 	}
 
 	rec.Finish(snapID, result)

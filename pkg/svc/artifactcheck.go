@@ -67,7 +67,7 @@ func ValidateArtifactsBeforeApply(outputs []render.Output) []types.ArtifactError
 	return validateArtifacts(outputs, true)
 }
 
-func validateArtifacts(outputs []render.Output, deferKea bool) []types.ArtifactError {
+func validateArtifacts(outputs []render.Output, deferNetwork bool) []types.ArtifactError {
 	dir, err := os.MkdirTemp("", "routier-check-")
 	if err != nil {
 		return []types.ArtifactError{{Message: "staging dir: " + err.Error()}}
@@ -78,7 +78,7 @@ func validateArtifacts(outputs []render.Output, deferKea bool) []types.ArtifactE
 	var errs []types.ArtifactError
 	for _, o := range outputs {
 		v := validatorFor(o.Name)
-		if v == nil || (deferKea && v.tool == artifacterr.ToolKea) {
+		if v == nil || (deferNetwork && (v.tool == artifacterr.ToolKea || v.tool == artifacterr.ToolNft)) {
 			continue
 		}
 

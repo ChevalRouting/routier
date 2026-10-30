@@ -76,7 +76,7 @@ func handleV1DeleteInterface(w http.ResponseWriter, r *http.Request) {
 // @Security BearerAuth
 // @Router /api/v1/sessions/{sessionID}/tunnels [get]
 func handleV1GetTunnels(w http.ResponseWriter, r *http.Request) {
-	v1GetObject(w, r, func(c *config.Config) map[string]*config.Tunnel { return mapOrEmpty(c.Tunnels) })
+	v1GetObject(w, r, func(c *config.Config) map[string]*config.Tunnel { return mapOrEmpty(c.Tunnels()) })
 }
 
 // @Summary  Replace session tunnels
@@ -88,7 +88,7 @@ func handleV1GetTunnels(w http.ResponseWriter, r *http.Request) {
 // @Security BearerAuth
 // @Router /api/v1/sessions/{sessionID}/tunnels [put]
 func handleV1PutTunnels(w http.ResponseWriter, r *http.Request) {
-	v1PutObject(w, r, func(c *config.Config, v map[string]*config.Tunnel) { c.Tunnels = v })
+	handleV1ReplaceTunnels(w, r)
 }
 
 // @Summary  Get one Tunnel
@@ -100,7 +100,7 @@ func handleV1PutTunnels(w http.ResponseWriter, r *http.Request) {
 // @Security BearerAuth
 // @Router /api/v1/sessions/{sessionID}/tunnels/{name} [get]
 func handleV1GetTunnel(w http.ResponseWriter, r *http.Request) {
-	v1MapGetKey(w, r, func(c *config.Config) map[string]*config.Tunnel { return c.Tunnels })
+	v1MapGetKey(w, r, func(c *config.Config) map[string]*config.Tunnel { return c.Tunnels() })
 }
 
 // @Summary  Set one Tunnel
@@ -113,9 +113,7 @@ func handleV1GetTunnel(w http.ResponseWriter, r *http.Request) {
 // @Security BearerAuth
 // @Router /api/v1/sessions/{sessionID}/tunnels/{name} [put]
 func handleV1PutTunnel(w http.ResponseWriter, r *http.Request) {
-	v1MapPutKey(w, r,
-		func(c *config.Config) map[string]*config.Tunnel { return c.Tunnels },
-		func(c *config.Config, m map[string]*config.Tunnel) { c.Tunnels = m })
+	handleV1SetTunnel(w, r)
 }
 
 // @Summary  Delete one Tunnel
@@ -127,7 +125,7 @@ func handleV1PutTunnel(w http.ResponseWriter, r *http.Request) {
 // @Security BearerAuth
 // @Router /api/v1/sessions/{sessionID}/tunnels/{name} [delete]
 func handleV1DeleteTunnel(w http.ResponseWriter, r *http.Request) {
-	v1MapDeleteKey(w, r, func(c *config.Config) map[string]*config.Tunnel { return c.Tunnels })
+	handleV1RemoveTunnel(w, r)
 }
 
 // @Summary  List session wireguard
@@ -138,7 +136,7 @@ func handleV1DeleteTunnel(w http.ResponseWriter, r *http.Request) {
 // @Security BearerAuth
 // @Router /api/v1/sessions/{sessionID}/wireguard [get]
 func handleV1GetWireguards(w http.ResponseWriter, r *http.Request) {
-	v1GetObject(w, r, func(c *config.Config) map[string]*config.Wireguard { return mapOrEmpty(c.Wireguard) })
+	v1GetObject(w, r, func(c *config.Config) map[string]*config.Wireguard { return mapOrEmpty(c.VPN.Wireguard) })
 }
 
 // @Summary  Replace session wireguard
@@ -150,7 +148,7 @@ func handleV1GetWireguards(w http.ResponseWriter, r *http.Request) {
 // @Security BearerAuth
 // @Router /api/v1/sessions/{sessionID}/wireguard [put]
 func handleV1PutWireguards(w http.ResponseWriter, r *http.Request) {
-	v1PutObject(w, r, func(c *config.Config, v map[string]*config.Wireguard) { c.Wireguard = v })
+	v1PutObject(w, r, func(c *config.Config, v map[string]*config.Wireguard) { c.VPN.Wireguard = v })
 }
 
 // @Summary  Get one Wireguard
@@ -162,7 +160,7 @@ func handleV1PutWireguards(w http.ResponseWriter, r *http.Request) {
 // @Security BearerAuth
 // @Router /api/v1/sessions/{sessionID}/wireguard/{name} [get]
 func handleV1GetWireguard(w http.ResponseWriter, r *http.Request) {
-	v1MapGetKey(w, r, func(c *config.Config) map[string]*config.Wireguard { return c.Wireguard })
+	v1MapGetKey(w, r, func(c *config.Config) map[string]*config.Wireguard { return c.VPN.Wireguard })
 }
 
 // @Summary  Set one Wireguard
@@ -176,8 +174,8 @@ func handleV1GetWireguard(w http.ResponseWriter, r *http.Request) {
 // @Router /api/v1/sessions/{sessionID}/wireguard/{name} [put]
 func handleV1PutWireguard(w http.ResponseWriter, r *http.Request) {
 	v1MapPutKey(w, r,
-		func(c *config.Config) map[string]*config.Wireguard { return c.Wireguard },
-		func(c *config.Config, m map[string]*config.Wireguard) { c.Wireguard = m })
+		func(c *config.Config) map[string]*config.Wireguard { return c.VPN.Wireguard },
+		func(c *config.Config, m map[string]*config.Wireguard) { c.VPN.Wireguard = m })
 }
 
 // @Summary  Delete one Wireguard
@@ -189,7 +187,7 @@ func handleV1PutWireguard(w http.ResponseWriter, r *http.Request) {
 // @Security BearerAuth
 // @Router /api/v1/sessions/{sessionID}/wireguard/{name} [delete]
 func handleV1DeleteWireguard(w http.ResponseWriter, r *http.Request) {
-	v1MapDeleteKey(w, r, func(c *config.Config) map[string]*config.Wireguard { return c.Wireguard })
+	v1MapDeleteKey(w, r, func(c *config.Config) map[string]*config.Wireguard { return c.VPN.Wireguard })
 }
 
 // @Summary  List session users

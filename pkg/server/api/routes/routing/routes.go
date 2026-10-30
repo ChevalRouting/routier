@@ -6,5 +6,6 @@ func Routes(r chi.Router) {
 	r.Get("/api/routing/learned", Learned)
 	r.Get("/api/routing/routes", KernelRoutes)
 	r.Get("/api/routing/neighbors", Neighbors)
+	r.Get("/api/routing/bgp/neighbor", BGPNeighbor)
 	r.Get("/api/routing/lldp", LLDP)
 }

@@ -36,6 +36,29 @@ type BgpPeerStat struct {
 	Prefixes  int64  `json:"prefixes"`
 }
 
+type Flow struct {
+	ID      int64  `json:"id"`
+	StartTs int64  `json:"start_ts"`
+	EndTs   int64  `json:"end_ts"`
+	InIf    string `json:"in_if"`
+	OutIf   string `json:"out_if"`
+	Family  int64  `json:"family"`
+	Proto   int64  `json:"proto"`
+	Src     string `json:"src"`
+	Dst     string `json:"dst"`
+	SrcPort int64  `json:"src_port"`
+	DstPort int64  `json:"dst_port"`
+	Packets int64  `json:"packets"`
+	Bytes   int64  `json:"bytes"`
+	Samples int64  `json:"samples"`
+}
+
+type FlowName struct {
+	Address    string `json:"address"`
+	Name       string `json:"name"`
+	ResolvedAt int64  `json:"resolved_at"`
+}
+
 type IfaceStat struct {
 	ID        int64    `json:"id"`
 	Ts        int64    `json:"ts"`
@@ -141,6 +164,12 @@ type Session struct {
 type Setting struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
+}
+
+type SwitchCredential struct {
+	Name      string `json:"name"`
+	Sealed    []byte `json:"sealed"`
+	UpdatedAt int64  `json:"updated_at"`
 }
 
 type SystemStat struct {

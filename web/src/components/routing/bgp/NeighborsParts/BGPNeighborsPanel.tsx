@@ -1,6 +1,6 @@
 import { emptyNeighbor, NeighborForm, NeighborRow } from '@/components/routing/bgp/Neighbors'
 import { BGPNeighbor } from '@/components/routing/types'
-import { Button, EmptyState, Label, PreferencesColumns, Sheet } from 'cheval-ui'
+import { Button, EmptyState, Sheet, PreferencesGroup } from 'cheval-ui'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
 
@@ -39,21 +39,16 @@ export function BGPNeighborsPanel({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <Label className="text-sm font-semibold">Neighbors</Label>
-        <Button variant="outline" size="sm" onClick={handleAddNew} className="gap-1.5">
-          <Plus className="h-3.5 w-3.5" />Add Neighbor
-        </Button>
-      </div>
-
       {neighbors.length === 0 ? (
         <EmptyState
-          title="No neighbors"
-          message="Add a BGP neighbor to exchange routes with a peer AS."
-          action={<Button variant="outline" size="sm" onClick={handleAddNew} className="gap-2"><Plus className="h-4 w-4" />Add neighbor</Button>}
+          title="No Neighbors"
+          action={<Button variant="outline" size="sm" onClick={handleAddNew} className="gap-1.5"><Plus className="h-4 w-4" />Add Neighbor…</Button>}
         />
       ) : (
-        <PreferencesColumns>
+        <PreferencesGroup
+          title="Neighbors"
+          header={<Button variant="outline" size="sm" onClick={handleAddNew} className="gap-1.5"><Plus className="h-4 w-4" />Add Neighbor…</Button>}
+        >
           {neighbors.map((n, idx) => (
             <NeighborRow
               key={idx}
@@ -62,10 +57,10 @@ export function BGPNeighborsPanel({
               onDelete={() => remove(idx)}
             />
           ))}
-        </PreferencesColumns>
+        </PreferencesGroup>
       )}
 
-      <Sheet open={openIdx !== null} onClose={handleCloseSheet} title={sheetTitle} className="max-w-2xl">
+      <Sheet open={openIdx !== null} onClose={handleCloseSheet} title={sheetTitle}>
         {openIdx !== null && (isAdding ? formDraft : openNeighbor) && (
           <NeighborForm
             neighbor={isAdding ? formDraft! : openNeighbor!}

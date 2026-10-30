@@ -338,6 +338,28 @@ func TestValidateDNSServer(t *testing.T) {
 `,
 			wantErr: "CNAME alongside other records",
 		},
+		"cname colliding with an absolute spelling": {
+			yaml: dnsServerBase + `    zones:
+      - name: home.arpa
+        nameservers: [ns1.home.arpa.]
+        soa: { email: hostmaster@home.arpa }
+        records:
+          - { name: nas.home.arpa., type: A, value: 10.0.0.10 }
+          - { name: NAS, type: CNAME, value: gw.home.arpa. }
+`,
+			wantErr: "CNAME alongside other records",
+		},
+		"cname at the apex": {
+			yaml: dnsServerBase + `    zones:
+      - name: home.arpa
+        nameservers: [ns1.home.arpa.]
+        soa: { email: hostmaster@home.arpa }
+        records:
+          - { name: "@", type: TXT, value: "v=spf1 -all" }
+          - { name: home.arpa., type: CNAME, value: gw.example.net. }
+`,
+			wantErr: "CNAME alongside other records",
+		},
 		"priority on an a record": {
 			yaml: dnsServerBase + `    zones:
       - name: home.arpa
@@ -374,7 +396,7 @@ func TestValidateDNSServer(t *testing.T) {
 	}
 
 	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) { testValidateDNSServerCallback(&tc, t) })
+		t.Run(name, func(t *testing.T) { checkDNSServerCase(&tc, t) })
 	}
 }
 
@@ -526,7 +548,7 @@ func TestValidateDNSMode(t *testing.T) {
 	}
 
 	for name, c := range cases {
-		t.Run(name, func(t *testing.T) { testValidateDNSModeCallback(&c, t) })
+		t.Run(name, func(t *testing.T) { checkDNSModeCase(&c, t) })
 	}
 }
 
@@ -679,7 +701,7 @@ func TestValidateDNSViews(t *testing.T) {
 	}
 
 	for name, c := range cases {
-		t.Run(name, func(t *testing.T) { testValidateDNSViewsCallback(&c, t) })
+		t.Run(name, func(t *testing.T) { checkDNSViewsCase(&c, t) })
 	}
 }
 
@@ -714,31 +736,31 @@ func TestValidateDNSViewsAccepted(t *testing.T) {
 	}
 }
 
-func testValidateDNSServerCallback(tc *dnsCase, t *testing.T) {
-	msg := validateErr(t, (*tc).yaml)
-	if !strings.Contains(msg, (*tc).wantErr) {
-		t.Fatalf("expected an error containing %q, got: %q", (*tc).wantErr, msg)
+func checkDNSServerCase(tc *dnsCase, t *testing.T) {
+	msg := validateErr(t, tc.yaml)
+	if !strings.Contains(msg, tc.wantErr) {
+		t.Fatalf("expected an error containing %q, got: %q", tc.wantErr, msg)
 	}
 }
 
-func testValidateDNSModeCallback(c *dnsCase, t *testing.T) {
-	msg := validateErr(t, (*c).yaml)
+func checkDNSModeCase(c *dnsCase, t *testing.T) {
+	msg := validateErr(t, c.yaml)
 	if msg == "" {
 		t.Fatal("expected a validation error")
 	}
 
-	if !strings.Contains(msg, (*c).wantErr) {
-		t.Fatalf("expected %q in: %s", (*c).wantErr, msg)
+	if !strings.Contains(msg, c.wantErr) {
+		t.Fatalf("expected %q in: %s", c.wantErr, msg)
 	}
 }
 
-func testValidateDNSViewsCallback(c *dnsCase, t *testing.T) {
-	msg := validateErr(t, (*c).yaml)
+func checkDNSViewsCase(c *dnsCase, t *testing.T) {
+	msg := validateErr(t, c.yaml)
 	if msg == "" {
 		t.Fatal("expected a validation error")
 	}
 
-	if !strings.Contains(msg, (*c).wantErr) {
-		t.Fatalf("expected %q in: %s", (*c).wantErr, msg)
+	if !strings.Contains(msg, c.wantErr) {
+		t.Fatalf("expected %q in: %s", c.wantErr, msg)
 	}
 }

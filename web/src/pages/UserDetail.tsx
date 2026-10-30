@@ -1,10 +1,10 @@
+import { DraftControls } from '@/components/DraftControls'
 import { UserFields, type UserConfig, type UsersMap } from '@/components/users/UserForm'
 import { api } from '@/lib/client'
-import { getConfigLayer } from '@/lib/configLayer'
 import { useDataRefresh } from '@/lib/dataVersion'
 import { useFetch } from '@/lib/useFetch'
 import { usePageSave } from '@/lib/usePageSave'
-import { Button, PageHeader, SaveButton, Spinner } from 'cheval-ui'
+import { Button, PageHeader, Spinner } from 'cheval-ui'
 import { ArrowLeft, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
@@ -12,7 +12,7 @@ import { toast } from 'sonner'
 
 function BackLink() {
   return (
-    <Link to={getConfigLayer() === 'simple' ? '/simple/system' : '/system?system-config=users'} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+    <Link to={'/system?system-config=users'} className="inline-flex max-md:hidden items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
       <ArrowLeft className="h-4 w-4" />Users
     </Link>
   )
@@ -35,7 +35,7 @@ export default function UserDetail() {
     return (
       <div className="space-y-4">
         <BackLink />
-        <p className="text-sm text-muted-foreground">User &quot;{name}&quot; not found.</p>
+        <p className="text-sm text-muted-foreground">User {name} not found</p>
       </div>
     )
   }
@@ -48,7 +48,7 @@ export default function UserDetail() {
     try {
       await api.apiConfigSectionPut({ section: 'users', body: next })
       toast.success(`User "${name}" removed, apply to activate`)
-      navigate(getConfigLayer() === 'simple' ? '/simple/system' : '/system?system-config=users')
+      navigate('/system?system-config=users')
     } catch (err: unknown) {
       toast.error((err as Error).message || 'Failed to remove user')
     }
@@ -61,13 +61,13 @@ export default function UserDetail() {
       <BackLink />
       <PageHeader title={name} description="System user account" action={
         <div className="flex items-center gap-2">
-          <SaveButton isDirty={isDirty} saving={saving} onClick={() => save(users)} onCancel={handleCancel} />
+          <DraftControls isDirty={isDirty} saving={saving} onClick={() => save(users)} onCancel={handleCancel} />
           <Button variant="outline" onClick={remove} className="gap-1.5 text-destructive hover:text-destructive">
             <Trash2 className="h-4 w-4" />Delete
           </Button>
         </div>
       } />
-      <div className="max-w-2xl">
+      <div className="max-w-3xl">
         <UserFields user={user} onChange={update} />
       </div>
     </div>

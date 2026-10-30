@@ -5,13 +5,15 @@ import { AlertDialog, Button, EmptyState, Pagination, Spinner, Table, TableBody,
 import { RotateCcw } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { SnapshotBrowser } from './SnapshotBrowser'
 
 type SnapshotsTabShape = { onChanged: () => void }
 
 export function SnapshotsTab({ onChanged }: SnapshotsTabShape) {
-  const { data, isLoading, reload } = useFetch(() => api.apiSnapshotsGet())
+  const { data, isLoading, error, reload } = useFetch(() => api.apiSnapshotsGet())
   const [busy, setBusy] = useState<string | null>(null)
   const [confirm, setConfirm] = useState<SnapshotInfo | null>(null)
+  const [browsing, setBrowsing] = useState<SnapshotInfo | null>(null)
 
   const restore = (s: SnapshotInfo) => setConfirm(s)
 
@@ -32,12 +34,11 @@ export function SnapshotsTab({ onChanged }: SnapshotsTabShape) {
 
   return (
     <div className="space-y-3">
-      <p className="text-sm text-muted-foreground">Each apply records a snapshot of the files it changed. Restore reverts to a previous state.</p>
+      {error && <p role="alert" className="text-sm text-danger">Could not load snapshots: {error}</p>}
       {snapshots.length === 0 ? (
         <EmptyState
           icon={<RotateCcw />}
-          title="No snapshots"
-          message="Every apply snapshots the previous state so it can be restored."
+          title="No Snapshots"
         />
       ) : (
         <>
@@ -52,8 +53,9 @@ export function SnapshotsTab({ onChanged }: SnapshotsTabShape) {
                 <TableCell className="font-mono text-xs text-muted-foreground">{s.id}</TableCell>
                 <TableCell>{(s.files ?? []).length}</TableCell>
                 <TableCell className="text-right">
+                  <Button variant="ghost" size="sm" onClick={() => setBrowsing(s)}>Browse</Button>
                   <Button variant="outline" size="sm" className="gap-1.5" disabled={busy === s.id} onClick={() => restore(s)}>
-                    <RotateCcw className="h-3.5 w-3.5" />Restore
+                    <RotateCcw className="h-3.5 w-3.5" />Restore…
                   </Button>
                 </TableCell>
               </TableRow>
@@ -64,11 +66,13 @@ export function SnapshotsTab({ onChanged }: SnapshotsTabShape) {
         </>
       )}
 
+      {browsing && <SnapshotBrowser key={browsing.id} snapshot={browsing} onClose={() => setBrowsing(null)} />}
+
       <AlertDialog
         open={!!confirm}
         onCancel={() => setConfirm(null)}
         onConfirm={doRestore}
-        title="Restore this snapshot?"
+        title="Restore Snapshot?"
         description={confirm ? `Reverts the managed files to their state before apply ${confirm.id}. The current files will be overwritten.` : undefined}
         confirmLabel="Restore"
         cancelLabel="Cancel"

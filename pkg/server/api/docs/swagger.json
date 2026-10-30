@@ -498,6 +498,20 @@
                     },
                     "router_id": {
                         "type": "string"
+                    },
+                    "shared_prefix_lists": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "shared_route_maps": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
                     }
                 },
                 "required": [
@@ -545,6 +559,9 @@
                         },
                         "type": "array",
                         "uniqueItems": false
+                    },
+                    "import_vrf_route_map": {
+                        "type": "string"
                     },
                     "label_vpn_export_auto": {
                         "type": "boolean"
@@ -786,6 +803,9 @@
                     "routes": {
                         "type": "integer"
                     },
+                    "switches": {
+                        "type": "integer"
+                    },
                     "system": {
                         "type": "integer"
                     }
@@ -850,15 +870,15 @@
                     "ssh": {
                         "$ref": "#/components/schemas/config.SSH"
                     },
-                    "sysctl": {
+                    "switches": {
                         "additionalProperties": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/config.Switch"
                         },
                         "type": "object"
                     },
-                    "tunnels": {
+                    "sysctl": {
                         "additionalProperties": {
-                            "$ref": "#/components/schemas/config.Tunnel"
+                            "type": "string"
                         },
                         "type": "object"
                     },
@@ -871,17 +891,17 @@
                     "version": {
                         "type": "string"
                     },
+                    "vpn": {
+                        "$ref": "#/components/schemas/config.VPNConfig"
+                    },
                     "vrfs": {
                         "additionalProperties": {
                             "$ref": "#/components/schemas/config.VRFConfig"
                         },
                         "type": "object"
                     },
-                    "wireguard": {
-                        "additionalProperties": {
-                            "$ref": "#/components/schemas/config.Wireguard"
-                        },
-                        "type": "object"
+                    "web": {
+                        "$ref": "#/components/schemas/config.Web"
                     }
                 },
                 "required": [
@@ -928,6 +948,9 @@
                     },
                     "enabled": {
                         "type": "boolean"
+                    },
+                    "ha": {
+                        "$ref": "#/components/schemas/config.DHCPHA"
                     },
                     "interfaces": {
                         "items": {
@@ -989,6 +1012,65 @@
                         "type": "integer"
                     }
                 },
+                "type": "object"
+            },
+            "config.DHCPHA": {
+                "properties": {
+                    "allow_inbound": {
+                        "type": "boolean"
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "interface": {
+                        "type": "string"
+                    },
+                    "mode": {
+                        "type": "string"
+                    },
+                    "peers": {
+                        "items": {
+                            "$ref": "#/components/schemas/config.DHCPHAPeer"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "port": {
+                        "type": "integer"
+                    },
+                    "port6": {
+                        "type": "integer"
+                    },
+                    "this_server": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "interface",
+                    "peers"
+                ],
+                "type": "object"
+            },
+            "config.DHCPHAPeer": {
+                "properties": {
+                    "address": {
+                        "type": "string"
+                    },
+                    "auto_failover": {
+                        "type": "boolean"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "role": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "address",
+                    "name",
+                    "role"
+                ],
                 "type": "object"
             },
             "config.DNS": {
@@ -1139,6 +1221,9 @@
                     "cache": {
                         "$ref": "#/components/schemas/config.DNSCache"
                     },
+                    "disable_auto_rules": {
+                        "type": "boolean"
+                    },
                     "dnssec": {
                         "type": "boolean"
                     },
@@ -1192,6 +1277,12 @@
                         "type": "array",
                         "uniqueItems": false
                     },
+                    "vrfs": {
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/config.DNSServer"
+                        },
+                        "type": "object"
+                    },
                     "zones": {
                         "items": {
                             "$ref": "#/components/schemas/config.DNSZone"
@@ -1200,6 +1291,21 @@
                         "uniqueItems": false
                     }
                 },
+                "type": "object"
+            },
+            "config.DNSTransferKey": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "secret": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "name",
+                    "secret"
+                ],
                 "type": "object"
             },
             "config.DNSView": {
@@ -1276,6 +1382,12 @@
                         "type": "array",
                         "uniqueItems": false
                     },
+                    "notify_source": {
+                        "type": "string"
+                    },
+                    "notify_source_v6": {
+                        "type": "string"
+                    },
                     "primaries": {
                         "items": {
                             "type": "string"
@@ -1290,8 +1402,24 @@
                         "type": "array",
                         "uniqueItems": false
                     },
+                    "secondaries": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
                     "soa": {
                         "$ref": "#/components/schemas/config.DNSSOA"
+                    },
+                    "transfer_key": {
+                        "$ref": "#/components/schemas/config.DNSTransferKey"
+                    },
+                    "transfer_source": {
+                        "type": "string"
+                    },
+                    "transfer_source_v6": {
+                        "type": "string"
                     },
                     "ttl": {
                         "type": "integer"
@@ -1300,6 +1428,62 @@
                 "required": [
                     "name"
                 ],
+                "type": "object"
+            },
+            "config.FlowCollector": {
+                "properties": {
+                    "address": {
+                        "type": "string"
+                    },
+                    "port": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "address"
+                ],
+                "type": "object"
+            },
+            "config.FlowRetention": {
+                "properties": {
+                    "hours": {
+                        "type": "integer"
+                    },
+                    "max_flows": {
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
+            "config.FlowsConfig": {
+                "properties": {
+                    "collectors": {
+                        "items": {
+                            "$ref": "#/components/schemas/config.FlowCollector"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "interfaces": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "retention": {
+                        "$ref": "#/components/schemas/config.FlowRetention"
+                    },
+                    "sampling": {
+                        "type": "integer"
+                    },
+                    "source": {
+                        "type": "string"
+                    }
+                },
                 "type": "object"
             },
             "config.Friend": {
@@ -1477,17 +1661,35 @@
                         "type": "array",
                         "uniqueItems": false
                     },
+                    "friend": {
+                        "type": "string"
+                    },
+                    "local": {
+                        "type": "string"
+                    },
+                    "mode": {
+                        "type": "string"
+                    },
                     "mtu": {
                         "type": "integer"
                     },
+                    "remote": {
+                        "type": "string"
+                    },
                     "select": {
                         "type": "string"
+                    },
+                    "ttl": {
+                        "type": "integer"
                     },
                     "type": {
                         "type": "string"
                     },
                     "vlan": {
                         "$ref": "#/components/schemas/config.VLAN"
+                    },
+                    "vnet": {
+                        "$ref": "#/components/schemas/config.VNet"
                     },
                     "vrf": {
                         "type": "string"
@@ -1649,6 +1851,9 @@
                     "collection": {
                         "$ref": "#/components/schemas/config.CollectionIntervals"
                     },
+                    "flows": {
+                        "$ref": "#/components/schemas/config.FlowsConfig"
+                    },
                     "lldp": {
                         "$ref": "#/components/schemas/config.LLDPConfig"
                     },
@@ -1697,6 +1902,9 @@
                     },
                     "defines": {
                         "type": "string"
+                    },
+                    "disable_auto_rules": {
+                        "type": "boolean"
                     },
                     "include": {
                         "items": {
@@ -2036,6 +2244,9 @@
                         "type": "string"
                     },
                     "set_nexthop_group": {
+                        "type": "string"
+                    },
+                    "set_vrf": {
                         "type": "string"
                     }
                 },
@@ -2447,6 +2658,15 @@
                     "metric": {
                         "type": "integer"
                     },
+                    "scope": {
+                        "type": "string"
+                    },
+                    "src": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string"
+                    },
                     "via": {
                         "type": "string"
                     }
@@ -2456,31 +2676,85 @@
                 ],
                 "type": "object"
             },
-            "config.Tunnel": {
+            "config.Switch": {
                 "properties": {
-                    "addresses": {
+                    "bonds": {
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/config.SwitchBondConfig"
+                        },
+                        "type": "object"
+                    },
+                    "host": {
+                        "type": "string"
+                    },
+                    "interface": {
+                        "type": "string"
+                    },
+                    "model": {
+                        "type": "string"
+                    },
+                    "port": {
+                        "type": "integer"
+                    },
+                    "ports": {
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/config.SwitchPortConfig"
+                        },
+                        "type": "object"
+                    },
+                    "scheme": {
+                        "type": "string"
+                    },
+                    "tls_skip_verify": {
+                        "type": "boolean"
+                    },
+                    "uplink": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "host",
+                    "model"
+                ],
+                "type": "object"
+            },
+            "config.SwitchBondConfig": {
+                "properties": {
+                    "members": {
                         "items": {
                             "type": "string"
                         },
                         "type": "array",
                         "uniqueItems": false
                     },
-                    "friend": {
-                        "type": "string"
-                    },
-                    "local": {
-                        "type": "string"
-                    },
                     "mode": {
                         "type": "string"
                     },
-                    "mtu": {
-                        "type": "integer"
-                    },
-                    "remote": {
+                    "port": {
+                        "$ref": "#/components/schemas/config.SwitchPortConfig"
+                    }
+                },
+                "required": [
+                    "members"
+                ],
+                "type": "object"
+            },
+            "config.SwitchPortConfig": {
+                "properties": {
+                    "mode": {
                         "type": "string"
                     },
-                    "ttl": {
+                    "native": {
+                        "type": "integer"
+                    },
+                    "tagged": {
+                        "items": {
+                            "type": "integer"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "vlan": {
                         "type": "integer"
                     }
                 },
@@ -2534,14 +2808,83 @@
                 ],
                 "type": "object"
             },
+            "config.VNet": {
+                "properties": {
+                    "gateway": {
+                        "$ref": "#/components/schemas/config.VNetGateway"
+                    },
+                    "vlan": {
+                        "type": "integer"
+                    },
+                    "vni": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "vlan",
+                    "vni"
+                ],
+                "type": "object"
+            },
+            "config.VNetGateway": {
+                "properties": {
+                    "ips": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "mac": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "ips"
+                ],
+                "type": "object"
+            },
+            "config.VPNConfig": {
+                "properties": {
+                    "wireguard": {
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/config.Wireguard"
+                        },
+                        "type": "object"
+                    }
+                },
+                "type": "object"
+            },
             "config.VRFConfig": {
                 "properties": {
+                    "l3vni": {
+                        "$ref": "#/components/schemas/config.VRFL3VNI"
+                    },
                     "table": {
                         "type": "integer"
                     }
                 },
                 "required": [
                     "table"
+                ],
+                "type": "object"
+            },
+            "config.VRFL3VNI": {
+                "properties": {
+                    "transport": {
+                        "type": "string"
+                    },
+                    "vlan": {
+                        "type": "integer"
+                    },
+                    "vni": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "transport",
+                    "vlan",
+                    "vni"
                 ],
                 "type": "object"
             },
@@ -2566,10 +2909,35 @@
                 },
                 "type": "object"
             },
+            "config.VRRPBGPPrepend": {
+                "properties": {
+                    "count": {
+                        "type": "integer"
+                    },
+                    "neighbors": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "prefixes": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    }
+                },
+                "type": "object"
+            },
             "config.VRRPInstance": {
                 "properties": {
                     "allow_inbound": {
                         "type": "boolean"
+                    },
+                    "bgp_prepend": {
+                        "$ref": "#/components/schemas/config.VRRPBGPPrepend"
                     },
                     "friend": {
                         "type": "string"
@@ -2588,9 +2956,6 @@
                     },
                     "priority": {
                         "type": "integer"
-                    },
-                    "switchover": {
-                        "type": "boolean"
                     },
                     "track_interfaces": {
                         "items": {
@@ -2683,6 +3048,61 @@
                         "type": "string"
                     },
                     "public_key": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "config.Web": {
+                "properties": {
+                    "tls": {
+                        "$ref": "#/components/schemas/config.WebTLS"
+                    }
+                },
+                "type": "object"
+            },
+            "config.WebACME": {
+                "properties": {
+                    "ca_pem": {
+                        "type": "string"
+                    },
+                    "directory": {
+                        "type": "string"
+                    },
+                    "domains": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "eab_key": {
+                        "type": "string"
+                    },
+                    "eab_kid": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": "string"
+                    },
+                    "http_port": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "domains"
+                ],
+                "type": "object"
+            },
+            "config.WebTLS": {
+                "properties": {
+                    "acme": {
+                        "$ref": "#/components/schemas/config.WebACME"
+                    },
+                    "cert_file": {
+                        "type": "string"
+                    },
+                    "key_file": {
                         "type": "string"
                     }
                 },
@@ -3029,6 +3449,90 @@
                 },
                 "type": "object"
             },
+            "flows.Metadata": {
+                "properties": {
+                    "exporters": {
+                        "items": {
+                            "$ref": "#/components/schemas/flows.MetadataExporter"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    }
+                },
+                "required": [
+                    "exporters"
+                ],
+                "type": "object"
+            },
+            "flows.MetadataExporter": {
+                "properties": {
+                    "default": {
+                        "$ref": "#/components/schemas/flows.MetadataLink"
+                    },
+                    "exportersubnet": {
+                        "type": "string"
+                    },
+                    "interfaces": {
+                        "items": {
+                            "$ref": "#/components/schemas/flows.MetadataInterface"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "default",
+                    "exportersubnet",
+                    "interfaces",
+                    "name"
+                ],
+                "type": "object"
+            },
+            "flows.MetadataInterface": {
+                "properties": {
+                    "description": {
+                        "type": "string"
+                    },
+                    "ifindex": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "speed": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "description",
+                    "ifindex",
+                    "name",
+                    "speed"
+                ],
+                "type": "object"
+            },
+            "flows.MetadataLink": {
+                "properties": {
+                    "description": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "speed": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "description",
+                    "name",
+                    "speed"
+                ],
+                "type": "object"
+            },
             "friendcache.CachedState": {
                 "properties": {
                     "config": {
@@ -3296,6 +3800,32 @@
                 ],
                 "type": "object"
             },
+            "live.Disk": {
+                "properties": {
+                    "boot_media": {
+                        "type": "boolean"
+                    },
+                    "model": {
+                        "type": "string"
+                    },
+                    "path": {
+                        "type": "string"
+                    },
+                    "removable": {
+                        "type": "boolean"
+                    },
+                    "size": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "boot_media",
+                    "path",
+                    "removable",
+                    "size"
+                ],
+                "type": "object"
+            },
             "managers.PushResult": {
                 "properties": {
                     "error": {
@@ -3363,6 +3893,91 @@
                 ],
                 "type": "object"
             },
+            "render.FriendBGPImportResult": {
+                "properties": {
+                    "prefix_lists": {
+                        "items": {
+                            "$ref": "#/components/schemas/render.ImportedPrefixList"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "route_maps": {
+                        "items": {
+                            "$ref": "#/components/schemas/render.ImportedRouteMap"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    }
+                },
+                "required": [
+                    "prefix_lists",
+                    "route_maps"
+                ],
+                "type": "object"
+            },
+            "render.ImportedPrefixList": {
+                "properties": {
+                    "entries": {
+                        "items": {
+                            "$ref": "#/components/schemas/config.PrefixEntry"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "shared": {
+                        "type": "boolean"
+                    },
+                    "sources": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    }
+                },
+                "required": [
+                    "entries",
+                    "name",
+                    "shared",
+                    "sources"
+                ],
+                "type": "object"
+            },
+            "render.ImportedRouteMap": {
+                "properties": {
+                    "entries": {
+                        "items": {
+                            "$ref": "#/components/schemas/config.RouteMapEntry"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "shared": {
+                        "type": "boolean"
+                    },
+                    "sources": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    }
+                },
+                "required": [
+                    "entries",
+                    "name",
+                    "shared",
+                    "sources"
+                ],
+                "type": "object"
+            },
             "render.NftVar": {
                 "properties": {
                     "name": {
@@ -3374,6 +3989,94 @@
                 },
                 "required": [
                     "name",
+                    "value"
+                ],
+                "type": "object"
+            },
+            "setup.LAN": {
+                "properties": {
+                    "address": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "select": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "address",
+                    "name",
+                    "select"
+                ],
+                "type": "object"
+            },
+            "setup.Network": {
+                "properties": {
+                    "hostname": {
+                        "type": "string"
+                    },
+                    "lans": {
+                        "items": {
+                            "$ref": "#/components/schemas/setup.LAN"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "uplink": {
+                        "$ref": "#/components/schemas/setup.Uplink"
+                    }
+                },
+                "required": [
+                    "hostname",
+                    "lans"
+                ],
+                "type": "object"
+            },
+            "setup.Uplink": {
+                "properties": {
+                    "address": {
+                        "type": "string"
+                    },
+                    "dns": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "gateway": {
+                        "type": "string"
+                    },
+                    "mode": {
+                        "enum": [
+                            "dhcp",
+                            "static"
+                        ],
+                        "type": "string"
+                    },
+                    "select": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "mode",
+                    "select"
+                ],
+                "type": "object"
+            },
+            "sysctl.Parameter": {
+                "properties": {
+                    "key": {
+                        "type": "string"
+                    },
+                    "value": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "key",
                     "value"
                 ],
                 "type": "object"
@@ -3393,6 +4096,94 @@
                 },
                 "required": [
                     "link"
+                ],
+                "type": "object"
+            },
+            "tlscert.Certificate": {
+                "properties": {
+                    "error": {
+                        "type": "string"
+                    },
+                    "issuer": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "not_after": {
+                        "type": "string"
+                    },
+                    "ready": {
+                        "type": "boolean"
+                    },
+                    "source": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "name",
+                    "ready",
+                    "source"
+                ],
+                "type": "object"
+            },
+            "tlscert.LogEntry": {
+                "properties": {
+                    "domain": {
+                        "type": "string"
+                    },
+                    "level": {
+                        "type": "string"
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "time": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "level",
+                    "message",
+                    "time"
+                ],
+                "type": "object"
+            },
+            "tlscert.Status": {
+                "properties": {
+                    "certificates": {
+                        "items": {
+                            "$ref": "#/components/schemas/tlscert.Certificate"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "files": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "log": {
+                        "items": {
+                            "$ref": "#/components/schemas/tlscert.LogEntry"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "mode": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "certificates",
+                    "files",
+                    "log",
+                    "mode"
                 ],
                 "type": "object"
             },
@@ -3777,6 +4568,9 @@
                 "properties": {
                     "status": {
                         "type": "string"
+                    },
+                    "warning": {
+                        "type": "string"
                     }
                 },
                 "required": [
@@ -3896,6 +4690,37 @@
                 ],
                 "type": "object"
             },
+            "types.CredentialField": {
+                "properties": {
+                    "default_value": {
+                        "type": "string"
+                    },
+                    "help": {
+                        "type": "string"
+                    },
+                    "key": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "required": {
+                        "type": "boolean"
+                    },
+                    "type": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "default_value",
+                    "help",
+                    "key",
+                    "label",
+                    "required",
+                    "type"
+                ],
+                "type": "object"
+            },
             "types.DeriveTunnelRequest": {
                 "properties": {
                     "friend_endpoint": {
@@ -4002,6 +4827,37 @@
                 ],
                 "type": "object"
             },
+            "types.FaceplateGroup": {
+                "properties": {
+                    "group": {
+                        "type": "string"
+                    },
+                    "kind": {
+                        "type": "string"
+                    },
+                    "order": {
+                        "type": "string"
+                    },
+                    "ports": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "rows": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "group",
+                    "kind",
+                    "order",
+                    "ports",
+                    "rows"
+                ],
+                "type": "object"
+            },
             "types.FailureRecord": {
                 "properties": {
                     "artifacts": {
@@ -4073,6 +4929,300 @@
                 "required": [
                     "file",
                     "status"
+                ],
+                "type": "object"
+            },
+            "types.Flow": {
+                "properties": {
+                    "bytes": {
+                        "type": "integer"
+                    },
+                    "dst": {
+                        "type": "string"
+                    },
+                    "dst_port": {
+                        "type": "integer"
+                    },
+                    "end": {
+                        "type": "integer"
+                    },
+                    "family": {
+                        "type": "integer"
+                    },
+                    "id": {
+                        "type": "integer"
+                    },
+                    "in_if": {
+                        "type": "string"
+                    },
+                    "out_if": {
+                        "type": "string"
+                    },
+                    "packets": {
+                        "type": "integer"
+                    },
+                    "proto": {
+                        "type": "integer"
+                    },
+                    "samples": {
+                        "type": "integer"
+                    },
+                    "src": {
+                        "type": "string"
+                    },
+                    "src_port": {
+                        "type": "integer"
+                    },
+                    "start": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "bytes",
+                    "dst",
+                    "dst_port",
+                    "end",
+                    "family",
+                    "id",
+                    "in_if",
+                    "out_if",
+                    "packets",
+                    "proto",
+                    "samples",
+                    "src",
+                    "src_port",
+                    "start"
+                ],
+                "type": "object"
+            },
+            "types.FlowCollectorStatus": {
+                "properties": {
+                    "address": {
+                        "type": "string"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "errors": {
+                        "type": "integer"
+                    },
+                    "sent": {
+                        "type": "integer"
+                    },
+                    "source": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "address",
+                    "errors",
+                    "sent"
+                ],
+                "type": "object"
+            },
+            "types.FlowPath": {
+                "properties": {
+                    "bytes": {
+                        "type": "integer"
+                    },
+                    "keys": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "packets": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "bytes",
+                    "keys",
+                    "packets"
+                ],
+                "type": "object"
+            },
+            "types.FlowSankeyResponse": {
+                "properties": {
+                    "dimensions": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "names": {
+                        "additionalProperties": {
+                            "type": "string"
+                        },
+                        "type": "object"
+                    },
+                    "paths": {
+                        "items": {
+                            "$ref": "#/components/schemas/types.FlowPath"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "total": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "dimensions",
+                    "names",
+                    "paths",
+                    "total"
+                ],
+                "type": "object"
+            },
+            "types.FlowSeriesPoint": {
+                "properties": {
+                    "bytes": {
+                        "type": "integer"
+                    },
+                    "iface": {
+                        "type": "string"
+                    },
+                    "packets": {
+                        "type": "integer"
+                    },
+                    "ts": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "bytes",
+                    "iface",
+                    "packets",
+                    "ts"
+                ],
+                "type": "object"
+            },
+            "types.FlowSeriesResponse": {
+                "properties": {
+                    "bucket": {
+                        "type": "integer"
+                    },
+                    "points": {
+                        "items": {
+                            "$ref": "#/components/schemas/types.FlowSeriesPoint"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    }
+                },
+                "required": [
+                    "bucket",
+                    "points"
+                ],
+                "type": "object"
+            },
+            "types.FlowStatus": {
+                "properties": {
+                    "collectors": {
+                        "items": {
+                            "$ref": "#/components/schemas/types.FlowCollectorStatus"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "interfaces": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "overruns": {
+                        "type": "integer"
+                    },
+                    "running": {
+                        "type": "boolean"
+                    },
+                    "samples": {
+                        "type": "integer"
+                    },
+                    "sampling": {
+                        "type": "integer"
+                    },
+                    "stored": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "collectors",
+                    "enabled",
+                    "interfaces",
+                    "overruns",
+                    "running",
+                    "samples",
+                    "sampling",
+                    "stored"
+                ],
+                "type": "object"
+            },
+            "types.FlowTopEntry": {
+                "properties": {
+                    "bytes": {
+                        "type": "integer"
+                    },
+                    "flows": {
+                        "type": "integer"
+                    },
+                    "key": {
+                        "type": "string"
+                    },
+                    "packets": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "bytes",
+                    "flows",
+                    "key",
+                    "packets"
+                ],
+                "type": "object"
+            },
+            "types.FlowTopResponse": {
+                "properties": {
+                    "dimension": {
+                        "type": "string"
+                    },
+                    "entries": {
+                        "items": {
+                            "$ref": "#/components/schemas/types.FlowTopEntry"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    }
+                },
+                "required": [
+                    "dimension",
+                    "entries"
+                ],
+                "type": "object"
+            },
+            "types.FlowsResponse": {
+                "properties": {
+                    "flows": {
+                        "items": {
+                            "$ref": "#/components/schemas/types.Flow"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    }
+                },
+                "required": [
+                    "flows"
                 ],
                 "type": "object"
             },
@@ -4409,6 +5559,9 @@
                     "conntrackd_running": {
                         "type": "boolean"
                     },
+                    "dns_vrf": {
+                        "type": "boolean"
+                    },
                     "encryption": {
                         "type": "boolean"
                     },
@@ -4447,6 +5600,7 @@
                 "required": [
                     "conntrackd",
                     "conntrackd_running",
+                    "dns_vrf",
                     "encryption",
                     "hostname",
                     "identity_fingerprint",
@@ -4528,6 +5682,9 @@
             },
             "types.IfaceStats": {
                 "properties": {
+                    "alias": {
+                        "type": "string"
+                    },
                     "operstate": {
                         "type": "string"
                     },
@@ -4600,6 +5757,69 @@
                 "required": [
                     "rx_bytes",
                     "tx_bytes"
+                ],
+                "type": "object"
+            },
+            "types.InstallRequest": {
+                "properties": {
+                    "disk": {
+                        "type": "string"
+                    },
+                    "hostname": {
+                        "type": "string"
+                    },
+                    "password": {
+                        "minLength": 8,
+                        "type": "string"
+                    },
+                    "timezone": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "disk",
+                    "hostname",
+                    "password",
+                    "timezone"
+                ],
+                "type": "object"
+            },
+            "types.InstallStatus": {
+                "properties": {
+                    "disk": {
+                        "type": "string"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "installer_only": {
+                        "type": "boolean"
+                    },
+                    "live": {
+                        "type": "boolean"
+                    },
+                    "log": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "state": {
+                        "enum": [
+                            "idle",
+                            "running",
+                            "done",
+                            "failed"
+                        ],
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "installer_only",
+                    "live",
+                    "log",
+                    "state"
                 ],
                 "type": "object"
             },
@@ -5030,6 +6250,21 @@
                 ],
                 "type": "object"
             },
+            "types.PortMode": {
+                "enum": [
+                    "access",
+                    "trunk",
+                    "bond-member",
+                    "unbridged"
+                ],
+                "type": "string",
+                "x-enum-varnames": [
+                    "PortAccess",
+                    "PortTrunk",
+                    "PortBondSlave",
+                    "PortUnbridged"
+                ]
+            },
             "types.ProbeHistoryPoint": {
                 "properties": {
                     "name": {
@@ -5317,6 +6552,27 @@
                 },
                 "type": "object"
             },
+            "types.Response-array_live_Disk": {
+                "properties": {
+                    "code": {
+                        "type": "integer"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "items": {
+                            "$ref": "#/components/schemas/live.Disk"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
             "types.Response-array_managers_PushResult": {
                 "properties": {
                     "code": {
@@ -5370,6 +6626,48 @@
                     "result": {
                         "items": {
                             "$ref": "#/components/schemas/render.NftVar"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "types.Response-array_string": {
+                "properties": {
+                    "code": {
+                        "type": "integer"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "types.Response-array_sysctl_Parameter": {
+                "properties": {
+                    "code": {
+                        "type": "integer"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "items": {
+                            "$ref": "#/components/schemas/sysctl.Parameter"
                         },
                         "type": "array",
                         "uniqueItems": false
@@ -5569,6 +6867,69 @@
                 },
                 "type": "object"
             },
+            "types.Response-array_types_SwitchCandidate": {
+                "properties": {
+                    "code": {
+                        "type": "integer"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "items": {
+                            "$ref": "#/components/schemas/types.SwitchCandidate"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "types.Response-array_types_SwitchModel": {
+                "properties": {
+                    "code": {
+                        "type": "integer"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "items": {
+                            "$ref": "#/components/schemas/types.SwitchModel"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "types.Response-array_types_SwitchStatus": {
+                "properties": {
+                    "code": {
+                        "type": "integer"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "items": {
+                            "$ref": "#/components/schemas/types.SwitchStatus"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
             "types.Response-array_types_SystemNic": {
                 "properties": {
                     "code": {
@@ -5580,6 +6941,27 @@
                     "result": {
                         "items": {
                             "$ref": "#/components/schemas/types.SystemNic"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "types.Response-array_types_WireguardInterfaceStatus": {
+                "properties": {
+                    "code": {
+                        "type": "integer"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "items": {
+                            "$ref": "#/components/schemas/types.WireguardInterfaceStatus"
                         },
                         "type": "array",
                         "uniqueItems": false
@@ -5641,6 +7023,23 @@
                 },
                 "type": "object"
             },
+            "types.Response-config_VPNConfig": {
+                "properties": {
+                    "code": {
+                        "type": "integer"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "$ref": "#/components/schemas/config.VPNConfig"
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
             "types.Response-dhcp_statsResponse": {
                 "properties": {
                     "code": {
@@ -5685,6 +7084,23 @@
                     },
                     "result": {
                         "$ref": "#/components/schemas/dns.statsResponse"
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "types.Response-flows_Metadata": {
+                "properties": {
+                    "code": {
+                        "type": "integer"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "$ref": "#/components/schemas/flows.Metadata"
                     },
                     "status": {
                         "type": "string"
@@ -5760,6 +7176,23 @@
                 },
                 "type": "object"
             },
+            "types.Response-render_FriendBGPImportResult": {
+                "properties": {
+                    "code": {
+                        "type": "integer"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "$ref": "#/components/schemas/render.FriendBGPImportResult"
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
             "types.Response-string": {
                 "properties": {
                     "code": {
@@ -5787,6 +7220,23 @@
                     },
                     "result": {
                         "$ref": "#/components/schemas/system.interfaceStatus"
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "types.Response-tlscert_Status": {
+                "properties": {
+                    "code": {
+                        "type": "integer"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "$ref": "#/components/schemas/tlscert.Status"
                     },
                     "status": {
                         "type": "string"
@@ -5998,6 +7448,91 @@
                 },
                 "type": "object"
             },
+            "types.Response-types_FlowSankeyResponse": {
+                "properties": {
+                    "code": {
+                        "type": "integer"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "$ref": "#/components/schemas/types.FlowSankeyResponse"
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "types.Response-types_FlowSeriesResponse": {
+                "properties": {
+                    "code": {
+                        "type": "integer"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "$ref": "#/components/schemas/types.FlowSeriesResponse"
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "types.Response-types_FlowStatus": {
+                "properties": {
+                    "code": {
+                        "type": "integer"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "$ref": "#/components/schemas/types.FlowStatus"
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "types.Response-types_FlowTopResponse": {
+                "properties": {
+                    "code": {
+                        "type": "integer"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "$ref": "#/components/schemas/types.FlowTopResponse"
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "types.Response-types_FlowsResponse": {
+                "properties": {
+                    "code": {
+                        "type": "integer"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "$ref": "#/components/schemas/types.FlowsResponse"
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
             "types.Response-types_FriendDeleteResult": {
                 "properties": {
                     "code": {
@@ -6127,6 +7662,23 @@
                     },
                     "result": {
                         "$ref": "#/components/schemas/types.HAStatusResponse"
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "types.Response-types_InstallStatus": {
+                "properties": {
+                    "code": {
+                        "type": "integer"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "$ref": "#/components/schemas/types.InstallStatus"
                     },
                     "status": {
                         "type": "string"
@@ -6355,6 +7907,23 @@
                 },
                 "type": "object"
             },
+            "types.Response-types_SetupHost": {
+                "properties": {
+                    "code": {
+                        "type": "integer"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "$ref": "#/components/schemas/types.SetupHost"
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
             "types.Response-types_SetupStatus": {
                 "properties": {
                     "code": {
@@ -6440,6 +8009,40 @@
                 },
                 "type": "object"
             },
+            "types.Response-types_SwitchPlanPreview": {
+                "properties": {
+                    "code": {
+                        "type": "integer"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "$ref": "#/components/schemas/types.SwitchPlanPreview"
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "types.Response-types_SwitchStatus": {
+                "properties": {
+                    "code": {
+                        "type": "integer"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "$ref": "#/components/schemas/types.SwitchStatus"
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
             "types.RoutesResponse": {
                 "properties": {
                     "routes": {
@@ -6455,6 +8058,39 @@
                 },
                 "required": [
                     "total"
+                ],
+                "type": "object"
+            },
+            "types.SetupHost": {
+                "properties": {
+                    "default_iface": {
+                        "type": "string"
+                    },
+                    "dhcp_ifaces": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "gateway4": {
+                        "type": "string"
+                    },
+                    "nameservers": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "taken_over": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "dhcp_ifaces",
+                    "nameservers",
+                    "taken_over"
                 ],
                 "type": "object"
             },
@@ -6595,6 +8231,367 @@
                 },
                 "required": [
                     "status"
+                ],
+                "type": "object"
+            },
+            "types.SwitchBond": {
+                "properties": {
+                    "members": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "mode": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "members",
+                    "mode",
+                    "name"
+                ],
+                "type": "object"
+            },
+            "types.SwitchCandidate": {
+                "properties": {
+                    "capabilities": {
+                        "type": "string"
+                    },
+                    "chassis_id": {
+                        "type": "string"
+                    },
+                    "local_iface": {
+                        "type": "string"
+                    },
+                    "mgmt_ip": {
+                        "type": "string"
+                    },
+                    "model_id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "port_id": {
+                        "type": "string"
+                    },
+                    "protocols": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "sys_descr": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "capabilities",
+                    "chassis_id",
+                    "local_iface",
+                    "mgmt_ip",
+                    "name",
+                    "port_id",
+                    "protocols",
+                    "sys_descr"
+                ],
+                "type": "object"
+            },
+            "types.SwitchCredentialsRequest": {
+                "properties": {
+                    "values": {
+                        "additionalProperties": {
+                            "type": "string"
+                        },
+                        "type": "object"
+                    }
+                },
+                "required": [
+                    "values"
+                ],
+                "type": "object"
+            },
+            "types.SwitchFacts": {
+                "properties": {
+                    "identity": {
+                        "type": "string"
+                    },
+                    "model": {
+                        "type": "string"
+                    },
+                    "serial": {
+                        "type": "string"
+                    },
+                    "version": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "identity",
+                    "model",
+                    "serial",
+                    "version"
+                ],
+                "type": "object"
+            },
+            "types.SwitchModel": {
+                "properties": {
+                    "credentials": {
+                        "items": {
+                            "$ref": "#/components/schemas/types.CredentialField"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "driver": {
+                        "type": "string"
+                    },
+                    "faceplate": {
+                        "items": {
+                            "$ref": "#/components/schemas/types.FaceplateGroup"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "generic": {
+                        "type": "boolean"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "vendor": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "credentials",
+                    "driver",
+                    "faceplate",
+                    "generic",
+                    "id",
+                    "name",
+                    "vendor"
+                ],
+                "type": "object"
+            },
+            "types.SwitchPlanPreview": {
+                "properties": {
+                    "steps": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    }
+                },
+                "required": [
+                    "steps"
+                ],
+                "type": "object"
+            },
+            "types.SwitchPort": {
+                "properties": {
+                    "bond": {
+                        "type": "string"
+                    },
+                    "bridge": {
+                        "type": "string"
+                    },
+                    "comment": {
+                        "type": "string"
+                    },
+                    "disabled": {
+                        "type": "boolean"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "mac": {
+                        "type": "string"
+                    },
+                    "mode": {
+                        "$ref": "#/components/schemas/types.PortMode"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "pvid": {
+                        "type": "integer"
+                    },
+                    "rate": {
+                        "type": "string"
+                    },
+                    "running": {
+                        "type": "boolean"
+                    },
+                    "tagged": {
+                        "items": {
+                            "type": "integer"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "type": {
+                        "type": "string"
+                    },
+                    "untagged": {
+                        "items": {
+                            "type": "integer"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    }
+                },
+                "required": [
+                    "bond",
+                    "bridge",
+                    "comment",
+                    "disabled",
+                    "mac",
+                    "mode",
+                    "name",
+                    "pvid",
+                    "rate",
+                    "running",
+                    "tagged",
+                    "type",
+                    "untagged"
+                ],
+                "type": "object"
+            },
+            "types.SwitchState": {
+                "properties": {
+                    "bonds": {
+                        "items": {
+                            "$ref": "#/components/schemas/types.SwitchBond"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "bridges": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "facts": {
+                        "$ref": "#/components/schemas/types.SwitchFacts"
+                    },
+                    "ports": {
+                        "items": {
+                            "$ref": "#/components/schemas/types.SwitchPort"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "vlan_filtering": {
+                        "type": "boolean"
+                    },
+                    "vlans": {
+                        "items": {
+                            "$ref": "#/components/schemas/types.SwitchVLAN"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    }
+                },
+                "required": [
+                    "bonds",
+                    "bridges",
+                    "facts",
+                    "ports",
+                    "vlan_filtering",
+                    "vlans"
+                ],
+                "type": "object"
+            },
+            "types.SwitchStatus": {
+                "properties": {
+                    "error": {
+                        "type": "string"
+                    },
+                    "has_credentials": {
+                        "type": "boolean"
+                    },
+                    "host": {
+                        "type": "string"
+                    },
+                    "interface": {
+                        "type": "string"
+                    },
+                    "model": {
+                        "$ref": "#/components/schemas/types.SwitchModel"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "reachable": {
+                        "type": "boolean"
+                    },
+                    "read_at": {
+                        "type": "integer"
+                    },
+                    "state": {
+                        "$ref": "#/components/schemas/types.SwitchState"
+                    },
+                    "uplink": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "has_credentials",
+                    "host",
+                    "interface",
+                    "model",
+                    "name",
+                    "reachable",
+                    "read_at",
+                    "uplink"
+                ],
+                "type": "object"
+            },
+            "types.SwitchVLAN": {
+                "properties": {
+                    "bridge": {
+                        "type": "string"
+                    },
+                    "dynamic": {
+                        "type": "boolean"
+                    },
+                    "id": {
+                        "type": "integer"
+                    },
+                    "tagged": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "untagged": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    }
+                },
+                "required": [
+                    "bridge",
+                    "dynamic",
+                    "id",
+                    "tagged",
+                    "untagged"
                 ],
                 "type": "object"
             },
@@ -6845,6 +8842,92 @@
                 },
                 "required": [
                     "interface"
+                ],
+                "type": "object"
+            },
+            "types.WireguardInterfaceStatus": {
+                "properties": {
+                    "interface": {
+                        "type": "string"
+                    },
+                    "listen_port": {
+                        "type": "integer"
+                    },
+                    "peers": {
+                        "items": {
+                            "$ref": "#/components/schemas/types.WireguardPeerStatus"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "public_key": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "interface",
+                    "listen_port",
+                    "peers",
+                    "public_key"
+                ],
+                "type": "object"
+            },
+            "types.WireguardPeerStatus": {
+                "properties": {
+                    "allowed_ips": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "endpoint": {
+                        "type": "string"
+                    },
+                    "latest_handshake": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "public_key": {
+                        "type": "string"
+                    },
+                    "rx_bytes": {
+                        "type": "integer"
+                    },
+                    "tx_bytes": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "allowed_ips",
+                    "latest_handshake",
+                    "public_key",
+                    "rx_bytes",
+                    "tx_bytes"
+                ],
+                "type": "object"
+            },
+            "webtls.FileRequest": {
+                "properties": {
+                    "content": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "content"
+                ],
+                "type": "object"
+            },
+            "webtls.RenewRequest": {
+                "properties": {
+                    "domain": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "domain"
                 ],
                 "type": "object"
             }
@@ -7408,13 +9491,13 @@
             "get": {
                 "parameters": [
                     {
-                        "description": "configuration layer",
+                        "description": "staging (the caller's staged copy when it has one) or running",
                         "in": "query",
-                        "name": "layer",
+                        "name": "source",
                         "schema": {
                             "enum": [
-                                "advanced",
-                                "simple"
+                                "staging",
+                                "running"
                             ],
                             "type": "string"
                         }
@@ -7445,20 +9528,6 @@
         },
         "/api/config/apply": {
             "post": {
-                "parameters": [
-                    {
-                        "description": "configuration layer",
-                        "in": "query",
-                        "name": "layer",
-                        "schema": {
-                            "enum": [
-                                "advanced",
-                                "simple"
-                            ],
-                            "type": "string"
-                        }
-                    }
-                ],
                 "responses": {
                     "200": {
                         "content": {
@@ -7725,20 +9794,6 @@
         },
         "/api/config/staging": {
             "delete": {
-                "parameters": [
-                    {
-                        "description": "configuration layer",
-                        "in": "query",
-                        "name": "layer",
-                        "schema": {
-                            "enum": [
-                                "advanced",
-                                "simple"
-                            ],
-                            "type": "string"
-                        }
-                    }
-                ],
                 "responses": {
                     "200": {
                         "content": {
@@ -7773,18 +9828,6 @@
                         "schema": {
                             "type": "string"
                         }
-                    },
-                    {
-                        "description": "configuration layer",
-                        "in": "query",
-                        "name": "layer",
-                        "schema": {
-                            "enum": [
-                                "advanced",
-                                "simple"
-                            ],
-                            "type": "string"
-                        }
                     }
                 ],
                 "responses": {
@@ -7817,18 +9860,6 @@
                         "name": "section",
                         "required": true,
                         "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "description": "configuration layer",
-                        "in": "query",
-                        "name": "layer",
-                        "schema": {
-                            "enum": [
-                                "advanced",
-                                "simple"
-                            ],
                             "type": "string"
                         }
                     }
@@ -8297,16 +10328,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/dns.flushRequest",
-                                        "summary": "request",
-                                        "description": "name to flush; the whole cache when empty"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/dns.flushRequest",
+                                "summary": "request",
+                                "description": "name to flush; the whole cache when empty"
                             }
                         }
                     },
@@ -8377,16 +10401,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/dns.ddnsDeleteRequest",
-                                        "summary": "request",
-                                        "description": "record to delete"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/dns.ddnsDeleteRequest",
+                                "summary": "request",
+                                "description": "record to delete"
                             }
                         }
                     },
@@ -8447,16 +10464,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/dns.queryRequest",
-                                        "summary": "request",
-                                        "description": "name and record type to resolve"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/dns.queryRequest",
+                                "summary": "request",
+                                "description": "name and record type to resolve"
                             }
                         }
                     },
@@ -8817,6 +10827,249 @@
                 ]
             }
         },
+        "/api/flows": {
+            "get": {
+                "parameters": [
+                    {
+                        "description": "lookback minutes (default 60)",
+                        "in": "query",
+                        "name": "minutes",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "only flows from or to this address",
+                        "in": "query",
+                        "name": "address",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "maximum flows (default 200)",
+                        "in": "query",
+                        "name": "limit",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-types_FlowsResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Recent flows",
+                "tags": [
+                    "flows"
+                ]
+            }
+        },
+        "/api/flows/metadata": {
+            "get": {
+                "description": "Lists this router as an sFlow exporter with its interface indexes, names and speeds, in the format of akvorado's static provider exporter-sources. Use the transform .result.exporters[].",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-flows_Metadata"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Interface metadata for akvorado",
+                "tags": [
+                    "flows"
+                ]
+            }
+        },
+        "/api/flows/sankey": {
+            "get": {
+                "description": "Sums stored flows along two or three dimensions (src, dst, service, protocol, in_if, out_if) and returns the largest paths with the total bytes of the window. Names maps path addresses to their cached reverse DNS (PTR) names.",
+                "parameters": [
+                    {
+                        "description": "comma-separated dimensions (default src,service,dst)",
+                        "in": "query",
+                        "name": "dimensions",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "lookback minutes (default 60)",
+                        "in": "query",
+                        "name": "minutes",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "maximum paths (default 15)",
+                        "in": "query",
+                        "name": "limit",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-types_FlowSankeyResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Flow paths for a Sankey diagram",
+                "tags": [
+                    "flows"
+                ]
+            }
+        },
+        "/api/flows/series": {
+            "get": {
+                "description": "Bytes and packets per input interface, bucketed over the lookback window.",
+                "parameters": [
+                    {
+                        "description": "lookback minutes (default 60)",
+                        "in": "query",
+                        "name": "minutes",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-types_FlowSeriesResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Flow traffic over time",
+                "tags": [
+                    "flows"
+                ]
+            }
+        },
+        "/api/flows/status": {
+            "get": {
+                "description": "Reports whether the sFlow agent runs, its sampling rate, interfaces, collectors and how many flows are stored locally.",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-types_FlowStatus"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Flow collector status",
+                "tags": [
+                    "flows"
+                ]
+            }
+        },
+        "/api/flows/top": {
+            "get": {
+                "description": "Sums stored flows by one dimension: src, dst, service (protocol/port), protocol, in_if, out_if or conversation.",
+                "parameters": [
+                    {
+                        "description": "grouping dimension (default src)",
+                        "in": "query",
+                        "name": "dimension",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "lookback minutes (default 60)",
+                        "in": "query",
+                        "name": "minutes",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "maximum entries (default 10)",
+                        "in": "query",
+                        "name": "limit",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-types_FlowTopResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Top flow talkers",
+                "tags": [
+                    "flows"
+                ]
+            }
+        },
         "/api/friends": {
             "get": {
                 "responses": {
@@ -8873,6 +11126,31 @@
                     }
                 ],
                 "summary": "Add a friend",
+                "tags": [
+                    "friends"
+                ]
+            }
+        },
+        "/api/friends/bgp-policies": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-render_FriendBGPImportResult"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "BGP prefix-lists and route-maps imported from all friends",
                 "tags": [
                     "friends"
                 ]
@@ -9700,6 +11978,144 @@
                 ]
             }
         },
+        "/api/install": {
+            "post": {
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/types.InstallRequest",
+                                "summary": "body",
+                                "description": "target disk and system settings"
+                            }
+                        }
+                    },
+                    "description": "target disk and system settings",
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-types_InstallStatus"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Install Routier to a disk, erasing it",
+                "tags": [
+                    "install"
+                ]
+            }
+        },
+        "/api/install/disks": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-array_live_Disk"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Disks available for installation",
+                "tags": [
+                    "install"
+                ]
+            }
+        },
+        "/api/install/reboot": {
+            "post": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-types_StatusResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Restart the live system after installation",
+                "tags": [
+                    "install"
+                ]
+            }
+        },
+        "/api/install/status": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-types_InstallStatus"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Live system and disk installation status",
+                "tags": [
+                    "install"
+                ]
+            }
+        },
+        "/api/install/timezones": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-array_string"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Timezones available for installation",
+                "tags": [
+                    "install"
+                ]
+            }
+        },
         "/api/logs/stream": {
             "get": {
                 "parameters": [
@@ -10014,6 +12430,42 @@
                 ]
             }
         },
+        "/api/routing/bgp/neighbor": {
+            "get": {
+                "parameters": [
+                    {
+                        "description": "neighbor IP address",
+                        "in": "query",
+                        "name": "address",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-string"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Detailed `show bgp neighbors \u003caddress\u003e` output from FRR",
+                "tags": [
+                    "routing"
+                ]
+            }
+        },
         "/api/routing/learned": {
             "get": {
                 "responses": {
@@ -10217,6 +12669,69 @@
                 ]
             }
         },
+        "/api/setup/host": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-types_SetupHost"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Describe the host's current network for onboarding",
+                "tags": [
+                    "setup"
+                ]
+            }
+        },
+        "/api/setup/network": {
+            "put": {
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/setup.Network",
+                                "summary": "body",
+                                "description": "network"
+                            }
+                        }
+                    },
+                    "description": "network",
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-types_StatusResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Stage the first-run network: hostname, Internet uplink and local networks",
+                "tags": [
+                    "setup"
+                ]
+            }
+        },
         "/api/setup/onboarding": {
             "get": {
                 "responses": {
@@ -10319,6 +12834,51 @@
                     }
                 ],
                 "summary": "List config snapshots",
+                "tags": [
+                    "snapshots"
+                ]
+            }
+        },
+        "/api/snapshots/{id}/artifact": {
+            "get": {
+                "parameters": [
+                    {
+                        "description": "snapshot id",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "saved artifact destination path",
+                        "in": "query",
+                        "name": "dest",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-types_ArtifactContent"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Read a saved artifact from a snapshot",
                 "tags": [
                     "snapshots"
                 ]
@@ -10436,6 +12996,42 @@
                 ]
             }
         },
+        "/api/stats/live": {
+            "get": {
+                "parameters": [
+                    {
+                        "description": "Kernel interface name",
+                        "in": "query",
+                        "name": "iface",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "text/event-stream": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Stream live interface throughput every second (SSE)",
+                "tags": [
+                    "stats"
+                ]
+            }
+        },
         "/api/stats/lldp": {
             "get": {
                 "responses": {
@@ -10508,6 +13104,272 @@
                 "summary": "Live process list",
                 "tags": [
                     "stats"
+                ]
+            }
+        },
+        "/api/switch-models": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-array_types_SwitchModel"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Switch models known to this routier",
+                "tags": [
+                    "switches"
+                ]
+            }
+        },
+        "/api/switches": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-array_types_SwitchStatus"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Applied switches with their live state",
+                "tags": [
+                    "switches"
+                ]
+            }
+        },
+        "/api/switches/candidates": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-array_types_SwitchCandidate"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Switches heard over LLDP or CDP and not configured yet",
+                "tags": [
+                    "switches"
+                ]
+            }
+        },
+        "/api/switches/{name}": {
+            "get": {
+                "parameters": [
+                    {
+                        "description": "switch name",
+                        "in": "path",
+                        "name": "name",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-types_SwitchStatus"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "One applied switch with its live state",
+                "tags": [
+                    "switches"
+                ]
+            }
+        },
+        "/api/switches/{name}/credentials": {
+            "delete": {
+                "parameters": [
+                    {
+                        "description": "switch name",
+                        "in": "path",
+                        "name": "name",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-types_StatusResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Forget the credentials of a switch",
+                "tags": [
+                    "switches"
+                ]
+            },
+            "put": {
+                "parameters": [
+                    {
+                        "description": "switch name",
+                        "in": "path",
+                        "name": "name",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/types.SwitchCredentialsRequest",
+                                "summary": "body",
+                                "description": "credential fields of the switch model"
+                            }
+                        }
+                    },
+                    "description": "credential fields of the switch model",
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-types_StatusResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Store the credentials of a switch, sealed in the routier database",
+                "tags": [
+                    "switches"
+                ]
+            }
+        },
+        "/api/switches/{name}/plan": {
+            "get": {
+                "parameters": [
+                    {
+                        "description": "switch name",
+                        "in": "path",
+                        "name": "name",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-types_SwitchPlanPreview"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Device calls the staged config would make on a switch",
+                "tags": [
+                    "switches"
+                ]
+            }
+        },
+        "/api/switches/{name}/refresh": {
+            "post": {
+                "parameters": [
+                    {
+                        "description": "switch name",
+                        "in": "path",
+                        "name": "name",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-types_SwitchStatus"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Read the switch now",
+                "tags": [
+                    "switches"
                 ]
             }
         },
@@ -10642,6 +13504,31 @@
                     }
                 ],
                 "summary": "Power off the appliance",
+                "tags": [
+                    "system"
+                ]
+            }
+        },
+        "/api/system/sysctl": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-array_sysctl_Parameter"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Kernel parameters available on this host with their current values",
                 "tags": [
                     "system"
                 ]
@@ -11300,6 +14187,85 @@
                     }
                 ],
                 "summary": "Replace a session's canonical configuration with YAML",
+                "tags": [
+                    "v1-config"
+                ]
+            }
+        },
+        "/api/v1/sessions/{sessionID}/dhcp": {
+            "get": {
+                "parameters": [
+                    {
+                        "description": "session id",
+                        "in": "path",
+                        "name": "sessionID",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Get session dhcp",
+                "tags": [
+                    "v1-config"
+                ]
+            },
+            "put": {
+                "parameters": [
+                    {
+                        "description": "session id",
+                        "in": "path",
+                        "name": "sessionID",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Replace session dhcp",
                 "tags": [
                     "v1-config"
                 ]
@@ -12490,6 +15456,225 @@
                 ]
             }
         },
+        "/api/v1/sessions/{sessionID}/switches": {
+            "get": {
+                "parameters": [
+                    {
+                        "description": "session id",
+                        "in": "path",
+                        "name": "sessionID",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "List session switches",
+                "tags": [
+                    "v1-config"
+                ]
+            },
+            "put": {
+                "parameters": [
+                    {
+                        "description": "session id",
+                        "in": "path",
+                        "name": "sessionID",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Replace session switches",
+                "tags": [
+                    "v1-config"
+                ]
+            }
+        },
+        "/api/v1/sessions/{sessionID}/switches/{name}": {
+            "delete": {
+                "parameters": [
+                    {
+                        "description": "session id",
+                        "in": "path",
+                        "name": "sessionID",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "key",
+                        "in": "path",
+                        "name": "name",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Delete one switch",
+                "tags": [
+                    "v1-config"
+                ]
+            },
+            "get": {
+                "parameters": [
+                    {
+                        "description": "session id",
+                        "in": "path",
+                        "name": "sessionID",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "key",
+                        "in": "path",
+                        "name": "name",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Get one switch",
+                "tags": [
+                    "v1-config"
+                ]
+            },
+            "put": {
+                "parameters": [
+                    {
+                        "description": "session id",
+                        "in": "path",
+                        "name": "sessionID",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "key",
+                        "in": "path",
+                        "name": "name",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Set one switch",
+                "tags": [
+                    "v1-config"
+                ]
+            }
+        },
         "/api/v1/sessions/{sessionID}/sysctl": {
             "get": {
                 "parameters": [
@@ -13131,6 +16316,89 @@
                 ]
             }
         },
+        "/api/v1/sessions/{sessionID}/vpn": {
+            "get": {
+                "parameters": [
+                    {
+                        "description": "session id",
+                        "in": "path",
+                        "name": "sessionID",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-config_VPNConfig"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Get session VPN configuration",
+                "tags": [
+                    "v1-config"
+                ]
+            },
+            "put": {
+                "parameters": [
+                    {
+                        "description": "session id",
+                        "in": "path",
+                        "name": "sessionID",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/config.VPNConfig",
+                                "summary": "body",
+                                "description": "VPN configuration"
+                            }
+                        }
+                    },
+                    "description": "VPN configuration",
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-types_StatusResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Replace session VPN configuration",
+                "tags": [
+                    "v1-config"
+                ]
+            }
+        },
         "/api/v1/sessions/{sessionID}/vrfs": {
             "get": {
                 "parameters": [
@@ -13569,6 +16837,156 @@
                 ]
             }
         },
+        "/api/web/tls": {
+            "get": {
+                "description": "Mode (self-signed, file, or acme), the fallback and ACME certificates with issuer, expiry and last error, and the files stored in /var/lib/routier/tls.",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-tlscert_Status"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Web UI certificate status",
+                "tags": [
+                    "web"
+                ]
+            }
+        },
+        "/api/web/tls/files/{name}": {
+            "get": {
+                "description": "Returns the PEM content of a certificate stored in /var/lib/routier/tls. Files holding a private key are refused.",
+                "parameters": [
+                    {
+                        "description": "File name",
+                        "in": "path",
+                        "name": "name",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-string"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Read a stored web UI certificate",
+                "tags": [
+                    "web"
+                ]
+            },
+            "put": {
+                "description": "Writes a PEM file to /var/lib/routier/tls so web.tls.cert_file and key_file can name it. Private keys are stored with mode 0600.",
+                "parameters": [
+                    {
+                        "description": "File name",
+                        "in": "path",
+                        "name": "name",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/webtls.FileRequest",
+                                "summary": "body",
+                                "description": "PEM content"
+                            }
+                        }
+                    },
+                    "description": "PEM content",
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-tlscert_Status"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Store a certificate or key for the web UI",
+                "tags": [
+                    "web"
+                ]
+            }
+        },
+        "/api/web/tls/renew": {
+            "post": {
+                "description": "Requests a new certificate for one of web.tls.acme.domains, even when the current one is still valid, and serves it once issued. The current certificate keeps being served if the renewal fails. Progress and errors appear in the status log.",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/webtls.RenewRequest",
+                                "summary": "body",
+                                "description": "Domain to renew"
+                            }
+                        }
+                    },
+                    "description": "Domain to renew",
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-tlscert_Status"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "Renew an ACME certificate now",
+                "tags": [
+                    "web"
+                ]
+            }
+        },
         "/api/wireguard/keygen": {
             "post": {
                 "responses": {
@@ -13623,6 +17041,31 @@
                     }
                 ],
                 "summary": "Derive the public key for a private key",
+                "tags": [
+                    "wireguard"
+                ]
+            }
+        },
+        "/api/wireguard/status": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/types.Response-array_types_WireguardInterfaceStatus"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "summary": "WireGuard interfaces and peers with their latest handshake and traffic",
                 "tags": [
                     "wireguard"
                 ]

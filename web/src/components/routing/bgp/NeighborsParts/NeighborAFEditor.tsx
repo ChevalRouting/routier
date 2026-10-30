@@ -34,7 +34,7 @@ export function NeighborAFEditor({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <Label className="text-xs font-semibold">Per-neighbor Address Families</Label>
+        <Label className="text-xs font-semibold">Per-Neighbor Address Families</Label>
         {available.length > 0 && (
           <div className="flex items-center gap-1.5">
             <Select value={adding} onValueChange={setAdding}>
@@ -55,7 +55,7 @@ export function NeighborAFEditor({
       </div>
 
       {configured.length === 0 ? (
-        <p className="text-xs text-muted-foreground italic">No address families configured for this neighbor.</p>
+        <p className="text-xs text-muted-foreground">No address families</p>
       ) : (
         <div className="space-y-2">
           {configured.map((afName) => {
@@ -63,22 +63,22 @@ export function NeighborAFEditor({
             return (
               <Card key={afName} className="p-3 space-y-3">
                 <div className="flex items-center justify-between">
-                  <Badge variant="outline" className="font-mono text-xs">{afName}</Badge>
-                  <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => remove(afName)}>
+                  <Badge variant="outline" className="font-mono">{afName}</Badge>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => remove(afName)} aria-label="Remove Address Family" title="Remove Address Family">
                     <Trash2 className="h-3 w-3" />
                   </Button>
                 </div>
                 <PreferencesGroup>
-                  <SwitchRow title="Activate in this address family" checked={!af.disabled} onCheckedChange={(v) => upd(afName, { disabled: !v })} />
-                  <SwitchRow title="Soft reconfiguration inbound" checked={!!af.soft_reconfiguration} onCheckedChange={(v) => upd(afName, { soft_reconfiguration: v })} />
-                  <SwitchRow title="Advertise default route (default-originate)" checked={!!af.default_originate} onCheckedChange={(v) => upd(afName, { default_originate: v })} />
-                  <SwitchRow title="Next-hop-self" checked={!!af.next_hop_self} onCheckedChange={(v) => upd(afName, { next_hop_self: v })} />
-                  <SwitchRow title="Route-reflector client" checked={!!af.route_reflector_client} onCheckedChange={(v) => upd(afName, { route_reflector_client: v })} />
-                  <SwitchRow title="Remove private ASNs (remove-private-AS)" checked={!!af.remove_private_as} onCheckedChange={(v) => upd(afName, { remove_private_as: v })} />
+                  <SwitchRow title="Activate in This Address Family" checked={!af.disabled} onCheckedChange={(v) => upd(afName, { disabled: !v })} />
+                  <SwitchRow title="Soft Reconfiguration Inbound" checked={!!af.soft_reconfiguration} onCheckedChange={(v) => upd(afName, { soft_reconfiguration: v })} />
+                  <SwitchRow title="Advertise Default Route (default-originate)" checked={!!af.default_originate} onCheckedChange={(v) => upd(afName, { default_originate: v })} />
+                  <SwitchRow title="Next-Hop-Self" checked={!!af.next_hop_self} onCheckedChange={(v) => upd(afName, { next_hop_self: v })} />
+                  <SwitchRow title="Route-Reflector Client" checked={!!af.route_reflector_client} onCheckedChange={(v) => upd(afName, { route_reflector_client: v })} />
+                  <SwitchRow title="Remove Private ASNs (remove-private-AS)" checked={!!af.remove_private_as} onCheckedChange={(v) => upd(afName, { remove_private_as: v })} />
                   <EntryRow title="allowas-in (0 = off)" value={af.allowas_in ?? ''} onChange={(e) => upd(afName, { allowas_in: Number(e.target.value) || undefined })} placeholder="0" className="font-mono" />
                   <EntryRow title="Weight (0 = default)" value={af.weight ?? ''} onChange={(e) => upd(afName, { weight: Number(e.target.value) || undefined })} placeholder="0" className="font-mono" />
                 </PreferencesGroup>
-                <PreferencesGroup title="Route filters" description="Apply filters to this neighbor for this address family.">
+                <PreferencesGroup title="Route Filters">
                   {([
                     ['prefix_list_in', 'Prefix list in', prefixListNames],
                     ['prefix_list_out', 'Prefix list out', prefixListNames],
@@ -91,7 +91,7 @@ export function NeighborAFEditor({
                   ))}
                 </PreferencesGroup>
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Additional directives (per address-family)</Label>
+                  <Label className="text-xs text-muted-foreground">Additional Directives (per address-family)</Label>
                   <TagInput values={af.extra ?? []} onChange={(v) => upd(afName, { extra: v.length ? v : undefined })} placeholder="send-community extended" mono />
                 </div>
               </Card>

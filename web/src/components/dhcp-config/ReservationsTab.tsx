@@ -1,6 +1,8 @@
+import { plural } from '@/lib/utils'
+import { AutoTextarea } from '@/components/ui/AutoTextarea'
 import { DhcpConfigData, KeaReservation, ReservationRef, SubnetRef, familyKey } from '@/components/dhcp-config/shared'
 import { api } from '@/lib/client'
-import { Button, Card, CardContent, CardHeader, CardTitle, EmptyState, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from 'cheval-ui'
+import { Button, cn, EmptyState, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from 'cheval-ui'
 import { Plus, Search, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -84,18 +86,17 @@ export function ReservationsTab({ cfg, onChange }: ReservationsTabShape) {
   const visible = rows.filter(matches)
 
   return (
-    <Card>
-      <CardHeader className="space-y-3">
+    <div className="space-y-3">
         <div className="flex flex-row items-center justify-between">
-          <CardTitle className="text-sm">Reservations ({rows.length})</CardTitle>
+          <span className="text-sm font-semibold">{plural(rows.length, 'Reservation')}</span>
           <Button variant="outline" size="sm" className="gap-1.5" onClick={add} disabled={subnets.length === 0}>
-            <Plus className="h-3.5 w-3.5" />Add reservation
+            <Plus className="h-3.5 w-3.5" />Add Reservation
           </Button>
         </div>
         {rows.length > 0 && (
           <div className="flex flex-wrap items-center gap-2">
             <Select value={filter} onValueChange={setFilter}>
-              <SelectTrigger className="h-8 w-48 text-xs">
+              <SelectTrigger aria-label="Subnet Filter" className="h-8 w-full text-xs sm:w-48">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -111,59 +112,93 @@ export function ReservationsTab({ cfg, onChange }: ReservationsTabShape) {
             </div>
           </div>
         )}
-      </CardHeader>
-      <CardContent className="space-y-2">
-        {subnets.length === 0 && <p className="text-sm text-muted-foreground italic">Add a subnet first, then pin hosts to fixed addresses here.</p>}
+        {subnets.length === 0 && <EmptyState className="py-10" title="No Subnets" />}
         {subnets.length > 0 && rows.length === 0 && (
           <EmptyState className="py-10"
-            title="No reservations"
-            message="Pin hosts to fixed addresses here, or from a live lease under Monitor › DHCP."
+            title="No Reservations"
           />
         )}
         {rows.length > 0 && visible.length === 0 && (
-          <p className="text-sm text-muted-foreground italic">No reservations match.</p>
+          <p className="text-sm text-muted-foreground">No Results</p>
         )}
         {visible.length > 0 && (
-          <div className="grid grid-cols-[minmax(9rem,1.3fr)_1fr_1.4fr_1.2fr_28px] items-center gap-2 px-0.5 text-[11px] text-muted-foreground">
+          <div className="hidden grid-cols-[minmax(8rem,0.9fr)_1.3fr_1.4fr_1.4fr_32px] gap-2 px-0.5 text-xs text-muted-foreground sm:grid">
             <span>Subnet</span><span>Hostname</span><span>MAC / DUID</span><span>Address</span><span />
           </div>
         )}
         {visible.map((row) => (
-          <div key={`${refKey(row.v6, row.si)}-${row.ri}`} className="grid grid-cols-[minmax(9rem,1.3fr)_1fr_1.4fr_1.2fr_28px] items-center gap-2">
-            <Select value={refKey(row.v6, row.si)} onValueChange={(v) => { const t = parseRef(v); if (t) move(row, t) }}>
-              <SelectTrigger className="h-8 text-xs font-mono">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {subnets.map((s) => (
-                  <SelectItem key={refKey(s.v6, s.si)} value={refKey(s.v6, s.si)} className="font-mono text-xs">{s.cidr}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Input value={row.res.hostname ?? ''} onChange={(e) => patch(row, { hostname: e.target.value || undefined })} placeholder="hostname" className="h-8 text-xs" />
-            <Input
-              value={(row.v6 ? row.res.duid : row.res.hw_address) ?? ''}
-              onChange={(e) => patch(row, row.v6 ? { duid: e.target.value || undefined } : { hw_address: e.target.value || undefined })}
-              placeholder={row.v6 ? 'DUID' : 'aa:bb:cc:dd:ee:ff'}
-              className="h-8 text-xs font-mono"
+          <div
+            key={`${refKey(row.v6, row.si)}-${row.ri}`}
+            className="grid grid-cols-[1fr_auto] items-start gap-2 rounded-xl bg-card p-3 [box-shadow:var(--card-shadow)] sm:grid-cols-[minmax(8rem,0.9fr)_1.3fr_1.4fr_1.4fr_32px] sm:rounded-none sm:bg-transparent sm:p-0 sm:[box-shadow:none]"
+          >
+            <ReservationField label="Subnet" className="order-3 col-span-2 sm:order-none sm:col-span-1">
+              <Select value={refKey(row.v6, row.si)} onValueChange={(v) => { const t = parseRef(v); if (t) move(row, t) }}>
+                <SelectTrigger aria-label="Subnet" className="h-8 text-xs font-mono">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {subnets.map((s) => (
+                    <SelectItem key={refKey(s.v6, s.si)} value={refKey(s.v6, s.si)} className="font-mono text-xs">{s.cidr}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </ReservationField>
+            <AutoTextarea
+              aria-label="Hostname"
+              value={row.res.hostname ?? ''}
+              onChange={(v) => patch(row, { hostname: v || undefined })}
+              placeholder="Hostname"
+              className="order-1 break-words text-xs max-sm:font-medium sm:order-none"
             />
-            <div className="relative">
-              <Input value={row.res.ip_address ?? ''} onChange={(e) => patch(row, { ip_address: e.target.value || undefined })} placeholder={row.v6 ? '2001:db8::5' : '10.0.0.5'} className="h-8 text-xs font-mono pr-12" />
-              <button
-                type="button"
-                onClick={() => autoIP(row)}
-                title="Suggest a free out-of-pool address"
-                className="absolute right-1 top-1/2 -translate-y-1/2 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-accent hover:text-foreground"
-              >
-                Auto
-              </button>
-            </div>
-            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => remove(row)}>
-              <Trash2 className="h-3.5 w-3.5" />
+            <ReservationField label={row.v6 ? 'DUID' : 'MAC Address'} className="order-4 col-span-2 sm:order-none sm:col-span-1">
+              <AutoTextarea
+                aria-label={row.v6 ? 'DUID' : 'MAC Address'}
+                value={(row.v6 ? row.res.duid : row.res.hw_address) ?? ''}
+                onChange={(v) => patch(row, row.v6 ? { duid: v || undefined } : { hw_address: v || undefined })}
+                placeholder={row.v6 ? 'DUID' : 'aa:bb:cc:dd:ee:ff'}
+                className="text-xs font-mono"
+              />
+            </ReservationField>
+            <ReservationField label="Address" className="order-5 col-span-2 sm:order-none sm:col-span-1">
+              <div className="relative">
+                <AutoTextarea
+                  aria-label="Address"
+                  value={row.res.ip_address ?? ''}
+                  onChange={(v) => patch(row, { ip_address: v || undefined })}
+                  placeholder={row.v6 ? '2001:db8::5' : '10.0.0.5'}
+                  className="text-xs font-mono pr-14"
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => autoIP(row)}
+                  title="Suggest Free Address"
+                  className="absolute right-1 top-1 h-6 px-1.5"
+                >
+                  Auto
+                </Button>
+              </div>
+            </ReservationField>
+            <Button variant="ghost" size="icon" className="order-2 h-8 w-8 text-muted-foreground hover:text-destructive sm:order-none" onClick={() => remove(row)} aria-label="Remove Reservation" title="Remove Reservation">
+              <Trash2 className="h-4 w-4" />
             </Button>
           </div>
         ))}
-      </CardContent>
-    </Card>
+    </div>
+  )
+}
+
+interface ReservationFieldProps {
+  label: string
+  className?: string
+  children: React.ReactNode
+}
+
+function ReservationField({ label, className, children }: ReservationFieldProps) {
+  return (
+    <div className={cn('space-y-1 sm:space-y-0', className)}>
+      <span className="block text-xs text-muted-foreground sm:hidden">{label}</span>
+      {children}
+    </div>
   )
 }

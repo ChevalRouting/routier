@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/ChevalRouting/routier/pkg/apply"
 	"github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/render"
 	"github.com/ChevalRouting/routier/pkg/svc"
@@ -19,8 +20,8 @@ func newPlanCommand() *cobra.Command {
 		Use:   "plan [config]",
 		Short: "show rendered output without applying",
 		Args:  cobra.MaximumNArgs(1),
-		RunE: func(unusedArg4 *cobra.Command, args []string) error {
-			return newPlanCommandCallback(module, resolve, raw, check, unusedArg4, args)
+		RunE: func(_ *cobra.Command, args []string) error {
+			return runPlan(module, resolve, raw, check, args)
 		},
 	}
 
@@ -31,7 +32,7 @@ func newPlanCommand() *cobra.Command {
 	return cmd
 }
 
-func newPlanCommandCallback(module string, resolve bool, raw bool, check bool, _ *cobra.Command, args []string) error {
+func runPlan(module string, resolve bool, raw bool, check bool, args []string) error {
 	cfgPath := configArg(args)
 	if raw {
 		cfg, err := config.Load(cfgPath)
@@ -55,6 +56,10 @@ func newPlanCommandCallback(module string, resolve bool, raw bool, check bool, _
 
 	outputs, err := render.All(cfg, friendRenderOpt())
 	if err != nil {
+		return err
+	}
+
+	if err := apply.PrepareDNSZoneSerials(cfg, outputs); err != nil {
 		return err
 	}
 

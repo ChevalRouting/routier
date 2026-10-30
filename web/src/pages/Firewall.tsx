@@ -1,17 +1,20 @@
+import { useHasParam } from '@/lib/useHasParam'
+import { DraftControls } from '@/components/DraftControls'
 import type { ConfigNftablesConfig, TypesNftValidateResult as NftValidateResult, RenderNftVar as NftVar } from '@/api'
 import { ChainPane } from '@/components/firewall/ChainPane'
 import { chainRuleCount, CodeArea, DRAFT_KEY, EDITOR_HEIGHT, fromApi, NftablesConfig, NftChain, OWNED_CHAINS, parseUserDefines, toApi, ValidationStrip } from '@/components/firewall/shared'
-import { addStagingListener, api, getStagingState } from '@/lib/client'
+import { api } from '@/lib/client'
 import { useDataRefresh } from '@/lib/dataVersion'
 import { useFetch } from '@/lib/useFetch'
 import { usePageSave } from '@/lib/usePageSave'
-import { Badge, PageHeader, SaveButton, SectionNav, Spinner, useTabState } from 'cheval-ui'
+import { Badge, PageHeader, SectionNav, Spinner, useTabState } from 'cheval-ui'
 import { useEffect, useMemo, useState } from 'react'
 
 export default function Firewall() {
   const { data, isLoading, error } = useFetch(() => api.apiConfigSectionGet({ section: 'nftables' }))
   const { data: rawVars } = useFetch<NftVar[]>(() => api.apiConfigNftablesVarsGet())
   const [cfg, setCfg] = useState<NftablesConfig>({})
+  const [saved, setSaved] = useState<NftablesConfig>({})
   const [initialized, setInitialized] = useState(false)
   const { isDirty, markDirty, save, saving, reset } = usePageSave('nftables')
   useDataRefresh(() => {
@@ -20,10 +23,9 @@ export default function Firewall() {
     setInitialized(false)
   })
   const [section, setSection] = useTabState<string>('firewall', 'input')
+  const deepLinked = useHasParam('firewall')
   const [validation, setValidation] = useState<NftValidateResult | null>(null)
   const [validating, setValidating] = useState(false)
-  const [staging, setStaging] = useState(getStagingState)
-  useEffect(() => addStagingListener(setStaging), [])
 
   const vars = useMemo(() => rawVars ?? [], [rawVars])
   const varNames = useMemo(() => vars.map((v) => v.name), [vars])
@@ -37,11 +39,13 @@ export default function Firewall() {
 
   useEffect(() => {
     if (!isLoading && !error && !initialized) {
-      let next = fromApi(data)
+      const loaded = fromApi(data)
+      let next = loaded
       try {
         const raw = localStorage.getItem(DRAFT_KEY)
         if (raw) { next = JSON.parse(raw) as NftablesConfig; markDirty() }
       } catch {  }
+      setSaved(loaded)
       setCfg(next)
       setInitialized(true)
     }
@@ -76,12 +80,19 @@ export default function Firewall() {
   const handleSave = async () => {
     let draft: string | null = null
     try { draft = localStorage.getItem(DRAFT_KEY) } catch {  }
-    const saved = await save(toApi(cfg))
-    if (saved) {
+    const snapshot = cfg
+    if (await save(toApi(snapshot))) {
+      setSaved(snapshot)
       try {
         if (localStorage.getItem(DRAFT_KEY) === draft) localStorage.removeItem(DRAFT_KEY)
       } catch {  }
     }
+  }
+
+  const handleDiscard = () => {
+    try { localStorage.removeItem(DRAFT_KEY) } catch {  }
+    reset()
+    setCfg(saved)
   }
 
   if (isLoading) return <Spinner />
@@ -101,21 +112,14 @@ export default function Firewall() {
   return (
     <div className="space-y-6">
       <PageHeader title="Firewall"
-        description="Routier owns table inet routier; add your rules into its chains"
-        action={<SaveButton isDirty={isDirty} saving={saving} onClick={handleSave} />} />
+        action={<DraftControls isDirty={isDirty} saving={saving} onClick={handleSave} onCancel={handleDiscard} />} />
 
-      {staging.pending && staging.layer === 'advanced' && (
-        <p role="status" className="text-xs text-warning">
-          Showing staged configuration. Apply pending changes to activate these rules.
-        </p>
-      )}
-
-      <SectionNav items={items} active={section} onChange={setSection}>
+      <SectionNav items={items} active={section} onChange={setSection} initiallyEntered={deepLinked}>
         {section === 'defines' ? (
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <span className="font-mono font-semibold text-sm">defines</span>
-              <Badge variant="secondary" className="text-[10px]">variables</Badge>
+              <Badge variant="secondary" className="text-xs">variables</Badge>
             </div>
             <CodeArea
               value={cfg.defines ?? ''}
@@ -124,8 +128,8 @@ export default function Firewall() {
               height={EDITOR_HEIGHT}
               vars={acVars}
               errorLines={errorLinesFor('defines')} />
-            <p className="text-[11px] text-muted-foreground">
-              Raw nft `define` lines, emitted before the ruleset so your rules can reference them.
+            <p className="text-xs text-muted-foreground">
+              Raw nft <code>define</code> lines, emitted before the ruleset
             </p>
           </div>
         ) : chainMeta ? (

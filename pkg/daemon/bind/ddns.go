@@ -1,6 +1,7 @@
 package bind
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -8,6 +9,8 @@ import (
 )
 
 const defaultTSIGAlgorithm = "hmac-sha256"
+
+var ErrInvalidRecord = errors.New("invalid record")
 
 var ddnsHiddenTypes = map[string]bool{
 	"SOA": true, "NS": true, "DHCID": true,
@@ -49,6 +52,10 @@ func (c *Client) DynamicRecords(zone string) ([]ZoneRecord, error) {
 }
 
 func (c *Client) DeleteRecord(zone, name, rtype, value string) error {
+	if !validRecordField(zone) || !validRecordField(name) || !validRecordField(rtype) || strings.ContainsAny(value, "\r\n\x00") {
+		return fmt.Errorf("%w: names and types are single words and values fit on one line", ErrInvalidRecord)
+	}
+
 	keyFile, cleanup, err := c.writeTSIGKeyFile()
 	if err != nil {
 		return err
@@ -69,6 +76,10 @@ func (c *Client) DeleteRecord(zone, name, rtype, value string) error {
 	}
 
 	return nil
+}
+
+func validRecordField(s string) bool {
+	return s != "" && !strings.ContainsAny(s, " \t\r\n\x00;")
 }
 
 func (c *Client) deleteScript(zone, name, rtype, value string) string {

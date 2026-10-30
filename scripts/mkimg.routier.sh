@@ -12,7 +12,7 @@ _profile_routier_common() {
 	kernel_addons=""
 	initfs_features="ata base cdrom ext4 keymap lvm nvme scsi squashfs usb virtio xfs"
 	initfs_cmdline="modules=loop,squashfs,cdrom quiet"
-	apks="$(echo "$apks" | tr ' ' '\n' | grep -v '^network-extras$' | tr '\n' ' ')linux-$flavor htop mtr tcpdump tzdata routier routier-openrc lsblk parted lvm2 lvm2-openrc xfsprogs dosfstools wipefs grub-efi efibootmgr util-linux-openrc agetty"
+	apks="$(echo "$apks" | tr ' ' '\n' | grep -v '^network-extras$' | tr '\n' ' ')linux-$flavor htop mtr tcpdump tzdata routier routier-openrc lsblk parted lvm2 lvm2-openrc xfsprogs dosfstools wipefs grub-efi efibootmgr util-linux-openrc agetty neovim"
 	apkovl="genapkovl-routier.sh"
 
 	grub_gen_config() {
@@ -40,4 +40,9 @@ profile_routier_virt() {
 profile_routier_stable() {
 	_profile_routier_common stable
 	image_name="routier-stable"
+}
+
+profile_routier_installer() {
+	_profile_routier_common lts
+	image_name="routier-installer"
 }

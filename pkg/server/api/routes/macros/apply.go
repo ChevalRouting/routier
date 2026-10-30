@@ -3,8 +3,6 @@ package macros
 import (
 	"encoding/json"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/ChevalRouting/routier/pkg/config"
@@ -33,14 +31,14 @@ func Apply(w http.ResponseWriter, r *http.Request) {
 	app := appctx.FromContext(r.Context())
 	id := chi.URLParam(r, "id")
 	username := appctx.UsernameFromContext(r.Context())
-	owner, staged, err := cfgstore.StagingLayer(app.ConfigPath, username)
+	staged, err := cfgstore.HasStaging(app.ConfigPath, username)
 	if err != nil {
-		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "read staging owner"))
+		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "read staging"))
 		return
 	}
 
 	if staged {
-		types.Err(http.StatusConflict, "configuration changes belong to the "+owner+" layer").Write(w)
+		types.Err(http.StatusConflict, "apply or discard the staged changes before running a macro").Write(w)
 		return
 	}
 
@@ -102,41 +100,16 @@ func Apply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cfgstore.Mu.RLock()
-	oldData, _ := os.ReadFile(app.ConfigPath)
-	cfgstore.Mu.RUnlock()
-
 	newData, err := yaml.Marshal(merged)
 	if err != nil {
 		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "marshal merged config"))
 		return
 	}
 
-	cfgstore.Mu.Lock()
-	if err := os.MkdirAll(filepath.Dir(app.ConfigPath), 0755); err != nil {
-		cfgstore.Mu.Unlock()
-		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "create config dir"))
-		return
-	}
-
-	if err := os.WriteFile(app.ConfigPath, newData, 0600); err != nil {
-		cfgstore.Mu.Unlock()
-		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "write config"))
-		return
-	}
-
-	cfgstore.Mu.Unlock()
-
 	res, err := managers.Apply(r.Context(), merged, friendcache.InterpolationVars(),
-		managers.ApplyOptions{Source: "macro:" + m.Name, ConfigPath: app.ConfigPath}, managers.WatchdogTimeout)
+		managers.ApplyOptions{Source: "macro:" + m.Name, ConfigPath: app.ConfigPath, PersistConfig: newData}, managers.WatchdogTimeout)
 	if err != nil {
-		cfgstore.Mu.Lock()
-		if len(oldData) > 0 {
-			_ = os.WriteFile(app.ConfigPath, oldData, 0600)
-		}
-
-		cfgstore.Mu.Unlock()
-		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "apply failed (rolled back)"))
+		types.Error(log.Logger, w, cfgstore.ApplyError(err, http.StatusInternalServerError, "apply failed (rolled back)"))
 		return
 	}
 

@@ -14,7 +14,16 @@
     <title>Routier</title>
     <script>
       (function () {
-        var t = localStorage.getItem('routier-theme') || 'dark'
+        var ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+        if (!ios) return
+        var viewport = document.querySelector('meta[name=viewport]')
+        if (viewport) viewport.setAttribute('content', viewport.getAttribute('content') + ', maximum-scale=1')
+      })()
+    </script>
+    <script>
+      (function () {
+        var t = localStorage.getItem('routier-theme')
+        if (t !== 'light' && t !== 'dark') t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
         if (t === 'dark') {
           document.documentElement.classList.add('dark')
           document.documentElement.style.colorScheme = 'dark'

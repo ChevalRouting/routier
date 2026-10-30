@@ -20,7 +20,7 @@ func pollServer(t *testing.T, sender, recipient *identity.Identity, hash string)
 		t.Fatalf("SharedKey: %v", err)
 	}
 
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { pollServerCallback(t, hash, &key, w, r) }))
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { servePoll(t, hash, &key, w, r) }))
 }
 
 func TestPollDecryptsAndGatesConfig(t *testing.T) {
@@ -71,7 +71,7 @@ func TestPollRejectsSharedResponseWithoutKey(t *testing.T) {
 	}
 }
 
-func pollServerCallback(t *testing.T, hash string, key *[32]byte, w http.ResponseWriter, r *http.Request) {
+func servePoll(t *testing.T, hash string, key *[32]byte, w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/api/friends/poll" {
 		t.Errorf("poll requested %q, want /api/friends/poll (no double slash)", r.URL.Path)
 	}
@@ -88,7 +88,7 @@ func pollServerCallback(t *testing.T, hash string, key *[32]byte, w http.Respons
 	}
 
 	env, _ := json.Marshal(types.Response[types.FriendPoll]{Result: &poll})
-	sealed, serr := identity.SealShared((*key), env)
+	sealed, serr := identity.SealShared(*key, env)
 	if serr != nil {
 		http.Error(w, serr.Error(), http.StatusInternalServerError)
 		return

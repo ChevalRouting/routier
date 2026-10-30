@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -22,22 +23,41 @@ type InstanceState struct {
 	Peers    []Peer
 }
 
-const dataFile = "/run/keepalived/keepalived.data"
+const (
+	dataDir  = "/run/keepalived"
+	dataFile = dataDir + "/keepalived.data"
+)
+
+var dumpMu sync.Mutex
 
 func States() map[string]*InstanceState {
+	dumpMu.Lock()
+	defer dumpMu.Unlock()
+
+	_ = os.MkdirAll(dataDir, 0o755)
 	_ = os.Remove(dataFile)
 	signalKeepalived()
-
-	deadline := time.Now().Add(300 * time.Millisecond)
-	for time.Now().Before(deadline) {
-		if _, err := os.Stat(dataFile); err == nil {
-			break
-		}
-
-		time.Sleep(20 * time.Millisecond)
-	}
+	waitDumpWritten(500 * time.Millisecond)
 
 	return parseData(dataFile)
+}
+
+func waitDumpWritten(timeout time.Duration) {
+	lastSize := int64(-1)
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		time.Sleep(20 * time.Millisecond)
+		info, err := os.Stat(dataFile)
+		if err != nil {
+			continue
+		}
+
+		if info.Size() > 0 && info.Size() == lastSize {
+			return
+		}
+
+		lastSize = info.Size()
+	}
 }
 
 func signalKeepalived() {

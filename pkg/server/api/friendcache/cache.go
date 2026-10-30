@@ -125,13 +125,6 @@ func CacheVars(name string, vars []types.FriendVar) {
 	friendCacheMu.Unlock()
 }
 
-func CachedVars(name string) ([]types.FriendVar, bool) {
-	friendCacheMu.RLock()
-	defer friendCacheMu.RUnlock()
-	vars, ok := friendVarsCache[name]
-	return vars, ok
-}
-
 func CacheConfig(name string, cfg *config.Config) {
 	friendCacheMu.Lock()
 	friendConfigCache[name] = cfg
@@ -203,7 +196,37 @@ func InterpolationVars() map[string]friends.Vars {
 		out[name] = v
 	}
 
+	for name, cfg := range friendConfigCache {
+		if cfg == nil || cfg.Routing == nil || cfg.Routing.BGP == nil {
+			continue
+		}
+
+		v, ok := out[name]
+		if !ok {
+			v = friends.Vars{Interfaces: map[string][]string{}}
+		}
+
+		v.BGPPrefixLists = cfg.Routing.BGP.PrefixLists
+		v.BGPRouteMaps = cfg.Routing.BGP.RouteMaps
+		v.BGPSharedPrefixLists = nameSetFromSlice(cfg.Routing.BGP.SharedPrefixLists)
+		v.BGPSharedRouteMaps = nameSetFromSlice(cfg.Routing.BGP.SharedRouteMaps)
+		out[name] = v
+	}
+
 	friendCacheMu.RUnlock()
 
 	return out
+}
+
+func nameSetFromSlice(names []string) map[string]bool {
+	if len(names) == 0 {
+		return nil
+	}
+
+	set := make(map[string]bool, len(names))
+	for _, n := range names {
+		set[n] = true
+	}
+
+	return set
 }

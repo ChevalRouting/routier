@@ -1,12 +1,11 @@
 import { AccordionList } from '@/components/ui/AccordionList'
 import { api } from '@/lib/client'
 import { checkCIDR, checkMTU, checkPort } from '@/lib/validate'
-import { Button, ComboRow, CopyButton, EntryRow, Input, Label, PreferencesGroup, Segmented, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SwitchRow, TagInput } from 'cheval-ui'
-import { ChevronDown, ChevronRight, Shuffle } from 'lucide-react'
+import { Button, ComboRow, CopyButton, EntryRow, PreferencesGroup, Segmented, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SwitchRow, TagInput, Row } from 'cheval-ui'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { PeerActions, PeerBody, PeerSummary } from './PeerRow'
-import { emptyPeer, KeyField, WgIface, WgPeer } from './shared'
+import { emptyPeer, KeyRow, WgIface, WgPeer } from './shared'
 
 interface WorkingPeer { uid: string; p: WgPeer }
 
@@ -21,7 +20,6 @@ export interface WgFormProps {
 
 export function WgForm({ name, iface, onChange, onNameChange, onAdd, onDone }: WgFormProps) {
   const [peerItems, setPeerItems] = useState<WorkingPeer[]>(() => (iface.peers ?? []).map((p) => ({ uid: crypto.randomUUID(), p })))
-  const [hooksOpen, setHooksOpen] = useState(false)
   const [keyMode, setKeyMode] = useState<'inline' | 'file'>(iface.private_key_file ? 'file' : 'inline')
   const [tableMode, setTableMode] = useState<'off' | 'auto' | 'custom'>(
     iface.table === 'off' ? 'off' : iface.table === 'auto' ? 'auto' : 'custom'
@@ -82,11 +80,11 @@ export function WgForm({ name, iface, onChange, onNameChange, onAdd, onDone }: W
           <EntryRow title="Name" autoFocus value={name} onChange={(e) => onNameChange(e.target.value)}
             placeholder="wg0" className="font-mono" />
         )}
-        <EntryRow title="Listen port" inputMode="numeric" value={iface.listen_port || ''}
+        <EntryRow title="Listen Port" inputMode="numeric" value={iface.listen_port || ''}
           onChange={(e) => set('listen_port', Number(e.target.value) || 51820)} placeholder="51820" className="font-mono" error={checkPort(String(iface.listen_port || ''))} />
         <EntryRow title="MTU (0 = auto)" inputMode="numeric" value={iface.mtu || ''}
           onChange={(e) => set('mtu', Number(e.target.value) || 0)} placeholder="0" className="font-mono" error={iface.mtu ? checkMTU(String(iface.mtu)) : null} />
-        <ComboRow title="Routing table">
+        <ComboRow title="Routing Table">
           <Select value={tableMode} onValueChange={(v) => switchTableMode(v as 'off' | 'auto' | 'custom')}>
             <SelectTrigger className="h-9 w-full">
               <SelectValue />
@@ -99,91 +97,72 @@ export function WgForm({ name, iface, onChange, onNameChange, onAdd, onDone }: W
           </Select>
         </ComboRow>
         {tableMode === 'custom' && (
-          <EntryRow title="Custom table number" inputMode="numeric" value={iface.table ? Number(iface.table) : ''}
+          <EntryRow title="Custom Table Number" inputMode="numeric" value={iface.table ? Number(iface.table) : ''}
             onChange={(e) => set('table', e.target.value ? String(Number(e.target.value)) : '')}
             placeholder="Table #" className="font-mono" />
         )}
-        <SwitchRow title="Allow inbound"
+        <SwitchRow title="Allow Inbound"
           subtitle="Open this interface's listen port in the firewall (routier input chain)"
           checked={iface.allow_inbound ?? false}
           onCheckedChange={(v) => set('allow_inbound', v)} />
       </PreferencesGroup>
 
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label>Private key</Label>
-          <div className="flex items-center gap-3">
+      <PreferencesGroup
+        title="Private Key"
+        header={(
+          <div className="flex items-center gap-2">
             <Segmented
               value={keyMode}
               onChange={switchKeyMode}
               options={[{ value: 'inline', label: 'Inline' }, { value: 'file', label: 'File' }]}
             />
             {keyMode === 'inline' && (
-              <Button variant="outline" size="sm" onClick={generateKey} disabled={generatingKey} className="h-7 gap-1.5 text-xs">
-                <Shuffle className="h-3.5 w-3.5" />
+              <Button variant="outline" size="sm" onClick={generateKey} disabled={generatingKey}>
                 {generatingKey ? 'Generating…' : 'Generate'}
               </Button>
             )}
           </div>
-        </div>
-
+        )}
+      >
         {keyMode === 'inline' ? (
-          <div className="space-y-1.5">
-            <KeyField
-              value={iface.private_key}
-              onChange={(v) => set('private_key', v)}
-              placeholder="Base64 private key, click Generate to create one"
-            />
+          <>
+            <KeyRow title="Private Key" value={iface.private_key} onChange={(v) => set('private_key', v)} placeholder="Base64 private key" />
             {serverPubKey && (
-              <div className="flex items-center gap-2 px-1 py-1 rounded bg-muted/40 text-xs">
-                <span className="text-muted-foreground font-medium shrink-0">Public key:</span>
-                <span className="font-mono text-foreground truncate flex-1">{serverPubKey}</span>
+              <Row title="Public Key">
+                <span className="truncate font-mono text-sm">{serverPubKey}</span>
                 <CopyButton text={serverPubKey} />
-              </div>
+              </Row>
             )}
-          </div>
+          </>
         ) : (
-          <Input value={iface.private_key_file}
-            onChange={(e) => set('private_key_file', e.target.value)}
-            className="font-mono text-sm" placeholder="/etc/wireguard/private.key" />
+          <EntryRow title="Key File" value={iface.private_key_file} onChange={(e) => set('private_key_file', e.target.value)} className="font-mono" placeholder="/etc/wireguard/private.key" />
         )}
-      </div>
+      </PreferencesGroup>
 
-      <div className="space-y-1.5">
-        <Label>Addresses</Label>
-        <TagInput values={iface.addresses} onChange={(v) => set('addresses', v)} placeholder="10.0.0.1/24" mono validate={checkCIDR} />
-      </div>
+      <PreferencesGroup>
+        <ComboRow title="Addresses">
+          <TagInput values={iface.addresses} onChange={(v) => set('addresses', v)} placeholder="10.0.0.1/24" mono validate={checkCIDR} />
+        </ComboRow>
+      </PreferencesGroup>
 
-      <div className="rounded-md bg-muted/30 px-3 py-2">
-        <button type="button" onClick={() => setHooksOpen(!hooksOpen)}
-          className="flex items-center gap-1 text-sm font-semibold text-foreground hover:text-primary w-full py-1">
-          {hooksOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-          Hooks
-        </button>
-        {hooksOpen && (
-          <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {(
-              [['pre_up', 'PreUp'], ['post_up', 'PostUp'], ['pre_down', 'PreDown'], ['post_down', 'PostDown']] as [keyof WgIface, string][]
-            ).map(([key, label]) => (
-              <div key={key} className="space-y-1.5">
-                <Label className="text-xs">{label}</Label>
-                <TagInput values={iface[key] as string[]} onChange={(v) => set(key, v)}
-                  placeholder="command or script" mono />
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <PreferencesGroup title="Hooks">
+        {(
+          [['pre_up', 'PreUp'], ['post_up', 'PostUp'], ['pre_down', 'PreDown'], ['post_down', 'PostDown']] as [keyof WgIface, string][]
+        ).map(([key, label]) => (
+          <ComboRow key={key} title={label}>
+            <TagInput values={iface[key] as string[]} onChange={(v) => set(key, v)} placeholder="command or script" mono />
+          </ComboRow>
+        ))}
+      </PreferencesGroup>
 
       <AccordionList
         items={peerItems}
         getId={(x) => x.uid}
-        description={`Peers (${peerItems.length})`}
-        addLabel="Add peer"
+        description="Peers"
+        addLabel="Add Peer"
         onAdd={addPeer}
         onRemove={(x) => deletePeer(x.uid)}
-        emptyTitle="No peers"
-        emptyMessage="Add a peer to connect a client or another node."
+        emptyTitle="No Peers"
         renderSummary={(x) => <PeerSummary peer={x.p} />}
         renderActions={(x) => (
           <PeerActions
@@ -199,8 +178,8 @@ export function WgForm({ name, iface, onChange, onNameChange, onAdd, onDone }: W
       />
 
       <div className="flex justify-end gap-2 pt-2">
-        <Button variant="outline" onClick={onDone}>{onAdd ? 'Cancel' : 'Done'}</Button>
-        {onAdd && <Button onClick={onAdd}>Add interface</Button>}
+        <Button variant="outline" onClick={onDone}>{onAdd ? 'Cancel' : 'Close'}</Button>
+        {onAdd && <Button onClick={onAdd}>Add Interface</Button>}
       </div>
     </>
   )

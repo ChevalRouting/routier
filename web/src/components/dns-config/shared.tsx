@@ -1,5 +1,6 @@
+import { NumberRow } from '@/components/ui/NumberRow'
 import { reverseDnsName } from '@/lib/utils'
-import { Input, Label, Switch } from 'cheval-ui'
+import { EntryRow, PreferencesGroup, SwitchRow } from 'cheval-ui'
 
 type ParseRecordLinesShape = { records: DnsRecord[]; errors: string[] }
 
@@ -96,7 +97,18 @@ export interface DnsSOA {
   minimum?: number
 }
 
+export interface DnsTransferKey {
+  name: string
+  secret: string
+}
+
 export interface DnsZone {
+  notify_source?: string
+  notify_source_v6?: string
+  transfer_source?: string
+  transfer_source_v6?: string
+  secondaries?: string[]
+  transfer_key?: DnsTransferKey
   name: string
   ttl?: number
   nameservers?: string[]
@@ -124,6 +136,7 @@ export interface DnsCache {
 export type DnsSet = <K extends keyof DnsServerData>(k: K, v: DnsServerData[K]) => void
 
 export interface DnsServerData {
+  disable_auto_rules?: boolean
   enabled?: boolean
   mode?: string
   listen?: string[]
@@ -195,40 +208,24 @@ export function parseRecordLines(text: string): ParseRecordLinesShape {
 
 export function CacheSettings({ cfg, set }: CacheSettingsShape) {
   const cache = cfg.cache ?? {}
+  const patch = (next: Partial<typeof cache>) => set('cache', { ...cache, ...next })
 
   return (
-    <div className="space-y-4">
-      <label className="flex items-center gap-3">
-        <Switch
-          checked={!!cache.disabled}
-          onCheckedChange={(v) => set('cache', { ...cache, disabled: v || undefined })}
-        />
-        <div>
-          <div className="text-sm font-medium">Disable caching</div>
-          <div className="text-xs text-muted-foreground">Clamps every TTL to zero rather than sizing the cache to nothing.</div>
-        </div>
-      </label>
-
+    <PreferencesGroup>
+      <SwitchRow
+        title="Caching"
+        subtitle="When off, every TTL is clamped to zero"
+        checked={!cache.disabled}
+        onCheckedChange={(v) => patch({ disabled: v ? undefined : true })}
+      />
       {!cache.disabled && (
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <Label className="text-xs">Max cache size</Label>
-            <Input className="h-8 font-mono text-xs" placeholder="64m" value={cache.size ?? ''} onChange={(e) => set('cache', { ...cache, size: e.target.value || undefined })} />
-          </div>
-          <div>
-            <Label className="text-xs">Min TTL</Label>
-            <Input className="h-8 font-mono text-xs" value={cache.min_ttl ?? ''} onChange={(e) => set('cache', { ...cache, min_ttl: e.target.value ? Number(e.target.value) : undefined })} />
-          </div>
-          <div>
-            <Label className="text-xs">Max TTL</Label>
-            <Input className="h-8 font-mono text-xs" value={cache.max_ttl ?? ''} onChange={(e) => set('cache', { ...cache, max_ttl: e.target.value ? Number(e.target.value) : undefined })} />
-          </div>
-          <div>
-            <Label className="text-xs">Max negative TTL</Label>
-            <Input className="h-8 font-mono text-xs" value={cache.max_negative_ttl ?? ''} onChange={(e) => set('cache', { ...cache, max_negative_ttl: e.target.value ? Number(e.target.value) : undefined })} />
-          </div>
-        </div>
+        <>
+          <EntryRow title="Max Cache Size" value={cache.size ?? ''} onChange={(e) => patch({ size: e.target.value || undefined })} placeholder="64m" className="font-mono" />
+          <NumberRow title="Min TTL (s)" value={cache.min_ttl} onChange={(v) => patch({ min_ttl: v })} />
+          <NumberRow title="Max TTL (s)" value={cache.max_ttl} onChange={(v) => patch({ max_ttl: v })} />
+          <NumberRow title="Max Negative TTL (s)" value={cache.max_negative_ttl} onChange={(v) => patch({ max_negative_ttl: v })} />
+        </>
       )}
-    </div>
+    </PreferencesGroup>
   )
 }

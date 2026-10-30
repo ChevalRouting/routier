@@ -27,7 +27,7 @@ func renderFrr(t *testing.T, cfg *config.Config) string {
 }
 
 func TestBGPNeighborAFDisableActivate(t *testing.T) {
-	mkCfg := bGPNeighborAFDisableActivateHandler
+	mkCfg := bgpNeighborAFConfig
 
 	enabled := renderFrr(t, mkCfg(false))
 	if !strings.Contains(enabled, "neighbor 198.51.100.1 activate") || strings.Contains(enabled, "no neighbor 198.51.100.1 activate") {
@@ -124,7 +124,7 @@ func TestRenderBGPVPNRouteLeak(t *testing.T) {
 }
 
 func TestRenderBGPNoRIB(t *testing.T) {
-	mkCfg := renderBGPNoRIBHandler
+	mkCfg := bgpNoRIBConfig
 
 	on := renderFrr(t, mkCfg(true))
 	if !strings.Contains(on, "\nbgp no-rib\n") {
@@ -184,6 +184,81 @@ func TestRenderBGPL2VPNEVPN(t *testing.T) {
 	}
 }
 
+func TestRenderVRFL3VNI(t *testing.T) {
+	cfg := &config.Config{
+		Hostname: "leaf-1",
+		Interfaces: map[string]*config.Interface{
+			"fabric": {Type: "vxlan-bridge", MTU: 1450, VXLAN: &config.VXLAN{Local: "192.0.2.1"}},
+		},
+		VRFs: map[string]*config.VRFConfig{
+			"blue":  {Table: 100, L3VNI: &config.VRFL3VNI{VNI: 5000, Transport: "fabric", VLAN: 3999}},
+			"green": {Table: 200},
+		},
+		Routing: &config.Routing{
+			BGP: &config.BGP{ASN: 65001, RouterID: "192.0.2.1", AddressFamilies: map[string]*config.BGPAddressFamily{"l2vpn-evpn": {AdvertiseAllVNI: true}}},
+			VRFs: map[string]*config.VRFRouting{"blue": {BGP: &config.BGP{
+				ASN: 65001, RouterID: "192.0.2.1",
+				AddressFamilies: map[string]*config.BGPAddressFamily{
+					"ipv4-unicast": {Redistribute: []string{"connected"}},
+					"l2vpn-evpn":   {Advertise: []string{"ipv4-unicast"}},
+				},
+			}}},
+		},
+	}
+
+	out := renderFrr(t, cfg)
+	block := "vrf blue\n vni 5000\nexit-vrf"
+	if !strings.Contains(out, block) {
+		t.Fatalf("FRR config missing the l3vni block:\n%s", out)
+	}
+
+	if strings.Contains(out, "vrf green\n vni") {
+		t.Fatalf("a vrf without l3vni must not get a vni:\n%s", out)
+	}
+
+	if strings.Index(out, block) > strings.Index(out, "router bgp 65001 vrf blue") {
+		t.Fatalf("the vrf vni must come before the vrf bgp instance:\n%s", out)
+	}
+}
+
+func TestRenderImportVRFRouteMap(t *testing.T) {
+	cfg := &config.Config{
+		Hostname: "leaf-1",
+		VRFs:     map[string]*config.VRFConfig{"blue": {Table: 100}},
+		Routing: &config.Routing{
+			BGP: &config.BGP{
+				ASN: 65001, RouterID: "192.0.2.1",
+				PrefixLists: map[string][]config.PrefixEntry{"DEFAULT": {{Seq: 10, Action: "permit", Prefix: "0.0.0.0/0"}}},
+				RouteMaps:   map[string][]config.RouteMapEntry{"ONLY-DEFAULT": {{Seq: 10, Action: "permit", Match: map[string]string{"ip address prefix-list": "DEFAULT"}}}},
+				AddressFamilies: map[string]*config.BGPAddressFamily{
+					"ipv4-unicast": {Networks: []string{"0.0.0.0/0"}, ImportVRF: []string{"blue"}},
+				},
+			},
+			VRFs: map[string]*config.VRFRouting{"blue": {BGP: &config.BGP{
+				ASN: 65001, RouterID: "192.0.2.1",
+				AddressFamilies: map[string]*config.BGPAddressFamily{
+					"ipv4-unicast": {ImportVRF: []string{"default"}, ImportVRFRouteMap: "ONLY-DEFAULT"},
+				},
+			}}},
+		},
+	}
+
+	if errs := config.Validate(cfg, false); len(errs) != 0 {
+		t.Fatal(errs)
+	}
+
+	out := renderFrr(t, cfg)
+	want := "  import vrf route-map ONLY-DEFAULT\n  import vrf default"
+	if !strings.Contains(out, want) || !strings.Contains(out, "  import vrf blue") {
+		t.Fatalf("FRR config missing the vrf import:\n%s", out)
+	}
+
+	cfg.Routing.VRFs["blue"].BGP.AddressFamilies["ipv4-unicast"].ImportVRFRouteMap = "MISSING"
+	if errs := config.Validate(cfg, false); len(errs) == 0 {
+		t.Fatal("an unknown import route map must be refused")
+	}
+}
+
 func TestBGPFamilyRouteMapDefaultsApplyToNeighbors(t *testing.T) {
 	for _, vrf := range []bool{false, true} {
 		name := "global"
@@ -212,20 +287,32 @@ func testBGPFamilyRouteMapDefaults(t *testing.T, vrf bool) {
 	}
 
 	out := renderFrr(t, cfg)
-	for _, want := range []string{"neighbor 192.0.2.1 route-map EXTERNAL in", "neighbor 192.0.2.1 route-map EXTERNAL out", "neighbor 192.0.2.2 route-map CUSTOM in", "neighbor 192.0.2.2 route-map EXTERNAL out"} {
+	wants := []string{"neighbor 192.0.2.1 route-map EXTERNAL in", "neighbor 192.0.2.1 route-map EXTERNAL out", "neighbor 192.0.2.2 route-map CUSTOM in", "neighbor 192.0.2.2 route-map EXTERNAL out"}
+	if !vrf {
+		wants = []string{
+			"neighbor 192.0.2.1 route-map ROUTIER-IN-192_0_2_1-ipv4-unicast in",
+			"route-map ROUTIER-IN-192_0_2_1-ipv4-unicast permit 1000\n call EXTERNAL\n",
+			"route-map ROUTIER-OUT-192_0_2_1-ipv4-unicast permit 1000\n call EXTERNAL\n",
+			"route-map ROUTIER-IN-192_0_2_2-ipv4-unicast permit 1000\n call CUSTOM\n",
+			"route-map ROUTIER-OUT-192_0_2_2-ipv4-unicast permit 1000\n call EXTERNAL\n",
+			"route-map ROUTIER-IN-2001_db8__1-ipv6-unicast deny 9999\nexit",
+		}
+	}
+
+	for _, want := range wants {
 		if !strings.Contains(out, want) {
 			t.Fatalf("missing %q:\n%s", want, out)
 		}
 	}
 
-	for _, bad := range []string{"\n  route-map EXTERNAL in", "\n  route-map EXTERNAL out", "neighbor 192.0.2.2 route-map EXTERNAL in", "neighbor 2001:db8::1 route-map EXTERNAL"} {
+	for _, bad := range []string{"\n  route-map EXTERNAL in", "\n  route-map EXTERNAL out", "neighbor 192.0.2.2 route-map EXTERNAL in", "neighbor 2001:db8::1 route-map EXTERNAL", "ROUTIER-IN-192_0_2_2-ipv4-unicast permit 1000\n call EXTERNAL"} {
 		if strings.Contains(out, bad) {
 			t.Fatalf("unexpected %q:\n%s", bad, out)
 		}
 	}
 }
 
-func bGPNeighborAFDisableActivateHandler(disabled bool) *config.Config {
+func bgpNeighborAFConfig(disabled bool) *config.Config {
 	return &config.Config{
 		Hostname: "rtr",
 		Routing: &config.Routing{
@@ -245,7 +332,7 @@ func bGPNeighborAFDisableActivateHandler(disabled bool) *config.Config {
 	}
 }
 
-func renderBGPNoRIBHandler(noRIB bool) *config.Config {
+func bgpNoRIBConfig(noRIB bool) *config.Config {
 	return &config.Config{
 		Hostname: "rr",
 		Routing: &config.Routing{BGP: &config.BGP{

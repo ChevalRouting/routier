@@ -2,11 +2,11 @@ package logs
 
 import (
 	"bufio"
-	"fmt"
 	"net/http"
 	"os/exec"
 	"strings"
 
+	"github.com/ChevalRouting/routier/pkg/server/api/sse"
 	"github.com/ChevalRouting/routier/pkg/types"
 )
 
@@ -18,35 +18,26 @@ import (
 // @Security BearerAuth
 // @Router /api/logs/stream [get]
 func Stream(w http.ResponseWriter, r *http.Request) {
-	source := r.URL.Query().Get("source")
-
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("X-Accel-Buffering", "no")
-	flusher, hasFlusher := w.(http.Flusher)
-
-	send := func(line string) { streamCallback(w, flusher, hasFlusher, line) }
-
-	switch source {
+	switch r.URL.Query().Get("source") {
 	case "messages":
-		streamLines(exec.CommandContext(r.Context(), "tail", "-n", "100", "-f", "/var/log/messages"), false, send)
+		streamLines(exec.CommandContext(r.Context(), "tail", "-n", "100", "-f", "/var/log/messages"), false, sse.Start(w))
 	case "dmesg":
+		stream := sse.Start(w)
 		if hist, err := exec.CommandContext(r.Context(), "dmesg").Output(); err == nil {
 			for _, line := range strings.Split(strings.TrimRight(string(hist), "\n"), "\n") {
 				if line != "" {
-					send(line)
+					stream.Data(line)
 				}
 			}
 		}
 
-		streamLines(exec.CommandContext(r.Context(), "tail", "-n", "0", "-f", "/proc/kmsg"), true, send)
+		streamLines(exec.CommandContext(r.Context(), "tail", "-n", "0", "-f", "/proc/kmsg"), true, stream)
 	default:
 		types.Err(http.StatusBadRequest, "unknown source").Write(w)
 	}
 }
 
-func streamLines(cmd *exec.Cmd, stripPriority bool, send func(string)) {
+func streamLines(cmd *exec.Cmd, stripPriority bool, stream *sse.Stream) {
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return
@@ -65,15 +56,10 @@ func streamLines(cmd *exec.Cmd, stripPriority bool, send func(string)) {
 			}
 		}
 
-		send(line)
+		if !stream.Data(line) {
+			break
+		}
 	}
 
 	_ = cmd.Wait()
-}
-
-func streamCallback(w http.ResponseWriter, flusher http.Flusher, hasFlusher bool, line string) {
-	_, _ = fmt.Fprintf(w, "data: %s\n\n", strings.ReplaceAll(line, "\n", " "))
-	if hasFlusher {
-		flusher.Flush()
-	}
 }

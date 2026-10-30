@@ -16,6 +16,7 @@ import (
 	"github.com/ChevalRouting/routier/pkg/server/api/friendcache"
 	"github.com/ChevalRouting/routier/pkg/types"
 	"github.com/rs/zerolog/log"
+	"gopkg.in/yaml.v3"
 )
 
 type reserveFromLeaseRequest struct {
@@ -133,14 +134,15 @@ func ReserveFromLease(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := managers.Apply(r.Context(), resolved, friendcache.InterpolationVars(),
-		managers.ApplyOptions{Source: "web", ConfigPath: app.ConfigPath}, 0); err != nil {
-		types.Error(log.Logger, w, types.Wrap(http.StatusBadGateway, err, "failed to apply reservation"))
+	persist, err := yaml.Marshal(live)
+	if err != nil {
+		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "marshal config"))
 		return
 	}
 
-	if err := cfgstore.PromoteConfig(app.ConfigPath, live); err != nil {
-		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "reservation applied but failed to persist config"))
+	if _, err := managers.Apply(r.Context(), resolved, friendcache.InterpolationVars(),
+		managers.ApplyOptions{Source: "web", ConfigPath: app.ConfigPath, PersistConfig: persist}, 0); err != nil {
+		types.Error(log.Logger, w, cfgstore.ApplyError(err, http.StatusBadGateway, "failed to apply reservation"))
 		return
 	}
 

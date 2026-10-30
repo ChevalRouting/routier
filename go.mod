@@ -53,6 +53,7 @@ require (
 )
 
 require (
+	github.com/ChevalRouting/certs v0.0.0
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
@@ -68,3 +69,5 @@ require (
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 )
+
+replace github.com/ChevalRouting/certs => ../certs

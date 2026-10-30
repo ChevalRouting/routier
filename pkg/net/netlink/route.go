@@ -9,6 +9,7 @@ import (
 	"github.com/ChevalRouting/routier/pkg/config"
 	"github.com/rs/zerolog/log"
 	vnl "github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
 )
 
 const rtprotRoutier = vnl.RouteProtocol(100)
@@ -25,6 +26,36 @@ func resolveRouteDev(cfg *config.Config, dev string) (int, error) {
 	}
 
 	return link.Attrs().Index, nil
+}
+
+func parseRouteScope(scope string) (vnl.Scope, error) {
+	switch scope {
+	case "global", "universe":
+		return vnl.SCOPE_UNIVERSE, nil
+	case "site":
+		return vnl.SCOPE_SITE, nil
+	case "link":
+		return vnl.SCOPE_LINK, nil
+	case "host":
+		return vnl.SCOPE_HOST, nil
+	default:
+		return 0, fmt.Errorf("invalid scope %q", scope)
+	}
+}
+
+func parseRouteType(kind string) (int, error) {
+	switch kind {
+	case "":
+		return 0, nil
+	case "blackhole":
+		return unix.RTN_BLACKHOLE, nil
+	case "unreachable":
+		return unix.RTN_UNREACHABLE, nil
+	case "prohibit":
+		return unix.RTN_PROHIBIT, nil
+	default:
+		return 0, fmt.Errorf("invalid route type %q", kind)
+	}
 }
 
 func buildStaticRoutes(cfg *config.Config, statics []config.StaticRoute, table int) ([]vnl.Route, error) {
@@ -45,10 +76,22 @@ func buildStaticRoutes(cfg *config.Config, statics []config.StaticRoute, table i
 			r.Table = table
 		}
 
+		r.Type, err = parseRouteType(sr.Type)
+		if err != nil {
+			return nil, fmt.Errorf("static route %q: %w", sr.Destination, err)
+		}
+
 		if sr.Via != "" {
 			r.Gw = net.ParseIP(sr.Via)
 			if r.Gw == nil {
 				return nil, fmt.Errorf("static route %q: invalid via %q", sr.Destination, sr.Via)
+			}
+		}
+
+		if sr.Src != "" {
+			r.Src = net.ParseIP(sr.Src)
+			if r.Src == nil {
+				return nil, fmt.Errorf("static route %q: invalid src %q", sr.Destination, sr.Src)
 			}
 		}
 
@@ -59,6 +102,15 @@ func buildStaticRoutes(cfg *config.Config, statics []config.StaticRoute, table i
 			}
 
 			r.LinkIndex = idx
+		}
+
+		if sr.Scope != "" {
+			scope, err := parseRouteScope(sr.Scope)
+			if err != nil {
+				return nil, fmt.Errorf("static route %q: %w", sr.Destination, err)
+			}
+
+			r.Scope = scope
 		}
 
 		routes = append(routes, r)
@@ -131,7 +183,24 @@ func routeKey(r vnl.Route) string {
 		return key + " via " + r.Gw.String()
 	}
 
+	if kind := routeTypeName(r.Type); kind != "" {
+		return key + " " + kind
+	}
+
 	return key
+}
+
+func routeTypeName(kind int) string {
+	switch kind {
+	case unix.RTN_BLACKHOLE:
+		return "blackhole"
+	case unix.RTN_UNREACHABLE:
+		return "unreachable"
+	case unix.RTN_PROHIBIT:
+		return "prohibit"
+	default:
+		return ""
+	}
 }
 
 func gwEqual(a, b net.IP) bool {
@@ -156,6 +225,14 @@ func routesEqual(a, b vnl.Route) bool {
 	}
 
 	if b.Priority != 0 && a.Priority != b.Priority {
+		return false
+	}
+
+	if b.Scope != 0 && a.Scope != b.Scope {
+		return false
+	}
+
+	if !gwEqual(a.Src, b.Src) {
 		return false
 	}
 

@@ -85,6 +85,30 @@ func TestLoadCacheVars(t *testing.T) {
 	}
 }
 
+func TestLoadCacheVarsBGPPolicies(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "friends_cache.json")
+	const cache = `{"configs":{"edge-b":{"version":"1","routing":{"bgp":{"asn":65001,"router_id":"10.0.0.2",` +
+		`"prefix_lists":{"LOCAL":[{"seq":5,"action":"permit","prefix":"10.9.0.0/24"}]},` +
+		`"route_maps":{"IN":[{"seq":10,"action":"permit"}]},` +
+		`"shared_prefix_lists":["LOCAL"]}}}}}`
+	if err := os.WriteFile(path, []byte(cache), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	v := friends.LoadCacheVars(path)
+	if got := v["edge-b"].BGPPrefixLists["LOCAL"]; len(got) != 1 || got[0].Prefix != "10.9.0.0/24" {
+		t.Fatalf("prefix list LOCAL = %+v", got)
+	}
+
+	if got := v["edge-b"].BGPRouteMaps["IN"]; len(got) != 1 || got[0].Seq != 10 {
+		t.Fatalf("route map IN = %+v", got)
+	}
+
+	if !v["edge-b"].BGPSharedPrefixLists["LOCAL"] {
+		t.Fatalf("expected LOCAL to be marked shared, got %+v", v["edge-b"].BGPSharedPrefixLists)
+	}
+}
+
 func TestInterpolateConfigRoundTrip(t *testing.T) {
 	raw := `version: v3.0.0
 hostname: gw

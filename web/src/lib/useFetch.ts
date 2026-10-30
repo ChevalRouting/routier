@@ -3,7 +3,6 @@ import { useDataVersion } from './dataVersion'
 
 type UseFetchShape<T> = {
     data: T | null
-    version: number
     isLoading: boolean
     error: string | null
   }
@@ -11,32 +10,33 @@ type UseFetchShape<T> = {
 export function useFetch<T>(fn: () => Promise<T>) {
   const fnRef = useRef(fn)
   fnRef.current = fn
-  const { version } = useDataVersion()
-  const versionRef = useRef(version)
-  versionRef.current = version
+  const { version, track } = useDataVersion()
   const requestRef = useRef(0)
+  const mounted = useRef(false)
 
-  const [state, setState] = useState<UseFetchShape<T>>({ data: null, version, isLoading: true, error: null })
+  const [state, setState] = useState<UseFetchShape<T>>({ data: null, isLoading: true, error: null })
 
   const load = useCallback(async (invalidate = false) => {
     const request = ++requestRef.current
-    const requestedVersion = versionRef.current
-    setState((previous) => ({ ...previous, version: requestedVersion, isLoading: invalidate || previous.data === null, error: null }))
+    setState((previous) => ({ ...previous, isLoading: invalidate || previous.data === null, error: null }))
     try {
       const result = await fnRef.current()
-      if (request !== requestRef.current || requestedVersion !== versionRef.current) return
-      setState({ data: result, version: requestedVersion, isLoading: false, error: null })
+      if (request !== requestRef.current) return
+      setState({ data: result, isLoading: false, error: null })
     } catch (e) {
-      if (request !== requestRef.current || requestedVersion !== versionRef.current) return
-      setState((previous) => ({ ...previous, version: requestedVersion, isLoading: false, error: (e as Error).message }))
+      if (request !== requestRef.current) return
+      setState((previous) => ({ ...previous, isLoading: false, error: (e as Error).message }))
     }
   }, [])
 
   useEffect(() => {
-    void load(true)
-    return () => { requestRef.current += 1 }
-  }, [load, version])
+    const refresh = mounted.current
+    mounted.current = true
+    const done = track()
+    void load(!refresh).finally(done)
+    return () => { requestRef.current += 1; done() }
+  }, [load, version, track])
 
-  const isLoading = state.isLoading || state.version !== version
-  return { data: isLoading ? null : state.data, hasData: state.data !== null, isLoading, error: state.error, reload: load }
+  const { isLoading } = state
+  return { data: isLoading ? null : state.data, latest: state.data, hasData: state.data !== null, isLoading, error: state.error, reload: load }
 }

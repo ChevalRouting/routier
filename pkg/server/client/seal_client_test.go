@@ -27,8 +27,8 @@ func TestConfigDecryptsSealedResponse(t *testing.T) {
 
 	cfg := &config.Config{Hostname: "peer", Version: "v3.0.0"}
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, unusedArg4 *http.Request) {
-		testConfigDecryptsSealedResponseCallback(sender, recipient, cfg, w, unusedArg4)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		serveSealedConfig(sender, recipient, cfg, w, r)
 	}))
 	defer srv.Close()
 
@@ -52,8 +52,8 @@ func TestConfigDecryptsLargeSealedResponse(t *testing.T) {
 	big := strings.Repeat("x", 2<<20)
 	cfg := &config.Config{Hostname: big, Version: "v3.0.0"}
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, unusedArg4 *http.Request) {
-		testConfigDecryptsLargeSealedResponseCallback(sender, recipient, cfg, w, unusedArg4)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		serveLargeSealedConfig(sender, recipient, cfg, w, r)
 	}))
 	defer srv.Close()
 
@@ -74,8 +74,8 @@ func TestConfigRejectsSealedResponseWithoutOpener(t *testing.T) {
 	sender, _ := identity.LoadOrCreate(filepath.Join(t.TempDir(), "sender"))
 	recipient, _ := identity.LoadOrCreate(filepath.Join(t.TempDir(), "recipient"))
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, unusedArg3 *http.Request) {
-		testConfigRejectsSealedResponseWithoutOpenerCallback(sender, recipient, w, unusedArg3)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		serveSealedStatus(sender, recipient, w, r)
 	}))
 	defer srv.Close()
 
@@ -85,7 +85,7 @@ func TestConfigRejectsSealedResponseWithoutOpener(t *testing.T) {
 	}
 }
 
-func testConfigDecryptsSealedResponseCallback(sender *identity.Identity, recipient *identity.Identity, cfg *config.Config, w http.ResponseWriter, _ *http.Request) {
+func serveSealedConfig(sender *identity.Identity, recipient *identity.Identity, cfg *config.Config, w http.ResponseWriter, _ *http.Request) {
 	var payload any = cfg
 	env, _ := json.Marshal(types.Response[any]{Result: &payload})
 
@@ -99,7 +99,7 @@ func testConfigDecryptsSealedResponseCallback(sender *identity.Identity, recipie
 	_, _ = w.Write(sealed)
 }
 
-func testConfigDecryptsLargeSealedResponseCallback(sender *identity.Identity, recipient *identity.Identity, cfg *config.Config, w http.ResponseWriter, _ *http.Request) {
+func serveLargeSealedConfig(sender *identity.Identity, recipient *identity.Identity, cfg *config.Config, w http.ResponseWriter, _ *http.Request) {
 	var payload any = cfg
 	env, _ := json.Marshal(types.Response[any]{Result: &payload})
 	sealed, _ := sender.Seal(recipient.X25519PublicBase64(), env)
@@ -107,7 +107,7 @@ func testConfigDecryptsLargeSealedResponseCallback(sender *identity.Identity, re
 	_, _ = w.Write(sealed)
 }
 
-func testConfigRejectsSealedResponseWithoutOpenerCallback(sender *identity.Identity, recipient *identity.Identity, w http.ResponseWriter, _ *http.Request) {
+func serveSealedStatus(sender *identity.Identity, recipient *identity.Identity, w http.ResponseWriter, _ *http.Request) {
 	var payload any = &config.Config{Hostname: "peer"}
 	env, _ := json.Marshal(types.Response[any]{Result: &payload})
 	sealed, _ := sender.Seal(recipient.X25519PublicBase64(), env)

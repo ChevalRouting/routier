@@ -1,8 +1,9 @@
 # Monitoring
 
-Routier collects metrics and exposes live status. UI: **Monitor**, with tabs
-for traffic, logs, HA status, DNS and neighbors; the dashboard summarizes the
-same data.
+Routier collects metrics and exposes live status. In the UI, the
+**Monitoring** sidebar group has two pages: **System** (resources, processes,
+logs) and **Network** (topology, traffic, flows, BGP, neighbors, probes). The
+dashboard summarizes the same data.
 
 ## Stats
 
@@ -34,10 +35,23 @@ hourly, and a crontab entry (`routier prune-stats`) does the same so cleanup
 still runs when the UI is stopped. The database uses SQLite incremental
 auto-vacuum, so space freed by pruning is returned to the filesystem.
 
+## Live traffic
+
+**Monitoring > Network > Live Traffic** shows the throughput of one interface
+as it happens, in the manner of `nload`. Incoming and outgoing traffic each get
+a bar graph of the last 60 seconds, with the current, average, minimum and
+maximum rate over that window, the current packet rate, and the total bytes
+the kernel has counted since the interface was created.
+
+`GET /api/stats/live?iface=<name>` streams one sample per second as server-sent
+events. Each sample carries the byte and packet rates computed from the
+interface counters in `/sys/class/net/<name>/statistics`, the counter totals,
+and the operational state. Nothing is recorded into the stats database.
+
 ## Connectivity probes
 
 Scheduled ICMP checks record reachability and average round-trip time for a
-target. Configure them under **Monitor > Probes**; the dashboard shows their
+target. Configure them under **Monitoring > Network > Probes**; the dashboard shows their
 latest status and history read-only.
 
 ```yaml
@@ -58,7 +72,7 @@ the `probes` series.
 Routier can run the `lldpd` daemon to discover directly connected switches and
 routers over LLDP (802.1AB) and Cisco's CDP. Each neighbor reports the local
 interface, remote chassis name and management IP, remote port, and VLAN. The
-**Monitor > Neighbors** tab shows these alongside the ARP/NDP tables, and
+**Monitoring > Network > Neighbors** section shows these alongside the ARP/NDP tables, and
 `GET /api/routing/lldp` returns the live view.
 
 Discovery is off by default and enabled per configuration:
@@ -86,6 +100,92 @@ monitoring:
 Discovered neighbors are also recorded into the stats database on the `lldp`
 collection interval and served by `GET /api/stats/lldp`.
 
+## Traffic flows (sFlow)
+
+Routier samples forwarded and incoming packets, exports them as sFlow v5 to
+any number of collectors, such as an [akvorado](https://github.com/akvorado/akvorado)
+inlet, and keeps a bounded history of the resulting flows in the local SQLite
+database. **Monitoring > Network > Flows** draws that history as a Sankey
+diagram (source, service and destination, or the interfaces traffic crosses)
+and lists top talkers, services and per-interface traffic.
+
+Flow sampling is off by default:
+
+```yaml
+monitoring:
+  flows:
+    enabled: true
+    sampling: 1000
+    interfaces: [wan, lan]
+    source: 192.0.2.1
+    collectors:
+      - address: 198.51.100.10
+        port: 6343
+    retention:
+      hours: 72
+      max_flows: 200000
+```
+
+- `sampling` samples one packet in N (default 1000). Lower values are more
+  accurate and cost more CPU. Each sample carries the rate, so collectors scale
+  bytes and packets back up.
+- `interfaces` lists configured interfaces whose ingress traffic is sampled.
+  When omitted, every configured interface and WireGuard tunnel is sampled.
+- `source` is the address datagrams are sent from and announced as the sFlow
+  agent. When omitted, the kernel picks the address of the route towards each
+  collector.
+- `collectors` receive the sFlow datagrams over UDP (default port 6343). The
+  list can be empty to keep flows only locally.
+- `retention` bounds the local history: flows older than `hours` (default 72)
+  are deleted, and only the newest `max_flows` (default 200000) are kept.
+
+Sampling is a managed nftables rule in its own `routier_flows` table. It logs
+one packet in N, before the filter chains, to netlink group 6343; the
+`routier-ui` daemon reads those packets, sends each sample as an sFlow flow
+sample with the input and output interface indexes, and sends interface counter
+samples every 20 seconds. It also groups samples into flows by
+interface, protocol, addresses and ports, closing a flow after 15 seconds
+without packets or 60 seconds after it started, and stores each flow with its
+estimated bytes and packets.
+
+The API:
+
+- `GET /api/flows/status` - agent state, sampling, collectors and counters.
+- `GET /api/flows?minutes=60&address=192.0.2.10` - recent flows.
+- `GET /api/flows/top?dimension=src&minutes=60` - totals by `src`, `dst`,
+  `service`, `protocol`, `in_if`, `out_if` or `conversation`.
+- `GET /api/flows/series?minutes=60` - bytes per input interface over time.
+- `GET /api/flows/sankey?dimensions=src,service,dst&minutes=60` - the largest
+  paths across two or three of the `top` dimensions, except `conversation`,
+  with the total bytes of the window.
+- `GET /api/flows/metadata` - this router's interfaces for akvorado.
+
+### Sending flows to akvorado
+
+Add the akvorado inlet as a collector; its default configuration already
+listens for sFlow on UDP 6343. Akvorado drops flows from interfaces it cannot
+name, so let it read interface names and speeds from Routier: create an API
+key in Routier and add a static provider source to the outlet configuration
+(`outlet.yaml` in the docker setup, without the `outlet:` level):
+
+```yaml
+outlet:
+  metadata:
+    providers:
+      - type: static
+        exporter-sources:
+          routier-rt1:
+            url: https://rt1.example.net/api/flows/metadata
+            headers:
+              Authorization: Bearer rtr_api_...
+            interval: 10m
+            transform: .result.exporters[]
+```
+
+The metadata lists the router once per address it sends sFlow from, with
+every kernel interface index, the device name, the Routier interface name as
+the description, and the link speed in Mbps.
+
 ## Routing state
 
 - `GET /api/routing/learned` - learned routes (FRR).
@@ -101,7 +201,7 @@ conntrackd state.
 
 ## DNS
 
-When a local DNS server is configured (see [dns.md](dns.md)), **Monitor > DNS**
+When a local DNS server is configured (see [dns.md](dns.md)), the **DNS** page
 exposes the resolver's live state:
 
 - `GET /api/dns` - resolver state (running, listen addresses, upstreams),
@@ -119,7 +219,7 @@ there is no DNS history.
 ## Logs
 
 - `GET /api/logs/stream` - live log stream.
-- UI: **Monitor > Logs**.
+- UI: **Monitoring > System > Logs**.
 
 ## Interface and bond status
 

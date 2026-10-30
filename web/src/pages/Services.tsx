@@ -1,10 +1,11 @@
+import { DraftControls } from '@/components/DraftControls'
 import { ServiceForm } from '@/components/services/ServiceForm'
 import { buildPayload, ConfigFileRow, defaultService, NEW_KEY, newConfigFileId, ServiceConfig, ServiceRow, ServicesMap } from '@/components/services/shared'
 import { api } from '@/lib/client'
 import { useDataRefresh } from '@/lib/dataVersion'
 import { useFetch } from '@/lib/useFetch'
 import { usePageSave } from '@/lib/usePageSave'
-import { Button, EmptyState, PageHeader, Pagination, PreferencesColumns, ReloadButton, SaveButton, Sheet, Spinner, usePagination } from 'cheval-ui'
+import { Button, EmptyState, PageHeader, Pagination, ReloadButton, Sheet, Spinner, usePagination, PreferencesGroup } from 'cheval-ui'
 import { Plus, Server } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
@@ -79,7 +80,7 @@ export default function Services({ embedded = false }: ServicesShape = {}) {
 
   const actions = (
         <div className="flex items-center gap-2">
-          <SaveButton isDirty={isDirty} saving={saving} onClick={() => save(buildPayload(current, configRows))} onCancel={handleCancel} />
+          <DraftControls isDirty={isDirty} saving={saving} onClick={() => save(buildPayload(current, configRows))} onCancel={handleCancel} />
           <ReloadButton onClick={handleClick} />
         </div>
   )
@@ -87,25 +88,23 @@ export default function Services({ embedded = false }: ServicesShape = {}) {
   return (
     <div className="space-y-6">
       {embedded ? <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">Manage service enablement and configuration files</p>
         {actions}
-      </div> : <PageHeader title="Services" description="Manage service enablement and configuration files" action={actions} />}
+      </div> : <PageHeader title="Services" action={actions} />}
 
       {names.length === 0 ? (
         <div className="w-full max-w-2xl mx-auto">
           <EmptyState
             icon={<Server />}
-            title="No services"
-            message="Define a service to manage its enablement and deploy its configuration files."
-            action={<Button variant="outline" size="sm" onClick={handleAddNew} className="gap-2"><Plus className="h-4 w-4" />Add service</Button>}
+            title="No Services"
+            action={<Button variant="outline" size="sm" onClick={handleAddNew} className="gap-2"><Plus className="h-4 w-4" />Add Service…</Button>}
           />
         </div>
       ) : (
-        <PreferencesColumns
+        <PreferencesGroup
           title="Services"
           header={
             <Button variant="outline" size="sm" onClick={handleAddNew} className="gap-1.5">
-              <Plus className="h-4 w-4" />Add
+              <Plus className="h-4 w-4" />Add Service…
             </Button>
           }
         >
@@ -119,7 +118,7 @@ export default function Services({ embedded = false }: ServicesShape = {}) {
               onDelete={() => deleteService(name)}
             />
           ))}
-        </PreferencesColumns>
+        </PreferencesGroup>
       )}
 
       <Pagination page={page} totalPages={totalPages} total={total} pageSize={pageSize} onPage={setPage} unit="services" />

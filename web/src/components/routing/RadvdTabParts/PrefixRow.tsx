@@ -23,10 +23,10 @@ export function PrefixRow({
           value={prefix.prefix}
           onChange={(e) => set('prefix', e.target.value)}
           placeholder="2001:db8::/64"
-          className="font-mono text-xs h-8 flex-1"
+          className="flex-1 font-mono"
         />
-        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 hover:text-destructive" onClick={onDelete}>
-          <Trash2 className="h-3.5 w-3.5" />
+        <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-destructive" onClick={onDelete} aria-label="Remove Prefix" title="Remove Prefix">
+          <Trash2 className="h-4 w-4" />
         </Button>
       </div>
 
@@ -45,23 +45,23 @@ export function PrefixRow({
         ))}
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label className="text-[11px]">Valid lifetime</Label>
+          <Label className="text-xs">Valid Lifetime</Label>
           <Input
             value={prefix.adv_valid_lifetime ?? ''}
             onChange={(e) => set('adv_valid_lifetime', e.target.value || undefined)}
             placeholder="86400 or infinity"
-            className="font-mono text-xs h-8"
+            className="font-mono"
           />
         </div>
         <div className="space-y-1.5">
-          <Label className="text-[11px]">Preferred lifetime</Label>
+          <Label className="text-xs">Preferred Lifetime</Label>
           <Input
             value={prefix.adv_preferred_lifetime ?? ''}
             onChange={(e) => set('adv_preferred_lifetime', e.target.value || undefined)}
             placeholder="14400 or infinity"
-            className="font-mono text-xs h-8"
+            className="font-mono"
           />
         </div>
       </div>

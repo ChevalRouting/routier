@@ -18,8 +18,8 @@ func TestMarkManagedVXLAN(t *testing.T) {
 	link := &vnl.Vxlan{LinkAttrs: vnl.LinkAttrs{Name: "vxlan-old"}}
 	wantErr := errors.New("alias failed")
 	calls := 0
-	setAlias := func(unusedArg3 vnl.Link, alias string) error {
-		return testMarkManagedVXLANCallback(t, wantErr, &calls, unusedArg3, alias)
+	setAlias := func(link vnl.Link, alias string) error {
+		return recordVXLANAlias(t, wantErr, &calls, link, alias)
 	}
 	if err := markManagedVXLAN(link, true, setAlias); err != nil || calls != 0 {
 		t.Fatalf("dry run: err=%v calls=%d", err, calls)
@@ -79,8 +79,8 @@ func TestVXLANRenameRemovesPreviousLink(t *testing.T) {
 	}
 }
 
-func testMarkManagedVXLANCallback(t *testing.T, wantErr error, calls *int, _ vnl.Link, alias string) error {
-	(*calls)++
+func recordVXLANAlias(t *testing.T, wantErr error, calls *int, _ vnl.Link, alias string) error {
+	*calls++
 	if alias != managedAlias {
 		t.Fatalf("alias = %q", alias)
 	}

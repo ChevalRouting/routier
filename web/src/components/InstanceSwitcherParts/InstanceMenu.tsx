@@ -11,12 +11,10 @@ import {
 import { useFetch } from '@/lib/useFetch'
 import { cn } from 'cheval-ui'
 import { Server } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
 
 type InstanceMenuShape = { tone?: Tone; onDone?: () => void }
 
 export function InstanceMenu({ tone = 'sidebar', onDone }: InstanceMenuShape) {
-  const navigate = useNavigate()
   const { bump } = useDataVersion()
   const active = useActiveInstance()
 
@@ -30,7 +28,6 @@ export function InstanceMenu({ tone = 'sidebar', onDone }: InstanceMenuShape) {
     if (inst.id === active.id) return
     switchInstance(inst)
     bump()
-    navigate('/')
   }
 
   const selectFriend = (f: FriendInfo) => {

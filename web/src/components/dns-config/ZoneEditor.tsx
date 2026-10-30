@@ -1,7 +1,7 @@
+import { ZoneTransfers } from '@/components/dns-config/ZoneTransfers'
 import { RecordRows } from '@/components/dns-config/RecordRows'
 import { DnsZone, impliedZoneRecords } from '@/components/dns-config/shared'
-import { Button, Input, Label, TagInput } from 'cheval-ui'
-import { Trash2 } from 'lucide-react'
+import { Button, TagInput, PreferencesGroup, EntryRow, ComboRow, Row } from 'cheval-ui'
 
 type ZoneEditorShape = {
   zone: DnsZone
@@ -25,69 +25,36 @@ export function ZoneEditor({ zone, onChange, onRemove, zones, onZonesChange }: Z
   })
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="truncate font-mono text-sm font-medium">{zone.name || 'new zone'}</h2>
-        <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={onRemove}>
-          <Trash2 className="h-4 w-4" /> Remove
-        </Button>
-      </div>
+    <div className="space-y-6">
+      <PreferencesGroup
+        description={glueMissing ? 'A nameserver inside this zone has no A or AAAA record; BIND rejects the zone without one' : undefined}
+        header={<Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive" onClick={onRemove}>Remove Zone</Button>}
+      >
+        <EntryRow title="Zone" value={zone.name} onChange={(e) => onChange({ ...zone, name: e.target.value })} className="font-mono" />
+        <EntryRow title="Default TTL (s)" value={zone.ttl ?? ''} onChange={(e) => onChange({ ...zone, ttl: e.target.value ? Number(e.target.value) : undefined })} placeholder="3600" className="font-mono" />
+        <EntryRow title="SOA E-Mail" value={soa.email ?? ''} onChange={(e) => onChange({ ...zone, soa: { ...soa, email: e.target.value || undefined } })} placeholder="hostmaster@example.net" className="font-mono" />
+        <ComboRow title="Nameservers">
+          <TagInput values={zone.nameservers ?? []} onChange={(v) => onChange({ ...zone, nameservers: v.length ? v : undefined })} placeholder="ns1.example.net." mono />
+        </ComboRow>
+      </PreferencesGroup>
 
-      <div className="grid gap-3 sm:grid-cols-3">
-          <div>
-            <Label className="text-xs">Zone</Label>
-            <Input className="h-8 font-mono text-xs" value={zone.name} onChange={(e) => onChange({ ...zone, name: e.target.value })} />
-          </div>
-          <div>
-            <Label className="text-xs">Default TTL</Label>
-            <Input className="h-8 font-mono text-xs" placeholder="3600" value={zone.ttl ?? ''} onChange={(e) => onChange({ ...zone, ttl: e.target.value ? Number(e.target.value) : undefined })} />
-          </div>
-          <div>
-            <Label className="text-xs">SOA e-mail</Label>
-            <Input className="h-8 font-mono text-xs" placeholder="hostmaster@example.net" value={soa.email ?? ''} onChange={(e) => onChange({ ...zone, soa: { ...soa, email: e.target.value || undefined } })} />
-          </div>
-        </div>
-
-        <div>
-          <Label className="text-xs">Nameservers</Label>
-          <TagInput
-            values={zone.nameservers ?? []}
-            onChange={(v) => onChange({ ...zone, nameservers: v.length ? v : undefined })}
-            placeholder="ns1.example.net."
-          />
-          {glueMissing && (
-            <p className="mt-1 text-xs text-amber-600 dark:text-amber-500">
-              A nameserver inside this zone has no A or AAAA record. BIND rejects the zone without one.
-            </p>
-          )}
-        </div>
-
-        <div>
-          <Label className="text-xs">Transferred in from</Label>
-          <TagInput
-            values={zone.primaries ?? []}
-            onChange={(v) => onChange({ ...zone, primaries: v.length ? v : undefined })}
-            placeholder="primary server IP (leave empty for a primary zone)"
-          />
-        </div>
+        <ZoneTransfers key={zone.name} zone={zone} onChange={onChange} />
 
         {!secondary && (
-          <div>
-            <Label className="text-xs">Records</Label>
+          <div className="space-y-2">
+            <h2 className="text-sm font-semibold">Records</h2>
             {implied.length > 0 && (
-              <div className="mb-2 space-y-2">
+              <PreferencesGroup description="Nameservers inside this zone need A or AAAA glue records">
                 {implied.map((r, k) => (
-                  <div key={k} className="flex items-center gap-2 opacity-60">
-                    <Input disabled className="h-8 w-32 font-mono text-xs" value={r.name} />
-                    <Input disabled className="h-8 w-24 font-mono text-xs" value={r.type} />
-                    <Input disabled className="h-8 flex-1 font-mono text-xs" value={r.value} />
-                    <span className="w-8 shrink-0 text-center text-[10px] uppercase text-muted-foreground">auto</span>
-                  </div>
+                  <Row
+                    key={k}
+                    title={<span className="font-mono">{r.name} {r.type}</span>}
+                    subtitle={<span className="font-mono break-all">{r.value}</span>}
+                  >
+                    <span className="text-xs text-muted-foreground">Automatic</span>
+                  </Row>
                 ))}
-                <p className="text-xs text-muted-foreground">
-                  Generated from the fields above. Add A or AAAA glue records below for any nameserver inside this zone.
-                </p>
-              </div>
+              </PreferencesGroup>
             )}
             <RecordRows
               records={zone.records ?? []}

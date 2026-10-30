@@ -13,6 +13,7 @@ type ctxKey string
 const (
 	appKey      ctxKey = "app"
 	usernameKey ctxKey = "username"
+	unixUserKey ctxKey = "unix_user"
 )
 
 func FromContext(ctx context.Context) *App {
@@ -29,6 +30,15 @@ func WithUsername(ctx context.Context, username string) context.Context {
 	return context.WithValue(ctx, usernameKey, username)
 }
 
+func UnixUserFromContext(ctx context.Context) string {
+	v, _ := ctx.Value(unixUserKey).(string)
+	return v
+}
+
+func WithUnixUser(ctx context.Context, username string) context.Context {
+	return context.WithValue(ctx, unixUserKey, username)
+}
+
 func FriendUsername(ctx context.Context) (string, bool) {
 	u := UsernameFromContext(ctx)
 	if name, ok := strings.CutPrefix(u, FriendUserPrefix); ok {
@@ -39,10 +49,10 @@ func FriendUsername(ctx context.Context) (string, bool) {
 }
 
 func (a *App) Inject() func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler { return injectCallback(a, next) }
+	return func(next http.Handler) http.Handler { return withApp(a, next) }
 }
 
-func injectCallback(a *App, next http.Handler) http.Handler {
+func withApp(a *App, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := context.WithValue(r.Context(), appKey, a)
 		next.ServeHTTP(w, r.WithContext(ctx))

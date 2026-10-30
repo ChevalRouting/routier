@@ -7,10 +7,11 @@ vars:
   LOCAL_ANYK: '{{.LOCAL_ANYK | default "0"}}'
   OFFLINE: '{{.OFFLINE | default "0"}}'
   FLAVOR: '{{.FLAVOR | default "lts"}}'
+  CHANNEL: '{{.CHANNEL | default "nightly"}}'
+  PUBLIC_REPO_URL: '{{.PUBLIC_REPO_URL | default "https://repo.routier.cloud"}}'
   MCP_GOOS: '{{.MCP_GOOS | default "linux"}}'
   ALPINE_VERSION: '{{.ALPINE_VERSION | default "3.23"}}'
   ISO_APORTS: '{{.ISO_APORTS | default "./dist/aports"}}'
-  WWW_DIR: '{{.WWW_DIR | default "/var/lib/Routier"}}'
   CHEVAL_UI_DIR: '{{.CHEVAL_UI_DIR | default "../cheval-ui"}}'
   ROOT_DIR: '{{.TASKFILE_DIR}}'
   HOST_UID:
@@ -31,13 +32,12 @@ vars:
   DOCKER_PLATFORM: '{{.DOCKER_PLATFORM | default (ternary "linux/arm64" "linux/amd64" (eq .ARCH "aarch64"))}}'
   PLATFORM_FLAG: '--platform {{.DOCKER_PLATFORM}}'
   APK_ANYK_MOUNT: '{{if eq .LOCAL_ANYK "1"}}-v {{printf "%s/../anyk:/anyk:z" .ROOT_DIR | shellQuote}}{{end}}'
+  CERTS_MOUNT: '-v {{printf "%s/../certs:/certs:z" .ROOT_DIR | shellQuote}}'
   GO_TAGS: '{{if eq .EMBED "1"}}-tags prod{{end}}'
   DOCKER_STAMP: '.docker-image-{{.ARCH}}-{{.VERSION}}-{{.RELEASE}}'
   PODMAN_TTY:
     sh: 'if [ -t 0 ] && [ -t 1 ]; then printf -- "-it"; fi'
   ISO_APORTS_MOUNT: '-v {{if isAbs .ISO_APORTS}}{{printf "%s:/aports:z" .ISO_APORTS | shellQuote}}{{else}}{{printf "%s/%s:/aports:z" .ROOT_DIR .ISO_APORTS | shellQuote}}{{end}}'
-  REPO_DIR: 'dist/{{.ARCH}}'
-  REPO_URL: '{{.REPO_URL | default (printf "http://localhost/%s/" .ARCH)}}'
   CHEVAL_UI_ARCHIVE:
     sh: 'find {{.CHEVAL_UI_DIR | shellQuote}} -maxdepth 1 -name "*cheval-ui-*.tgz" -print 2>/dev/null | sort | head -1'
 tasks:
@@ -96,10 +96,6 @@ tasks:
       - |
         {{.TOOL_RUN}} sh -c 'CGO_ENABLED=1 go build {{.GO_TAGS}} -ldflags="-s -w -X main.VERSION={{.VERSION}} -X github.com/ChevalRouting/routier/pkg/server/api/app.Version={{.VERSION}}" -o routier-ui ./cmd/routier-ui'
   mcp:
-    desc: 'Build the standalone MCP server'
-    cmds:
-      - task: 'mcp-dist'
-  mcp-dist:
     desc: 'Cross-compile the standalone MCP server'
     cmds:
       - task: 'tools'
@@ -224,31 +220,12 @@ tasks:
     cmds:
       - |
         cd website && npm install && sh scripts/version-dev.sh
-  apk-index:
-    desc: 'Build packages and sign the repository index'
-    cmds:
-      - task: 'apk'
-      - |
-        set -e
-        {{.CONTAINER}} run {{.PLATFORM_FLAG}} --rm -v {{printf "%s:/app:z" .ROOT_DIR | shellQuote}} \
-        	--entrypoint sh "routier:{{.VERSION}}-{{.RELEASE}}" /app/scripts/mkindex.sh
-  www:
-    desc: 'Assemble the local APK repository'
-    cmds:
-      - task: 'apk-index'
-      - |
-        set -e
-        rm -rf {{.WWW_DIR}}/*
-        mkdir -p {{.WWW_DIR}}/{{.ARCH}}
-        cp {{.REPO_DIR}}/*.apk {{.REPO_DIR}}/APKINDEX.tar.gz {{.WWW_DIR}}/{{.ARCH}}/
-        cp routier.rsa.pub {{.WWW_DIR}}/
-        echo "apk repo assembled in {{.WWW_DIR}}/{{.ARCH}} (serve as {{.REPO_URL}})"
   apk_debug:
     desc: 'Open an interactive shell in the package builder'
     cmds:
       - task: 'builder'
       - |
-        EMBED=1 LOCAL_ANYK={{.LOCAL_ANYK}} {{.CONTAINER}} run {{.PLATFORM_FLAG}} -it -e RELEASE="{{.RELEASE}}" -e VERSION="{{.VERSION}}" -e LOCAL_ANYK="{{.LOCAL_ANYK}}" -v {{printf "%s:/app:z" .ROOT_DIR | shellQuote}} {{.APK_ANYK_MOUNT}} --entrypoint ash "routier:{{.VERSION}}-{{.RELEASE}}"
+        EMBED=1 LOCAL_ANYK={{.LOCAL_ANYK}} {{.CONTAINER}} run {{.PLATFORM_FLAG}} -it -e RELEASE="{{.RELEASE}}" -e VERSION="{{.VERSION}}" -e LOCAL_ANYK="{{.LOCAL_ANYK}}" -v {{printf "%s:/app:z" .ROOT_DIR | shellQuote}} {{.APK_ANYK_MOUNT}} {{.CERTS_MOUNT}} --entrypoint ash "routier:{{.VERSION}}-{{.RELEASE}}"
   run-iso:
     desc: 'Boot the ISO in QEMU'
     cmds:
@@ -279,10 +256,28 @@ tasks:
         	-e OUTDIR="/app/dist/iso" \
         	-e OFFLINE="{{.OFFLINE}}" \
         	-e FLAVOR="{{.FLAVOR}}" \
+        	-e ROUTIER_REPO_URL="{{.PUBLIC_REPO_URL}}" \
+        	-e ROUTIER_CHANNEL="{{.CHANNEL}}" \
         	-v {{printf "%s:/app:z" .ROOT_DIR | shellQuote}} \
         	{{.ISO_APORTS_MOUNT}} \
         	"routier:{{.VERSION}}-{{.RELEASE}}" \
         	sh /app/scripts/build-iso.sh
+  cloud:
+    desc: 'Build a cloud image (qcow2) provisioned by cloud-init'
+    cmds:
+      - task: 'apk'
+      - |
+        set -e
+        {{.CONTAINER}} run {{.PLATFORM_FLAG}} {{.PODMAN_TTY}} --rm --privileged \
+        	-e VERSION="{{.VERSION}}" \
+        	-e RELEASE="{{.RELEASE}}" \
+        	-e ROUTIER_REPO="/app/dist" \
+        	-e OUTDIR="/app/dist/cloud" \
+        	-e ROUTIER_REPO_URL="{{.PUBLIC_REPO_URL}}" \
+        	-e ROUTIER_CHANNEL="{{.CHANNEL}}" \
+        	-v {{printf "%s:/app:z" .ROOT_DIR | shellQuote}} \
+        	"alpine:{{.ALPINE_VERSION}}" \
+        	sh /app/scripts/build-cloud.sh
   prefetch:
     desc: 'Cache dependencies for offline ISO builds'
     cmds:
@@ -378,7 +373,7 @@ tasks:
     cmds:
       - |
         set -e
-        {{.CONTAINER}} build {{.PLATFORM_FLAG}} -t "routier:{{.VERSION}}-{{.RELEASE}}" -f Dockerfile .
+        {{.CONTAINER}} build {{.PLATFORM_FLAG}} --build-context certs={{printf "%s/../certs" .ROOT_DIR | shellQuote}} -t "routier:{{.VERSION}}-{{.RELEASE}}" -f Dockerfile .
         touch {{.DOCKER_STAMP}}
   signing-key:
     desc: 'Create the package signing key if missing'
@@ -402,7 +397,7 @@ tasks:
         set -e
         EMBED=1 LOCAL_ANYK={{.LOCAL_ANYK}} {{.CONTAINER}} run {{.PLATFORM_FLAG}} {{.PODMAN_TTY}} --rm \
         	-e RELEASE="{{.RELEASE}}" -e VERSION="{{.VERSION}}" -e LOCAL_ANYK="{{.LOCAL_ANYK}}" \
-        	-v {{printf "%s:/app:z" .ROOT_DIR | shellQuote}} {{.APK_ANYK_MOUNT}} \
+        	-v {{printf "%s:/app:z" .ROOT_DIR | shellQuote}} {{.APK_ANYK_MOUNT}} {{.CERTS_MOUNT}} \
         	--entrypoint sh "routier:{{.VERSION}}-{{.RELEASE}}" /app/scripts/mkpkg.sh
   aports:
     desc: 'Fetch Alpine ISO build scripts'
@@ -416,7 +411,7 @@ tasks:
       - |
         set -e
         for arch in x86_64 aarch64; do
-          for flavor in lts virt stable; do
+          for flavor in lts virt stable installer; do
             {{.TASK_EXE | shellQuote}} iso ARCH="$arch" FLAVOR="$flavor" \
               VERSION={{.VERSION | shellQuote}} RELEASE={{.RELEASE | shellQuote}} \
               CONTAINER={{.CONTAINER | shellQuote}} OFFLINE={{.OFFLINE | shellQuote}} \
@@ -442,6 +437,30 @@ tasks:
       PODMAN_TTY: '{{.PODMAN_TTY}}'
     cmds:
       - sh scripts/deploy.sh {{.HOST | shellQuote}} {{.VERSION | shellQuote}} {{.RELEASE | shellQuote}}
+
+  publish:
+    desc: 'Sign and publish packages to the apk repository (REPO_TARGET=user@host:/srv/routier/repo VERSION=x.y.z)'
+    requires:
+      vars: [REPO_TARGET]
+    cmds:
+      - task: 'apk'
+      - |
+        REPO_TARGET={{.REPO_TARGET | shellQuote}} CHANNEL={{.CHANNEL | shellQuote}} \
+        VERSION={{.VERSION | shellQuote}} RELEASE={{.RELEASE | shellQuote}} ARCH={{.ARCH | shellQuote}} \
+        CONTAINER={{.CONTAINER | shellQuote}} sh scripts/repo-publish.sh
+
+  bench:
+    desc: 'Benchmark TCP and UDP between routers over their loopbacks (HOSTS="user@loopback ...")'
+    requires:
+      vars: [HOSTS]
+    env:
+      DURATION: '{{.DURATION}}'
+      STREAMS: '{{.STREAMS}}'
+      UDP_RATES: '{{.UDP_RATES}}'
+      UDP_LENGTH: '{{.UDP_LENGTH}}'
+      PORT: '{{.PORT}}'
+    cmds:
+      - sh scripts/bench.sh {{.HOSTS}}
 
   test-deploy:
     desc: 'Test deployment orchestration and installation with mocked commands'

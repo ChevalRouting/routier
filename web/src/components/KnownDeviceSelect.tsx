@@ -49,7 +49,7 @@ export function KnownDeviceSelect({ value, devices, disabled, onChange }: KnownD
       className="font-mono"
       popupMinWidth={480}
       placeholder="192.168.1.10 or hostname"
-      emptyMessage="No known device matches. You can enter an address manually."
+      emptyMessage="No matching device, enter an address"
       onChange={onChange}
     />
   )

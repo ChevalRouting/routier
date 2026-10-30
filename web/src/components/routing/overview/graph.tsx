@@ -1,7 +1,8 @@
 import type { TypesKernelRoute as KernelRoute, TypesOSPFNeighborSummary as OSPFNeighbor, TypesVRRPInstanceStatus as VRRPInstanceStatus } from '@/api'
-import { protoColor } from '@/lib/palette'
+import { ON_COLOR, OSPF_STATE_COLOR, protoColor, STATE, TOPO, VRRP_STATE_COLOR } from '@/lib/palette'
 import { type Edge, type Node } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
+import { BGPPeerGroup, peerHealth, peerTunnels } from './bgpPeers'
 import { S } from './nodes'
 import { OSPFArea, RoutingConfig, Tunnel, WgIface } from './types'
 
@@ -40,37 +41,25 @@ export function normalizeAreaId(id: string): string {
 export const RX = 650
 export const RY = 320
 
-export const VRRP_STATE_COLOR: Record<string, string> = {
-  MASTER:  '#16a34a',
-  BACKUP:  '#dc2626',
-  FAULT:   '#dc2626',
-  UNKNOWN: '#6b7280',
-}
-export const OSPF_STATE_COLOR: Record<string, string> = {
-  'Full/DR':    '#16a34a',
-  'Full/BDR':   '#16a34a',
-  'Full/Other': '#16a34a',
-  '2-Way/Other':'#d97706',
-}
-
 export interface GraphInput {
   routing: RoutingConfig
   tunnels: Record<string, Tunnel>
   wireguard: Record<string, WgIface>
   hostname: string
+  bgpPeers: BGPPeerGroup[]
   ospfNeighbors: OSPFNeighbor[]
   vrrpInstances: VRRPInstanceStatus[]
   kernelRoutes: KernelRoute[]
   vrfDeclarations: Record<string, VrfDeclarationsShape>
-  selectedProto: string | null
+  selectedNodeId: string | null
 }
 
-export function buildGraph({ routing, tunnels, wireguard, hostname, ospfNeighbors, vrrpInstances, kernelRoutes, vrfDeclarations, selectedProto }: GraphInput): BuildGraphShape {
+export function buildGraph({ routing, tunnels, wireguard, hostname, bgpPeers, ospfNeighbors, vrrpInstances, kernelRoutes, vrfDeclarations, selectedNodeId }: GraphInput): BuildGraphShape {
   const nodes: Node[] = []
   const edges: Edge[] = []
 
   const push = (n: Node) => nodes.push(n)
-  const sel  = (id: string) => id === selectedProto
+  const sel  = (id: string) => id === selectedNodeId
 
   function connect(id: string, src: SrcShape, dst: DstShape, extra: Partial<Edge> = {}) {
     const sep = id.indexOf(':')
@@ -111,14 +100,14 @@ export function buildGraph({ routing, tunnels, wireguard, hostname, ospfNeighbor
       position: routesPos,
       style: { ...S.static, outline: sel('static') ? '2px solid white' : 'none', outlineOffset: 2, cursor: 'pointer' },
     })
-    connect('router:static', routerPos, routesPos, { style: { stroke: '#16a34a' } })
+    connect('router:static', routerPos, routesPos, { style: { stroke: TOPO.static } })
 
     const cols = Math.min(routeItems.length, 5)
     const spacing = 200
     const startX = RX - ((cols - 1) * spacing) / 2
     routeItems.forEach((r, i) => {
       const childPos = { x: startX + (i % cols) * spacing, y: RY - 390 - Math.floor(i / cols) * 90 }
-      const routeProtoColor = r.proto ? protoColor(r.proto) : '#16a34a'
+      const routeProtoColor = r.proto ? protoColor(r.proto) : TOPO.static
       push({
         id: r.id,
         type: 'group',
@@ -130,7 +119,7 @@ export function buildGraph({ routing, tunnels, wireguard, hostname, ospfNeighbor
               {r.dev && !r.via && <div className="opacity-80 text-[10px]">dev {r.dev}</div>}
               {r.proto && (
                 <div className="mt-0.5">
-                  <span className="inline-block px-1 py-0.5 rounded text-white text-[9px]" style={{ background: routeProtoColor }}>{r.proto}</span>
+                  <span className="inline-block px-1 py-0.5 rounded text-[9px]" style={{ background: routeProtoColor, color: ON_COLOR }}>{r.proto}</span>
                 </div>
               )}
             </div>
@@ -142,7 +131,7 @@ export function buildGraph({ routing, tunnels, wireguard, hostname, ospfNeighbor
         position: childPos,
         style: { ...S.static, outline: sel(r.id) ? '2px solid white' : 'none', outlineOffset: 2 },
       })
-      connect(`static:${r.id}`, routesPos, childPos, { style: { stroke: '#16a34a', opacity: 0.6 } })
+      connect(`static:${r.id}`, routesPos, childPos, { style: { stroke: TOPO.static, opacity: 0.6 } })
     })
   }
 
@@ -169,7 +158,6 @@ export function buildGraph({ routing, tunnels, wireguard, hostname, ospfNeighbor
   const RIGHT_SLOT_H = 300
   const rightHubY = (i: number) => RY + (i - (rightSlots.length - 1) / 2) * RIGHT_SLOT_H
 
-  const bgpNeighbors = routing.bgp?.neighbors ?? []
   if (routing.bgp) {
     const bgpIdx = leftSlots.indexOf('bgp')
     const bgpPos = { x: LEFT_HUB_X, y: leftHubY(bgpIdx) }
@@ -180,32 +168,46 @@ export function buildGraph({ routing, tunnels, wireguard, hostname, ospfNeighbor
       position: bgpPos,
       style: { ...S.bgp, outline: sel('bgp') ? '2px solid white' : 'none', outlineOffset: 2, cursor: 'pointer' },
     })
-    connect('bgp:router', bgpPos, routerPos, { animated: true, style: { stroke: '#2563eb' }, label: 'BGP', labelStyle: { fill: '#2563eb', fontSize: 10 } })
+    connect('bgp:router', bgpPos, routerPos, { animated: true, style: { stroke: TOPO.bgp }, label: 'BGP', labelStyle: { fill: TOPO.bgp, fontSize: 10 } })
 
-    const nSpacing = 90
-    const nStartY = bgpPos.y - ((bgpNeighbors.length - 1) * nSpacing) / 2
-    bgpNeighbors.forEach((n, i) => {
-      const id = `bgp-${n.address}`
+    const nSpacing = 100
+    const nStartY = bgpPos.y - ((bgpPeers.length - 1) * nSpacing) / 2
+    bgpPeers.forEach((peer, i) => {
       const peerPos = { x: LEFT_LEAF_X, y: nStartY + i * nSpacing }
+      const health = peerHealth(peer)
+      const single = peer.sessions.length === 1 ? peer.sessions[0].neighbor : null
+      const asns = peer.asns.map((a) => `AS${a}`).join(', ')
+      const links = peer.ifaces.length > 1 ? `${peer.ifaces.length} tunnels` : peer.ifaces[0]
       push({
-        id,
+        id: peer.id,
         type: 'group',
         data: {
           label: (
             <div className="text-center leading-tight">
-              <div className="font-bold font-mono text-[11px]">{n.address}</div>
-              <div className="opacity-80 text-[10px]">AS{n.remote_asn}</div>
-              {n.description && <div className="opacity-60 text-[10px]">{n.description}</div>}
+              <div className={single && single.address === peer.name ? 'font-bold font-mono text-[11px]' : 'font-bold'}>{peer.name}</div>
+              {single && single.address !== peer.name && <div className="font-mono opacity-80 text-[10px]">{single.address}</div>}
+              <div className="opacity-80 text-[10px]">{[asns, links].filter(Boolean).join(' · ')}</div>
+              {health.known && <div className="text-[10px] font-semibold">{health.up}/{health.total} up</div>}
             </div>
           ),
           style: 'bgp',
-          selected: sel(id),
-          nodeTitle: `BGP ${n.address} / AS${n.remote_asn}`,
+          selected: sel(peer.id),
+          nodeTitle: `BGP ${peer.name}`,
         },
         position: peerPos,
-        style: { ...S.bgp, outline: sel(id) ? '2px solid white' : 'none', outlineOffset: 2 },
+        style: { ...S.bgp, outline: sel(peer.id) ? '2px solid white' : 'none', outlineOffset: 2 },
       })
-      connect(`bgp:${id}`, bgpPos, peerPos, { animated: true, style: { stroke: '#2563eb', opacity: 0.7 } })
+      const tunnels = peerTunnels(peer)
+      const gap = Math.min(8, 40 / tunnels.length)
+      tunnels.forEach((t, ti) => {
+        connect(`bgp:${peer.id}`, bgpPos, peerPos, {
+          id: `bgp:${peer.id}:${t.iface ?? ''}`,
+          type: 'parallel',
+          data: { offset: (ti - (tunnels.length - 1) / 2) * gap },
+          animated: tunnels.length === 1 && t.health.up > 0,
+          style: { stroke: t.health.known ? t.health.color : TOPO.bgp, strokeWidth: 1.5 },
+        })
+      })
     })
   }
 
@@ -220,7 +222,7 @@ export function buildGraph({ routing, tunnels, wireguard, hostname, ospfNeighbor
       position: ospfPos,
       style: { ...S.ospf, outline: sel('ospf') ? '2px solid white' : 'none', outlineOffset: 2, cursor: 'pointer' },
     })
-    connect('ospf:router', ospfPos, routerPos, { label: 'OSPF', style: { stroke: '#9333ea' }, labelStyle: { fill: '#9333ea', fontSize: 10 } })
+    connect('ospf:router', ospfPos, routerPos, { label: 'OSPF', style: { stroke: TOPO.ospf }, labelStyle: { fill: TOPO.ospf, fontSize: 10 } })
 
     const neighborsByArea: Record<string, OSPFNeighbor[]> = {}
     for (const n of ospfNeighbors) {
@@ -262,14 +264,14 @@ export function buildGraph({ routing, tunnels, wireguard, hostname, ospfNeighbor
         position: areaPos,
         style: { ...S.ospf, outline: sel(areaId) ? '2px solid white' : 'none', outlineOffset: 2, cursor: 'pointer' },
       })
-      connect(`${areaId}:ospf`, areaPos, ospfPos, { style: { stroke: '#9333ea', opacity: 0.7 } })
+      connect(`${areaId}:ospf`, areaPos, ospfPos, { style: { stroke: TOPO.ospf, opacity: 0.7 } })
 
       const group = neighborsByArea[a.id] ?? []
       const nSpacing = 70
       const nStartY = areaPos.y - ((group.length - 1) * nSpacing) / 2
       group.forEach((n, nIdx) => {
         const nid = `ospfn-${n.neighbor_id}`
-        const stateColor = OSPF_STATE_COLOR[n.state] ?? '#6b7280'
+        const stateColor = OSPF_STATE_COLOR[n.state] ?? STATE.unknown
         const nbrPos = { x: LEFT_NBR_X, y: nStartY + nIdx * nSpacing }
         push({
           id: nid,
@@ -304,7 +306,7 @@ export function buildGraph({ routing, tunnels, wireguard, hostname, ospfNeighbor
       position: anycastPos,
       style: { ...S.anycast, outline: sel('anycast') ? '2px solid white' : 'none', outlineOffset: 2, cursor: 'pointer' },
     })
-    connect('anycast:router', anycastPos, routerPos, { label: 'anycast', style: { stroke: '#ea580c' }, labelStyle: { fill: '#ea580c', fontSize: 10 } })
+    connect('anycast:router', anycastPos, routerPos, { label: 'anycast', style: { stroke: TOPO.anycast }, labelStyle: { fill: TOPO.anycast, fontSize: 10 } })
 
     const svcSpacing = 95
     const svcStartY = anycastPos.y - ((services.length - 1) * svcSpacing) / 2
@@ -331,7 +333,7 @@ export function buildGraph({ routing, tunnels, wireguard, hostname, ospfNeighbor
         position: svcPos,
         style: { ...S.anycast, outline: sel(id) ? '2px solid white' : 'none', outlineOffset: 2 },
       })
-      connect(`${id}:anycast`, svcPos, anycastPos, { style: { stroke: '#ea580c', opacity: 0.6 } })
+      connect(`${id}:anycast`, svcPos, anycastPos, { style: { stroke: TOPO.anycast, opacity: 0.6 } })
     })
   }
 
@@ -345,14 +347,14 @@ export function buildGraph({ routing, tunnels, wireguard, hostname, ospfNeighbor
       position: vrrpGroupPos,
       style: { ...S.vrrp, outline: sel('vrrp') ? '2px solid white' : 'none', outlineOffset: 2, cursor: 'pointer' },
     })
-    connect('router:vrrp', routerPos, vrrpGroupPos, { label: 'VRRP', style: { stroke: '#0f766e' }, labelStyle: { fill: '#0f766e', fontSize: 10 } })
+    connect('router:vrrp', routerPos, vrrpGroupPos, { label: 'VRRP', style: { stroke: TOPO.vrrp }, labelStyle: { fill: TOPO.vrrp, fontSize: 10 } })
 
     const instSpacing = 120
     const instStartY = vrrpGroupPos.y - ((vrrpInstances.length - 1) * instSpacing) / 2
     vrrpInstances.forEach((inst, iIdx) => {
       const instKey = inst.name ?? `VI_${inst.interface}_${inst.id}`
       const instId = `vrrp-${inst.interface}-${inst.id}`
-      const stateColor = VRRP_STATE_COLOR[inst.state] ?? '#6b7280'
+      const stateColor = VRRP_STATE_COLOR[inst.state] ?? STATE.unknown
       const instPos = { x: RIGHT_LEAF_X, y: instStartY + iIdx * instSpacing }
       push({
         id: instId,
@@ -373,7 +375,7 @@ export function buildGraph({ routing, tunnels, wireguard, hostname, ospfNeighbor
           nodeTitle: `${instKey} · ${inst.state}`,
         },
         position: instPos,
-        style: { background: stateColor, color: '#fff', border: 'none', borderRadius: 6, padding: '6px 14px', fontSize: 11, width: 'max-content', outline: sel(instId) ? '2px solid white' : 'none', outlineOffset: 2 },
+        style: { background: stateColor, color: ON_COLOR, border: 'none', borderRadius: 6, padding: '6px 14px', fontSize: 11, width: 'max-content', outline: sel(instId) ? '2px solid white' : 'none', outlineOffset: 2 },
       })
       connect(`${instId}:vrrp`, instPos, vrrpGroupPos, { style: { stroke: stateColor, opacity: 0.7 } })
 
@@ -400,7 +402,7 @@ export function buildGraph({ routing, tunnels, wireguard, hostname, ospfNeighbor
           position: peerPos,
           style: S.vrrp,
         })
-        connect(`${peerId}:${instId}`, peerPos, instPos, { animated: true, style: { stroke: '#0f766e', opacity: 0.7 } })
+        connect(`${peerId}:${instId}`, peerPos, instPos, { animated: true, style: { stroke: TOPO.vrrp, opacity: 0.7 } })
       })
     })
   }
@@ -415,7 +417,7 @@ export function buildGraph({ routing, tunnels, wireguard, hostname, ospfNeighbor
       position: ospf6Pos,
       style: { ...S.ospf6, outline: sel('ospf6') ? '2px solid white' : 'none', outlineOffset: 2, cursor: 'pointer' },
     })
-    connect('ospf6:router', ospf6Pos, routerPos, { label: 'OSPFv3', style: { stroke: '#0d9488' }, labelStyle: { fill: '#0d9488', fontSize: 10 } })
+    connect('ospf6:router', ospf6Pos, routerPos, { label: 'OSPFv3', style: { stroke: TOPO.ospf6 }, labelStyle: { fill: TOPO.ospf6, fontSize: 10 } })
 
     const ospf6Areas = routing.ospf6.areas ?? []
     const areaSpacing = 110
@@ -443,7 +445,7 @@ export function buildGraph({ routing, tunnels, wireguard, hostname, ospfNeighbor
         position: areaPos,
         style: { ...S.ospf6, outline: sel(areaId) ? '2px solid white' : 'none', outlineOffset: 2 },
       })
-      connect(`${areaId}:ospf6`, areaPos, ospf6Pos, { style: { stroke: '#0d9488', opacity: 0.7 } })
+      connect(`${areaId}:ospf6`, areaPos, ospf6Pos, { style: { stroke: TOPO.ospf6, opacity: 0.7 } })
     })
   }
 
@@ -457,7 +459,7 @@ export function buildGraph({ routing, tunnels, wireguard, hostname, ospfNeighbor
       position: vrfHubPos,
       style: { ...S.vrf, outline: sel('vrf') ? '2px solid white' : 'none', outlineOffset: 2, cursor: 'pointer' },
     })
-    connect('router:vrf', routerPos, vrfHubPos, { label: 'VRF', style: { stroke: '#b45309' }, labelStyle: { fill: '#b45309', fontSize: 10 } })
+    connect('router:vrf', routerPos, vrfHubPos, { label: 'VRF', style: { stroke: TOPO.vrf }, labelStyle: { fill: TOPO.vrf, fontSize: 10 } })
 
     const vrfSpacing = 110
     const vrfStartY = vrfHubPos.y - ((vrfEntries.length - 1) * vrfSpacing) / 2
@@ -488,15 +490,16 @@ export function buildGraph({ routing, tunnels, wireguard, hostname, ospfNeighbor
         position: vrfPos,
         style: { ...S.vrf, outline: sel(vrfNodeId) ? '2px solid white' : 'none', outlineOffset: 2 },
       })
-      connect(`${vrfNodeId}:vrf`, vrfPos, vrfHubPos, { style: { stroke: '#b45309', opacity: 0.7 } })
+      connect(`${vrfNodeId}:vrf`, vrfPos, vrfHubPos, { style: { stroke: TOPO.vrf, opacity: 0.7 } })
     })
   }
 
   const tunnelEntries = Object.entries(tunnels ?? {}).slice(0, 6)
-  const wgEntries     = Object.entries(wireguard ?? {}).slice(0, 6)
+  const peerIfaces    = new Set(bgpPeers.flatMap((p) => p.ifaces))
+  const wgEntries     = Object.entries(wireguard ?? {}).filter(([n]) => !peerIfaces.has(n)).slice(0, 6)
   const bottomItems = [
     ...tunnelEntries.map(([n, t]) => ({
-      id: `tunnel-${n}`, styleKey: 'tunnel', edgeColor: '#0891b2', edgeLabel: t.mode,
+      id: `tunnel-${n}`, styleKey: 'tunnel', edgeColor: TOPO.tunnel, edgeLabel: t.mode,
       nodeTitle: `Tunnel ${n}`,
       label: (
         <div className="text-center leading-tight">
@@ -507,7 +510,7 @@ export function buildGraph({ routing, tunnels, wireguard, hostname, ospfNeighbor
       ),
     })),
     ...wgEntries.map(([n, w]) => ({
-      id: `wg-${n}`, styleKey: 'wireguard', edgeColor: '#4f46e5', edgeLabel: 'WireGuard',
+      id: `wg-${n}`, styleKey: 'wireguard', edgeColor: TOPO.wireguard, edgeLabel: 'WireGuard',
       nodeTitle: `WireGuard ${n}`,
       label: (
         <div className="text-center leading-tight">

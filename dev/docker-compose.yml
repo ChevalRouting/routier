@@ -60,6 +60,16 @@ services:
         ipv4_address: 10.80.0.12
         mac_address: "02:42:0a:50:00:12"
 
+  fake-switch:
+    build:
+      context: ..
+      dockerfile: dev/fake-routeros/Dockerfile
+    image: routier-fake-routeros:latest
+    hostname: fake-switch
+    restart: unless-stopped
+    networks:
+      mgmt: {}
+
 networks:
   mgmt:
     driver: bridge

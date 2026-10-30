@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -26,16 +27,25 @@ const (
 )
 
 func newSetupCommand() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "setup",
 		Short: "interactive disk installer (LVM+xfs, GRUB EFI, reboot)",
 		RunE:  runSetup,
 	}
+	cmd.Flags().BoolP("yes", "y", false, "assume yes: wipe the target disk without prompting")
+	cmd.Flags().String("disk", "", "install non-interactively to this disk, with DHCP on every interface")
+	cmd.Flags().String("hostname", "routier", "hostname of the installed system")
+	cmd.Flags().String("timezone", "UTC", "timezone of the installed system")
+	cmd.Flags().Bool("password-stdin", false, "read the admin password of the installed system from stdin")
+	cmd.Flags().Bool("no-reboot", false, "do not reboot once the installation is complete")
+
+	return cmd
 }
 
 type installer struct {
-	tty     *os.File
-	scanner *bufio.Scanner
+	tty       io.Writer
+	scanner   *bufio.Scanner
+	assumeYes bool
 }
 
 func (s *installer) msg(format string, args ...any) {
@@ -54,6 +64,10 @@ func (s *installer) ask(prompt, def string) string {
 }
 
 func (s *installer) confirm(prompt string) bool {
+	if s.assumeYes {
+		return true
+	}
+
 	_, _ = fmt.Fprintf(s.tty, "%s [y/N] ", prompt)
 	if s.scanner.Scan() {
 		r := strings.TrimSpace(s.scanner.Text())
@@ -167,7 +181,7 @@ func bootstrapPackages() []string {
 		"routier", "routier-openrc", "doas", "openssl",
 	}
 
-	pkgs = append(pkgs, worldPackages("/etc/apk/world")...)
+	pkgs = append(pkgs, appliancePackages()...)
 
 	seen := make(map[string]struct{}, len(pkgs))
 	out := pkgs[:0]
@@ -181,6 +195,14 @@ func bootstrapPackages() []string {
 	}
 
 	return out
+}
+
+func appliancePackages() []string {
+	if pkgs := worldPackages("/etc/routier/world"); len(pkgs) > 0 {
+		return pkgs
+	}
+
+	return worldPackages("/etc/apk/world")
 }
 
 func worldPackages(path string) []string {
@@ -199,9 +221,29 @@ func worldPackages(path string) []string {
 	return out
 }
 
-func runSetup(_ *cobra.Command, _ []string) error {
+type setupOptions struct {
+	disk     string
+	hostname string
+	timezone string
+	password string
+	ifaces   map[string]*config.Interface
+	gateway  string
+	noReboot bool
+}
+
+func runSetup(cmd *cobra.Command, _ []string) error {
 	if os.Geteuid() != 0 {
 		return fmt.Errorf("must be run as root")
+	}
+
+	opts, err := setupOptionsFromFlags(cmd)
+	if err != nil {
+		return err
+	}
+
+	if opts.disk != "" {
+		s := &installer{tty: os.Stdout, scanner: bufio.NewScanner(strings.NewReader("")), assumeYes: true}
+		return s.install(opts)
 	}
 
 	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
@@ -211,27 +253,82 @@ func runSetup(_ *cobra.Command, _ []string) error {
 
 	defer func(action func() error) { _ = action() }(tty.Close)
 
-	s := &installer{tty: tty, scanner: bufio.NewScanner(tty)}
+	assumeYes, _ := cmd.Flags().GetBool("yes")
+	s := &installer{tty: tty, scanner: bufio.NewScanner(tty), assumeYes: assumeYes}
 
 	s.msg("Routier installer")
 
-	hostname := "routier"
-
 	_, _ = fmt.Fprintln(s.tty, "Common timezones: UTC, America/New_York, America/Chicago, America/Los_Angeles,")
 	_, _ = fmt.Fprintln(s.tty, "  Europe/London, Europe/Paris, Europe/Berlin, Asia/Tokyo, Asia/Shanghai")
-	timezone := s.ask("Timezone [UTC]: ", "UTC")
-	if _, err := os.Stat("/usr/share/zoneinfo/" + timezone); err != nil {
-		return fmt.Errorf("unknown timezone: %s (check /usr/share/zoneinfo/)", timezone)
+	opts.timezone = s.ask("Timezone [UTC]: ", "UTC")
+	if err := checkTimezone(opts.timezone); err != nil {
+		return err
 	}
 
-	ifaces, gateway := s.askInterfaces(usableNICs())
+	opts.ifaces, opts.gateway = s.askInterfaces(usableNICs())
 
 	s.msg("Available disks:")
 	_ = s.run("lsblk", "-d", "-o", "NAME,SIZE,MODEL")
 
 	defaultDisk := firstSDDisk()
-	disk := s.ask(fmt.Sprintf("Disk to install to [%s]: ", defaultDisk), defaultDisk)
+	opts.disk = s.ask(fmt.Sprintf("Disk to install to [%s]: ", defaultDisk), defaultDisk)
+	if err := checkDisk(opts.disk); err != nil {
+		return err
+	}
 
+	diskSize, _ := s.output("lsblk", "-d", "-n", "-o", "SIZE", opts.disk)
+	_, _ = fmt.Fprintf(s.tty, "\n\033[1;31mWARNING:\033[0m all data on %s (%s) will be permanently erased.\n", opts.disk, diskSize)
+	if !s.confirm("Continue?") {
+		return nil
+	}
+
+	return s.install(opts)
+}
+
+func setupOptionsFromFlags(cmd *cobra.Command) (setupOptions, error) {
+	var opts setupOptions
+	opts.disk, _ = cmd.Flags().GetString("disk")
+	opts.hostname, _ = cmd.Flags().GetString("hostname")
+	opts.timezone, _ = cmd.Flags().GetString("timezone")
+	opts.noReboot, _ = cmd.Flags().GetBool("no-reboot")
+
+	if fromStdin, _ := cmd.Flags().GetBool("password-stdin"); fromStdin {
+		line, err := bufio.NewReader(os.Stdin).ReadString('\n')
+		if err != nil && line == "" {
+			return opts, fmt.Errorf("read password from stdin: %w", err)
+		}
+
+		opts.password = strings.TrimRight(line, "\r\n")
+		if opts.password == "" {
+			return opts, fmt.Errorf("empty password on stdin")
+		}
+	}
+
+	if opts.disk == "" {
+		return opts, nil
+	}
+
+	if err := checkTimezone(opts.timezone); err != nil {
+		return opts, err
+	}
+
+	if err := checkDisk(opts.disk); err != nil {
+		return opts, err
+	}
+
+	opts.ifaces = dhcpInterfaces(usableNICs())
+	return opts, nil
+}
+
+func checkTimezone(timezone string) error {
+	if _, err := os.Stat("/usr/share/zoneinfo/" + timezone); err != nil {
+		return fmt.Errorf("unknown timezone: %s (check /usr/share/zoneinfo/)", timezone)
+	}
+
+	return nil
+}
+
+func checkDisk(disk string) error {
 	fi, err := os.Stat(disk)
 	if err != nil {
 		return fmt.Errorf("disk not found: %s", disk)
@@ -241,48 +338,125 @@ func runSetup(_ *cobra.Command, _ []string) error {
 		return fmt.Errorf("not a block device: %s", disk)
 	}
 
-	diskSize, _ := s.output("lsblk", "-d", "-n", "-o", "SIZE", disk)
-	_, _ = fmt.Fprintf(s.tty, "\n\033[1;31mWARNING:\033[0m all data on %s (%s) will be permanently erased.\n", disk, diskSize)
-	if !s.confirm("Continue?") {
-		return nil
+	return nil
+}
+
+func dhcpInterfaces(nics []string) map[string]*config.Interface {
+	ifaces := make(map[string]*config.Interface, len(nics))
+	for _, nic := range nics {
+		ifaces[nic] = &config.Interface{Select: nic, Addresses: []string{"dhcp"}}
+	}
+
+	return ifaces
+}
+
+func (s *installer) install(opts setupOptions) error {
+	hostname := opts.hostname
+	if hostname == "" {
+		hostname = "routier"
+	}
+
+	layout, err := s.partition(opts.disk)
+	if err != nil {
+		return err
+	}
+
+	swapMiB := swapSizeMiB()
+	if err := s.createVolumes(layout, swapMiB); err != nil {
+		return err
+	}
+
+	if err := s.formatVolumes(layout, swapMiB); err != nil {
+		return err
+	}
+
+	if err := s.mountTarget(layout); err != nil {
+		return err
+	}
+
+	arch, err := s.installPackages()
+	if err != nil {
+		return err
+	}
+
+	s.msg("Configuring...")
+	if err := writeSystemIdentity(hostname, opts.timezone); err != nil {
+		return err
+	}
+
+	if err := s.writeFstab(layout, swapMiB); err != nil {
+		return err
+	}
+
+	if err := writeInitSystem(); err != nil {
+		return err
+	}
+
+	if err := s.writeRoutierConfig(opts, hostname); err != nil {
+		return err
+	}
+
+	if err := s.createRoutierUser(opts); err != nil {
+		return err
+	}
+
+	flavor, err := s.buildInitramfs()
+	if err != nil {
+		return err
+	}
+
+	if err := s.installBootloader(arch, flavor); err != nil {
+		return err
+	}
+
+	s.offerUpgrade()
+	s.finish(opts, swapMiB)
+	return nil
+}
+
+type diskLayout struct {
+	efi string
+	lvm string
+}
+
+func (s *installer) partition(disk string) (diskLayout, error) {
+	s.msg("Wiping %s...", disk)
+	if err := s.wipeDisk(disk); err != nil {
+		return diskLayout{}, fmt.Errorf("wipe disk: %w", err)
 	}
 
 	s.msg("Partitioning %s...", disk)
-	if err := s.run("wipefs", "-af", disk); err != nil {
-		return fmt.Errorf("wipefs: %w", err)
-	}
-
 	if err := s.run("parted", "-s", disk,
 		"mklabel", "gpt",
 		"mkpart", "ESP", "fat32", "1MiB", "513MiB",
 		"set", "1", "esp", "on",
 		"mkpart", "LVM", "513MiB", "100%",
 	); err != nil {
-		return fmt.Errorf("parted: %w", err)
+		return diskLayout{}, fmt.Errorf("parted: %w", err)
 	}
 
 	_ = s.run("partprobe", disk)
 	_ = exec.Command("mdev", "-s").Run()
 
-	var part1, part2 string
+	layout := diskLayout{efi: disk + "1", lvm: disk + "2"}
 	if strings.Contains(disk, "nvme") || strings.Contains(disk, "mmcblk") {
-		part1, part2 = disk+"p1", disk+"p2"
-	} else {
-		part1, part2 = disk+"1", disk+"2"
+		layout = diskLayout{efi: disk + "p1", lvm: disk + "p2"}
 	}
 
-	if err := waitForDevice(part1, 10); err != nil {
-		return fmt.Errorf("partition %s did not appear: %w", part1, err)
+	if err := waitForDevice(layout.efi, 10); err != nil {
+		return layout, fmt.Errorf("partition %s did not appear: %w", layout.efi, err)
 	}
 
-	swapMiB := swapSizeMiB()
+	return layout, nil
+}
 
+func (s *installer) createVolumes(layout diskLayout, swapMiB int64) error {
 	s.msg("Creating LVM (etc-routier %s, swap %dMiB, var-routier %s, root remainder)...", etcRoutierSize, swapMiB, varLibRoutierSize)
-	if err := s.run("pvcreate", "-ff", "-y", part2); err != nil {
+	if err := s.run("pvcreate", "-ff", "-y", layout.lvm); err != nil {
 		return fmt.Errorf("pvcreate: %w", err)
 	}
 
-	if err := s.run("vgcreate", "routier", part2); err != nil {
+	if err := s.run("vgcreate", "routier", layout.lvm); err != nil {
 		return fmt.Errorf("vgcreate: %w", err)
 	}
 
@@ -304,8 +478,12 @@ func runSetup(_ *cobra.Command, _ []string) error {
 		return fmt.Errorf("lvcreate root: %w", err)
 	}
 
+	return nil
+}
+
+func (s *installer) formatVolumes(layout diskLayout, swapMiB int64) error {
 	s.msg("Formatting filesystems...")
-	if err := s.run("mkfs.fat", "-F32", "-n", "EFI", part1); err != nil {
+	if err := s.run("mkfs.fat", "-F32", "-n", "EFI", layout.efi); err != nil {
 		return fmt.Errorf("mkfs.fat: %w", err)
 	}
 
@@ -333,6 +511,10 @@ func runSetup(_ *cobra.Command, _ []string) error {
 		_ = s.run("swapon", "/dev/routier/swap")
 	}
 
+	return nil
+}
+
+func (s *installer) mountTarget(layout diskLayout) error {
 	s.msg("Mounting target...")
 	if err := s.run("mount", "/dev/routier/root", "/mnt"); err != nil {
 		return fmt.Errorf("mount root: %w", err)
@@ -342,7 +524,7 @@ func runSetup(_ *cobra.Command, _ []string) error {
 		return err
 	}
 
-	if err := s.run("mount", part1, "/mnt/boot/efi"); err != nil {
+	if err := s.run("mount", layout.efi, "/mnt/boot/efi"); err != nil {
 		return fmt.Errorf("mount efi: %w", err)
 	}
 
@@ -363,9 +545,13 @@ func runSetup(_ *cobra.Command, _ []string) error {
 		}
 	}
 
+	return nil
+}
+
+func (s *installer) installPackages() (string, error) {
 	s.msg("Installing Alpine + Routier...")
 	if err := os.MkdirAll("/mnt/etc/apk/keys", 0755); err != nil {
-		return err
+		return "", err
 	}
 
 	if keyEntries, err := os.ReadDir("/etc/apk/keys"); err == nil {
@@ -377,11 +563,11 @@ func runSetup(_ *cobra.Command, _ []string) error {
 
 	arch, err := s.output("apk", "--print-arch")
 	if err != nil {
-		return fmt.Errorf("apk --print-arch: %w", err)
+		return "", fmt.Errorf("apk --print-arch: %w", err)
 	}
 
 	if arch != "aarch64" && arch != "x86_64" {
-		return fmt.Errorf("unsupported arch: %s", arch)
+		return "", fmt.Errorf("unsupported arch: %s", arch)
 	}
 
 	reposRaw, _ := os.ReadFile("/etc/apk/repositories")
@@ -410,11 +596,13 @@ func runSetup(_ *cobra.Command, _ []string) error {
 	}, bootstrapPackages()...)
 
 	if err := s.run("apk", args...); err != nil {
-		return fmt.Errorf("bootstrap apk: %w", err)
+		return "", fmt.Errorf("bootstrap apk: %w", err)
 	}
 
-	s.msg("Configuring...")
+	return arch, nil
+}
 
+func writeSystemIdentity(hostname, timezone string) error {
 	if err := os.WriteFile("/mnt/etc/hostname", []byte(hostname+"\n"), 0644); err != nil {
 		return err
 	}
@@ -437,12 +625,16 @@ func runSetup(_ *cobra.Command, _ []string) error {
 		return err
 	}
 
+	return nil
+}
+
+func (s *installer) writeFstab(layout diskLayout, swapMiB int64) error {
 	rootUUID, err := s.deviceUUID("/dev/routier/root")
 	if err != nil {
 		return err
 	}
 
-	efiUUID, err := s.deviceUUID(part1)
+	efiUUID, err := s.deviceUUID(layout.efi)
 	if err != nil {
 		return err
 	}
@@ -465,10 +657,10 @@ func runSetup(_ *cobra.Command, _ []string) error {
 		fstab += "/dev/routier/swap none swap defaults 0 0\n"
 	}
 
-	if err := os.WriteFile("/mnt/etc/fstab", []byte(fstab), 0644); err != nil {
-		return err
-	}
+	return os.WriteFile("/mnt/etc/fstab", []byte(fstab), 0644)
+}
 
+func writeInitSystem() error {
 	if err := os.MkdirAll("/mnt/etc/mkinitfs", 0755); err != nil {
 		return err
 	}
@@ -513,6 +705,10 @@ func runSetup(_ *cobra.Command, _ []string) error {
 		}
 	}
 
+	return nil
+}
+
+func (s *installer) writeRoutierConfig(opts setupOptions, hostname string) error {
 	s.msg("Writing routier configuration...")
 	cfg, err := config.Default()
 	if err != nil {
@@ -520,13 +716,13 @@ func runSetup(_ *cobra.Command, _ []string) error {
 	}
 
 	cfg.Hostname = hostname
-	cfg.Interfaces = ifaces
-	if gateway != "" {
+	cfg.Interfaces = opts.ifaces
+	if opts.gateway != "" {
 		if cfg.Routing == nil {
 			cfg.Routing = &config.Routing{}
 		}
 
-		cfg.Routing.Static = append(cfg.Routing.Static, config.StaticRoute{Destination: "0.0.0.0/0", Via: gateway})
+		cfg.Routing.Static = append(cfg.Routing.Static, config.StaticRoute{Destination: "0.0.0.0/0", Via: opts.gateway})
 	}
 
 	cfgData, err := yaml.Marshal(cfg)
@@ -551,25 +747,40 @@ func runSetup(_ *cobra.Command, _ []string) error {
 		}
 	}
 
+	return nil
+}
+
+func (s *installer) createRoutierUser(opts setupOptions) error {
 	s.msg("Creating routier user...")
 	_ = s.run("chroot", "/mnt", "sh", "-c",
 		"id routier >/dev/null 2>&1 || adduser -D -s /bin/ash -h /home/routier routier")
 
+	password := opts.password
+	if password == "" {
+		password = firstbootPass
+	}
+
 	setPass := exec.Command("chroot", "/mnt", "chpasswd")
-	setPass.Stdin = strings.NewReader("routier:" + firstbootPass + "\n")
+	setPass.Stdin = strings.NewReader("routier:" + password + "\n")
 	setPass.Stdout = s.tty
 	setPass.Stderr = s.tty
 	if err := setPass.Run(); err != nil {
 		return fmt.Errorf("set routier password: %w", err)
 	}
 
-	if err := os.WriteFile("/mnt/var/lib/routier/ui-seed-password", []byte(firstbootPass+"\n"), 0600); err != nil {
-		return fmt.Errorf("write ui-seed-password: %w", err)
+	if opts.password == "" {
+		if err := os.WriteFile("/mnt/var/lib/routier/ui-seed-password", []byte(firstbootPass+"\n"), 0600); err != nil {
+			return fmt.Errorf("write ui-seed-password: %w", err)
+		}
 	}
 
+	return nil
+}
+
+func (s *installer) buildInitramfs() (string, error) {
 	s.msg("Building initramfs...")
 	if err := s.run("mount", "--bind", "/proc", "/mnt/proc"); err != nil {
-		return fmt.Errorf("bind /proc: %w", err)
+		return "", fmt.Errorf("bind /proc: %w", err)
 	}
 
 	modDirs, _ := os.ReadDir("/mnt/lib/modules")
@@ -582,7 +793,7 @@ func runSetup(_ *cobra.Command, _ []string) error {
 
 	sort.Strings(kvers)
 	if len(kvers) == 0 {
-		return fmt.Errorf("no kernel version found in /mnt/lib/modules")
+		return "", fmt.Errorf("no kernel version found in /mnt/lib/modules")
 	}
 
 	kver := kvers[len(kvers)-1]
@@ -592,12 +803,16 @@ func runSetup(_ *cobra.Command, _ []string) error {
 
 	if err := s.run("chroot", "/mnt", "mkinitfs", kver); err != nil {
 		_ = exec.Command("umount", "/mnt/proc").Run()
-		return fmt.Errorf("mkinitfs: %w", err)
+		return "", fmt.Errorf("mkinitfs: %w", err)
 	}
 
 	_ = os.Remove("/mnt/boot/vmlinuz")
 	_ = exec.Command("umount", "/mnt/proc").Run()
 
+	return flavor, nil
+}
+
+func (s *installer) installBootloader(arch, flavor string) error {
 	s.msg("Installing GRUB...")
 
 	grubTarget := map[string]string{"aarch64": "arm64-efi", "x86_64": "x86_64-efi"}[arch]
@@ -625,10 +840,14 @@ func runSetup(_ *cobra.Command, _ []string) error {
 		return err
 	}
 
-	if err := os.WriteFile("/mnt/boot/grub/grub.cfg", []byte(boot.GrubConfig(arch, flavor)), 0644); err != nil {
+	if err := os.WriteFile("/mnt/boot/grub/grub.cfg", []byte(boot.GrubConfig(arch, flavor, boot.DefaultRootArgs)), 0644); err != nil {
 		return err
 	}
 
+	return nil
+}
+
+func (s *installer) offerUpgrade() {
 	s.msg("Checking for an internet connection...")
 	if err := s.run("apk", "-p", "/mnt", "update"); err != nil {
 		_, _ = fmt.Fprintln(s.tty, "  No connection; keeping the packages shipped on the media.")
@@ -638,7 +857,9 @@ func runSetup(_ *cobra.Command, _ []string) error {
 			_, _ = fmt.Fprintf(s.tty, "  upgrade failed: %v\n", err)
 		}
 	}
+}
 
+func (s *installer) finish(opts setupOptions, swapMiB int64) {
 	_ = s.run("chroot", "/mnt", "passwd", "-l", "root")
 
 	s.msg("Unmounting...")
@@ -657,11 +878,9 @@ func runSetup(_ *cobra.Command, _ []string) error {
 	_ = exec.Command("vgchange", "-an", "routier").Run()
 
 	s.msg("Installation complete. Remove the installer media and reboot.")
-	if s.confirm("Reboot now?") {
+	if !opts.noReboot && s.confirm("Reboot now?") {
 		_ = syscall.Reboot(syscall.LINUX_REBOOT_CMD_RESTART)
 	}
-
-	return nil
 }
 
 func swapSizeMiB() int64 {
@@ -694,6 +913,109 @@ func swapSizeMiB() int64 {
 	}
 
 	return 0
+}
+
+func (s *installer) wipeDisk(disk string) error {
+	_ = s.run("swapoff", "-a")
+
+	mounts := mountpointsUnder(disk)
+	sort.Slice(mounts, func(i, j int) bool { return len(mounts[i]) > len(mounts[j]) })
+	for _, mp := range mounts {
+		_ = s.run("umount", "-R", "-f", mp)
+	}
+
+	for _, vg := range volumeGroupsOn(disk) {
+		_ = s.run("vgchange", "-an", vg)
+		_ = s.run("vgremove", "-f", "-y", vg)
+	}
+
+	for _, part := range devicePartitions(disk) {
+		_ = s.run("pvremove", "-ff", "-y", part)
+		_ = s.run("wipefs", "-af", part)
+	}
+
+	_ = exec.Command("dmsetup", "remove_all").Run()
+
+	if err := s.run("wipefs", "-af", disk); err != nil {
+		return fmt.Errorf("wipefs: %w", err)
+	}
+
+	_ = s.run("partprobe", disk)
+	_ = exec.Command("mdev", "-s").Run()
+
+	return nil
+}
+
+func mountpointsUnder(disk string) []string {
+	out, err := exec.Command("lsblk", "-nro", "MOUNTPOINT", disk).Output()
+	if err != nil {
+		return nil
+	}
+
+	var mps []string
+	seen := make(map[string]struct{})
+	for _, line := range strings.Split(string(out), "\n") {
+		mp := strings.TrimSpace(line)
+		if mp == "" || mp == "[SWAP]" {
+			continue
+		}
+
+		if _, ok := seen[mp]; ok {
+			continue
+		}
+
+		seen[mp] = struct{}{}
+		mps = append(mps, mp)
+	}
+
+	return mps
+}
+
+func devicePartitions(disk string) []string {
+	out, err := exec.Command("lsblk", "-nro", "NAME,TYPE", disk).Output()
+	if err != nil {
+		return nil
+	}
+
+	var parts []string
+	for _, line := range strings.Split(string(out), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 2 && fields[1] == "part" {
+			parts = append(parts, "/dev/"+fields[0])
+		}
+	}
+
+	return parts
+}
+
+func volumeGroupsOn(disk string) []string {
+	out, err := exec.Command("pvs", "--noheadings", "-o", "pv_name,vg_name").Output()
+	if err != nil {
+		return nil
+	}
+
+	var vgs []string
+	seen := make(map[string]struct{})
+	for _, line := range strings.Split(string(out), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			continue
+		}
+
+		if !strings.HasPrefix(fields[0], disk) {
+			continue
+		}
+
+		vg := fields[1]
+		if _, ok := seen[vg]; ok {
+			continue
+		}
+
+		seen[vg] = struct{}{}
+		vgs = append(vgs, vg)
+	}
+
+	return vgs
 }
 
 func waitForDevice(path string, attempts int) error {

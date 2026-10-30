@@ -24,7 +24,7 @@ func newRootCommand() *cobra.Command {
 		Version:           VERSION,
 		SilenceUsage:      true,
 		SilenceErrors:     true,
-		PersistentPreRunE: newRootCommandHandler,
+		PersistentPreRunE: prepareCommand,
 	}
 
 	rootFlags(root)
@@ -33,6 +33,9 @@ func newRootCommand() *cobra.Command {
 		newWriteMOTDCommand(),
 		newIssueCommand(),
 		newFirstbootCommand(),
+		newLiveCommand(),
+		newCloudCommand(),
+		newGrubConfigCommand(),
 		newBootHookCommand(),
 		newOnboardingCommand(),
 		newUpdateCommand(),
@@ -53,8 +56,8 @@ func newRootCommand() *cobra.Command {
 		newCollectProbesCommand(),
 		newPruneStatsCommand(),
 		newAnycastCommand(),
-		newSwitchoverCommand(),
-		newActivateCommand(),
+		newVRRPNotifyCommand(),
+		newVRRPSyncCommand(),
 		newBackupsCommand(),
 		newRestoreCommand(),
 		newHistoryCommand(),
@@ -66,6 +69,7 @@ func newRootCommand() *cobra.Command {
 		newDHCPCommand(),
 		newDNSCommand(),
 		newIpcalcCommand(),
+		newCibiCommand(),
 	)
 	if boot.IsLive() {
 		root.AddCommand(newSetupCommand())
@@ -78,7 +82,7 @@ func rootFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().StringVarP(&cli.LogLevel, "log-level", "v", "info", "log level (debug, info, warn, error)")
 }
 
-func newRootCommandHandler(cmd *cobra.Command, args []string) error {
+func prepareCommand(cmd *cobra.Command, args []string) error {
 	if err := validateConfig(validateLogLevel); err != nil {
 		return err
 	}

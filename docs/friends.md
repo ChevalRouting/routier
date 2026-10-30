@@ -181,3 +181,65 @@ cached data) fails with a clear error.
 Both the API/daemon apply path and `routier apply` resolve interpolation: the
 API uses the live in-memory cache, the CLI reads the persisted
 `friends_cache.json` (override with `--friends-cache`).
+
+## BGP policy import
+
+A friend's BGP prefix-lists and route-maps are imported into the local FRR
+configuration the same way firewall variables are: every friend's policy is
+rendered into `frr.conf` under a reserved per-friend namespace,
+`friends_<name>_<original>`, so it never collides with locally defined policy.
+The friend's config is taken from the friend cache, so import survives a brief
+outage of the peer.
+
+Reference an imported policy from a neighbor or address family by its namespaced
+name:
+
+```yaml
+routing:
+  bgp:
+    neighbors:
+      - address: 10.0.0.2
+        remote_asn: 65002
+        address_families:
+          ipv4-unicast:
+            route_map_in: friends_edge-b_CUSTOMERS
+            prefix_list_out: friends_edge-b_LOCAL
+```
+
+Cross-references inside an imported route-map are rewritten to the same
+namespace: a `match ip address prefix-list` and a `call` to another route-map
+resolve to the friend's imported copies. References to policy types that are not
+synced (as-path lists, community lists) are left unchanged and must exist
+locally. The `friends_` prefix is reserved: locally defined prefix-list and
+route-map names may not start with it.
+
+### Shared policy
+
+Marking a prefix-list or route-map as shared (`shared_prefix_lists` /
+`shared_route_maps`, or the Shared toggle in the UI) changes how friends import
+it: instead of the per-friend `friends_<name>_<original>` namespace it is
+imported under the common `friends_<original>` namespace, and same-named shared
+lists from multiple friends are merged into one. Reference a shared policy as
+`friends_<original>`:
+
+```yaml
+routing:
+  bgp:
+    prefix_lists:
+      BOGONS:
+        - { seq: 5, action: deny, prefix: 10.0.0.0/8, le: 32 }
+    shared_prefix_lists: [BOGONS]
+    neighbors:
+      - address: 10.0.0.2
+        remote_asn: 65002
+        address_families:
+          ipv4-unicast:
+            prefix_list_in: friends_BOGONS
+```
+
+The merge is optimistic: entries from all sharing friends are combined and
+sorted by sequence number, exact duplicates are dropped, and if two friends use
+the same sequence number the first friend (by name) wins rather than failing.
+Use non-overlapping sequence ranges across friends to keep both contributions.
+Cross-references inside a shared route-map resolve to `friends_<target>` when
+the target is itself shared, otherwise to the originating friend's namespace.

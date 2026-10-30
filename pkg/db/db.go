@@ -6,6 +6,8 @@ import (
 	"embed"
 	"fmt"
 	"io/fs"
+	"os"
+	"syscall"
 
 	"github.com/ChevalRouting/routier/pkg/db/generated"
 	"github.com/pressly/goose/v3"
@@ -37,7 +39,33 @@ func New(database *sql.DB) *DB {
 	return &DB{DB: database, queries: generated.New(database)}
 }
 
+func lockMigrations(path string) (func(), error) {
+	file, err := os.OpenFile(path+".lock", os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		return nil, fmt.Errorf("open migration lock: %w", err)
+	}
+
+	if err := syscall.Flock(int(file.Fd()), syscall.LOCK_EX); err != nil {
+		_ = file.Close()
+		return nil, fmt.Errorf("take migration lock: %w", err)
+	}
+
+	return func() { unlockMigrations(file) }, nil
+}
+
+func unlockMigrations(file *os.File) {
+	_ = syscall.Flock(int(file.Fd()), syscall.LOCK_UN)
+	_ = file.Close()
+}
+
 func InitDB(ctx context.Context, path string) (*DB, error) {
+	unlock, err := lockMigrations(path)
+	if err != nil {
+		return nil, err
+	}
+
+	defer unlock()
+
 	db, err := Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("open db: %w", err)

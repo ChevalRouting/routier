@@ -16,9 +16,10 @@ import (
 )
 
 type TemplateData struct {
+	DNSVRF string
 	*config.Config
-	SelfExe string
-	Friends map[string]friends.Vars
+	RoutierExe string
+	Friends    map[string]friends.Vars
 }
 
 type Option func(*TemplateData)
@@ -27,17 +28,17 @@ func WithFriends(f map[string]friends.Vars) Option {
 	return func(d *TemplateData) { d.Friends = f }
 }
 
-func selfExe() string {
+func routierExe() string {
 	exe, err := os.Executable()
 	if err != nil {
 		return "routier"
 	}
 
 	if resolved, err := filepath.EvalSymlinks(exe); err == nil {
-		return resolved
+		exe = resolved
 	}
 
-	return exe
+	return filepath.Join(filepath.Dir(exe), "routier")
 }
 
 //go:embed defaults
@@ -65,7 +66,7 @@ func All(cfg *config.Config, opts ...Option) ([]Output, error) {
 		return nil, err
 	}
 
-	data := TemplateData{Config: cfg, SelfExe: selfExe()}
+	data := TemplateData{Config: cfg, RoutierExe: routierExe()}
 	for _, o := range opts {
 		o(&data)
 	}
@@ -121,6 +122,12 @@ func All(cfg *config.Config, opts ...Option) ([]Output, error) {
 	}
 
 	out = append(out, dnsOut...)
+	vrfDNS, err := renderDNSVRFs(cfg, tpls[NamedConfName])
+	if err != nil {
+		return nil, err
+	}
+
+	out = append(out, vrfDNS...)
 	dhcpcdOut, err := renderDhcpcd(cfg)
 	if err != nil {
 		return nil, err
@@ -133,19 +140,25 @@ func All(cfg *config.Config, opts ...Option) ([]Output, error) {
 	}
 
 	out = append(out, lldpOut...)
+	switchOut, err := renderSwitches(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	out = append(out, switchOut...)
 	return out, nil
 }
 
 func collectTemplates() (map[string]string, error) {
 	tpls := make(map[string]string)
-	err := fs.WalkDir(embedded, "defaults", func(path string, d fs.DirEntry, err error) error { return collectTemplatesCallback(tpls, path, d, err) })
+	err := fs.WalkDir(embedded, "defaults", func(path string, d fs.DirEntry, err error) error { return readEmbeddedTemplate(tpls, path, d, err) })
 	if err != nil {
 		return nil, err
 	}
 
 	if info, e := os.Stat(UserDir); e == nil && info.IsDir() {
 		err = filepath.WalkDir(UserDir, func(path string, d fs.DirEntry, err error) error {
-			return collectTemplatesCallback2(tpls, path, d, err)
+			return readUserTemplate(tpls, path, d, err)
 		})
 		if err != nil {
 			return nil, err
@@ -217,6 +230,10 @@ func NameForDest(dest string) string {
 		return namedZonePfx + filepath.Base(dest)
 	}
 
+	if strings.HasPrefix(dest, SwitchArtifactDir) {
+		return SwitchArtifactPrefix + filepath.Base(dest)
+	}
+
 	return ""
 }
 
@@ -251,7 +268,7 @@ func destFor(name string) string {
 	return "/etc/routier/out/" + name
 }
 
-func collectTemplatesCallback(tpls map[string]string, path string, d fs.DirEntry, err error) error {
+func readEmbeddedTemplate(tpls map[string]string, path string, d fs.DirEntry, err error) error {
 	if err != nil || d.IsDir() {
 		return err
 	}
@@ -265,7 +282,7 @@ func collectTemplatesCallback(tpls map[string]string, path string, d fs.DirEntry
 	return nil
 }
 
-func collectTemplatesCallback2(tpls map[string]string, path string, d fs.DirEntry, err error) error {
+func readUserTemplate(tpls map[string]string, path string, d fs.DirEntry, err error) error {
 	if err != nil || d.IsDir() {
 		return err
 	}

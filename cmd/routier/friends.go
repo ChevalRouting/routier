@@ -50,7 +50,7 @@ func newFriendsCheckCommand(configPath *string) *cobra.Command {
 		Short: "force a health check and info refresh against a single friend",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return newFriendsCheckCommandCallback(configPath, cmd, args)
+			return runFriendsCheck(configPath, cmd, args)
 		},
 	}
 }
@@ -61,7 +61,7 @@ func newFriendsConfigCommand(configPath *string) *cobra.Command {
 		Short: "fetch and print a friend's live config",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return newFriendsConfigCommandCallback(configPath, cmd, args)
+			return runFriendsConfig(configPath, cmd, args)
 		},
 	}
 }
@@ -71,8 +71,8 @@ func newFriendsListCommand(configPath *string) *cobra.Command {
 		Use:   "list",
 		Short: "list configured friends",
 		Args:  cobra.NoArgs,
-		RunE: func(unusedArg1 *cobra.Command, unusedArg2 []string) error {
-			return newFriendsListCommandCallback(configPath, unusedArg1, unusedArg2)
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return runFriendsList(configPath)
 		},
 	}
 }
@@ -85,8 +85,8 @@ func newFriendsPreviewCommand(identityPath *string) *cobra.Command {
 		Use:   "preview",
 		Short: "contact a prospective friend and show its identity",
 		Args:  cobra.NoArgs,
-		RunE: func(unusedArg4 *cobra.Command, unusedArg5 []string) error {
-			return newFriendsPreviewCommandCallback(identityPath, url, token, tlsSkip, unusedArg4, unusedArg5)
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return runFriendsPreview(identityPath, url, token, tlsSkip)
 		},
 	}
 
@@ -105,8 +105,8 @@ func newFriendsAddCommand(configPath, identityPath *string) *cobra.Command {
 		Use:   "add",
 		Short: "register a friend (always succeeds; verify + pair afterwards)",
 		Args:  cobra.NoArgs,
-		RunE: func(unusedArg6 *cobra.Command, unusedArg7 []string) error {
-			return newFriendsAddCommandCallback(configPath, identityPath, name, url, token, tlsSkip, unusedArg6, unusedArg7)
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return runFriendsAdd(configPath, identityPath, name, url, token, tlsSkip)
 		},
 	}
 
@@ -125,8 +125,8 @@ func newFriendsRemoveCommand(configPath *string) *cobra.Command {
 		Use:   "remove <name>",
 		Short: "remove a friend",
 		Args:  cobra.ExactArgs(1),
-		RunE: func(unusedArg2 *cobra.Command, args []string) error {
-			return newFriendsRemoveCommandCallback(configPath, yes, unusedArg2, args)
+		RunE: func(_ *cobra.Command, args []string) error {
+			return runFriendsRemove(configPath, yes, args)
 		},
 	}
 
@@ -141,7 +141,7 @@ func newFriendsSyncCommand(configPath *string) *cobra.Command {
 		Short: "push HA (vrrp + conntrackd) config to friends and apply locally",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return newFriendsSyncCommandCallback(configPath, cmd, args)
+			return runFriendsSync(configPath, cmd, args)
 		},
 	}
 }
@@ -152,7 +152,7 @@ func newFriendsInterfacesCommand(configPath *string) *cobra.Command {
 		Short: "list a friend's interfaces and their addresses",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return newFriendsInterfacesCommandCallback(configPath, cmd, args)
+			return runFriendsInterfaces(configPath, cmd, args)
 		},
 	}
 }
@@ -166,7 +166,7 @@ func newFriendsWireguardCommand(configPath *string) *cobra.Command {
 		Short: "derive a link-only WireGuard tunnel to a friend",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return newFriendsWireguardCommandCallback(configPath, subnet, localIface, localAddr, friendIface, friendAddr, localPort, friendPort, cmd, args)
+			return runFriendsWireguard(configPath, subnet, localIface, localAddr, friendIface, friendAddr, localPort, friendPort, cmd, args)
 		},
 	}
 
@@ -190,7 +190,7 @@ func newFriendsUpdateCommand(configPath *string) *cobra.Command {
 		Short: "edit a friend's url, token, tls verification or enabled flag",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return newFriendsUpdateCommandCallback(configPath, url, token, tlsSkip, enabled, cmd, args)
+			return runFriendsUpdate(configPath, url, token, tlsSkip, enabled, cmd, args)
 		},
 	}
 
@@ -209,8 +209,8 @@ func newFriendsPairCommand(configPath, identityPath *string) *cobra.Command {
 		Use:   "pair <name>",
 		Short: "validate a friend's fingerprint and complete pairing",
 		Args:  cobra.ExactArgs(1),
-		RunE: func(unusedArg3 *cobra.Command, args []string) error {
-			return newFriendsPairCommandCallback(configPath, identityPath, expect, unusedArg3, args)
+		RunE: func(_ *cobra.Command, args []string) error {
+			return runFriendsPair(configPath, identityPath, expect, args)
 		},
 	}
 
@@ -219,7 +219,7 @@ func newFriendsPairCommand(configPath, identityPath *string) *cobra.Command {
 	return cmd
 }
 
-func newFriendsCheckCommandCallback(configPath *string, cmd *cobra.Command, args []string) error {
+func runFriendsCheck(configPath *string, cmd *cobra.Command, args []string) error {
 	cfg, err := config.Load(*configPath)
 	if err != nil {
 		return err
@@ -266,7 +266,7 @@ func newFriendsCheckCommandCallback(configPath *string, cmd *cobra.Command, args
 	return fmt.Errorf("friend %q is not reachable", st.Name)
 }
 
-func newFriendsConfigCommandCallback(configPath *string, cmd *cobra.Command, args []string) error {
+func runFriendsConfig(configPath *string, cmd *cobra.Command, args []string) error {
 	cfg, err := config.Load(*configPath)
 	if err != nil {
 		return err
@@ -294,7 +294,7 @@ func newFriendsConfigCommandCallback(configPath *string, cmd *cobra.Command, arg
 	return nil
 }
 
-func newFriendsListCommandCallback(configPath *string, _ *cobra.Command, _ []string) error {
+func runFriendsList(configPath *string) error {
 	cfg, err := config.Load(*configPath)
 	if err != nil {
 		return err
@@ -316,7 +316,7 @@ func newFriendsListCommandCallback(configPath *string, _ *cobra.Command, _ []str
 	return w.Flush()
 }
 
-func newFriendsPreviewCommandCallback(identityPath *string, url string, token string, tlsSkip bool, _ *cobra.Command, _ []string) error {
+func runFriendsPreview(identityPath *string, url string, token string, tlsSkip bool) error {
 	if url == "" || token == "" {
 		return fmt.Errorf("--url and --token are required")
 	}
@@ -344,7 +344,7 @@ func newFriendsPreviewCommandCallback(identityPath *string, url string, token st
 	return nil
 }
 
-func newFriendsAddCommandCallback(configPath *string, identityPath *string, name string, url string, token string, tlsSkip bool, _ *cobra.Command, _ []string) error {
+func runFriendsAdd(configPath *string, identityPath *string, name string, url string, token string, tlsSkip bool) error {
 	if name == "" || url == "" || token == "" {
 		return fmt.Errorf("--name, --url and --token are required")
 	}
@@ -380,6 +380,10 @@ func newFriendsAddCommandCallback(configPath *string, identityPath *string, name
 		return err
 	}
 
+	if err := managers.RequireNoPending(); err != nil {
+		return err
+	}
+
 	if err := config.Save(*configPath, cfg); err != nil {
 		return err
 	}
@@ -394,7 +398,7 @@ func newFriendsAddCommandCallback(configPath *string, identityPath *string, name
 	return nil
 }
 
-func newFriendsRemoveCommandCallback(configPath *string, yes bool, _ *cobra.Command, args []string) error {
+func runFriendsRemove(configPath *string, yes bool, args []string) error {
 	cfg, err := config.Load(*configPath)
 	if err != nil {
 		return err
@@ -418,6 +422,10 @@ func newFriendsRemoveCommandCallback(configPath *string, yes bool, _ *cobra.Comm
 		return err
 	}
 
+	if err := managers.RequireNoPending(); err != nil {
+		return err
+	}
+
 	if err := config.Save(*configPath, cfg); err != nil {
 		return err
 	}
@@ -427,7 +435,7 @@ func newFriendsRemoveCommandCallback(configPath *string, yes bool, _ *cobra.Comm
 	return nil
 }
 
-func newFriendsSyncCommandCallback(configPath *string, cmd *cobra.Command, args []string) error {
+func runFriendsSync(configPath *string, cmd *cobra.Command, args []string) error {
 	cfg, err := config.LoadAndValidate(*configPath, true)
 	if err != nil {
 		return err
@@ -450,7 +458,7 @@ func newFriendsSyncCommandCallback(configPath *string, cmd *cobra.Command, args 
 	return err
 }
 
-func newFriendsInterfacesCommandCallback(configPath *string, cmd *cobra.Command, args []string) error {
+func runFriendsInterfaces(configPath *string, cmd *cobra.Command, args []string) error {
 	cfg, err := config.Load(*configPath)
 	if err != nil {
 		return err
@@ -476,7 +484,7 @@ func newFriendsInterfacesCommandCallback(configPath *string, cmd *cobra.Command,
 	return w.Flush()
 }
 
-func newFriendsWireguardCommandCallback(configPath *string, subnet string, localIface string, localAddr string, friendIface string, friendAddr string, localPort int, friendPort int, cmd *cobra.Command, args []string) error {
+func runFriendsWireguard(configPath *string, subnet string, localIface string, localAddr string, friendIface string, friendAddr string, localPort int, friendPort int, cmd *cobra.Command, args []string) error {
 	if subnet == "" || localIface == "" || friendIface == "" {
 		return fmt.Errorf("--subnet, --local-iface and --friend-iface are required")
 	}
@@ -523,11 +531,15 @@ func newFriendsWireguardCommandCallback(configPath *string, subnet string, local
 		return err
 	}
 
-	if cfg.Wireguard == nil {
-		cfg.Wireguard = map[string]*config.Wireguard{}
+	if cfg.VPN.Wireguard == nil {
+		cfg.VPN.Wireguard = map[string]*config.Wireguard{}
 	}
 
-	cfg.Wireguard[res.InterfaceName] = res.Local
+	cfg.VPN.Wireguard[res.InterfaceName] = res.Local
+	if err := managers.RequireNoPending(); err != nil {
+		return err
+	}
+
 	if err := config.Save(*configPath, cfg); err != nil {
 		return err
 	}
@@ -543,7 +555,7 @@ func newFriendsWireguardCommandCallback(configPath *string, subnet string, local
 	return nil
 }
 
-func newFriendsUpdateCommandCallback(configPath *string, url string, token string, tlsSkip bool, enabled bool, cmd *cobra.Command, args []string) error {
+func runFriendsUpdate(configPath *string, url string, token string, tlsSkip bool, enabled bool, cmd *cobra.Command, args []string) error {
 	cfg, err := config.Load(*configPath)
 	if err != nil {
 		return err
@@ -572,6 +584,10 @@ func newFriendsUpdateCommandCallback(configPath *string, url string, token strin
 		f.Enabled = &v
 	}
 
+	if err := managers.RequireNoPending(); err != nil {
+		return err
+	}
+
 	if err := config.Save(*configPath, cfg); err != nil {
 		return err
 	}
@@ -581,7 +597,7 @@ func newFriendsUpdateCommandCallback(configPath *string, url string, token strin
 	return nil
 }
 
-func newFriendsPairCommandCallback(configPath *string, identityPath *string, expect string, _ *cobra.Command, args []string) error {
+func runFriendsPair(configPath *string, identityPath *string, expect string, args []string) error {
 	id, err := identity.LoadOrCreate(*identityPath)
 	if err != nil {
 		return err
@@ -632,6 +648,10 @@ func newFriendsPairCommandCallback(configPath *string, identityPath *string, exp
 
 	if resp.Hostname != "" {
 		f.Hostname = resp.Hostname
+	}
+
+	if err := managers.RequireNoPending(); err != nil {
+		return err
 	}
 
 	if err := config.Save(*configPath, cfg); err != nil {

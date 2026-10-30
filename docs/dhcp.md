@@ -72,10 +72,46 @@ dns:
 - Kea and BIND authenticate updates with a shared **TSIG key**. Routier
   generates it on first apply and writes it back into the config as
   `dhcp.ddns.key`, so both `kea-dhcp-ddns.conf` and `named.conf` render the same
-  secret. If your config lives in a directory of split files, set `dhcp.ddns.key`
-  explicitly (the auto-persist writes to a single config file).
+  secret.
 - Per subnet you can override with `ddns: false` (opt a subnet out) or
   `ddns_domain:` (a different qualifying suffix).
+
+## High availability
+
+`dhcp.ha` pairs the local Kea servers with their peers through Kea's
+`libdhcp_ha.so` hook, so another router keeps serving leases when one fails.
+The block is the same on every router of the pair:
+
+```yaml
+dhcp:
+  ha:
+    enabled: true
+    mode: hot-standby           # or load-balancing
+    interface: sync             # link carrying heartbeats and lease updates
+    allow_inbound: true
+    peers:
+      - {name: rt1, address: 10.9.0.1, role: primary}
+      - {name: rt2, address: 10.9.0.2, role: standby}
+```
+
+- `mode`: `hot-standby` (default) or `load-balancing`.
+- `interface`: the logical interface the peers reach each other on (required).
+  Each peer `address` is that router's address on this link.
+- `this_server`: the peer entry that describes this router. Defaults to the
+  hostname.
+- `port` / `port6`: the dedicated HA listener of `kea-dhcp4` and `kea-dhcp6`
+  (default 8004 and 8006).
+- `allow_inbound`: open both ports on `interface` in the firewall.
+- `peers`: every server of the relationship, this one included. Hot-standby
+  needs exactly one `primary` and one `standby`. Load-balancing needs exactly
+  one `primary` and one `secondary`. Any number of `backup` peers only receive
+  lease updates. `auto_failover: false` on a peer keeps it from taking over
+  without an operator.
+
+Both peers must serve the same subnets, pools and reservations. Kea syncs the
+lease database from its partner when it starts, then sends every lease update
+to the other peers. Each Kea server runs its own HA listener, so no Control
+Agent is needed.
 
 ## How Routier talks to Kea
 
@@ -91,7 +127,7 @@ config that fails validation (`kea-dhcp4 -t`) aborts the apply and rolls back.
 
 ## Runtime operations
 
-The Monitor page (and the matching endpoints under `/api/dhcp/`) exposes:
+The DHCP page (and the matching endpoints under `/api/dhcp/`) exposes:
 
 - **Leases**: a live list per subnet, with search (an exact IP is resolved by
   Kea, anything else is matched server-side), reserved vs dynamic marking,

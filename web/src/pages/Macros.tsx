@@ -34,12 +34,11 @@ export default function Macros() {
     <div className="space-y-6">
       <PageHeader
         title="Macros"
-        description="Named, reusable config changes you can apply repeatedly"
         action={<ReloadButton onClick={reload} />}
       />
 
       {isLoading && <Spinner />}
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
 
       {!isLoading && !error && macros !== null && (
         macros.length === 0
@@ -47,8 +46,8 @@ export default function Macros() {
             <EmptyState
               className="max-w-2xl mx-auto"
               icon={<Boxes />}
-              title="No macros saved"
-              message='Make changes, then click "Save as Macro" in the staging banner to record them.'
+              title="No Macros"
+              message="Use Save as Macro… in the draft banner"
             />
           )
           : (
@@ -62,7 +61,7 @@ export default function Macros() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-sm">{m.name}</span>
                       {(m.sections ?? []).map((s) => (
-                        <Badge key={s} variant="secondary" className="text-xs font-mono">{s}</Badge>
+                        <Badge key={s} variant="secondary" className="font-mono">{s}</Badge>
                       ))}
                     </div>
                     {m.description && (
@@ -81,14 +80,14 @@ export default function Macros() {
                       onClick={() => setApplyTarget(m)}
                     >
                       <Play className="h-3 w-3" />
-                      Apply
+                      Apply…
                     </Button>
                     <Button
                       size="sm"
                       variant="ghost"
                       className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
                       onClick={() => setDeleteTarget(m)}
-                    >
+                     aria-label="Delete Macro" title="Delete Macro">
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
@@ -112,7 +111,7 @@ export default function Macros() {
           onCancel={() => setDeleteTarget(null)}
           onConfirm={handleDelete}
           title={`Delete "${deleteTarget.name}"?`}
-          description="This macro will be permanently deleted. Applied configs are not affected."
+          description="Applied configs are not affected"
           confirmLabel={deleting ? 'Deleting…' : 'Delete'}
           destructive
           busy={deleting}

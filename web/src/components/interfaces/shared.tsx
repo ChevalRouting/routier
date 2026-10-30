@@ -1,7 +1,8 @@
+import { onActivate } from '@/lib/utils'
 import type { TypesSystemNic as SystemNic } from '@/api'
-import { Badge, Button, TableCell, TableRow } from 'cheval-ui'
+import { Badge, Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, TableCell, TableRow } from 'cheval-ui'
 import {
-  Trash2
+  Trash2, X
 } from 'lucide-react'
 
 type HwFieldShape = { label: string; value: string; mono?: boolean }
@@ -39,6 +40,11 @@ export interface Vxlan {
   learning?: boolean
 }
 
+export interface VNet {
+  vni: number
+  vlan: number
+}
+
 export interface Iface {
   select: string
   type?: string
@@ -49,25 +55,16 @@ export interface Iface {
   vlan?: Vlan
   bridge?: Bridge
   bond?: Bond
+  vnet?: VNet
   vxlan?: Vxlan
   mode?: string
   local?: string
   remote?: string
   ttl?: number
+  friend?: string
 }
 
-export interface Tunnel {
-  mode: string
-  local: string
-  remote: string
-  ttl: number
-  addresses: string[]
-  mtu: number
-}
-
-export type TunnelMap = Record<string, Tunnel>
-
-export const TUNNEL_MODES = ['sit', 'gre', 'ipip', 'ip6tnl', 'ip6ip6', 'ip6gre']
+export const TUNNEL_MODES = ['sit', 'gre', 'gretap', 'vti', 'ipip', 'ip6tnl', 'ip6ip6', 'ip6gre']
 
 export const IFACE_TYPES = [
   { value: 'physical', label: 'Physical (select device)' },
@@ -76,6 +73,8 @@ export const IFACE_TYPES = [
   { value: 'bond', label: 'Bond (link aggregation)' },
   { value: 'vlan', label: 'VLAN (tagged subinterface)' },
   { value: 'vxlan', label: 'VXLAN (virtual)' },
+  { value: 'vxlan-bridge', label: 'VXLAN bridge (EVPN transport)' },
+  { value: 'vnet', label: 'VNet (VXLAN network)' },
   { value: 'tunnel', label: 'Tunnel (SIT/GRE/IPIP/IP6)' },
 ]
 
@@ -84,20 +83,6 @@ export const BOND_MODES = ['balance-rr', 'active-backup', 'balance-xor', 'broadc
 export const BOND_HASH_POLICIES = ['layer2', 'layer2+3', 'layer3+4', 'encap2+3', 'encap3+4', 'vlan+srcmac']
 
 export const BOND_LACP_RATES = ['slow', 'fast']
-
-export function tunnelToIface(t: Tunnel): Iface {
-  return {
-    select: '', type: 'tunnel', addresses: t.addresses ?? [], dhcp_options: [], mtu: t.mtu ?? 0,
-    mode: t.mode, local: t.local, remote: t.remote, ttl: t.ttl,
-  }
-}
-
-export function ifaceToTunnel(i: Iface): Tunnel {
-  return {
-    mode: i.mode || 'gre', local: i.local ?? '', remote: i.remote ?? '', ttl: i.ttl ?? 0,
-    addresses: i.addresses ?? [], mtu: i.mtu ?? 0,
-  }
-}
 
 export type IfaceMap = Record<string, Iface>
 
@@ -117,6 +102,7 @@ export interface IfaceFormProps {
   name: string
   iface: Iface
   vrfNames: string[]
+  transports?: string[]
   parents: string[]
   nics: SystemNic[]
   onChange: (updated: Iface) => void
@@ -137,6 +123,104 @@ export function nicSelector(nic: SystemNic): string {
   return nic.mac ? `mac(${nic.mac})` : nic.name
 }
 
+const MAC_SELECTOR = /^mac\(([0-9a-fA-F]{2}(?::[0-9a-fA-F]{2}){5})\)$/
+
+export function nicForSelector(nics: SystemNic[], sel: string): SystemNic | undefined {
+  const s = sel.trim()
+  if (!s) return undefined
+
+  const mac = MAC_SELECTOR.exec(s)
+  if (mac) {
+    const want = mac[1].toLowerCase()
+    return nics.find((n) => (n.mac ?? '').toLowerCase() === want)
+  }
+
+  return nics.find((n) => n.name === s)
+}
+
+export function selectorLabel(nics: SystemNic[], sel: string): string {
+  const nic = nicForSelector(nics, sel)
+  return nic ? nicLabel(nic) : sel
+}
+
+type SelectorOption = { value: string; label: string }
+
+export function selectorOptions(nics: SystemNic[], extra: string[]): SelectorOption[] {
+  const names = new Set(nics.map((n) => n.name))
+  const opts: SelectorOption[] = nics.map((n) => ({ value: nicSelector(n), label: nicLabel(n) }))
+  for (const e of extra) {
+    if (e && !names.has(e)) opts.push({ value: e, label: e })
+  }
+
+  return opts
+}
+
+type MemberPickerShape = {
+  members: string[]
+  nics: SystemNic[]
+  extra: string[]
+  onChange: (members: string[]) => void
+}
+
+export function MemberPicker({ members, nics, extra, onChange }: MemberPickerShape) {
+  const options = selectorOptions(nics, extra).filter((o) => !members.includes(o.value))
+
+  return (
+    <div className="space-y-2">
+      {members.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {members.map((m) => (
+            <Badge key={m} variant="secondary" className="gap-1 font-mono">
+              {selectorLabel(nics, m)}
+              <Button variant="ghost" size="icon" onClick={() => onChange(members.filter((x) => x !== m))} className="h-4 w-4 p-0 text-muted-foreground hover:text-destructive" aria-label={`Remove ${m}`} title="Remove">
+                <X className="h-3 w-3" />
+              </Button>
+            </Badge>
+          ))}
+        </div>
+      )}
+      <Select value="" onValueChange={(v) => onChange([...members, v])}>
+        <SelectTrigger className="h-8 font-mono text-xs">
+          <SelectValue placeholder="Add member…" />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((o) => (
+            <SelectItem key={o.value} value={o.value} className="font-mono text-xs">{o.label}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  )
+}
+
+type NicSelectShape = {
+  value: string
+  nics: SystemNic[]
+  extra: string[]
+  placeholder?: string
+  onChange: (sel: string) => void
+}
+
+export function NicSelect({ value, nics, extra, placeholder = '- select -', onChange }: NicSelectShape) {
+  const options = selectorOptions(nics, extra)
+  const known = options.some((o) => o.value === value)
+
+  return (
+    <Select value={value || '__none__'} onValueChange={(v) => onChange(v === '__none__' ? '' : v)}>
+      <SelectTrigger className="font-mono">
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="__none__" className="font-mono">{placeholder}</SelectItem>
+        {value && !known && <SelectItem value={value} className="font-mono">{value}</SelectItem>}
+        {options.map((o) => (
+          <SelectItem key={o.value} value={o.value} className="font-mono">{o.label}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
+}
+
 export interface IfaceCardProps {
   name: string
   iface: Iface
@@ -149,7 +233,7 @@ export interface IfaceCardProps {
 export function HwField({ label, value, mono }: HwFieldShape) {
   return (
     <div className="min-w-0">
-      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="text-xs text-muted-foreground">{label}</div>
       <div className={`truncate ${mono ? 'font-mono' : ''}`}>{value}</div>
     </div>
   )
@@ -162,7 +246,7 @@ export function IfaceRow({ name, iface, nic, onEdit, onDelete }: IfaceCardProps)
   const up = nic ? nic.operstate === 'up' || !!nic.carrier : undefined
 
   return (
-    <TableRow onClick={onEdit} className="cursor-pointer">
+    <TableRow role="button" tabIndex={0} onClick={onEdit} onKeyDown={onActivate(onEdit)} className="cursor-pointer">
       <TableCell className="font-mono font-medium">
         <span className="inline-flex items-center gap-2">
           {up !== undefined && (
@@ -172,14 +256,14 @@ export function IfaceRow({ name, iface, nic, onEdit, onDelete }: IfaceCardProps)
         </span>
       </TableCell>
       <TableCell className="font-mono text-xs text-muted-foreground">{nic && nic.name !== name ? nic.name : '-'}</TableCell>
-      <TableCell><Badge variant="secondary" className="font-mono text-xs">{iface.type || 'physical'}</Badge></TableCell>
+      <TableCell><Badge variant="secondary" className="font-mono">{iface.type || 'physical'}</Badge></TableCell>
       <TableCell className="font-mono text-xs">
         {addresses.length === 0 ? <span className="text-muted-foreground">-</span> : addresses.join(', ')}
       </TableCell>
       <TableCell className="font-mono text-xs">{iface.vrf || <span className="text-muted-foreground">-</span>}</TableCell>
       <TableCell className="w-[1%] whitespace-nowrap text-right">
         <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive"
-          onClick={(e) => { e.stopPropagation(); onDelete() }}>
+          onClick={(e) => { e.stopPropagation(); onDelete() }} aria-label="Remove Interface" title="Remove Interface">
           <Trash2 className="h-3.5 w-3.5" />
         </Button>
       </TableCell>
@@ -190,6 +274,8 @@ export function IfaceRow({ name, iface, nic, onEdit, onDelete }: IfaceCardProps)
 export function matchNic(nics: SystemNic[], iface: Iface, name: string): SystemNic | undefined {
   const byKey = nics.find((n) => n.name === name)
   if (byKey) return byKey
+
+  if (iface.type === 'vnet' || iface.type === 'vxlan-bridge') return undefined
 
   const sel = iface.select?.trim()
   if (!sel) return undefined

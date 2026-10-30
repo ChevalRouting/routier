@@ -43,8 +43,8 @@ func newDHCPLeasesCommand(configPath *string) *cobra.Command {
 		Use:   "leases",
 		Short: "list active DHCP leases",
 		Args:  cobra.NoArgs,
-		RunE: func(unusedArg1 *cobra.Command, unusedArg2 []string) error {
-			return newDHCPLeasesCommandCallback(configPath, unusedArg1, unusedArg2)
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return runDHCPLeases(configPath)
 		},
 	}
 
@@ -57,8 +57,8 @@ func newDHCPClearCommand(configPath *string) *cobra.Command {
 		Use:   "clear <ip>",
 		Short: "delete an active lease",
 		Args:  cobra.ExactArgs(1),
-		RunE: func(unusedArg1 *cobra.Command, args []string) error {
-			return newDHCPClearCommandCallback(configPath, unusedArg1, args)
+		RunE: func(_ *cobra.Command, args []string) error {
+			return runDHCPClear(configPath, args)
 		},
 	}
 }
@@ -69,8 +69,8 @@ func newDHCPReservationsCommand(configPath *string) *cobra.Command {
 		Aliases: []string{"reservation", "res"},
 		Short:   "list host reservations",
 		Args:    cobra.NoArgs,
-		RunE: func(unusedArg1 *cobra.Command, unusedArg2 []string) error {
-			return newDHCPReservationsCommandCallback(configPath, unusedArg1, unusedArg2)
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return runDHCPReservations(configPath)
 		},
 	}
 
@@ -83,8 +83,8 @@ func newDHCPAddCommand(configPath *string) *cobra.Command {
 		Use:   "add <hostname> <mac-or-duid> <ip-or-cidr>",
 		Short: "reserve an address (an IP is auto-picked when only a cidr is given)",
 		Args:  cobra.ExactArgs(3),
-		RunE: func(unusedArg1 *cobra.Command, args []string) error {
-			return newDHCPAddCommandCallback(configPath, unusedArg1, args)
+		RunE: func(_ *cobra.Command, args []string) error {
+			return runDHCPAdd(configPath, args)
 		},
 	}
 }
@@ -94,8 +94,8 @@ func newDHCPDelCommand(configPath *string) *cobra.Command {
 		Use:   "del <ip>",
 		Short: "delete a reservation",
 		Args:  cobra.ExactArgs(1),
-		RunE: func(unusedArg1 *cobra.Command, args []string) error {
-			return newDHCPDelCommandCallback(configPath, unusedArg1, args)
+		RunE: func(_ *cobra.Command, args []string) error {
+			return runDHCPDel(configPath, args)
 		},
 	}
 }
@@ -105,13 +105,13 @@ func newDHCPPersistCommand(configPath *string) *cobra.Command {
 		Use:   "persist <ip>",
 		Short: "promote an active lease to a reservation",
 		Args:  cobra.ExactArgs(1),
-		RunE: func(unusedArg1 *cobra.Command, args []string) error {
-			return newDHCPPersistCommandCallback(configPath, unusedArg1, args)
+		RunE: func(_ *cobra.Command, args []string) error {
+			return runDHCPPersist(configPath, args)
 		},
 	}
 }
 
-func newDHCPLeasesCommandCallback(configPath *string, _ *cobra.Command, _ []string) error {
+func runDHCPLeases(configPath *string) error {
 	client, err := keaClient(*configPath)
 	if err != nil {
 		return err
@@ -145,7 +145,7 @@ func newDHCPLeasesCommandCallback(configPath *string, _ *cobra.Command, _ []stri
 	return w.Flush()
 }
 
-func newDHCPClearCommandCallback(configPath *string, _ *cobra.Command, args []string) error {
+func runDHCPClear(configPath *string, args []string) error {
 	client, err := keaClient(*configPath)
 	if err != nil {
 		return err
@@ -159,7 +159,7 @@ func newDHCPClearCommandCallback(configPath *string, _ *cobra.Command, args []st
 	return nil
 }
 
-func newDHCPReservationsCommandCallback(configPath *string, _ *cobra.Command, _ []string) error {
+func runDHCPReservations(configPath *string) error {
 	client, err := keaClient(*configPath)
 	if err != nil {
 		return err
@@ -198,7 +198,7 @@ func newDHCPReservationsCommandCallback(configPath *string, _ *cobra.Command, _ 
 	return w.Flush()
 }
 
-func newDHCPAddCommandCallback(configPath *string, _ *cobra.Command, args []string) error {
+func runDHCPAdd(configPath *string, args []string) error {
 	client, err := keaClient(*configPath)
 	if err != nil {
 		return err
@@ -213,7 +213,7 @@ func newDHCPAddCommandCallback(configPath *string, _ *cobra.Command, args []stri
 	return nil
 }
 
-func newDHCPDelCommandCallback(configPath *string, _ *cobra.Command, args []string) error {
+func runDHCPDel(configPath *string, args []string) error {
 	client, err := keaClient(*configPath)
 	if err != nil {
 		return err
@@ -227,7 +227,7 @@ func newDHCPDelCommandCallback(configPath *string, _ *cobra.Command, args []stri
 	return nil
 }
 
-func newDHCPPersistCommandCallback(configPath *string, _ *cobra.Command, args []string) error {
+func runDHCPPersist(configPath *string, args []string) error {
 	client, err := keaClient(*configPath)
 	if err != nil {
 		return err

@@ -1,21 +1,19 @@
-import type { TypesSystemNic as SystemNic } from '@/api'
+import { SetupUplinkModeEnum, type SetupNetwork, type TypesSetupHost as SetupHost, type TypesSystemNic as SystemNic } from '@/api'
 import Logo from '@/components/Logo'
 import { WatchdogConfirmBar } from '@/components/WatchdogConfirmBar'
-import { AddrMode, IfaceRole, IfaceSetting, selectorFor, Step, StepNav, STEPS } from '@/components/onboarding/shared'
-import type { Internet, Network } from '@/components/simple/types'
-import { api, configLayerRequest } from '@/lib/client'
+import { AddrMode, defaultSetting, IfaceRole, IfaceSetting, selectorFor, Step, StepNav, STEPS } from '@/components/onboarding/shared'
+import { api } from '@/lib/client'
 import { useFetch } from '@/lib/useFetch'
 import { checkCIDR, checkIP } from '@/lib/validate'
-import { Badge, Button, cn, EntryRow, LoginScreen, PreferencesGroup, Row, Segmented, TagInput } from 'cheval-ui'
+import { Badge, Button, cn, EntryRow, LoginScreen, PreferencesGroup, Row, Segmented, TagInput, StateChip } from 'cheval-ui'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 
-type ResultShape = { warning?: string }
-
 export default function Onboarding() {
   const navigate = useNavigate()
   const { data: nics } = useFetch<SystemNic[]>(() => api.apiSystemNicsGet())
+  const { data: host, isLoading: hostLoading } = useFetch<SetupHost>(() => api.apiSetupHostGet())
 
   const [step, setStepRaw]      = useState<Step>('password')
   const [busy, setBusy]          = useState(false)
@@ -54,17 +52,16 @@ export default function Onboarding() {
   const setStep = (s: Step) => setStepRaw(s)
 
   useEffect(() => {
-    if (!nics) return
+    if (!nics || !stateLoaded || hostLoading) return
     setIfaceSettings(prev => {
       const next = { ...prev }
       for (const nic of nics) {
         if (next[nic.name]?.role) continue
-        const firstAddr = nic.addrs?.[0]
-        next[nic.name] = { role: 'none', cidr: firstAddr ?? '', mode: 'dhcp', gateway: '', dns: [] }
+        next[nic.name] = defaultSetting(nic, host ?? null)
       }
       return next
     })
-  }, [nics])
+  }, [nics, host, hostLoading, stateLoaded])
 
   const setSetting = (name: string, patch: Partial<IfaceSetting>) =>
     setIfaceSettings(prev => ({ ...prev, [name]: { ...prev[name], ...patch } }))
@@ -103,41 +100,22 @@ export default function Onboarding() {
     try {
       const uplinkNIC = nicList.find((nic) => ifaceSettings[nic.name]?.role === 'internet')
       const uplink = uplinkNIC ? ifaceSettings[uplinkNIC.name] : undefined
-      const internet: Internet | null = uplinkNIC ? (uplink?.mode === 'static' ? {
-        interface: 'wan',
-        select: selectorFor(uplinkNIC),
-        mode: 'static',
-        ipv6: 'slaac',
-        addresses: [uplink.cidr],
-        gateway: uplink.gateway,
-        dns: uplink.dns,
-      } : {
-        interface: 'wan',
-        select: selectorFor(uplinkNIC),
-        mode: 'dhcp',
-        ipv6: 'slaac',
-        addresses: [],
-      }) : null
-      const networks: Network[] = nicList.flatMap((nic) => {
-        const setting = ifaceSettings[nic.name]
-        if (setting?.role !== 'local') return []
-        return [{
-          id: nic.name,
-          name: nic.name,
-          select: selectorFor(nic),
-          addresses: [setting.cidr],
-          manage_dhcp: false,
-          masquerade: internet !== null,
-          editable: true,
-        }]
-      })
+      const network: SetupNetwork = {
+        hostname,
+        uplink: uplinkNIC ? (uplink?.mode === 'static'
+          ? { select: selectorFor(uplinkNIC), mode: SetupUplinkModeEnum.Static, address: uplink.cidr, gateway: uplink.gateway, dns: uplink.dns }
+          : { select: selectorFor(uplinkNIC), mode: SetupUplinkModeEnum.Dhcp }) : undefined,
+        lans: nicList.flatMap((nic) => {
+          const setting = ifaceSettings[nic.name]
+          if (setting?.role !== 'local') return []
+          return [{ name: nic.name, select: selectorFor(nic), address: setting.cidr }]
+        }),
+      }
 
-      await configLayerRequest('/api/config/hostname', { method: 'PUT', body: JSON.stringify(hostname) }, 'simple')
-      await configLayerRequest('/api/config/internet', { method: 'PUT', body: JSON.stringify(internet) }, 'simple')
-      await configLayerRequest('/api/config/networks', { method: 'PUT', body: JSON.stringify(networks) }, 'simple')
+      await api.apiSetupNetworkPut({ SetupNetwork: network })
       let applied = false
       try {
-        const result = await configLayerRequest<ResultShape>('/api/config/apply', { method: 'POST' }, 'simple')
+        const result = await api.apiConfigApplyPost()
         if (result.warning) toast.warning(result.warning)
         applied = true
       } catch {
@@ -147,7 +125,7 @@ export default function Onboarding() {
         } catch { applied = true }
       }
       if (applied) setStep('confirm')
-      else toast.error('Apply failed, check your configuration')
+      else toast.error('Apply failed')
     } catch (e) {
       toast.error((e as Error).message)
     } finally {
@@ -178,9 +156,12 @@ export default function Onboarding() {
   })
 
   return (
-    <LoginScreen title="Welcome to Routier" subtitle="Let's get your router set up." logo={Logo}>
+    <LoginScreen title="Welcome to Routier" logo={Logo}>
       <div className="space-y-6">
-        <div className="flex items-center justify-center gap-2">
+        <p className="text-center text-sm text-muted-foreground sm:hidden">
+          Step {stepIdx + 1} of {STEPS.length} · <span className="font-medium text-foreground">{STEPS[stepIdx]?.label}</span>
+        </p>
+        <div className="hidden items-center justify-center gap-2 sm:flex">
           {STEPS.map((s, i) => (
             <div key={s.key} className="flex items-center gap-2">
               <span className={cn(
@@ -201,16 +182,16 @@ export default function Onboarding() {
 
         {step === 'password' && (
           <>
-            <PreferencesGroup title="Set a new admin password" description="Replace the default credentials before going further.">
-              <EntryRow title="Current password" type="password" value={curPw} onChange={(e) => setCurPw(e.target.value)} placeholder="routier" autoFocus />
-              <EntryRow title="New password" type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)}
+            <PreferencesGroup title="Set a New Admin Password" description="The current password is the one shown on the console or printed when Routier was installed">
+              <EntryRow title="Current Password" type="password" value={curPw} onChange={(e) => setCurPw(e.target.value)} autoFocus />
+              <EntryRow title="New Password" type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)}
                 error={newPw && newPw.length < 8 ? 'At least 8 characters' : null} />
-              <EntryRow title="Confirm new password" type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)}
+              <EntryRow title="Confirm New Password" type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)}
                 error={confirmPw && confirmPw !== newPw ? 'Does not match' : null} />
             </PreferencesGroup>
             <div className="flex justify-end">
               <Button onClick={savePassword} disabled={busy || !curPw || !newPw || newPw !== confirmPw}>
-                Set password
+                Set Password
               </Button>
             </div>
           </>
@@ -227,9 +208,9 @@ export default function Onboarding() {
 
         {step === 'interfaces' && (
           <>
-            <PreferencesGroup title="Network interfaces" description="Choose what each physical port connects to. You can leave ports unused.">
+            <PreferencesGroup title="Network Interfaces">
               {nicList.length === 0 && (
-                <p className="px-4 py-3 text-sm text-muted-foreground">No physical interfaces detected.</p>
+                <p className="px-4 py-3 text-sm text-muted-foreground">No physical interfaces detected</p>
               )}
               {nicList.map(nic => {
                 const s = ifaceSettings[nic.name] ?? { role: 'none' as IfaceRole, cidr: '', mode: 'dhcp' as AddrMode, gateway: '', dns: [] }
@@ -244,13 +225,13 @@ export default function Onboarding() {
                     <Row
                       title={<span className="font-mono">{nic.name}</span>}
                       subtitle={s.role === 'internet'
-                        ? 'Connect this port to your modem or upstream network.'
+                        ? 'Connects to the modem or upstream network'
                         : s.role === 'local'
                           ? 'Connect computers and other devices to this local network.'
                           : 'Do not configure this port yet.'}
                     >
                       {isOk && <Badge variant="success">Ready</Badge>}
-                      {nic.operstate && <Badge variant={nic.operstate === 'up' ? 'success' : 'neutral'}>{nic.operstate}</Badge>}
+                      {nic.operstate && <StateChip state={nic.operstate} />}
                       <Segmented
                         value={s.role}
                         onChange={(role) => setRole(nic.name, role)}
@@ -276,7 +257,7 @@ export default function Onboarding() {
                       </div>
                     ) : s.role === 'internet' ? (
                       <div className="space-y-2">
-                        <Row title="Addressing" subtitle="How this port gets its IP address from the upstream network.">
+                        <Row title="Addressing">
                           <Segmented
                             value={s.mode}
                             onChange={(mode) => setSetting(nic.name, { mode: mode as AddrMode })}
@@ -356,7 +337,8 @@ export default function Onboarding() {
               })}
             </PreferencesGroup>
             <p className="px-1 text-xs text-muted-foreground">
-              Applying writes the config and brings the interfaces up. You'll have 60 s to confirm connectivity before the changes roll back.
+              Applying brings the interfaces up; confirm connectivity within 60 s or the changes roll back.
+              {host && !host.taken_over && ' Until you confirm, the current network setup stays in charge; after that, Routier manages networking and keeps a backup of the previous setup.'}
             </p>
             <StepNav onBack={() => setStep('interfaces')} onNext={apply} nextLabel={busy ? 'Applying…' : 'Apply'} nextDisabled={busy} />
           </>
@@ -365,7 +347,7 @@ export default function Onboarding() {
         {step === 'confirm' && (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground text-center">
-              Configuration applied. Confirm connectivity to keep the changes, the timer below shows your remaining window.
+              Applied. Confirm connectivity before the timer runs out.
             </p>
             <WatchdogConfirmBar onKept={onKept} onRolledBack={onRolledBack} />
           </div>

@@ -1,13 +1,9 @@
 package auth
 
 import (
-	"crypto/rand"
-	"encoding/base64"
-	"encoding/hex"
 	"errors"
 	"net/http"
 	"strings"
-	"time"
 
 	webdb "github.com/ChevalRouting/routier/pkg/db"
 	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
@@ -16,22 +12,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
 )
-
-const apiKeyTokenPrefix = "rtr_api_"
-
-func randomAPIKey() (string, string, error) {
-	idBytes := make([]byte, 16)
-	secret := make([]byte, 32)
-	if _, err := rand.Read(idBytes); err != nil {
-		return "", "", err
-	}
-
-	if _, err := rand.Read(secret); err != nil {
-		return "", "", err
-	}
-
-	return hex.EncodeToString(idBytes), apiKeyTokenPrefix + base64.RawURLEncoding.EncodeToString(secret), nil
-}
 
 // @Summary List application API keys
 // @Tags auth
@@ -71,17 +51,8 @@ func CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, token, err := randomAPIKey()
+	key, token, err := webdb.NewAPIKey(requests.DurableContext(r), app.DB, request.Name, appctx.UsernameFromContext(r.Context()))
 	if err != nil {
-		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "generate API key"))
-		return
-	}
-
-	key := types.APIKey{
-		ID: id, Name: request.Name, Prefix: token[:16], CreatedAt: time.Now().Unix(),
-		CreatedBy: appctx.UsernameFromContext(r.Context()),
-	}
-	if err := webdb.CreateAPIKey(requests.DurableContext(r), app.DB, key, token); err != nil {
 		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "create API key"))
 		return
 	}

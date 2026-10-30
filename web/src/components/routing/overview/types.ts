@@ -20,4 +20,5 @@ export interface RoutingConfig {
   vrfs?: Record<string, VRFRouting>
 }
 export interface Tunnel { mode: string; local?: string; remote?: string }
-export interface WgIface { listen_port?: number; peers?: unknown[] }
+export interface WgPeer { name?: string; endpoint?: string }
+export interface WgIface { friend?: string; listen_port?: number; addresses?: string[]; peers?: WgPeer[] }

@@ -1,4 +1,4 @@
-version: v3.0.0
+version: v5.0.0
 
 hostname: tunnel-gw-01
 
@@ -7,8 +7,8 @@ interfaces:
     select: eth[0]
     addresses: [1.2.3.4/24]
 
-tunnels:
   tounel:
+    type: tunnel
     mode: sit
     local: 1.2.3.4
     remote: 5.6.7.8

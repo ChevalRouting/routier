@@ -37,7 +37,7 @@ export function ReverseTool() {
         <Card>
           <CardContent className="space-y-3">
             <div className="space-y-1.5">
-              <Label className="text-xs">PTR name</Label>
+              <Label className="text-xs">PTR Name</Label>
               <div className="flex items-center gap-1.5 font-mono text-sm break-all">
                 {result.name}
                 <CopyButton text={result.name} />
@@ -45,7 +45,7 @@ export function ReverseTool() {
             </div>
             {result.zone && (
               <div className="space-y-1.5">
-                <Label className="text-xs">Delegation zone</Label>
+                <Label className="text-xs">Delegation Zone</Label>
                 <div className="flex items-center gap-1.5 font-mono text-sm break-all">
                   {result.zone}
                   <CopyButton text={result.zone} />

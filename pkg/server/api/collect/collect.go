@@ -123,7 +123,7 @@ func storeNeighborStats(ctx context.Context, db *webdb.DB, now int64) error {
 
 	ch := make(chan dnsResult, len(raw))
 	for _, n := range raw {
-		go func(n iproute.Neighbor) { storeNeighborStatsCallback(ctx, ch, n) }(n)
+		go func(n iproute.Neighbor) { resolveNeighbor(ctx, ch, n) }(n)
 	}
 
 	rows := make([]webdb.NeighborStatRow, 0, len(raw))
@@ -272,7 +272,7 @@ func parseProcSnmp(path string) (map[string]map[string]int64, error) {
 	return kv, nil
 }
 
-func storeNeighborStatsCallback(ctx context.Context, ch chan dnsResult, n iproute.Neighbor) {
+func resolveNeighbor(ctx context.Context, ch chan dnsResult, n iproute.Neighbor) {
 	hostname := ""
 	lookupCtx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
 	defer cancel()

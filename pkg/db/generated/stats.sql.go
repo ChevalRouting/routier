@@ -551,7 +551,7 @@ func (q *Queries) LastSystemTS(ctx context.Context) (int64, error) {
 
 const latestLLDPNeighbors = `-- name: LatestLLDPNeighbors :many
 SELECT local_iface, protocol, chassis_id, chassis_name, sys_descr, mgmt_ip, port_id, port_descr, capabilities, vlan, age
-FROM lldp_neighbors WHERE ts = ? ORDER BY local_iface ASC
+FROM lldp_neighbors WHERE ts = ? ORDER BY local_iface ASC, protocol ASC, chassis_id ASC
 `
 
 type LatestLLDPNeighborsRow struct {

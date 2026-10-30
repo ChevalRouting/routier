@@ -11,16 +11,18 @@ func TestLoadRollbackConfigResolvesDevices(t *testing.T) {
 	data := `version: v3.0.0
 interfaces:
   uplink:
-    select: eth0
+    select: lo
   isp:
     type: vlan
     select: uplink
     vlan:
       id: 100
+  spare:
+    type: dummy
   lan:
     type: bridge
     bridge:
-      members: [eth1, eth2]
+      members: [uplink, spare]
 `
 	if err := os.WriteFile(path, []byte(data), 0600); err != nil {
 		t.Fatal(err)
@@ -31,14 +33,14 @@ interfaces:
 		t.Fatal(err)
 	}
 
-	for name, want := range map[string]string{"uplink": "eth0", "isp": "isp", "lan": "lan"} {
+	for name, want := range map[string]string{"uplink": "lo", "isp": "isp", "spare": "spare", "lan": "lan"} {
 		if got := cfg.Interfaces[name].Device; got != want {
 			t.Fatalf("%s device=%q, want %q", name, got, want)
 		}
 	}
 
 	members := cfg.Interfaces["lan"].Bridge.MemberDevices
-	if len(members) != 2 || members[0] != "eth1" || members[1] != "eth2" {
+	if len(members) != 2 || members[0] != "lo" || members[1] != "spare" {
 		t.Fatalf("unresolved bridge members: %v", members)
 	}
 }

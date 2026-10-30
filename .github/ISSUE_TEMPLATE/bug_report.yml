@@ -1,0 +1,65 @@
+name: Bug report
+description: Something in Routier did not work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing Routier. Remove keys, passwords and public addresses from anything you paste. Security problems go through the Security tab instead of an issue.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `routier version`, or the version shown in System › General › Updates
+      placeholder: 0.5.4_git128
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: Installation
+      options:
+        - Appliance ISO (live)
+        - Installed from an ISO
+        - Cloud image
+        - Package on Alpine Linux
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Hardware or hypervisor
+      placeholder: Proxmox 8 VM, 2 virtio NICs / Protectli VP2420
+  - type: textarea
+    id: steps
+    attributes:
+      label: What did you do?
+      description: The steps that lead to the problem, from the UI, the CLI or the API
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened instead?
+      description: Error messages, screenshots, and the failure bundle if an apply failed
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: Relevant configuration
+      description: The sections of /etc/routier/config.yml involved, without secrets
+      render: yaml
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Lines from Monitoring › System › Logs or /var/log/messages around the problem
+      render: text

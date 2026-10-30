@@ -10,16 +10,20 @@ const tokens: Record<string, string> = {
 
 interface MdastNode {
   value?: string;
+  url?: string;
   children?: MdastNode[];
+}
+
+function replaceTokens(text: string): string {
+  return Object.entries(tokens).reduce((out, [token, value]) => out.split(token).join(value), text);
 }
 
 function substitute(node: MdastNode): void {
   if (typeof node.value === 'string') {
-    for (const [token, value] of Object.entries(tokens)) {
-      if (node.value.includes(token)) {
-        node.value = node.value.split(token).join(value);
-      }
-    }
+    node.value = replaceTokens(node.value);
+  }
+  if (typeof node.url === 'string') {
+    node.url = replaceTokens(node.url);
   }
   node.children?.forEach(substitute);
 }

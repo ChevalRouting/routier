@@ -1,6 +1,7 @@
+import { plural } from '@/lib/utils'
 import { SubnetBody } from '@/components/dhcp-config/SubnetBody'
 import { AccordionList } from '@/components/ui/AccordionList'
-import { Button, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from 'cheval-ui'
+import { Button, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, PreferencesGroup } from 'cheval-ui'
 import { Plus, Trash2 } from 'lucide-react'
 
 type ControlagentShape = { url?: string; user?: string; password?: string }
@@ -59,12 +60,33 @@ export interface DhcpDDNS {
   reverse?: boolean
 }
 
+export type DhcpHAMode = 'hot-standby' | 'load-balancing'
+
+export interface DhcpHAPeer {
+  name: string
+  address: string
+  role: string
+  auto_failover?: boolean
+}
+
+export interface DhcpHA {
+  enabled?: boolean
+  mode?: DhcpHAMode
+  interface: string
+  this_server?: string
+  port?: number
+  port6?: number
+  allow_inbound?: boolean
+  peers: DhcpHAPeer[]
+}
+
 export interface DhcpConfigData {
   enabled?: boolean
   control_agent?: ControlagentShape
   subnets4?: KeaSubnet[]
   subnets6?: KeaSubnet[]
   ddns?: DhcpDDNS
+  ha?: DhcpHA
 }
 
 export function InterfaceSelect({ value, options, onChange }: InterfaceSelectShape) {
@@ -100,24 +122,22 @@ export function PoolRows({ v6, pools, onChange }: PoolRowsShape) {
   const remove = (i: number) => write(rows.filter((_, j) => j !== i))
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <Label className="text-[11px] text-muted-foreground">Pools (address ranges)</Label>
-        <Button variant="ghost" size="sm" className="h-6 gap-1 text-xs" onClick={add}>
-          <Plus className="h-3 w-3" />Add pool
-        </Button>
-      </div>
+    <PreferencesGroup
+      title="Pools"
+      header={<Button variant="outline" size="sm" className="gap-1.5" onClick={add}><Plus className="h-4 w-4" />Add Pool</Button>}
+    >
+      {rows.length === 0 && <p className="px-4 py-3 text-sm text-muted-foreground">No pools</p>}
       {rows.map((r, i) => (
-        <div key={i} className="grid grid-cols-[1fr_auto_1fr_28px] items-center gap-2">
-          <Input value={r.start} onChange={(e) => upd(i, { start: e.target.value })} placeholder={v6 ? '2001:db8::100' : '10.0.0.100'} className="h-8 text-xs font-mono" />
-          <span className="text-xs text-muted-foreground">to</span>
-          <Input value={r.end} onChange={(e) => upd(i, { end: e.target.value })} placeholder={v6 ? '2001:db8::200' : '10.0.0.200'} className="h-8 text-xs font-mono" />
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => remove(i)}>
-            <Trash2 className="h-3.5 w-3.5" />
+        <div key={i} className="flex items-center gap-2 px-4 py-2">
+          <Input value={r.start} onChange={(e) => upd(i, { start: e.target.value })} placeholder={v6 ? '2001:db8::100' : '10.0.0.100'} className="min-w-0 flex-1 font-mono" aria-label="Start" />
+          <span className="text-sm text-muted-foreground">to</span>
+          <Input value={r.end} onChange={(e) => upd(i, { end: e.target.value })} placeholder={v6 ? '2001:db8::200' : '10.0.0.200'} className="min-w-0 flex-1 font-mono" aria-label="End" />
+          <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-destructive" onClick={() => remove(i)} aria-label="Remove Pool" title="Remove Pool">
+            <Trash2 className="h-4 w-4" />
           </Button>
         </div>
       ))}
-    </div>
+    </PreferencesGroup>
   )
 }
 
@@ -126,9 +146,9 @@ export function SubnetSummary({ subnet }: SubnetSummaryShape) {
   const dns = (subnet.dns ?? []).length
   return (
     <div className="flex min-w-0 flex-1 items-center gap-3">
-      <span className="w-52 shrink-0 truncate font-mono text-sm font-medium">{subnet.subnet || 'new subnet'}</span>
+      <span className="w-52 shrink-0 truncate font-mono text-sm font-medium">{subnet.subnet || 'New subnet'}</span>
       <span className="w-28 shrink-0 truncate font-mono text-xs text-muted-foreground">{subnet.interface || 'all interfaces'}</span>
-      <span className="shrink-0 text-xs text-muted-foreground">{pools} pool{pools === 1 ? '' : 's'}</span>
+      <span className="shrink-0 text-xs text-muted-foreground">{plural(pools, 'pool')}</span>
       {dns > 0 && <span className="shrink-0 text-xs text-muted-foreground">{dns} DNS</span>}
     </div>
   )
@@ -140,12 +160,10 @@ export function SubnetList({ v6, subnets, networks, ifaceNames, onChange }: Subn
       <div className="px-1 text-sm font-medium">{v6 ? 'IPv6 subnets' : 'IPv4 subnets'}</div>
       <AccordionList
         items={subnets}
-        description={`Serve leases on an interface (${subnets.length}).`}
-        addLabel="Add subnet"
+        addLabel="Add Subnet"
         onAdd={() => onChange([...subnets, { subnet: '' }])}
         onRemove={(s) => onChange(subnets.filter((x) => x !== s))}
-        emptyTitle={v6 ? 'No IPv6 subnets' : 'No IPv4 subnets'}
-        emptyMessage="Add a subnet to serve leases on an interface."
+        emptyTitle={v6 ? 'No IPv6 Subnets' : 'No IPv4 Subnets'}
         renderSummary={(s) => <SubnetSummary subnet={s} />}
         renderBody={(s) => (
           <SubnetBody
@@ -180,4 +198,4 @@ export interface IfaceData {
   addresses?: string[]
 }
 
-export type DhcpTab = 'subnets' | 'reservations' | 'ddns'
+export type DhcpTab = 'subnets' | 'reservations' | 'ddns' | 'ha'

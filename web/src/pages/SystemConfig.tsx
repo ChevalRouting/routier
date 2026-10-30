@@ -1,21 +1,23 @@
+import { useHasParam } from '@/lib/useHasParam'
+import { DraftControls } from '@/components/DraftControls'
 import { ApiKeysTab } from '@/components/system-config/ApiKeysTab'
 import { ApplyHistoryTab } from '@/components/system-config/ApplyHistoryTab'
 import { BackupTab } from '@/components/system-config/BackupTab'
-import { DNSTab } from '@/components/system-config/DNSTab'
+import { GeneralTab } from '@/components/system-config/GeneralTab'
 import { MonitoringTab } from '@/components/system-config/MonitoringTab'
-import { ApiDocsTab, CONFIG_TABS, EMPTY_SAVE, HostnameTab, SYSTEM_TABS, SystemTab, TabSaveState } from '@/components/system-config/shared'
+import { ApiDocsTab, CONFIG_TABS, EMPTY_SAVE, SYSTEM_TABS, SystemTab, TabSaveState } from '@/components/system-config/shared'
 import { SnapshotsTab } from '@/components/system-config/SnapshotsTab'
-import { SSHTab } from '@/components/system-config/SSHTab'
 import { SysctlTab } from '@/components/system-config/SysctlTab'
 import UpdatesPanel from '@/components/system/UpdatesPanel'
 import { useDataVersion } from '@/lib/dataVersion'
 import ConfigUsers from '@/pages/ConfigUsers'
 import Services from '@/pages/Services'
-import { PageHeader, SaveButton, SectionNav, useTabState } from 'cheval-ui'
+import { PageHeader, SectionNav, useTabState } from 'cheval-ui'
 import { useState } from 'react'
 
 export default function SystemConfig() {
-  const [activeTab, setActiveTab] = useTabState<SystemTab>('system-config', 'hostname')
+  const [activeTab, setActiveTab] = useTabState<SystemTab>('system-config', 'general')
+  const deepLinked = useHasParam('system-config')
   const [saveState, setSaveState] = useState<TabSaveState>(EMPTY_SAVE)
   const { bump } = useDataVersion()
 
@@ -24,19 +26,18 @@ export default function SystemConfig() {
     setSaveState(EMPTY_SAVE)
   }
 
-  const isConfigTab = CONFIG_TABS.includes(activeTab)
+  const groupedTab = ['general', 'hostname', 'dns', 'ssh'].includes(activeTab)
+  const selectedTab = groupedTab ? 'general' : activeTab
+  const isConfigTab = CONFIG_TABS.includes(activeTab) && !groupedTab
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="General"
-        description="OS hostname, DNS, SSH daemon, users, services, kernel parameters, monitoring, apply history and backups"
-        action={isConfigTab ? <SaveButton isDirty={saveState.isDirty} saving={saveState.saving} onClick={saveState.save} /> : undefined}
+        action={isConfigTab ? <DraftControls isDirty={saveState.isDirty} saving={saveState.saving} onClick={saveState.save} /> : undefined}
       />
-      <SectionNav items={SYSTEM_TABS} active={activeTab} onChange={handleTabChange}>
-        {activeTab === 'hostname'  && <HostnameTab onStateChange={setSaveState} />}
-        {activeTab === 'dns'       && <DNSTab onStateChange={setSaveState} />}
-        {activeTab === 'ssh'       && <SSHTab onStateChange={setSaveState} />}
+      <SectionNav items={SYSTEM_TABS} active={selectedTab} onChange={handleTabChange} initiallyEntered={deepLinked}>
+        {groupedTab && <GeneralTab initialSection={activeTab} />}
         {activeTab === 'sysctl'    && <SysctlTab onStateChange={setSaveState} />}
         {activeTab === 'monitoring' && <MonitoringTab onStateChange={setSaveState} />}
         {activeTab === 'users' && <ConfigUsers embedded />}

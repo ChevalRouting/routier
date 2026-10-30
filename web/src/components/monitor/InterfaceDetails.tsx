@@ -94,10 +94,10 @@ function InterfaceStatus({ name }: InterfaceStatusShape) {
   const { slaves, ...bondStatus } = bond ?? {}
 
   return <div className="space-y-4">
-      {error && <p role="alert" className="text-sm text-destructive">{error}{data ? ', showing last successful update.' : ''}</p>}
+      {error && <p role="alert" className="text-sm text-danger">{error}{data ? ', showing last successful update.' : ''}</p>}
       {!data && !error && <Spinner />}
       {data && <>
-        <Section title="Link status" fields={{ ...link, ...kind }} />
+        <Section title="Link Status" fields={{ ...link, ...kind }} />
         {data.addr && <Card><CardHeader><CardTitle className="text-sm">Addresses</CardTitle></CardHeader>
           <CardContent><pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-md bg-muted p-3 font-mono text-xs">{data.addr.trimEnd()}</pre></CardContent></Card>}
         {isRecord(info_data) && <Section title={`${String(info.info_kind ?? 'Interface')} details`} fields={info_data} />}

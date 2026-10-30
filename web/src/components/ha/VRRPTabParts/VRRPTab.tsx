@@ -11,7 +11,7 @@ type VRRPTabShape = {
 }
 
 export function VRRPTab({ instances, setInstances, ifaceNames, onDirty }: VRRPTabShape) {
-  const rows: Row[] = instances.map((v) => ({ uid: `${v.interface}-${v.id}-${v.name ?? ''}`, v }))
+  const rows: Row[] = instances.map((v) => ({ v }))
 
   const update = (next: VRRPInstance[]) => { setInstances(next); onDirty() }
 
@@ -24,21 +24,19 @@ export function VRRPTab({ instances, setInstances, ifaceNames, onDirty }: VRRPTa
 
   if (ifaceNames.length === 0) {
     return (
-      <EmptyState className="py-12" title="No interfaces"
-        message="Add an interface first, then define VRRP failover groups here." />
+      <EmptyState className="py-12" title="No Interfaces"
+        message="Add an interface first" />
     )
   }
 
   return (
     <AccordionList
       items={rows.map((r, i) => ({ ...r, index: i }))}
-      getId={(it) => `${it.uid}-${it.index}`}
-      description="Virtual router failover groups managed by keepalived."
-      addLabel="Add instance"
+      getId={(it) => String(it.index)}
+      addLabel="Add Instance"
       onAdd={addInstance}
       onRemove={(it) => removeInstance(it.index)}
-      emptyTitle="No VRRP instances"
-      emptyMessage="Add an instance to create a failover group on an interface."
+      emptyTitle="No VRRP Instances"
       renderSummary={(it) => <VRRPSummary v={it.v} />}
       renderBody={(it) => (
         <VRRPBody

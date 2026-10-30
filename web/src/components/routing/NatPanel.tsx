@@ -34,7 +34,7 @@ export function NatSummary({ spec }: NatSummaryShape) {
         : `out ${spec.out || 'any'}${spec.source ? ` from ${spec.source}` : ''}`
   return (
     <div className="flex min-w-0 flex-1 items-center gap-3">
-      <Badge variant="secondary" className="shrink-0 text-[11px]">{KIND_LABEL[spec.kind]}</Badge>
+      <Badge variant="secondary" className="shrink-0 text-xs">{KIND_LABEL[spec.kind]}</Badge>
       <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">{detail}</span>
       {spec.comment && <span className="hidden shrink-0 truncate text-xs text-muted-foreground sm:block">{spec.comment}</span>}
     </div>
@@ -109,24 +109,19 @@ export default function NatPanel({ onStateChange }: NatPanelShape) {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground max-w-2xl">
-        Shortcuts that write tagged nftables rules into the firewall chains (masquerade/SNAT in postrouting,
-        port-forwards in prerouting). They show up on the Firewall page and can be edited or removed there too.
-      </p>
-
-      {addButtons}
       {specs.length === 0 ? (
         <EmptyState
-          title="No NAT rules"
-          message="Masquerade, SNAT and port-forward shortcuts write tagged rules into the firewall chains."
+          title="No NAT Rules"
+          action={addButtons}
         />
       ) : (
         <div className="grid gap-3">
+          {addButtons}
           {specs.map((spec, index) => (
             <Card key={index} className="space-y-4 p-4">
               <div className="flex items-center gap-3">
                 <NatSummary spec={spec} />
-                <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => remove(index)}>
+                <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => remove(index)} aria-label="Remove Rule" title="Remove Rule">
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </div>

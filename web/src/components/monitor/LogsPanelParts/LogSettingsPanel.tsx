@@ -1,6 +1,8 @@
+import { DraftControls } from '@/components/DraftControls'
 import { LOG_LEVELS, LOG_TARGETS, LoggingConfig } from '@/components/monitor/LogsPanel'
 import { api } from '@/lib/client'
-import { Button, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from 'cheval-ui'
+import { EntryRow, PreferencesGroup } from 'cheval-ui'
+import { SelectRow } from '@/components/ui/SelectRow'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -38,34 +40,17 @@ export function LogSettingsPanel() {
     } finally { setSaving(false) }
   }
 
+  const changeTarget = (value: string | undefined) => { setTarget(value ?? ''); setIsDirty(true) }
+  const changeLevel = (value: string | undefined) => { setLevel(value ?? ''); setIsDirty(true) }
+
   return (
-    <div className="space-y-4 max-w-xs">
-      <div className="space-y-1.5">
-        <Label>Target</Label>
-        <Select value={target || '_none'} onValueChange={(v) => { setTarget(v === '_none' ? '' : v); setIsDirty(true) }}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {LOG_TARGETS.map((t) => <SelectItem key={t || '_none'} value={t || '_none'}>{t || '(not set)'}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </div>
+    <PreferencesGroup>
+      <SelectRow title="Target" value={target} onChange={changeTarget} options={LOG_TARGETS.filter(Boolean)} noneLabel="Not set" mono={false} />
       {target === 'file' && (
-        <div className="space-y-1.5">
-          <Label>File path</Label>
-          <Input value={file} onChange={(e) => { setFile(e.target.value); setIsDirty(true) }} placeholder="/var/log/routier.log" className="font-mono" />
-        </div>
+        <EntryRow title="File Path" value={file} onChange={(e) => { setFile(e.target.value); setIsDirty(true) }} placeholder="/var/log/routier.log" className="font-mono" />
       )}
-      <div className="space-y-1.5">
-        <Label>Level</Label>
-        <Select value={level || '_none'} onValueChange={(v) => { setLevel(v === '_none' ? '' : v); setIsDirty(true) }}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="_none">(not set)</SelectItem>
-            {LOG_LEVELS.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </div>
-      <Button onClick={handleSave} disabled={!isDirty || saving} size="sm">{saving ? 'Saving…' : 'Save'}</Button>
-    </div>
+      <SelectRow title="Level" value={level} onChange={changeLevel} options={LOG_LEVELS} noneLabel="Not set" mono={false} />
+      <DraftControls isDirty={isDirty} saving={saving} onClick={handleSave} />
+    </PreferencesGroup>
   )
 }

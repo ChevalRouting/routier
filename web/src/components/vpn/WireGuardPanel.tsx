@@ -1,3 +1,4 @@
+import { DraftControls } from '@/components/DraftControls'
 import { WgIface, WgMap, emptyWg } from '@/components/wireguard/shared'
 import { WgForm } from '@/components/wireguard/WgForm'
 import { WgRow } from '@/components/wireguard/WgRow'
@@ -5,7 +6,7 @@ import { api } from '@/lib/client'
 import { useDataRefresh } from '@/lib/dataVersion'
 import { useFetch } from '@/lib/useFetch'
 import { usePageSave } from '@/lib/usePageSave'
-import { Button, EmptyState, Pagination, PreferencesColumns, ReloadButton, SaveButton, Sheet, Spinner, usePagination } from 'cheval-ui'
+import { Button, EmptyState, Pagination, ReloadButton, Sheet, Spinner, usePagination, PreferencesGroup } from 'cheval-ui'
 import { Lock, Plus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
@@ -15,12 +16,12 @@ type WireGuardPanelShape = { onActionChange?: (a: React.ReactNode) => void }
 const NEW_KEY = '__new__'
 
 export function WireGuardPanel({ onActionChange }: WireGuardPanelShape) {
-  const { data, isLoading, reload } = useFetch<WgMap>(() => api.apiConfigSectionGet({ section: 'wireguard' }) as Promise<WgMap>)
+  const { data, isLoading, reload } = useFetch<WgMap>(() => api.apiConfigSectionGet({ section: 'vpn.wireguard' }) as Promise<WgMap>)
   const [entries, setEntries] = useState<WgMap | null>(null)
   const [newName, setNewName] = useState('')
   const [openSheet, setOpenSheet] = useState<string | null>(null)
   const [formDraft, setFormDraft] = useState<WgIface | null>(null)
-  const { isDirty, markDirty, save, saving, reset } = usePageSave('wireguard')
+  const { isDirty, markDirty, save, saving, reset } = usePageSave('vpn.wireguard')
 
   useDataRefresh(() => { setEntries(null); reset() })
 
@@ -33,7 +34,7 @@ export function WireGuardPanel({ onActionChange }: WireGuardPanelShape) {
 
     onActionChange?.(
       <div className="flex items-center gap-2">
-        <SaveButton isDirty={isDirty} saving={saving} onClick={() => save(current)} onCancel={handleCancel} />
+        <DraftControls isDirty={isDirty} saving={saving} onClick={() => save(current)} onCancel={handleCancel} />
         <ReloadButton onClick={handleClick} />
       </div>
     )
@@ -72,16 +73,15 @@ export function WireGuardPanel({ onActionChange }: WireGuardPanelShape) {
         <EmptyState
           className="max-w-2xl mx-auto"
           icon={<Lock />}
-          title="No WireGuard interfaces"
-          message="Add a WireGuard interface to define peers and encrypted tunnels."
-          action={<Button variant="outline" size="sm" onClick={handleAddNew} className="gap-2"><Plus className="h-4 w-4" />Add interface</Button>}
+          title="No WireGuard Interfaces"
+          action={<Button variant="outline" size="sm" onClick={handleAddNew} className="gap-2"><Plus className="h-4 w-4" />Add Interface…</Button>}
         />
       ) : (
-        <PreferencesColumns
+        <PreferencesGroup
           title="Interfaces"
           header={
             <Button variant="outline" size="sm" onClick={handleAddNew} className="gap-1.5">
-              <Plus className="h-4 w-4" />Add
+              <Plus className="h-4 w-4" />Add Interface…
             </Button>
           }
         >
@@ -94,7 +94,7 @@ export function WireGuardPanel({ onActionChange }: WireGuardPanelShape) {
               onDelete={() => deleteEntry(name)}
             />
           ))}
-        </PreferencesColumns>
+        </PreferencesGroup>
       )}
 
       <Pagination page={page} totalPages={totalPages} total={total} pageSize={pageSize} onPage={setPage} unit="interfaces" />
@@ -103,7 +103,6 @@ export function WireGuardPanel({ onActionChange }: WireGuardPanelShape) {
         open={!!openSheet}
         onClose={handleCloseSheet}
         title={openSheet === NEW_KEY ? 'New WireGuard Interface' : (openSheet ?? '')}
-        className="max-w-2xl"
       >
         {openSheet && (openSheet === NEW_KEY ? formDraft : current[openSheet]) && (
           <WgForm

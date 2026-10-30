@@ -13,6 +13,7 @@ import (
 	"text/template"
 
 	"github.com/ChevalRouting/routier/pkg/config"
+	"github.com/ChevalRouting/routier/pkg/friends"
 	"github.com/rs/zerolog/log"
 )
 
@@ -21,11 +22,7 @@ func ifaceAddresses(cfg *config.Config, name string) []string {
 		return i.Addresses
 	}
 
-	if t, ok := cfg.Tunnels[name]; ok {
-		return t.Addresses
-	}
-
-	if w, ok := cfg.Wireguard[name]; ok {
+	if w, ok := cfg.VPN.Wireguard[name]; ok {
 		return w.Addresses
 	}
 
@@ -78,57 +75,68 @@ func parseHostIP(s string) net.IP {
 func templateFuncs(data TemplateData) template.FuncMap {
 	cfg := data.Config
 	return template.FuncMap{
-		"iface":      func(name string) string { return templateFuncsCallback(cfg, name) },
-		"addr":       func(ifaceName string) string { return templateFuncsCallback2(cfg, ifaceName) },
-		"addr4":      func(ifaceName string) string { return templateFuncsCallback3(cfg, ifaceName) },
-		"addr6":      func(ifaceName string) string { return templateFuncsCallback4(cfg, ifaceName) },
-		"network4":   func(ifaceName string) string { return templateFuncsCallback5(cfg, ifaceName) },
-		"network6":   func(ifaceName string) string { return templateFuncsCallback6(cfg, ifaceName) },
-		"gateway":    func(ifaceName string) string { return templateFuncsCallback7(cfg, ifaceName) },
-		"gateway6":   func(ifaceName string) string { return templateFuncsCallback8(cfg, ifaceName) },
-		"ip":         templateFuncsHandler,
-		"subnet":     templateFuncsHandler2,
+		"iface":      func(name string) string { return ifaceDevice(cfg, name) },
+		"addr":       func(ifaceName string) string { return ifaceAddr(cfg, ifaceName) },
+		"addr4":      func(ifaceName string) string { return ifaceAddr4(cfg, ifaceName) },
+		"addr6":      func(ifaceName string) string { return ifaceAddr6(cfg, ifaceName) },
+		"network4":   func(ifaceName string) string { return ifaceNetwork4(cfg, ifaceName) },
+		"network6":   func(ifaceName string) string { return ifaceNetwork6(cfg, ifaceName) },
+		"gateway":    func(ifaceName string) string { return ifaceGateway(cfg, ifaceName) },
+		"gateway6":   func(ifaceName string) string { return ifaceGateway6(cfg, ifaceName) },
+		"ip":         cidrIP,
+		"subnet":     cidrSubnet,
 		"join":       strings.Join,
 		"contains":   strings.Contains,
-		"extraLines": templateFuncsHandler3,
+		"extraLines": indentLines,
 		"quote": func(s string) string {
 			return fmt.Sprintf("%q", s)
 		},
-		"default":    templateFuncsHandler4,
-		"allDevices": func() []string { return templateFuncsCallback9(cfg) },
+		"default":    defaultString,
+		"allDevices": func() []string { return allDevices(cfg) },
 		"afName": func(s string) string {
 			return strings.ReplaceAll(s, "-", " ")
 		},
-		"bgpAFs":            templateFuncsHandler5,
-		"bgpNeighborInAF":   templateFuncsHandler6,
-		"nftDefines":        func() string { return templateFuncsCallback10(&data, cfg) },
-		"renderStr":         func(s string) (string, error) { return templateFuncsCallback11(&data, s) },
-		"frrInterfaces":     func() []string { return templateFuncsCallback12(cfg) },
-		"ospfIface":         func(name string) *config.OSPFInterface { return templateFuncsCallback13(cfg, name) },
-		"ospf6Iface":        func(name string) *config.OSPF6Interface { return templateFuncsCallback14(cfg, name) },
-		"pbrPolicy":         func(name string) string { return templateFuncsCallback15(cfg, name) },
-		"bgpNeighborByDesc": func(desc string) string { return templateFuncsCallback16(cfg, desc) },
-		"hasOSPF6":          func() bool { return templateFuncsCallback17(cfg) },
-		"bgpNoRIB":          func() bool { return templateFuncsCallback18(cfg) },
-		"bfdProfiles":       func() []config.BFDProfile { return templateFuncsCallback19(cfg) },
-		"needBFD":           func() bool { return templateFuncsCallback20(cfg) },
+		"bgpAFs":             bgpAFs,
+		"bgpNeighborInAF":    bgpNeighborInAF,
+		"bgpPolicyMap":       bgpPolicyMap,
+		"bgpPolicyRouteMaps": func() string { return bgpPolicyRouteMaps(cfg) },
+		"nftDefines":         func() string { return nftDefines(&data, cfg) },
+		"friendBGPPolicies":  func() string { return friendBGPPolicies(&data) },
+		"renderStr":          func(s string) (string, error) { return renderString(&data, s) },
+		"frrInterfaces":      func() []string { return frrInterfaces(cfg) },
+		"ospfIface":          func(name string) *config.OSPFInterface { return ospfInterface(cfg, name) },
+		"ospf6Iface":         func(name string) *config.OSPF6Interface { return ospf6Interface(cfg, name) },
+		"pbrPolicy":          func(name string) string { return pbrPolicy(cfg, name) },
+		"bgpNeighborByDesc":  func(desc string) string { return bgpNeighborByDescription(cfg, desc) },
+		"hasOSPF6":           func() bool { return hasOSPF6(cfg) },
+		"bgpNoRIB":           func() bool { return bgpNoRIB(cfg) },
+		"bfdProfiles":        func() []config.BFDProfile { return bfdProfiles(cfg) },
+		"needBFD":            func() bool { return needBFD(cfg) },
 		"nftRoutierTable": func() (string, error) {
 			return renderRoutierTable(cfg)
 		},
-		"nftUserDefines": func() string { return templateFuncsCallback21(cfg) },
-		"nftIncludes":    func() ([]string, error) { return templateFuncsCallback22(&data, cfg) },
+		"nftFlowsTable":   func() string { return renderFlowsTable(cfg) },
+		"nftAnycastTable": func() string { return renderAnycastGatewayTable(cfg) },
+		"nftUserDefines":  func() string { return nftUserDefines(cfg) },
+		"nftIncludes":     func() ([]string, error) { return nftIncludes(&data, cfg) },
 		"dnsName": func(name string) string {
 			return config.NormalizeDNSName(name)
 		},
+		"bindSecondaryFile":  func(name string) string { return "/var/bind/" + ZoneFileName(name) },
+		"bindTransferKeys":   func() []config.DNSTransferKey { return bindTransferKeys(cfg) },
+		"bindTransferPolicy": bindTransferPolicy,
+		"splitLines":         bindPolicyLines,
+		"bindPrimary":        bindPrimary,
 		"bindZoneFile": func(name string) string {
 			return zoneFilePath(name)
 		},
 		"bindAllowFrom": func() []string {
 			return bindAllowFrom(cfg)
 		},
-		"dnsNeedsNonlocalBind": func() bool { return templateFuncsCallback23(cfg) },
-		"bindListen4":          func() string { return templateFuncsCallback24(cfg) },
-		"bindListen6":          func() string { return templateFuncsCallback25(cfg) },
+		"dnsNeedsNonlocalBind":   func() bool { return dnsNeedsNonlocalBind(cfg) },
+		"conntrackdNeedsLiberal": func() bool { return conntrackdNeedsLiberal(cfg) },
+		"bindListen4":            func() string { return bindListen4(cfg) },
+		"bindListen6":            func() string { return bindListen6(cfg) },
 		"bindRecursion": func() bool {
 			s := dnsServer(cfg)
 
@@ -139,7 +147,7 @@ func templateFuncs(data TemplateData) template.FuncMap {
 
 			return v.Recurses(s != nil && s.Recurses())
 		},
-		"bindPort": func() int { return templateFuncsCallback26(cfg) },
+		"bindPort": func() int { return bindPort(cfg) },
 		"bindValidateExcept": func() []string {
 			return dnsInsecureDomains(cfg)
 		},
@@ -166,7 +174,7 @@ func templateFuncs(data TemplateData) template.FuncMap {
 	}
 }
 
-func emitVRRPDefines(b *strings.Builder, nftSet func([]string) string, emitAddr func(string, []string), prefix string, vips []string) {
+func emitVRRPDefines(b *strings.Builder, emitAddr func(string, []string), prefix string, vips []string) {
 	if len(vips) == 0 {
 		return
 	}
@@ -304,11 +312,15 @@ func nftChainUserLines(cfg *config.Config, name string) ([]string, error) {
 
 func routierManagedRules(cfg *config.Config) map[string][]string {
 	out := map[string][]string{}
+	if cfg.Nftables != nil && cfg.Nftables.DisableAutoRules {
+		return out
+	}
+
 	add := func(chain, rule string) { out[chain] = append(out[chain], rule) }
 
 	var wgPorts []int
 	seenPort := map[int]bool{}
-	for _, wg := range cfg.Wireguard {
+	for _, wg := range cfg.VPN.Wireguard {
 		if wg.AllowInbound && wg.ListenPort > 0 && !seenPort[wg.ListenPort] {
 			seenPort[wg.ListenPort] = true
 			wgPorts = append(wgPorts, wg.ListenPort)
@@ -339,6 +351,14 @@ func routierManagedRules(cfg *config.Config) map[string][]string {
 			}
 
 			add("input", fmt.Sprintf("iifname %q udp dport %d accept comment \"routier: conntrackd\"", resolveDevice(cfg, ct.Interface), port))
+		}
+	}
+
+	if LocalKeaHAEnabled(cfg) {
+		h := cfg.DHCP.HA
+		if h.AllowInbound && h.Interface != "" {
+			port, port6 := h.Ports()
+			add("input", fmt.Sprintf("iifname %q tcp dport { %d, %d } accept comment \"routier: kea ha\"", resolveDevice(cfg, h.Interface), port, port6))
 		}
 	}
 
@@ -384,7 +404,9 @@ func routierManagedRules(cfg *config.Config) map[string][]string {
 		}
 	}
 
-	if s := dnsServer(cfg); s != nil {
+	out["input"] = append(out["input"], dnsVRFAutoRules(cfg)...)
+
+	if s := dnsServer(cfg); s != nil && !s.DisableAutoRules {
 		for _, ifn := range s.AllowInbound {
 			out["input"] = append(out["input"], dnsAllow(cfg, ifn)...)
 		}
@@ -401,7 +423,7 @@ func resolveDevice(cfg *config.Config, name string) string {
 	return name
 }
 
-func emitPrefixSet(b *strings.Builder, nftSet func([]string) string, prefix string, entries []string) {
+func emitPrefixSet(b *strings.Builder, prefix string, entries []string) {
 	var v4, v6 []string
 	for _, e := range entries {
 		e = strings.TrimSpace(e)
@@ -493,12 +515,8 @@ func scopedAddresses(cfg *config.Config, name string) ([]string, bool) {
 		return iface.Addresses, true
 	}
 
-	if wg, ok := cfg.Wireguard[name]; ok {
+	if wg, ok := cfg.VPN.Wireguard[name]; ok {
 		return wg.Addresses, true
-	}
-
-	if t, ok := cfg.Tunnels[name]; ok {
-		return t.Addresses, true
 	}
 
 	return nil, false
@@ -516,7 +534,7 @@ func scopedAllow(cfg *config.Config, ifaceName, match, comment string, fams ...s
 	san := sanitizeNftName(ifaceName)
 	v4, v6 := addressFamilies(addrs)
 
-	want := func(f string) bool { return scopedAllowCallback(fams, f) }
+	want := func(f string) bool { return familyAllowed(fams, f) }
 
 	var out []string
 	if v4 && want("ip") {
@@ -736,7 +754,284 @@ func FriendNftVars(cfg *config.Config, name string, opts ...Option) []NftVar {
 	return out
 }
 
-func templateFuncsHandler(cidr string) string {
+const FriendPolicyPrefix = "friends_"
+
+func sanitizeFRRName(s string) string {
+	return strings.Map(sanitizeFRRRune, s)
+}
+
+func sanitizeFRRRune(r rune) rune {
+	if r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '_' || r == '-' {
+		return r
+	}
+
+	return '_'
+}
+
+func friendPolicyPrefix(name string) string {
+	return FriendPolicyPrefix + sanitizeFRRName(name) + "_"
+}
+
+func friendBGPPolicies(data *TemplateData) string {
+	names := make([]string, 0, len(data.Friends))
+	for n := range data.Friends {
+		names = append(names, n)
+	}
+
+	sort.Strings(names)
+
+	mergedPrefix := map[string][]config.PrefixEntry{}
+	mergedRoute := map[string][]config.RouteMapEntry{}
+
+	var b strings.Builder
+	for _, fname := range names {
+		fv := data.Friends[fname]
+		if len(fv.BGPPrefixLists) == 0 && len(fv.BGPRouteMaps) == 0 {
+			continue
+		}
+
+		prefix := friendPolicyPrefix(fname)
+		resolvePL := friendRefResolver(prefix, fv.BGPSharedPrefixLists)
+		resolveRM := friendRefResolver(prefix, fv.BGPSharedRouteMaps)
+
+		for _, name := range sortedKeys(fv.BGPPrefixLists) {
+			if fv.BGPSharedPrefixLists[name] {
+				mergedPrefix[name] = append(mergedPrefix[name], fv.BGPPrefixLists[name]...)
+				continue
+			}
+
+			renderPrefixList(&b, prefix+name, fv.BGPPrefixLists[name])
+		}
+
+		for _, name := range sortedKeys(fv.BGPRouteMaps) {
+			resolved := make([]config.RouteMapEntry, 0, len(fv.BGPRouteMaps[name]))
+			for _, e := range fv.BGPRouteMaps[name] {
+				resolved = append(resolved, resolveRouteMapEntry(e, resolvePL, resolveRM))
+			}
+
+			if fv.BGPSharedRouteMaps[name] {
+				mergedRoute[name] = append(mergedRoute[name], resolved...)
+				continue
+			}
+
+			renderRouteMap(&b, prefix+name, resolved)
+		}
+	}
+
+	for _, name := range sortedKeys(mergedPrefix) {
+		renderPrefixList(&b, FriendPolicyPrefix+name, dedupPrefixBySeq(mergedPrefix[name]))
+	}
+
+	for _, name := range sortedKeys(mergedRoute) {
+		renderRouteMap(&b, FriendPolicyPrefix+name, dedupRouteBySeq(mergedRoute[name]))
+	}
+
+	if b.Len() == 0 {
+		return ""
+	}
+
+	return "\n" + b.String()
+}
+
+type ImportedPrefixList struct {
+	Name    string               `json:"name"`
+	Shared  bool                 `json:"shared"`
+	Sources []string             `json:"sources"`
+	Entries []config.PrefixEntry `json:"entries"`
+}
+
+type ImportedRouteMap struct {
+	Name    string                 `json:"name"`
+	Shared  bool                   `json:"shared"`
+	Sources []string               `json:"sources"`
+	Entries []config.RouteMapEntry `json:"entries"`
+}
+
+type FriendBGPImportResult struct {
+	PrefixLists []ImportedPrefixList `json:"prefix_lists"`
+	RouteMaps   []ImportedRouteMap   `json:"route_maps"`
+}
+
+func FriendBGPImport(data map[string]friends.Vars) FriendBGPImportResult {
+	names := make([]string, 0, len(data))
+	for n := range data {
+		names = append(names, n)
+	}
+
+	sort.Strings(names)
+
+	prefixLists := []ImportedPrefixList{}
+	routeMaps := []ImportedRouteMap{}
+	mergedPrefix := map[string][]config.PrefixEntry{}
+	mergedPrefixSrc := map[string][]string{}
+	mergedRoute := map[string][]config.RouteMapEntry{}
+	mergedRouteSrc := map[string][]string{}
+
+	for _, fname := range names {
+		fv := data[fname]
+		prefix := friendPolicyPrefix(fname)
+		resolvePL := friendRefResolver(prefix, fv.BGPSharedPrefixLists)
+		resolveRM := friendRefResolver(prefix, fv.BGPSharedRouteMaps)
+
+		for _, name := range sortedKeys(fv.BGPPrefixLists) {
+			if fv.BGPSharedPrefixLists[name] {
+				mergedPrefix[name] = append(mergedPrefix[name], fv.BGPPrefixLists[name]...)
+				mergedPrefixSrc[name] = append(mergedPrefixSrc[name], fname)
+				continue
+			}
+
+			prefixLists = append(prefixLists, ImportedPrefixList{Name: prefix + name, Sources: []string{fname}, Entries: fv.BGPPrefixLists[name]})
+		}
+
+		for _, name := range sortedKeys(fv.BGPRouteMaps) {
+			resolved := make([]config.RouteMapEntry, 0, len(fv.BGPRouteMaps[name]))
+			for _, e := range fv.BGPRouteMaps[name] {
+				resolved = append(resolved, resolveRouteMapEntry(e, resolvePL, resolveRM))
+			}
+
+			if fv.BGPSharedRouteMaps[name] {
+				mergedRoute[name] = append(mergedRoute[name], resolved...)
+				mergedRouteSrc[name] = append(mergedRouteSrc[name], fname)
+				continue
+			}
+
+			routeMaps = append(routeMaps, ImportedRouteMap{Name: prefix + name, Sources: []string{fname}, Entries: resolved})
+		}
+	}
+
+	for _, name := range sortedKeys(mergedPrefix) {
+		prefixLists = append(prefixLists, ImportedPrefixList{Name: FriendPolicyPrefix + name, Shared: true, Sources: mergedPrefixSrc[name], Entries: dedupPrefixBySeq(mergedPrefix[name])})
+	}
+
+	for _, name := range sortedKeys(mergedRoute) {
+		routeMaps = append(routeMaps, ImportedRouteMap{Name: FriendPolicyPrefix + name, Shared: true, Sources: mergedRouteSrc[name], Entries: dedupRouteBySeq(mergedRoute[name])})
+	}
+
+	sort.Slice(prefixLists, func(i, j int) bool { return prefixLists[i].Name < prefixLists[j].Name })
+	sort.Slice(routeMaps, func(i, j int) bool { return routeMaps[i].Name < routeMaps[j].Name })
+
+	return FriendBGPImportResult{PrefixLists: prefixLists, RouteMaps: routeMaps}
+}
+
+func friendRefResolver(friendPrefix string, shared map[string]bool) func(string) string {
+	return func(target string) string { return friendRef(friendPrefix, target, shared) }
+}
+
+func friendRef(friendPrefix, target string, shared map[string]bool) string {
+	if shared[target] {
+		return FriendPolicyPrefix + target
+	}
+
+	return friendPrefix + target
+}
+
+func resolveRouteMapEntry(e config.RouteMapEntry, resolvePL, resolveRM func(string) string) config.RouteMapEntry {
+	out := e
+	if len(e.Match) > 0 {
+		m := make(map[string]string, len(e.Match))
+		for k, v := range e.Match {
+			if strings.Contains(k, "prefix-list") {
+				v = resolvePL(v)
+			}
+
+			m[k] = v
+		}
+
+		out.Match = m
+	}
+
+	if e.Call != "" {
+		out.Call = resolveRM(e.Call)
+	}
+
+	return out
+}
+
+func dedupPrefixBySeq(entries []config.PrefixEntry) []config.PrefixEntry {
+	seen := map[int]bool{}
+	out := make([]config.PrefixEntry, 0, len(entries))
+	for _, e := range entries {
+		if seen[e.Seq] {
+			continue
+		}
+
+		seen[e.Seq] = true
+		out = append(out, e)
+	}
+
+	sort.Slice(out, func(i, j int) bool { return out[i].Seq < out[j].Seq })
+	return out
+}
+
+func dedupRouteBySeq(entries []config.RouteMapEntry) []config.RouteMapEntry {
+	seen := map[int]bool{}
+	out := make([]config.RouteMapEntry, 0, len(entries))
+	for _, e := range entries {
+		if seen[e.Seq] {
+			continue
+		}
+
+		seen[e.Seq] = true
+		out = append(out, e)
+	}
+
+	sort.Slice(out, func(i, j int) bool { return out[i].Seq < out[j].Seq })
+	return out
+}
+
+func renderPrefixList(b *strings.Builder, name string, entries []config.PrefixEntry) {
+	for _, e := range entries {
+		_, _ = fmt.Fprintf(b, "!\nip prefix-list %s seq %d %s %s", name, e.Seq, e.Action, e.Prefix)
+		if e.GE != 0 {
+			_, _ = fmt.Fprintf(b, " ge %d", e.GE)
+		}
+
+		if e.LE != 0 {
+			_, _ = fmt.Fprintf(b, " le %d", e.LE)
+		}
+
+		_ = b.WriteByte('\n')
+	}
+}
+
+func renderRouteMap(b *strings.Builder, name string, entries []config.RouteMapEntry) {
+	for _, e := range entries {
+		_, _ = fmt.Fprintf(b, "!\nroute-map %s %s %d\n", name, e.Action, e.Seq)
+		for _, k := range sortedKeys(e.Match) {
+			_, _ = fmt.Fprintf(b, " match %s %s\n", k, e.Match[k])
+		}
+
+		for _, k := range sortedKeys(e.Set) {
+			_, _ = fmt.Fprintf(b, " set %s %s\n", k, e.Set[k])
+		}
+
+		if e.Call != "" {
+			_, _ = fmt.Fprintf(b, " call %s\n", e.Call)
+		}
+
+		if e.OnMatch != "" {
+			_, _ = fmt.Fprintf(b, " on-match %s\n", e.OnMatch)
+		}
+
+		if e.Continue != 0 {
+			_, _ = fmt.Fprintf(b, " continue %d\n", e.Continue)
+		}
+
+		_, _ = b.WriteString("exit\n")
+	}
+}
+
+func sortedKeys[V any](m map[string]V) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+
+	sort.Strings(keys)
+	return keys
+}
+
+func cidrIP(cidr string) string {
 	h, _, err := net.ParseCIDR(cidr)
 	if err != nil {
 		return cidr
@@ -745,7 +1040,7 @@ func templateFuncsHandler(cidr string) string {
 	return h.String()
 }
 
-func templateFuncsHandler2(cidr string) string {
+func cidrSubnet(cidr string) string {
 	_, n, err := net.ParseCIDR(cidr)
 	if err != nil {
 		return cidr
@@ -754,7 +1049,7 @@ func templateFuncsHandler2(cidr string) string {
 	return n.String()
 }
 
-func templateFuncsHandler3(lines []string, indent string) string {
+func indentLines(lines []string, indent string) string {
 	var b strings.Builder
 	for _, l := range lines {
 		if l = strings.TrimSpace(l); l != "" {
@@ -765,7 +1060,7 @@ func templateFuncsHandler3(lines []string, indent string) string {
 	return b.String()
 }
 
-func templateFuncsHandler4(def, val string) string {
+func defaultString(def, val string) string {
 	if val == "" {
 		return def
 	}
@@ -773,7 +1068,7 @@ func templateFuncsHandler4(def, val string) string {
 	return val
 }
 
-func templateFuncsHandler5(bgp *config.BGP) []string {
+func bgpAFs(bgp *config.BGP) []string {
 	seen := map[string]struct{}{}
 	for af := range bgp.AddressFamilies {
 		seen[af] = struct{}{}
@@ -798,7 +1093,7 @@ func templateFuncsHandler5(bgp *config.BGP) []string {
 	return afs
 }
 
-func templateFuncsHandler6(n config.BGPNeighbor, af string) *config.BGPNeighborAF {
+func bgpNeighborInAF(n config.BGPNeighbor, af string) *config.BGPNeighborAF {
 	if len(n.AddressFamilies) > 0 {
 		return n.AddressFamilies[af]
 	}
@@ -810,7 +1105,7 @@ func templateFuncsHandler6(n config.BGPNeighbor, af string) *config.BGPNeighborA
 	return nil
 }
 
-func templateFuncsHandler7(vals []string) string {
+func nftSet(vals []string) string {
 	if len(vals) == 1 {
 		return vals[0]
 	}
@@ -818,7 +1113,7 @@ func templateFuncsHandler7(vals []string) string {
 	return "{ " + strings.Join(vals, ", ") + " }"
 }
 
-func templateFuncsHandler8(bgp *config.BGP) bool {
+func bgpUsesBFD(bgp *config.BGP) bool {
 	if bgp == nil {
 		return false
 	}
@@ -832,7 +1127,7 @@ func templateFuncsHandler8(bgp *config.BGP) bool {
 	return false
 }
 
-func templateFuncsCallback(cfg *config.Config, name string) string {
+func ifaceDevice(cfg *config.Config, name string) string {
 	if i, ok := cfg.Interfaces[name]; ok {
 		return i.Device
 	}
@@ -840,7 +1135,7 @@ func templateFuncsCallback(cfg *config.Config, name string) string {
 	return name
 }
 
-func templateFuncsCallback2(cfg *config.Config, ifaceName string) string {
+func ifaceAddr(cfg *config.Config, ifaceName string) string {
 	addrs := ifaceAddresses(cfg, ifaceName)
 	if len(addrs) > 0 {
 		return addrs[0]
@@ -849,7 +1144,7 @@ func templateFuncsCallback2(cfg *config.Config, ifaceName string) string {
 	return ""
 }
 
-func templateFuncsCallback3(cfg *config.Config, ifaceName string) string {
+func ifaceAddr4(cfg *config.Config, ifaceName string) string {
 	addrs := ifaceAddresses(cfg, ifaceName)
 	for _, a := range addrs {
 		h, _, err := net.ParseCIDR(a)
@@ -863,7 +1158,7 @@ func templateFuncsCallback3(cfg *config.Config, ifaceName string) string {
 	return ""
 }
 
-func templateFuncsCallback4(cfg *config.Config, ifaceName string) string {
+func ifaceAddr6(cfg *config.Config, ifaceName string) string {
 	addrs := ifaceAddresses(cfg, ifaceName)
 	for _, a := range addrs {
 		h, _, err := net.ParseCIDR(a)
@@ -877,7 +1172,7 @@ func templateFuncsCallback4(cfg *config.Config, ifaceName string) string {
 	return ""
 }
 
-func templateFuncsCallback5(cfg *config.Config, ifaceName string) string {
+func ifaceNetwork4(cfg *config.Config, ifaceName string) string {
 	addrs := ifaceAddresses(cfg, ifaceName)
 	for _, a := range addrs {
 		h, n, err := net.ParseCIDR(a)
@@ -891,7 +1186,7 @@ func templateFuncsCallback5(cfg *config.Config, ifaceName string) string {
 	return ""
 }
 
-func templateFuncsCallback6(cfg *config.Config, ifaceName string) string {
+func ifaceNetwork6(cfg *config.Config, ifaceName string) string {
 	addrs := ifaceAddresses(cfg, ifaceName)
 	for _, a := range addrs {
 		h, n, err := net.ParseCIDR(a)
@@ -905,7 +1200,7 @@ func templateFuncsCallback6(cfg *config.Config, ifaceName string) string {
 	return ""
 }
 
-func templateFuncsCallback7(cfg *config.Config, ifaceName string) string {
+func ifaceGateway(cfg *config.Config, ifaceName string) string {
 	if cfg.Routing == nil {
 		return ""
 	}
@@ -932,7 +1227,7 @@ func templateFuncsCallback7(cfg *config.Config, ifaceName string) string {
 	return ""
 }
 
-func templateFuncsCallback8(cfg *config.Config, ifaceName string) string {
+func ifaceGateway6(cfg *config.Config, ifaceName string) string {
 	if cfg.Routing == nil {
 		return ""
 	}
@@ -959,7 +1254,7 @@ func templateFuncsCallback8(cfg *config.Config, ifaceName string) string {
 	return ""
 }
 
-func templateFuncsCallback9(cfg *config.Config) []string {
+func allDevices(cfg *config.Config) []string {
 	var devs []string
 	for _, i := range cfg.Interfaces {
 		devs = append(devs, i.Device)
@@ -968,15 +1263,13 @@ func templateFuncsCallback9(cfg *config.Config) []string {
 	return devs
 }
 
-func templateFuncsCallback10(data *TemplateData, cfg *config.Config) string {
+func nftDefines(data *TemplateData, cfg *config.Config) string {
 	var b strings.Builder
-
-	nftSet := templateFuncsHandler7
 
 	var collectAddrs func(addresses []string)
 
 	emitAddrDefines := func(prefix string, addresses []string) {
-		templateFuncsCallback10Callback(&b, nftSet, prefix, addresses)
+		writeAddrDefine(&b, prefix, addresses)
 	}
 
 	writeAddrDefines := func(prefix string, addresses []string) {
@@ -988,7 +1281,7 @@ func templateFuncsCallback10(data *TemplateData, cfg *config.Config) string {
 	var meV4, meV6 []string
 	vrfMembers := map[string][]string{}
 
-	collectAddrs = func(addresses []string) { templateFuncsCallback10Callback2(&meV4, &meV6, addresses) }
+	collectAddrs = func(addresses []string) { appendHostAddrs(&meV4, &meV6, addresses) }
 
 	ifaceNames := make([]string, 0, len(cfg.Interfaces))
 	for n := range cfg.Interfaces {
@@ -1022,7 +1315,12 @@ func templateFuncsCallback10(data *TemplateData, cfg *config.Config) string {
 
 		_, _ = fmt.Fprintf(&b, "define %s_interfaces = \"%s\"\n", sanitized, dev)
 		if dev != "" {
-			ifaceDevs = append(ifaceDevs, "\""+dev+"\"")
+			if iface.Type == "tunnel" {
+				tunnelDevs = append(tunnelDevs, "\""+dev+"\"")
+			} else {
+				ifaceDevs = append(ifaceDevs, "\""+dev+"\"")
+			}
+
 			if iface.VRF != "" {
 				vrfMembers[iface.VRF] = append(vrfMembers[iface.VRF], "\""+dev+"\"")
 			}
@@ -1031,7 +1329,7 @@ func templateFuncsCallback10(data *TemplateData, cfg *config.Config) string {
 		writeAddrDefines(sanitized, iface.Addresses)
 
 		if vips := vrrpByIface[name]; len(vips) > 0 {
-			emitVRRPDefines(&b, nftSet, emitAddrDefines, sanitized+"_vrrp", vips)
+			emitVRRPDefines(&b, emitAddrDefines, sanitized+"_vrrp", vips)
 		}
 
 		if cfg.Routing != nil {
@@ -1055,33 +1353,18 @@ func templateFuncsCallback10(data *TemplateData, cfg *config.Config) string {
 
 	sort.Ints(vrrpIDs)
 	for _, id := range vrrpIDs {
-		emitVRRPDefines(&b, nftSet, emitAddrDefines, "vrrp_"+strconv.Itoa(id), vrrpByID[id])
+		emitVRRPDefines(&b, emitAddrDefines, "vrrp_"+strconv.Itoa(id), vrrpByID[id])
 	}
 
-	tunnelNames := make([]string, 0, len(cfg.Tunnels))
-	for n := range cfg.Tunnels {
-		tunnelNames = append(tunnelNames, n)
-	}
-
-	sort.Strings(tunnelNames)
-
-	for _, name := range tunnelNames {
-		tunnel := cfg.Tunnels[name]
-		sanitized := sanitizeNftName(name)
-		_, _ = fmt.Fprintf(&b, "define %s_interfaces = \"%s\"\n", sanitized, name)
-		tunnelDevs = append(tunnelDevs, "\""+name+"\"")
-		writeAddrDefines(sanitized, tunnel.Addresses)
-	}
-
-	wgNames := make([]string, 0, len(cfg.Wireguard))
-	for n := range cfg.Wireguard {
+	wgNames := make([]string, 0, len(cfg.VPN.Wireguard))
+	for n := range cfg.VPN.Wireguard {
 		wgNames = append(wgNames, n)
 	}
 
 	sort.Strings(wgNames)
 
 	for _, name := range wgNames {
-		wg := cfg.Wireguard[name]
+		wg := cfg.VPN.Wireguard[name]
 		sanitized := sanitizeNftName(name)
 		_, _ = fmt.Fprintf(&b, "define %s_interfaces = \"%s\"\n", sanitized, name)
 		wgDevs = append(wgDevs, "\""+name+"\"")
@@ -1127,8 +1410,8 @@ func templateFuncsCallback10(data *TemplateData, cfg *config.Config) string {
 	}
 
 	if s := dnsServer(cfg); s != nil {
-		emitPrefixSet(&b, nftSet, "dns_allow_from", s.AllowFrom)
-		emitPrefixSet(&b, nftSet, "dns_listen", dnsListenAddresses(cfg))
+		emitPrefixSet(&b, "dns_allow_from", s.AllowFrom)
+		emitPrefixSet(&b, "dns_listen", dnsListenAddresses(cfg))
 	}
 
 	if cfg.Routing != nil && cfg.Routing.Anycast != nil {
@@ -1156,7 +1439,7 @@ func templateFuncsCallback10(data *TemplateData, cfg *config.Config) string {
 		_, _ = fmt.Fprintf(&b, "define me6 = %s\n", nftSet(meV6))
 	}
 
-	emitIPSet := func(prefix string, ips []string) { templateFuncsCallback10Callback3(&b, nftSet, prefix, ips) }
+	emitIPSet := func(prefix string, ips []string) { writeIPSetDefine(&b, prefix, ips) }
 
 	if cfg.Routing != nil {
 		rt := cfg.Routing
@@ -1206,14 +1489,14 @@ func templateFuncsCallback10(data *TemplateData, cfg *config.Config) string {
 		}
 	}
 
-	friendNames := make([]string, 0, len((*data).Friends))
-	for n := range (*data).Friends {
+	friendNames := make([]string, 0, len(data.Friends))
+	for n := range data.Friends {
 		friendNames = append(friendNames, n)
 	}
 
 	sort.Strings(friendNames)
 	for _, fname := range friendNames {
-		fv := (*data).Friends[fname]
+		fv := data.Friends[fname]
 		prefix := "friends_" + sanitizeNftName(fname)
 
 		if len(fv.Exports) > 0 {
@@ -1244,22 +1527,22 @@ func templateFuncsCallback10(data *TemplateData, cfg *config.Config) string {
 	return b.String()
 }
 
-func templateFuncsCallback11(data *TemplateData, s string) (string, error) {
-	funcs := templateFuncs((*data))
+func renderString(data *TemplateData, s string) (string, error) {
+	funcs := templateFuncs(*data)
 	t, err := template.New("render-str").Funcs(funcs).Parse(s)
 	if err != nil {
 		return "", fmt.Errorf("renderStr: %w", err)
 	}
 
 	var buf bytes.Buffer
-	if err := t.Execute(&buf, (*data)); err != nil {
+	if err := t.Execute(&buf, *data); err != nil {
 		return "", fmt.Errorf("renderStr: %w", err)
 	}
 
 	return buf.String(), nil
 }
 
-func templateFuncsCallback12(cfg *config.Config) []string {
+func frrInterfaces(cfg *config.Config) []string {
 	seen := map[string]struct{}{}
 	if cfg.Routing != nil {
 		if cfg.Routing.OSPF != nil {
@@ -1296,7 +1579,7 @@ func templateFuncsCallback12(cfg *config.Config) []string {
 	return names
 }
 
-func templateFuncsCallback13(cfg *config.Config, name string) *config.OSPFInterface {
+func ospfInterface(cfg *config.Config, name string) *config.OSPFInterface {
 	if cfg.Routing == nil || cfg.Routing.OSPF == nil {
 		return nil
 	}
@@ -1304,7 +1587,7 @@ func templateFuncsCallback13(cfg *config.Config, name string) *config.OSPFInterf
 	return cfg.Routing.OSPF.Interfaces[name]
 }
 
-func templateFuncsCallback14(cfg *config.Config, name string) *config.OSPF6Interface {
+func ospf6Interface(cfg *config.Config, name string) *config.OSPF6Interface {
 	if cfg.Routing == nil || cfg.Routing.OSPF6 == nil {
 		return nil
 	}
@@ -1312,7 +1595,7 @@ func templateFuncsCallback14(cfg *config.Config, name string) *config.OSPF6Inter
 	return cfg.Routing.OSPF6.Interfaces[name]
 }
 
-func templateFuncsCallback15(cfg *config.Config, name string) string {
+func pbrPolicy(cfg *config.Config, name string) string {
 	if cfg.Routing == nil || cfg.Routing.PBR == nil {
 		return ""
 	}
@@ -1320,7 +1603,7 @@ func templateFuncsCallback15(cfg *config.Config, name string) string {
 	return cfg.Routing.PBR.Policies[name]
 }
 
-func templateFuncsCallback16(cfg *config.Config, desc string) string {
+func bgpNeighborByDescription(cfg *config.Config, desc string) string {
 	if cfg.Routing == nil {
 		return ""
 	}
@@ -1348,7 +1631,7 @@ func templateFuncsCallback16(cfg *config.Config, desc string) string {
 	return ""
 }
 
-func templateFuncsCallback17(cfg *config.Config) bool {
+func hasOSPF6(cfg *config.Config) bool {
 	if cfg.Routing == nil {
 		return false
 	}
@@ -1366,7 +1649,7 @@ func templateFuncsCallback17(cfg *config.Config) bool {
 	return false
 }
 
-func templateFuncsCallback18(cfg *config.Config) bool {
+func bgpNoRIB(cfg *config.Config) bool {
 	if cfg.Routing == nil {
 		return false
 	}
@@ -1384,7 +1667,7 @@ func templateFuncsCallback18(cfg *config.Config) bool {
 	return false
 }
 
-func templateFuncsCallback19(cfg *config.Config) []config.BFDProfile {
+func bfdProfiles(cfg *config.Config) []config.BFDProfile {
 	if cfg.Routing == nil || cfg.Routing.BFD == nil {
 		return nil
 	}
@@ -1392,7 +1675,7 @@ func templateFuncsCallback19(cfg *config.Config) []config.BFDProfile {
 	return cfg.Routing.BFD.Profiles
 }
 
-func templateFuncsCallback20(cfg *config.Config) bool {
+func needBFD(cfg *config.Config) bool {
 	if cfg.Routing == nil {
 		return false
 	}
@@ -1401,14 +1684,12 @@ func templateFuncsCallback20(cfg *config.Config) bool {
 		return true
 	}
 
-	bgpHasBFD := templateFuncsHandler8
-
-	if bgpHasBFD(cfg.Routing.BGP) {
+	if bgpUsesBFD(cfg.Routing.BGP) {
 		return true
 	}
 
 	for _, vr := range cfg.Routing.VRFs {
-		if bgpHasBFD(vr.BGP) {
+		if bgpUsesBFD(vr.BGP) {
 			return true
 		}
 	}
@@ -1416,7 +1697,7 @@ func templateFuncsCallback20(cfg *config.Config) bool {
 	return false
 }
 
-func templateFuncsCallback21(cfg *config.Config) string {
+func nftUserDefines(cfg *config.Config) string {
 	if cfg.Nftables == nil {
 		return ""
 	}
@@ -1424,12 +1705,12 @@ func templateFuncsCallback21(cfg *config.Config) string {
 	return strings.TrimRight(cfg.Nftables.Defines, "\n")
 }
 
-func templateFuncsCallback22(data *TemplateData, cfg *config.Config) ([]string, error) {
+func nftIncludes(data *TemplateData, cfg *config.Config) ([]string, error) {
 	if cfg.Nftables == nil {
 		return nil, nil
 	}
 
-	funcs := templateFuncs((*data))
+	funcs := templateFuncs(*data)
 	var out []string
 	for _, p := range cfg.Nftables.Include {
 		path := p
@@ -1449,7 +1730,7 @@ func templateFuncsCallback22(data *TemplateData, cfg *config.Config) ([]string, 
 		}
 
 		var buf bytes.Buffer
-		if terr := t.Execute(&buf, (*data)); terr != nil {
+		if terr := t.Execute(&buf, *data); terr != nil {
 			return nil, fmt.Errorf("nftables include %s: %w", path, terr)
 		}
 
@@ -1459,7 +1740,7 @@ func templateFuncsCallback22(data *TemplateData, cfg *config.Config) ([]string, 
 	return out, nil
 }
 
-func templateFuncsCallback23(cfg *config.Config) bool {
+func dnsNeedsNonlocalBind(cfg *config.Config) bool {
 	if _, ok := cfg.Sysctl["net.ipv4.ip_nonlocal_bind"]; ok {
 		return false
 	}
@@ -1467,7 +1748,15 @@ func templateFuncsCallback23(cfg *config.Config) bool {
 	return DNSListensOnVIP(cfg)
 }
 
-func templateFuncsCallback24(cfg *config.Config) string {
+func conntrackdNeedsLiberal(cfg *config.Config) bool {
+	if _, ok := cfg.Sysctl["net.netfilter.nf_conntrack_tcp_be_liberal"]; ok {
+		return false
+	}
+
+	return cfg.HA != nil && cfg.HA.Conntrackd != nil
+}
+
+func bindListen4(cfg *config.Config) string {
 	if dnsListenAny(cfg) {
 		return "any;"
 	}
@@ -1480,7 +1769,7 @@ func templateFuncsCallback24(cfg *config.Config) string {
 	return bindAddressList(v4)
 }
 
-func templateFuncsCallback25(cfg *config.Config) string {
+func bindListen6(cfg *config.Config) string {
 	if dnsListenAny(cfg) {
 		return "any;"
 	}
@@ -1490,7 +1779,7 @@ func templateFuncsCallback25(cfg *config.Config) string {
 	return bindAddressList(v6)
 }
 
-func templateFuncsCallback26(cfg *config.Config) int {
+func bindPort(cfg *config.Config) int {
 	if s := dnsServer(cfg); s != nil && s.Port > 0 {
 		return s.Port
 	}
@@ -1498,7 +1787,7 @@ func templateFuncsCallback26(cfg *config.Config) int {
 	return 53
 }
 
-func scopedAllowCallback(fams []string, f string) bool {
+func familyAllowed(fams []string, f string) bool {
 	if len(fams) == 0 {
 		return true
 	}
@@ -1506,7 +1795,7 @@ func scopedAllowCallback(fams []string, f string) bool {
 	return slices.Contains(fams, f)
 }
 
-func templateFuncsCallback10Callback(b *strings.Builder, nftSet func(vals []string) string, prefix string, addresses []string) {
+func writeAddrDefine(b *strings.Builder, prefix string, addresses []string) {
 	var v4h, v4n, v6h, v6n []string
 	for _, addr := range addresses {
 		if !isStaticAddr(addr) {
@@ -1555,7 +1844,7 @@ func templateFuncsCallback10Callback(b *strings.Builder, nftSet func(vals []stri
 	}
 }
 
-func templateFuncsCallback10Callback2(meV4 *[]string, meV6 *[]string, addresses []string) {
+func appendHostAddrs(meV4 *[]string, meV6 *[]string, addresses []string) {
 	for _, addr := range addresses {
 		if !isStaticAddr(addr) {
 			continue
@@ -1567,14 +1856,14 @@ func templateFuncsCallback10Callback2(meV4 *[]string, meV6 *[]string, addresses 
 		}
 
 		if h.To4() != nil {
-			(*meV4) = append((*meV4), h.String())
+			*meV4 = append(*meV4, h.String())
 		} else {
-			(*meV6) = append((*meV6), h.String())
+			*meV6 = append(*meV6, h.String())
 		}
 	}
 }
 
-func templateFuncsCallback10Callback3(b *strings.Builder, nftSet func(vals []string) string, prefix string, ips []string) {
+func writeIPSetDefine(b *strings.Builder, prefix string, ips []string) {
 	var v4, v6 []string
 	for _, ip := range ips {
 		p := parseHostIP(ip)

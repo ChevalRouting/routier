@@ -28,12 +28,23 @@
   margin-bottom: 0.5rem;
 }
 
+.heroLead {
+  font-size: 1.35rem;
+  color: var(--ifm-color-emphasis-900);
+  max-width: 42rem;
+  margin: 0 auto 0.75rem;
+}
+
 .heroTagline {
-  font-size: 1.4rem;
   font-style: italic;
-  color: var(--ifm-color-emphasis-800);
-  max-width: 40rem;
+  color: var(--ifm-color-emphasis-700);
   margin: 0 auto 2rem;
+}
+
+.heroNote {
+  margin: 1.25rem 0 0;
+  font-size: 0.9rem;
+  color: var(--ifm-color-emphasis-700);
 }
 
 .buttons {
@@ -43,27 +54,48 @@
   flex-wrap: wrap;
 }
 
-.features {
+.showcase {
+  max-width: 1100px;
+  margin: -2rem auto 0;
+  padding: 0 1rem;
+}
+
+.screenshot {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--ifm-toc-border-color);
+  border-radius: var(--ifm-global-radius);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+}
+
+.section {
   max-width: 1100px;
   margin: 0 auto;
-  padding: 3.5rem 1rem 4rem;
+  padding: 3.5rem 1rem 0;
+}
+
+.grid3 {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
 }
 
 @media (max-width: 900px) {
-  .features {
-    grid-template-columns: repeat(2, 1fr);
+  .grid3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 600px) {
-  .features {
-    grid-template-columns: 1fr;
+  .grid3 {
+    grid-template-columns: minmax(0, 1fr);
   }
   .heroTitle {
     font-size: 2.25rem;
+  }
+  .heroLead {
+    font-size: 1.15rem;
   }
 }
 
@@ -105,6 +137,32 @@
   text-align: center;
   max-width: 44rem;
   margin: 0 auto 2rem;
+}
+
+.tryCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.tryCode {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.tryLink {
+  margin-top: auto;
+  font-weight: 600;
+}
+
+.callout {
+  max-width: 760px;
+  margin: 4rem auto 5rem;
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+  background: var(--ifm-background-surface-color);
+  border: 1px solid var(--ifm-toc-border-color);
+  border-radius: var(--ifm-global-radius);
 }
 
 .exampleLink {

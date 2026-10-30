@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Try Routier
+    url: https://routier.cloud/docs/quickstart
+    about: Set up a test VM in about ten minutes
+  - name: Help test Routier
+    url: https://routier.cloud/docs/help-test
+    about: What to test and what to include in a report

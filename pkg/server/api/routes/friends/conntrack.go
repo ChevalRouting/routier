@@ -67,12 +67,18 @@ func ConfigureConntrack(w http.ResponseWriter, r *http.Request) {
 	payload := managers.PushPayload{Config: &cfgpkg.Config{Version: cfg.Version, HA: &cfgpkg.HA{Conntrackd: friendConntrackd}}}
 
 	cfgpkg.ResolveInterfaces(cfg)
-	persist := func() error { return cfgstore.WriteLive(app.ConfigPath, cfg) }
-	opts := managers.ApplyOptions{Source: "web", ConfigPath: app.ConfigPath}
-	if err := managers.CoordinatedApply(r.Context(), f, payload, persist, cfg, friendcache.InterpolationVars(), opts); err != nil {
-		types.Error(log.Logger, w, types.Wrap(http.StatusBadGateway, err, "coordinated conntrack apply failed"))
+	persist, err := cfgstore.MarshalLive(cfg)
+	if err != nil {
+		types.Error(log.Logger, w, types.Wrap(http.StatusBadRequest, err, "invalid config"))
 		return
 	}
 
-	types.OK(w, types.ConfigureConntrackResult{Status: "applied"})
+	opts := managers.ApplyOptions{Source: "web", ConfigPath: app.ConfigPath, PersistConfig: persist}
+	warning, err := managers.CoordinatedApply(r.Context(), f, payload, cfg, friendcache.InterpolationVars(), opts)
+	if err != nil {
+		types.Error(log.Logger, w, cfgstore.ApplyError(err, http.StatusBadGateway, "coordinated conntrack apply failed"))
+		return
+	}
+
+	types.OK(w, types.ConfigureConntrackResult{Status: "applied", Warning: warning})
 }

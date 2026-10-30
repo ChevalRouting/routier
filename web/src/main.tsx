@@ -13,7 +13,7 @@ function RoutierToaster() {
 
 function Root() {
   return (
-    <ThemeProvider storageKey="routier-theme" defaultTheme="dark">
+    <ThemeProvider storageKey="routier-theme">
       <App />
       <RoutierToaster />
     </ThemeProvider>

@@ -1,6 +1,6 @@
 import { Phase } from '@/components/ApplyStreamModal'
-import { Button } from 'cheval-ui'
-import { AlertTriangle, CheckCircle2, RefreshCw } from 'lucide-react'
+import { Button, Spinner } from 'cheval-ui'
+import { AlertTriangle, CheckCircle2 } from 'lucide-react'
 
 type StatusBarShape = {
   phase: Phase; remaining: number; onKeep: () => void; onClose: () => void
@@ -11,9 +11,9 @@ export function StatusBar({ phase, remaining, onKeep, onClose }: StatusBarShape)
 
   if (phase === 'kept' || phase === 'done') {
     return (
-      <div className="flex items-center gap-2 px-5 pb-4 pt-2 shrink-0 text-sm text-success">
+      <div className="flex items-center gap-2 w-full text-sm text-success">
         <CheckCircle2 className="h-4 w-4" />
-        {phase === 'kept' ? 'Changes applied and kept.' : 'Apply finished.'}
+        {phase === 'kept' ? 'Changes kept' : 'Applied'}
         <Button size="sm" variant="outline" className="ml-auto" onClick={onClose}>Close</Button>
       </div>
     )
@@ -21,8 +21,8 @@ export function StatusBar({ phase, remaining, onKeep, onClose }: StatusBarShape)
 
   if (phase === 'rolledback') {
     return (
-      <div className="flex items-center gap-2 px-5 pb-4 pt-2 shrink-0 text-sm text-danger">
-        <AlertTriangle className="h-4 w-4" /> Not confirmed in time, configuration was rolled back.
+      <div className="flex items-center gap-2 w-full text-sm text-danger">
+        <AlertTriangle className="h-4 w-4" /> Not confirmed in time, rolled back
         <Button size="sm" variant="outline" className="ml-auto" onClick={onClose}>Close</Button>
       </div>
     )
@@ -30,8 +30,8 @@ export function StatusBar({ phase, remaining, onKeep, onClose }: StatusBarShape)
 
   if (phase === 'failed') {
     return (
-      <div className="flex items-center gap-2 px-5 pb-4 pt-2 shrink-0 text-sm text-danger">
-        <AlertTriangle className="h-4 w-4" /> Configuration failed to apply. Check the log above for details.
+      <div className="flex items-center gap-2 w-full text-sm text-danger">
+        <AlertTriangle className="h-4 w-4" /> Apply failed, see the log above
         <Button size="sm" variant="outline" className="ml-auto" onClick={onClose}>Close</Button>
       </div>
     )
@@ -39,8 +39,8 @@ export function StatusBar({ phase, remaining, onKeep, onClose }: StatusBarShape)
 
   if (phase === 'confirming') {
     return (
-      <div className="flex items-center gap-2 px-5 pb-4 pt-2 shrink-0 text-sm text-muted-foreground">
-        <RefreshCw className="h-4 w-4 animate-spin" /> Confirming changes…
+      <div className="flex items-center gap-2 w-full text-sm text-muted-foreground">
+        <Spinner size="sm" /> Confirming changes…
       </div>
     )
   }
@@ -48,25 +48,25 @@ export function StatusBar({ phase, remaining, onKeep, onClose }: StatusBarShape)
   const interrupted = phase === 'interrupted'
   const reconnected = phase === 'reconnected'
   return (
-    <div className="flex items-center gap-3 px-5 pb-4 pt-2 shrink-0 text-sm">
+    <div className="flex items-center gap-3 w-full text-sm">
       <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
       <div className="min-w-0">
         <div className="font-medium text-warning">
-          {interrupted ? 'Connection interrupted' : 'Confirm to keep changes'}
+          {interrupted ? 'Connection Interrupted' : 'Confirm Changes'}
         </div>
         <div className="text-muted-foreground">
           {interrupted
-            ? 'Waiting to reconnect, automatic rollback if not confirmed.'
+            ? 'Waiting to reconnect; rolls back unless confirmed'
             : reconnected
-              ? 'Reconnected. Keep the changes to disarm the automatic rollback.'
-              : 'Verify connectivity, then keep the changes to disarm the automatic rollback.'}
+              ? 'Reconnected; keep the changes to stop the rollback'
+              : 'Keep the changes to stop the automatic rollback'}
         </div>
       </div>
       <div className="ml-auto flex items-center gap-3">
         <span className="font-mono tabular-nums text-lg font-semibold">{remaining}s</span>
         {interrupted
-          ? <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />
-          : <Button size="sm" onClick={onKeep}>Keep changes</Button>}
+          ? <Spinner size="sm" />
+          : <Button size="sm" onClick={onKeep}>Keep Changes</Button>}
       </div>
     </div>
   )

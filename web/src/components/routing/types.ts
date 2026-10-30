@@ -4,7 +4,10 @@ export interface StaticRoute {
   destination: string
   via: string
   dev: string
+  src?: string
   metric: number
+  scope?: string
+  type?: string
 }
 
 export interface BGPAddressFamily {
@@ -108,6 +111,8 @@ export interface BGPConfig {
   address_families?: Record<string, BGPAddressFamily>
   prefix_lists?: Record<string, PrefixEntry[]>
   route_maps?: Record<string, RouteMapEntry[]>
+  shared_prefix_lists?: string[]
+  shared_route_maps?: string[]
   extra?: string[]
 }
 
@@ -209,6 +214,7 @@ export interface PBRMapEntry {
   match_dst?: string
   set_nexthop_group?: string
   set_nexthop?: string
+  set_vrf?: string
 }
 
 export interface PBRConfig {

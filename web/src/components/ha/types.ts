@@ -9,8 +9,14 @@ export interface VRRPInstance {
   password?: string
   track_interfaces?: string[]
   virtual_routes?: string[]
-  switchover?: boolean
   allow_inbound?: boolean
+  bgp_prepend?: VRRPBGPPrepend
+}
+
+export interface VRRPBGPPrepend {
+  count?: number
+  neighbors?: string[]
+  prefixes?: string[]
 }
 
 export interface Conntrackd {

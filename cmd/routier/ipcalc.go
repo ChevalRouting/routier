@@ -27,7 +27,7 @@ func newIpcalcSubnetCommand() *cobra.Command {
 		Use:   "subnet <address|cidr>",
 		Short: "show an ipcalc-style subnet breakdown",
 		Args:  cobra.ExactArgs(1),
-		RunE:  newIpcalcSubnetCommandHandler,
+		RunE:  runIpcalcSubnet,
 	}
 }
 
@@ -36,7 +36,7 @@ func newIpcalcReverseCommand() *cobra.Command {
 		Use:   "reverse <address|cidr>",
 		Short: "show the reverse-DNS (PTR) name and delegation zone",
 		Args:  cobra.ExactArgs(1),
-		RunE:  newIpcalcReverseCommandHandler,
+		RunE:  runIpcalcReverse,
 	}
 }
 
@@ -45,13 +45,13 @@ func newIpcalcRangeCommand() *cobra.Command {
 		Use:   "range <start> <end>",
 		Short: "split an inclusive address range into CIDR blocks",
 		Args:  cobra.ExactArgs(2),
-		RunE:  newIpcalcRangeCommandHandler,
+		RunE:  runIpcalcRange,
 	}
 }
 
 func printSubnet(cmd *cobra.Command, info *ipcalc.SubnetInfo) {
 	is4 := info.Family == "v4"
-	bin := func(b string) string { return printSubnetCallback(info, is4, b) }
+	bin := func(b string) string { return formatBinaryLine(info, is4, b) }
 
 	row := func(label, value, binary string) {
 		cmd.Printf("%-10s %-22s %s\n", label+":", value, binary)
@@ -90,7 +90,7 @@ func printSubnet(cmd *cobra.Command, info *ipcalc.SubnetInfo) {
 	cmd.Printf("%-10s %-22s %s\n", "Hosts/Net:", info.Hosts, trailer)
 }
 
-func newIpcalcSubnetCommandHandler(cmd *cobra.Command, args []string) error {
+func runIpcalcSubnet(cmd *cobra.Command, args []string) error {
 	info, err := ipcalc.Subnet(args[0])
 	if err != nil {
 		return err
@@ -100,7 +100,7 @@ func newIpcalcSubnetCommandHandler(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func newIpcalcReverseCommandHandler(cmd *cobra.Command, args []string) error {
+func runIpcalcReverse(cmd *cobra.Command, args []string) error {
 	out, err := ipcalc.Reverse(args[0])
 	if err != nil {
 		return err
@@ -114,7 +114,7 @@ func newIpcalcReverseCommandHandler(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func newIpcalcRangeCommandHandler(cmd *cobra.Command, args []string) error {
+func runIpcalcRange(cmd *cobra.Command, args []string) error {
 	out, err := ipcalc.Range(args[0], args[1])
 	if err != nil {
 		return err
@@ -127,7 +127,7 @@ func newIpcalcRangeCommandHandler(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func printSubnetCallback(info *ipcalc.SubnetInfo, is4 bool, b string) string {
+func formatBinaryLine(info *ipcalc.SubnetInfo, is4 bool, b string) string {
 	if b == "" {
 		return ""
 	}

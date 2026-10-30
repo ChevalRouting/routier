@@ -2,11 +2,12 @@ import type { TypesStatsHistoryResponse as StatsHistoryResponse, TypesStatsRespo
 import { api } from '@/lib/client'
 import { useDataVersion } from '@/lib/dataVersion'
 import { useFetch } from '@/lib/useFetch'
-import { Card, CardContent, CardHeader, CardTitle, cn, fmtBitrate, fmtBytes, fmtPps, fmtUptime } from 'cheval-ui'
+import { Card, CardContent, CardHeader, CardTitle, fmtBitrate, fmtBytes, fmtPps, fmtUptime, Segmented } from 'cheval-ui'
 import { TimeSeriesChart } from 'cheval-ui/charts'
 import { ArrowRight, BarChart2, Cpu, MemoryStick } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { SERIES } from '@/lib/palette'
 
 type SystemOverviewShape = { trafficHref?: string }
 
@@ -65,7 +66,7 @@ export function SystemOverview({ trafficHref }: SystemOverviewShape) {
               <Cpu className="h-4 w-4 text-muted-foreground" />
             </div>
             <div className="relative z-10 px-5 pb-7">
-              <div className={`text-3xl font-bold ${sys.cpu_percent > 90 ? 'text-danger' : sys.cpu_percent > 70 ? 'text-warning' : 'text-primary'}`}>
+              <div className={`text-3xl font-bold ${sys.cpu_percent > 90 ? 'text-danger' : sys.cpu_percent > 70 ? 'text-warning' : ''}`}>
                 {sys.cpu_percent.toFixed(1)}%
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
@@ -76,7 +77,7 @@ export function SystemOverview({ trafficHref }: SystemOverviewShape) {
               <TimeSeriesChart
                 mini
                 data={sysHistory.map((p) => ({ ts: p.ts, cpu: p.cpu_pct }))}
-                series={[{ dataKey: 'cpu', label: 'CPU %', color: '#3584e4' }]}
+                series={[{ dataKey: 'cpu', label: 'CPU %', color: SERIES.cpu }]}
                 height={80}
               />
             </div>
@@ -88,7 +89,7 @@ export function SystemOverview({ trafficHref }: SystemOverviewShape) {
               <MemoryStick className="h-4 w-4 text-muted-foreground" />
             </div>
             <div className="relative z-10 px-5 pb-7">
-              <div className="text-3xl font-bold text-[#9141ac]">{fmtBytes(sys.mem_used)}</div>
+              <div className="text-3xl font-bold">{fmtBytes(sys.mem_used)}</div>
               <p className="text-xs text-muted-foreground mt-0.5">
                 of {fmtBytes(sys.mem_total)}
                 {sys.swap_total > 0 && ` · swap ${fmtBytes(sys.swap_used)}/${fmtBytes(sys.swap_total)}`}
@@ -101,7 +102,7 @@ export function SystemOverview({ trafficHref }: SystemOverviewShape) {
                   ts: p.ts,
                   mem: p.mem_total > 0 ? (p.mem_used / p.mem_total) * 100 : 0,
                 }))}
-                series={[{ dataKey: 'mem', label: 'Mem %', color: '#9141ac' }]}
+                series={[{ dataKey: 'mem', label: 'Mem %', color: SERIES.mem }]}
                 height={80}
               />
             </div>
@@ -116,22 +117,7 @@ export function SystemOverview({ trafficHref }: SystemOverviewShape) {
             <span className="text-sm font-medium">Traffic</span>
           </div>
           <div className="flex items-center gap-2 ml-auto">
-            <div className="flex rounded-md border border-input overflow-hidden text-xs">
-              {TRAFFIC_PERIODS.map((p, i) => (
-                <button
-                  key={p.label}
-                  onClick={() => setTrafficPeriodIdx(i)}
-                  className={cn(
-                    'px-2.5 py-1 transition-colors',
-                    trafficPeriodIdx === i
-                      ? 'bg-primary text-primary-foreground font-medium'
-                      : 'bg-background text-muted-foreground hover:bg-muted',
-                  )}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
+            <Segmented value={String(trafficPeriodIdx)} onChange={(v) => setTrafficPeriodIdx(Number(v))} options={TRAFFIC_PERIODS.map((p, i) => ({ value: String(i), label: p.label }))} />
             {trafficHref && (
               <Link
                 to={trafficHref}
@@ -163,8 +149,8 @@ export function SystemOverview({ trafficHref }: SystemOverviewShape) {
               <TimeSeriesChart
                 data={trafficChartData}
                 series={[
-                  { dataKey: 'rx_bytes_ps', label: 'RX', color: '#3584e4' },
-                  { dataKey: 'tx_bytes_ps', label: 'TX', color: '#26a269' },
+                  { dataKey: 'rx_bytes_ps', label: 'RX', color: SERIES.rx },
+                  { dataKey: 'tx_bytes_ps', label: 'TX', color: SERIES.tx },
                 ]}
                 yFormatter={fmtBitrate}
                 height={200}
@@ -173,14 +159,14 @@ export function SystemOverview({ trafficHref }: SystemOverviewShape) {
           </Card>
           <Card>
             <CardHeader className="pb-2 pt-4 px-4">
-              <CardTitle className="text-xs font-medium text-muted-foreground">Packets / second</CardTitle>
+              <CardTitle className="text-xs font-medium text-muted-foreground">Packets / Second</CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4">
               <TimeSeriesChart
                 data={trafficChartData}
                 series={[
-                  { dataKey: 'rx_pps', label: 'RX pkt/s', color: '#3584e4' },
-                  { dataKey: 'tx_pps', label: 'TX pkt/s', color: '#26a269' },
+                  { dataKey: 'rx_pps', label: 'RX pkt/s', color: SERIES.rx },
+                  { dataKey: 'tx_pps', label: 'TX pkt/s', color: SERIES.tx },
                 ]}
                 yFormatter={fmtPps}
                 height={200}

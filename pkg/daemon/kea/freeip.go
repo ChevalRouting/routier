@@ -74,7 +74,7 @@ func (c *Client) freeReservationIP(input string, exclusions []string) (subnet, i
 		reserved[a] = true
 	}
 
-	free := func(a netip.Addr) bool { return freeReservationIPCallback(prefix, reserved, pools, a) }
+	free := func(a netip.Addr) bool { return isFreeReservationIP(prefix, reserved, pools, a) }
 
 	if prefix.Addr().Is6() {
 		if a, ok := randomFreeAddr(prefix, free); ok {
@@ -197,7 +197,7 @@ func poolFor(a netip.Addr, pools []addrRange) (addrRange, bool) {
 	return addrRange{}, false
 }
 
-func freeReservationIPCallback(prefix netip.Prefix, reserved map[netip.Addr]bool, pools []addrRange, a netip.Addr) bool {
+func isFreeReservationIP(prefix netip.Prefix, reserved map[netip.Addr]bool, pools []addrRange, a netip.Addr) bool {
 	if !a.IsValid() || a == prefix.Addr() {
 		return false
 	}

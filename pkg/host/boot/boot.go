@@ -1,9 +1,12 @@
 package boot
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strings"
@@ -123,45 +126,82 @@ func chooseKernel(kernels []Kernel, prefer string) (Kernel, string) {
 	return chosen, warn
 }
 
-func Reconcile(root, arch string) (Kernel, string, error) {
+func Reconcile(root, arch string) (Kernel, bool, string, error) {
 	kernels, err := DetectKernels(root)
 	if err != nil {
-		return Kernel{}, "", err
+		return Kernel{}, false, "", err
 	}
 
 	if len(kernels) == 0 {
-		return Kernel{}, "", fmt.Errorf("no installed kernel found under %s", filepath.Join(root, "lib", "modules"))
+		return Kernel{}, false, "", fmt.Errorf("no installed kernel found under %s", filepath.Join(root, "lib", "modules"))
 	}
 
 	chosen, warn := chooseKernel(kernels, RunningFlavor())
 
-	grubDir := filepath.Join(root, "boot", "grub")
-	if _, err := os.Stat(grubDir); err != nil {
-		return chosen, warn, nil
+	path := filepath.Join(root, "boot", "grub", "grub.cfg")
+	existing, err := os.ReadFile(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return chosen, false, warn, nil
 	}
 
-	cfg := GrubConfig(arch, chosen.Flavor)
-	if err := os.WriteFile(filepath.Join(grubDir, "grub.cfg"), []byte(cfg), 0644); err != nil {
-		return chosen, warn, fmt.Errorf("write grub.cfg: %w", err)
+	if err != nil {
+		return chosen, false, warn, fmt.Errorf("read grub.cfg: %w", err)
 	}
 
-	return chosen, warn, nil
+	if !strings.Contains(string(existing), routierMenuEntry) {
+		return chosen, false, warn, nil
+	}
+
+	cfg := GrubConfig(arch, chosen.Flavor, existingRootArgs(string(existing)))
+	if err := os.WriteFile(path, []byte(cfg), 0644); err != nil {
+		return chosen, false, warn, fmt.Errorf("write grub.cfg: %w", err)
+	}
+
+	return chosen, true, warn, nil
 }
 
-func GrubConfig(arch, flavor string) string {
+const (
+	DefaultRootArgs  = "root=/dev/routier/root rootfstype=xfs"
+	routierMenuEntry = `menuentry "Routier"`
+)
+
+var rootArgPattern = regexp.MustCompile(`(^|\s)(root|rootfstype)=\S+`)
+
+func GrubConfig(arch, flavor, rootArgs string) string {
 	console := map[string]string{"aarch64": "ttyAMA0", "x86_64": "ttyS0"}[arch]
 	return fmt.Sprintf(`insmod part_gpt
 insmod fat
 insmod lvm
 insmod xfs
+insmod ext2
 
 set default=0
 set timeout=3
 
 menuentry "Routier" {
     search --no-floppy --label --set=root root
-    linux  /boot/vmlinuz-%s root=/dev/routier/root rootfstype=xfs rootwait console=%s,115200 quiet
+    linux  /boot/vmlinuz-%s %s rootwait console=%s,115200 quiet
     initrd /boot/initramfs-%s
 }
-`, flavor, console, flavor)
+`, flavor, rootArgs, console, flavor)
+}
+
+func existingRootArgs(cfg string) string {
+	for _, line := range strings.Split(cfg, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 0 || fields[0] != "linux" {
+			continue
+		}
+
+		var args []string
+		for _, m := range rootArgPattern.FindAllString(line, -1) {
+			args = append(args, strings.TrimSpace(m))
+		}
+
+		if len(args) > 0 {
+			return strings.Join(args, " ")
+		}
+	}
+
+	return DefaultRootArgs
 }

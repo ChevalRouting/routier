@@ -35,6 +35,7 @@ func Hello(w http.ResponseWriter, r *http.Request) {
 
 func buildHello(app *appctx.App, cfg *cfgpkg.Config) types.FriendsHello {
 	resp := types.FriendsHello{
+		DNSVRF:    true,
 		Version:   appctx.Version,
 		OS:        osInfo(),
 		UptimeSec: int64(time.Since(appctx.StartTime).Seconds()),
@@ -52,9 +53,14 @@ func buildHello(app *appctx.App, cfg *cfgpkg.Config) types.FriendsHello {
 		resp.Conntrackd = cfg.HA != nil && cfg.HA.Conntrackd != nil
 	}
 
-	resp.ConntrackdRunning = svc.ServiceRunning("conntrackd")
-	for instance, st := range keepalived.States() {
-		resp.VRRP = append(resp.VRRP, types.FriendVRRPRole{Instance: instance, State: st.State})
+	if resp.Conntrackd {
+		resp.ConntrackdRunning = svc.ServiceRunning("conntrackd")
+	}
+
+	if cfg == nil || (cfg.HA != nil && len(cfg.HA.VRRP) > 0) {
+		for instance, st := range keepalived.States() {
+			resp.VRRP = append(resp.VRRP, types.FriendVRRPRole{Instance: instance, State: st.State})
+		}
 	}
 
 	sort.Slice(resp.VRRP, func(i, j int) bool { return resp.VRRP[i].Instance < resp.VRRP[j].Instance })

@@ -11,7 +11,7 @@ import (
 )
 
 func TestConntrackParsing(t *testing.T) {
-	restore := conntrack.SetCommandRunner(conntrackParsingHandler)
+	restore := conntrack.SetCommandRunner(fakeConntrack)
 	defer restore()
 
 	count, err := conntrack.Count()
@@ -34,7 +34,7 @@ func TestConntrackParsing(t *testing.T) {
 }
 
 func TestIProuteParsing(t *testing.T) {
-	restore := iproute.SetCommandRunner(iProuteParsingHandler)
+	restore := iproute.SetCommandRunner(fakeIPRoute)
 	defer restore()
 
 	routes := iproute.ShowRoutes()
@@ -92,7 +92,7 @@ func TestKeepalivedParseStates(t *testing.T) {
 	}
 }
 
-func conntrackParsingHandler(name string, args ...string) ([]byte, error) {
+func fakeConntrack(name string, args ...string) ([]byte, error) {
 	if len(args) == 1 && args[0] == "-C" {
 		return []byte("42\n"), nil
 	}
@@ -103,7 +103,7 @@ func conntrackParsingHandler(name string, args ...string) ([]byte, error) {
 			"udp      17 29 src=10.0.0.5 dst=10.0.0.6\n"), nil
 }
 
-func iProuteParsingHandler(name string, args ...string) ([]byte, error) {
+func fakeIPRoute(name string, args ...string) ([]byte, error) {
 	v6 := false
 	for _, a := range args {
 		if a == "-6" {

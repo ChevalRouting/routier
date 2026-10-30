@@ -22,7 +22,7 @@ func newAnycastRunCommand() *cobra.Command {
 		Use:   "run [config]",
 		Short: "run one health check cycle and update BGP routes",
 		Args:  cobra.MaximumNArgs(1),
-		RunE:  newAnycastRunCommandHandler,
+		RunE:  runAnycastRun,
 	}
 }
 
@@ -67,7 +67,7 @@ func toAnykServices(services []config.AnycastService) []anyk.AnykService {
 	return out
 }
 
-func newAnycastRunCommandHandler(cmd *cobra.Command, args []string) error {
+func runAnycastRun(cmd *cobra.Command, args []string) error {
 	cfg, err := config.LoadAndValidate(configArg(args), true)
 	if err != nil {
 		return err

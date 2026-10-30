@@ -8,7 +8,7 @@ import {
   type DnsStats,
   type DnsSummary
 } from '@/lib/dnsApi'
-import { Button, Card, CardContent, CardHeader, CardTitle, EmptyState, Spinner } from 'cheval-ui'
+import { Button, Card, CardContent, CardHeader, CardTitle, EmptyState, Spinner, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from 'cheval-ui'
 import { RefreshCw, RotateCw, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
@@ -77,7 +77,7 @@ export function DnsPanel() {
   if (loading) return <Spinner />
 
   if (!summary) {
-    return <EmptyState title="No DNS server" message="Enable dns.server to run a local name server." />
+    return <EmptyState title="No DNS Server" message="Enable dns.server to run a local name server" />
   }
 
   const running = summary.overview?.running ?? false
@@ -85,15 +85,15 @@ export function DnsPanel() {
 
   return (
     <div className="space-y-5">
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
         <StatTile label="named" value={running ? 'running' : 'stopped'} />
         <StatTile label="Mode" value={summary.mode} />
         <StatTile label="Recursion" value={summary.recurses ? 'enabled' : 'refused'} />
         <StatTile label="Port" value={String(summary.port)} />
         <StatTile label="Queries" value={String(statOf(stats, 'QUERY'))} />
-        <StatTile label="Cache hit ratio" value={hitRatio(stats)} />
+        <StatTile label="Cache Hit Ratio" value={hitRatio(stats)} />
         <StatTile label="NXDOMAIN" value={String(statOf(stats, 'queries resulted in NXDOMAIN'))} />
-        <StatTile label="Recursion caused" value={String(statOf(stats, 'queries caused recursion'))} />
+        <StatTile label="Recursion Caused" value={String(statOf(stats, 'queries caused recursion'))} />
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -101,7 +101,7 @@ export function DnsPanel() {
           <RefreshCw className="mr-1 h-3 w-3" /> Refresh
         </Button>
         <Button variant="outline" size="sm" onClick={() => void flush()} disabled={busy || !running}>
-          <Trash2 className="mr-1 h-3 w-3" /> Flush cache
+          <Trash2 className="mr-1 h-3 w-3" /> Flush Cache
         </Button>
         <Button variant="outline" size="sm" onClick={() => void restart()} disabled={busy || !running}>
           <RotateCw className="mr-1 h-3 w-3" /> Restart
@@ -109,7 +109,7 @@ export function DnsPanel() {
       </div>
 
       <Card>
-        <CardHeader><CardTitle className="text-sm">Listening on</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-sm">Listening On</CardTitle></CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
             {(summary.overview?.listen ?? []).map((a) => (
@@ -133,44 +133,44 @@ export function DnsPanel() {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle className="text-sm">Authoritative zones</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-sm">Authoritative Zones</CardTitle></CardHeader>
         <CardContent>
           {zones.length === 0 ? (
-            <p className="text-xs text-muted-foreground">No authoritative zones configured.</p>
+            <p className="text-xs text-muted-foreground">No authoritative zones</p>
           ) : (
-            <table className="w-full text-xs">
-              <thead className="text-muted-foreground">
-                <tr className="border-b border-border">
-                  <th className="py-1 text-left font-normal">Zone</th>
-                  <th className="py-1 text-left font-normal">Serial</th>
-                  <th className="py-1 text-left font-normal">Records</th>
-                  <th className="py-1 text-left font-normal">Answering</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
+            <Table className="w-full text-xs">
+              <TableHeader className="text-muted-foreground">
+                <TableRow className="border-b border-border">
+                  <TableHead className="py-1 text-left font-normal">Zone</TableHead>
+                  <TableHead className="py-1 text-left font-normal">Serial</TableHead>
+                  <TableHead className="py-1 text-left font-normal">Records</TableHead>
+                  <TableHead className="py-1 text-left font-normal">Answering</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {zones.map((z) => (
-                  <tr key={z.name} className="border-b border-border last:border-0">
-                    <td className="py-1 font-mono">{z.name}</td>
-                    <td className="py-1 font-mono">{z.serial || '-'}</td>
-                    <td className="py-1">{(z.records ?? []).length}</td>
-                    <td className="py-1">
+                  <TableRow key={z.name} className="border-b border-border last:border-0">
+                    <TableCell className="py-1 font-mono">{z.name}</TableCell>
+                    <TableCell className="py-1 font-mono">{z.serial || '-'}</TableCell>
+                    <TableCell className="py-1">{(z.records ?? []).length}</TableCell>
+                    <TableCell className="py-1">
                       {z.answered
-                        ? <span className="text-emerald-600 dark:text-emerald-500">yes</span>
-                        : <span className="text-amber-600 dark:text-amber-500">no</span>}
-                    </td>
-                    <td className="py-1 text-right">
+                        ? <span className="text-success">yes</span>
+                        : <span className="text-warning">no</span>}
+                    </TableCell>
+                    <TableCell className="py-1 text-right">
                       <Button variant="ghost" size="sm" disabled={busy || !running} onClick={() => void reload(z.name)}>
                         Reload
                       </Button>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           )}
           {zones.some((z) => !z.answered) && running && (
-            <p className="mt-2 text-xs text-amber-600 dark:text-amber-500">
+            <p className="mt-2 text-xs text-warning">
               A declared zone that is not answering usually failed to load. Check the named log.
             </p>
           )}

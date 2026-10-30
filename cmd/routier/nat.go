@@ -41,7 +41,7 @@ func saveNat(cfg *config.Config, path string, specs []nat.Spec) error {
 	nat.Apply(cfg, specs)
 
 	if errs := config.Validate(cfg, false); len(errs) > 0 {
-		return fmt.Errorf("validation failed: %v", errs[0])
+		return fmt.Errorf("validation failed: %w", errs[0])
 	}
 
 	data, err := yaml.Marshal(cfg)
@@ -57,7 +57,7 @@ func newNatListCommand() *cobra.Command {
 		Use:   "list [config]",
 		Short: "list NAT shortcut rules",
 		Args:  cobra.MaximumNArgs(1),
-		RunE:  newNatListCommandHandler,
+		RunE:  runNatList,
 	}
 }
 
@@ -68,8 +68,8 @@ func newNatMasqueradeCommand() *cobra.Command {
 		Use:   "masquerade [config]",
 		Short: "add a masquerade rule",
 		Args:  cobra.MaximumNArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return newNatMasqueradeCommandCallback(out, source, family, comment, cmd, args)
+		RunE: func(_ *cobra.Command, args []string) error {
+			return addNatRule(args, nat.Spec{Kind: nat.KindMasquerade, Out: out, Source: source, Family: family, Comment: comment})
 		},
 	}
 
@@ -89,8 +89,8 @@ func newNatSNATCommand() *cobra.Command {
 		Use:   "snat [config]",
 		Short: "add a source-NAT rule",
 		Args:  cobra.MaximumNArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return newNatSNATCommandCallback(out, to, source, family, comment, cmd, args)
+		RunE: func(_ *cobra.Command, args []string) error {
+			return addNatRule(args, nat.Spec{Kind: nat.KindSNAT, Out: out, To: to, Source: source, Family: family, Comment: comment})
 		},
 	}
 
@@ -112,8 +112,8 @@ func newNatDNATCommand() *cobra.Command {
 		Use:   "dnat [config]",
 		Short: "add an inbound port-forward (DNAT) rule",
 		Args:  cobra.MaximumNArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return newNatDNATCommandCallback(in, proto, dport, to, comment, cmd, args)
+		RunE: func(_ *cobra.Command, args []string) error {
+			return addNatRule(args, nat.Spec{Kind: nat.KindDNAT, In: in, Proto: proto, DPort: dport, To: to, Comment: comment})
 		},
 	}
 
@@ -135,7 +135,7 @@ func newNatRemoveCommand() *cobra.Command {
 		Use:   "rm [config]",
 		Short: "remove a NAT rule by its list index",
 		Args:  cobra.MaximumNArgs(1),
-		RunE:  func(cmd *cobra.Command, args []string) error { return newNatRemoveCommandCallback(index, cmd, args) },
+		RunE:  func(_ *cobra.Command, args []string) error { return runNatRemove(index, args) },
 	}
 
 	cmd.Flags().IntVar(&index, "index", -1, "index from `nat list`")
@@ -144,7 +144,7 @@ func newNatRemoveCommand() *cobra.Command {
 	return cmd
 }
 
-func newNatListCommandHandler(cmd *cobra.Command, args []string) error {
+func runNatList(cmd *cobra.Command, args []string) error {
 	cfg, _, err := loadForNat(args)
 	if err != nil {
 		return err
@@ -157,46 +157,7 @@ func newNatListCommandHandler(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func newNatMasqueradeCommandCallback(out string, source string, family string, comment string, cmd *cobra.Command, args []string) error {
-	cfg, path, err := loadForNat(args)
-	if err != nil {
-		return err
-	}
-
-	specs := append(nat.Parse(cfg.Nftables), nat.Spec{
-		Kind: nat.KindMasquerade, Out: out, Source: source, Family: family, Comment: comment,
-	})
-
-	return saveNat(cfg, path, specs)
-}
-
-func newNatSNATCommandCallback(out string, to string, source string, family string, comment string, cmd *cobra.Command, args []string) error {
-	cfg, path, err := loadForNat(args)
-	if err != nil {
-		return err
-	}
-
-	specs := append(nat.Parse(cfg.Nftables), nat.Spec{
-		Kind: nat.KindSNAT, Out: out, To: to, Source: source, Family: family, Comment: comment,
-	})
-
-	return saveNat(cfg, path, specs)
-}
-
-func newNatDNATCommandCallback(in string, proto string, dport string, to string, comment string, cmd *cobra.Command, args []string) error {
-	cfg, path, err := loadForNat(args)
-	if err != nil {
-		return err
-	}
-
-	specs := append(nat.Parse(cfg.Nftables), nat.Spec{
-		Kind: nat.KindDNAT, In: in, Proto: proto, DPort: dport, To: to, Comment: comment,
-	})
-
-	return saveNat(cfg, path, specs)
-}
-
-func newNatRemoveCommandCallback(index int, cmd *cobra.Command, args []string) error {
+func runNatRemove(index int, args []string) error {
 	cfg, path, err := loadForNat(args)
 	if err != nil {
 		return err
@@ -209,4 +170,13 @@ func newNatRemoveCommandCallback(index int, cmd *cobra.Command, args []string) e
 
 	specs = append(specs[:index], specs[index+1:]...)
 	return saveNat(cfg, path, specs)
+}
+
+func addNatRule(args []string, spec nat.Spec) error {
+	cfg, path, err := loadForNat(args)
+	if err != nil {
+		return err
+	}
+
+	return saveNat(cfg, path, append(nat.Parse(cfg.Nftables), spec))
 }

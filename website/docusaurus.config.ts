@@ -3,7 +3,7 @@ import {themes as prismThemes} from 'prism-react-renderer';
 import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
-import remarkDomains, {SITE_URL} from './src/remark/domains';
+import remarkDomains, {GITHUB_URL, SITE_URL} from './src/remark/domains';
 
 const hasReleasedVersions = existsSync('versions.json');
 
@@ -69,6 +69,9 @@ const config: Config = {
           position: 'left',
           label: 'Documentation',
         },
+        {to: '/docs/quickstart', label: 'Try it', position: 'left'},
+        {to: '/docs/help-test', label: 'Help test', position: 'left'},
+        {href: GITHUB_URL, label: 'GitHub', position: 'right'},
         ...(hasReleasedVersions
           ? [{type: 'docsVersionDropdown', position: 'right'} as const]
           : []),

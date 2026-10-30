@@ -36,8 +36,8 @@ and apply explicitly.
 Every config section is a resource under the session. Objects support
 `GET`/`PUT` (`/hostname`, `/dns`, `/routing`, `/ssh`, `/sysctl`, ...), keyed
 maps additionally expose per-item routes (`/interfaces`,
-`/interfaces/{name}`, same for `tunnels`, `wireguard`, `users`, `services`,
-`vrfs`), and ordered lists are replaced wholesale (`/nftables`,
+`/interfaces/{name}`, same for `vpn/wireguard`, `users`, `services`,
+`vrfs`, `switches`), and ordered lists are replaced wholesale (`/nftables`,
 `/boot_modules`).
 
 Writes are validated incrementally: a mutation is rejected only if it
@@ -47,27 +47,37 @@ without blocking unrelated edits. The full resolve-and-validate pass still
 runs at apply.
 
 The committed config is always the single YAML file on disk; only a
-successful apply writes it.
+confirmed apply writes it. After `POST /api/v1/sessions/{id}/apply`, confirm
+with `POST /api/apply/confirm` once the node is reachable; until then the file
+still holds the previous config, and the watchdog rolls the apply back after
+its timeout. While an apply waits for confirmation, a new apply returns
+`409 Conflict`.
 
 ## Web/UI API (`/api`)
 
 The API the React frontend uses. It follows a per-user staging model
 (`GET/PUT /api/config/{section}` edit a staging copy, `POST /api/config/apply`
-validates, applies and promotes) and adds operational endpoints: stats
+validates and applies, promoting the staging copy on confirm) and adds operational endpoints: stats
 history, monitor streams, DHCP lease operations, DNS operations (resolver
 overview and statistics, zone inspection and per-zone reload, cache flush,
 resolving a name through the local resolver, and a live query-log stream),
 friend management, backup export/import, apply log, snapshots and rollback
 confirmation.
 
-Configuration routes accept a `layer` query parameter. Omitting it selects
-the canonical `advanced` representation. `layer=simple` projects supported
-Internet, local-network and system concepts and maps writes back into the same
-canonical config. A staging copy belongs to the layer that created it; writes,
-apply or discard from another layer return `409 Conflict`.
+The first-run wizard stages its result with `PUT /api/setup/network`
+(hostname, an optional uplink on a port by DHCP or static address, and local
+networks); the uplink becomes the interface `wan`, local networks are
+masqueraded behind it, and the default firewall rules are added. The wizard
+then applies the staging copy like any other change.
+
+`GET /api/config` answers with the caller's staging copy when it has one.
+`source=running` returns the running configuration instead, which lets a
+controller plan against what is applied while another of its jobs stages.
 
 It also exposes stateless IP utilities under `/api/tools` (`subnet`, `reverse`,
 `range`); see [tools.md](tools.md).
+
+Managed switches have their own operational routes; see [switches.md](switches.md#api).
 
 These endpoints back the UI and the CLI; for automation, prefer the v1 API.
 
@@ -76,3 +86,9 @@ These endpoints back the UI and the CLI; for automation, prefer the v1 API.
 `POST /api/login` with username and password returns a bearer token; send it
 as `Authorization: Bearer <token>` on every request. Sessions and tokens are
 stored server-side in the appliance database.
+
+VPN configuration is available at `/api/config/vpn` and session `/vpn`.
+The section editors use `vpn.wireguard`; tunnels are interface entries with
+`type: tunnel`. The `tunnels` and `vpn.tunnels` aliases edit these interface
+entries for existing clients. Old WireGuard section and
+session paths remain aliases for compatibility.

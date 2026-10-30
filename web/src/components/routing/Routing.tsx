@@ -1,3 +1,5 @@
+import { useHasParam } from '@/lib/useHasParam'
+import { DraftControls } from '@/components/DraftControls'
 import { BFDTab } from '@/components/routing/BFDTab'
 import { BGPTab } from '@/components/routing/bgp/BGPTab'
 import NatPanel, { type NatSaveState } from '@/components/routing/NatPanel'
@@ -5,7 +7,7 @@ import { OSPF6Tab } from '@/components/routing/ospf/OSPF6Tab'
 import { OSPFTab } from '@/components/routing/ospf/OSPFTab'
 import { PBRTab } from '@/components/routing/PBRTab'
 import RadvdTab, { RADVDConfig } from '@/components/routing/RadvdTab'
-import { newId, Tab, TABS } from '@/components/routing/shared'
+import { BGP_SECTIONS, newId, OSPF6_SECTIONS, OSPF_SECTIONS, PBR_SECTIONS, Tab, TABS } from '@/components/routing/shared'
 import { RouteRow, StaticRoutesTab } from '@/components/routing/StaticRoutesTab'
 import {
   BFDProfile,
@@ -22,7 +24,7 @@ import { api } from '@/lib/client'
 import { useDataRefresh } from '@/lib/dataVersion'
 import { useFetch } from '@/lib/useFetch'
 import { usePageSave } from '@/lib/usePageSave'
-import { PageHeader, SaveButton, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Spinner, Tabs, useTabState } from 'cheval-ui'
+import { ComboRow, PageHeader, PreferencesGroup, SectionNav, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Spinner, useTabState } from 'cheval-ui'
 import React, { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -43,6 +45,8 @@ export default function Routing() {
   const [saving, setSaving] = useState(false)
 
   const [activeTab, setActiveTab] = useTabState<Tab>('routing', 'static')
+
+  const deepLinked = useHasParam('routing')
   const [initialized, setInitialized] = useState(false)
   const [vrfsInitialized, setVrfsInitialized] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
@@ -270,95 +274,119 @@ export default function Routing() {
     )
   }
 
-  const showVrfContext = activeTab === 'static' || activeTab === 'bgp' || activeTab === 'ospf' || activeTab === 'ospf6'
+  const bgpSection = BGP_SECTIONS[activeTab]
+  const ospfSection = OSPF_SECTIONS[activeTab]
+  const ospf6Section = OSPF6_SECTIONS[activeTab]
+  const pbrSection = PBR_SECTIONS[activeTab]
+  const showVrfContext = vrfNames.length > 0 && (activeTab === 'static' || !!bgpSection || !!ospfSection || !!ospf6Section)
+  const badges: Partial<Record<Tab, number>> = {
+    'static': staticRows.length,
+    'bgp-neighbors': bgp.neighbors.length,
+    'bgp-prefix-lists': Object.keys(bgp.prefix_lists ?? {}).length,
+    'bgp-route-maps': Object.keys(bgp.route_maps ?? {}).length,
+    'ospf-areas': getVRFOSPF().areas?.length,
+    'ospf-interfaces': Object.keys(getVRFOSPF().interfaces ?? {}).length,
+    'ospf6-areas': getVRFOSPF6().areas?.length,
+    'ospf6-interfaces': Object.keys(getVRFOSPF6().interfaces ?? {}).length,
+    'vrfs': vrfRows.length,
+  }
+  const sections = TABS.map((tab) => ({ ...tab, badge: badges[tab.key] || undefined }))
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Routing" description="Manage static routes, BGP, OSPF, RADVD, VRFs, and PBR" action={
+      <PageHeader title="Routing" action={
         activeTab === 'nat'
-          ? natState && <SaveButton isDirty={natState.isDirty} saving={natState.saving} onClick={natState.save} onCancel={natState.cancel} />
-          : <SaveButton isDirty={isDirty} saving={saving} onClick={handleSave} />
+          ? natState && <DraftControls isDirty={natState.isDirty} saving={natState.saving} onClick={natState.save} onCancel={natState.cancel} />
+          : <DraftControls isDirty={isDirty} saving={saving} onClick={handleSave} />
       } />
 
-      <Tabs tabs={TABS} active={activeTab} onChange={setActiveTab} />
+      <SectionNav items={sections} active={activeTab} onChange={setActiveTab} initiallyEntered={deepLinked}>
+        {showVrfContext && (
+          <PreferencesGroup className="mb-6 max-w-3xl">
+            <ComboRow title="VRF">
+              <Select value={vrfContext} onValueChange={setVrfContext}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="global">global</SelectItem>
+                  {vrfNames.map((name) => (
+                    <SelectItem key={name} value={name}>{name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </ComboRow>
+          </PreferencesGroup>
+        )}
 
-      {showVrfContext && (
-        <div className="flex items-center gap-2 text-sm">
-          <span className="text-muted-foreground">VRF context:</span>
-          <Select value={vrfContext} onValueChange={setVrfContext}>
-            <SelectTrigger className="h-7 w-36 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="global">global</SelectItem>
-              {vrfNames.map((name) => (
-                <SelectItem key={name} value={name}>{name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div key={refreshKey} className="max-w-3xl">
+          {activeTab === 'static' && (
+            <StaticRoutesTab
+              rows={vrfContext === 'global' ? staticRows : getVRFStaticRows()}
+              setRows={setVRFStaticRows}
+              onDirty={markDirty}
+            />
+          )}
+          {bgpSection && (
+            <BGPTab
+              key={vrfContext}
+              section={bgpSection}
+              bgp={getVRFBGP()}
+              setBGP={setVRFBGP}
+              enabled={getVRFBGPEnabled()}
+              setEnabled={setVRFBGPEnabled}
+              vrfNames={vrfNames}
+              bfdProfileNames={bfdProfiles.map((p) => p.name).filter(Boolean)}
+              prefixLists={bgp.prefix_lists ?? {}}
+              setPrefixLists={(prefix_lists) => { setBGP({ ...bgp, prefix_lists }); markDirty() }}
+              routeMaps={bgp.route_maps ?? {}}
+              setRouteMaps={(route_maps) => { setBGP({ ...bgp, route_maps }); markDirty() }}
+              sharedPrefixLists={bgp.shared_prefix_lists ?? []}
+              setSharedPrefixLists={(shared_prefix_lists) => { setBGP({ ...bgp, shared_prefix_lists }); markDirty() }}
+              sharedRouteMaps={bgp.shared_route_maps ?? []}
+              setSharedRouteMaps={(shared_route_maps) => { setBGP({ ...bgp, shared_route_maps }); markDirty() }}
+              onDirty={markDirty}
+            />
+          )}
+          {activeTab === 'bfd' && (
+            <BFDTab profiles={bfdProfiles} setProfiles={setBfdProfiles} onDirty={markDirty} />
+          )}
+          {ospfSection && (
+            <OSPFTab
+              key={vrfContext}
+              section={ospfSection}
+              ospf={getVRFOSPF()}
+              setOSPF={setVRFOSPF}
+              enabled={getVRFOSPFEnabled()}
+              setEnabled={setVRFOSPFEnabled}
+              onDirty={markDirty}
+              ifaceNames={ifaceNames}
+            />
+          )}
+          {ospf6Section && (
+            <OSPF6Tab
+              key={vrfContext}
+              section={ospf6Section}
+              ospf6={getVRFOSPF6()}
+              setOSPF6={setVRFOSPF6}
+              enabled={getVRFOSPF6Enabled()}
+              setEnabled={setVRFOSPF6Enabled}
+              onDirty={markDirty}
+              ifaceNames={ifaceNames}
+            />
+          )}
+          {activeTab === 'radvd' && (
+            <RadvdTab radvd={radvd} onChange={setRadvd} onDirty={markDirty} ifaceNames={ifaceNames} />
+          )}
+          {activeTab === 'vrfs' && (
+            <VRFsTab rows={vrfRows} setRows={setVrfRows} onDirty={markDirty} />
+          )}
+          {pbrSection && (
+            <PBRTab section={pbrSection} pbr={pbr} setPBR={setPBR} vrfNames={vrfNames} onDirty={markDirty} />
+          )}
+          {activeTab === 'nat' && <NatPanel onStateChange={setNatState} />}
         </div>
-      )}
-
-      <div className="pt-2" key={refreshKey}>
-        {activeTab === 'static' && (
-          <StaticRoutesTab
-            rows={vrfContext === 'global' ? staticRows : getVRFStaticRows()}
-            setRows={setVRFStaticRows}
-            onDirty={markDirty}
-          />
-        )}
-        {activeTab === 'bgp' && (
-          <BGPTab
-            key={vrfContext}
-            bgp={getVRFBGP()}
-            setBGP={setVRFBGP}
-            enabled={getVRFBGPEnabled()}
-            setEnabled={setVRFBGPEnabled}
-            vrfNames={vrfNames}
-            bfdProfileNames={bfdProfiles.map((p) => p.name).filter(Boolean)}
-            prefixLists={bgp.prefix_lists ?? {}}
-            setPrefixLists={(prefix_lists) => { setBGP({ ...bgp, prefix_lists }); markDirty() }}
-            routeMaps={bgp.route_maps ?? {}}
-            setRouteMaps={(route_maps) => { setBGP({ ...bgp, route_maps }); markDirty() }}
-            onDirty={markDirty}
-          />
-        )}
-        {activeTab === 'bfd' && (
-          <BFDTab profiles={bfdProfiles} setProfiles={setBfdProfiles} onDirty={markDirty} />
-        )}
-        {activeTab === 'ospf' && (
-          <OSPFTab
-            key={vrfContext}
-            ospf={getVRFOSPF()}
-            setOSPF={setVRFOSPF}
-            enabled={getVRFOSPFEnabled()}
-            setEnabled={setVRFOSPFEnabled}
-            onDirty={markDirty}
-            ifaceNames={ifaceNames}
-          />
-        )}
-        {activeTab === 'ospf6' && (
-          <OSPF6Tab
-            key={vrfContext}
-            ospf6={getVRFOSPF6()}
-            setOSPF6={setVRFOSPF6}
-            enabled={getVRFOSPF6Enabled()}
-            setEnabled={setVRFOSPF6Enabled}
-            onDirty={markDirty}
-            ifaceNames={ifaceNames}
-          />
-        )}
-        {activeTab === 'radvd' && (
-          <RadvdTab radvd={radvd} onChange={setRadvd} onDirty={markDirty} ifaceNames={ifaceNames} />
-        )}
-        {activeTab === 'vrfs' && (
-          <VRFsTab rows={vrfRows} setRows={setVrfRows} onDirty={markDirty} />
-        )}
-        {activeTab === 'pbr' && (
-          <PBRTab pbr={pbr} setPBR={setPBR} vrfNames={vrfNames} onDirty={markDirty} />
-        )}
-        {activeTab === 'nat' && <NatPanel onStateChange={setNatState} />}
-      </div>
+      </SectionNav>
     </div>
   )
 }

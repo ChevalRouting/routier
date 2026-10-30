@@ -1,8 +1,9 @@
+import { DraftControls } from '@/components/DraftControls'
 import { SectionCard, orderedSections } from '@/components/ConfigView'
 import { api } from '@/lib/client'
 import { useFetch } from '@/lib/useFetch'
-import { Textarea, Button, Card, CardContent, PageHeader, Spinner, cn, useClipboard } from 'cheval-ui'
-import { Check, Copy, Pencil, RefreshCw } from 'lucide-react'
+import { Textarea, Button, Card, CardContent, PageHeader, Spinner, useClipboard, Segmented, ReloadButton } from 'cheval-ui'
+import { Check, Copy, Pencil } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
@@ -48,6 +49,11 @@ export default function ConfigBrowser() {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
   const [saving, setSaving] = useState(false)
+
+  const selectView = (next: 'tree' | 'yaml') => {
+    setView(next)
+    if (next === 'tree') setEditing(false)
+  }
 
   const handleCopy = () => {
     if (!data) return
@@ -95,29 +101,14 @@ export default function ConfigBrowser() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Config Browser" description="View and edit the current configuration" action={
+      <PageHeader title="Config Browser" action={
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex h-8 rounded-md border border-input overflow-hidden text-sm">
-            <button
-              onClick={() => { setView('tree'); setEditing(false) }}
-              className={cn('flex items-center px-3 transition-colors', view === 'tree' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted')}
-            >
-              Tree
-            </button>
-            <button
-              onClick={() => setView('yaml')}
-              className={cn('flex items-center px-3 transition-colors', view === 'yaml' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted')}
-            >
-              YAML
-            </button>
-          </div>
+          <Segmented value={view} onChange={selectView} options={[{ value: 'tree', label: 'Tree' }, { value: 'yaml', label: 'YAML' }]} />
           <Button variant="outline" onClick={handleCopy} className="gap-2">
             {copied ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
             {copied ? 'Copied' : 'Copy YAML'}
           </Button>
-          <Button variant="outline" size="icon" onClick={() => reload()} title="Refresh">
-            <RefreshCw className="h-4 w-4" />
-          </Button>
+          <ReloadButton onClick={() => reload()} />
         </div>
       } />
 
@@ -126,10 +117,7 @@ export default function ConfigBrowser() {
           <div className="flex items-center justify-between border-b px-4 py-2">
             <span className="text-xs text-muted-foreground">{editing ? 'Editing config.yml, saving stages the change' : 'config.yml'}</span>
             {editing ? (
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={cancelEdit} disabled={saving}>Cancel</Button>
-                <Button size="sm" onClick={saveEdit} disabled={saving}>{saving ? 'Saving…' : 'Save'}</Button>
-              </div>
+              <DraftControls isDirty={draft !== yamlText} saving={saving} onClick={saveEdit} onCancel={cancelEdit} />
             ) : (
               <Button variant="outline" size="sm" onClick={startEdit} className="gap-1.5">
                 <Pencil className="h-3.5 w-3.5" />Edit

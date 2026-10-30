@@ -1,6 +1,7 @@
 package bind
 
 import (
+	"errors"
 	"os"
 	"strings"
 	"testing"
@@ -27,7 +28,7 @@ func testClient() *Client {
 
 func TestDynamicRecordsFiltersInfraRecords(t *testing.T) {
 	restore := SetRunner(func(name string, args ...string) ([]byte, error) {
-		return testDynamicRecordsFiltersInfraRecordsCallback(t, name, args...)
+		return fakeDDNSRunner(t, name, args...)
 	})
 	defer restore()
 
@@ -65,7 +66,7 @@ func TestDynamicRecordsTransferFailed(t *testing.T) {
 func TestDeleteRecordScriptForAddress(t *testing.T) {
 	var script string
 	restore := SetRunner(func(name string, args ...string) ([]byte, error) {
-		return testDeleteRecordScriptForAddressCallback(t, &script, name, args...)
+		return captureNsupdateScript(t, &script, name, args...)
 	})
 	defer restore()
 
@@ -110,7 +111,20 @@ func TestDeleteRecordRequiresKey(t *testing.T) {
 	}
 }
 
-func testDynamicRecordsFiltersInfraRecordsCallback(t *testing.T, name string, args ...string) ([]byte, error) {
+func TestDeleteRecordRejectsInjectedLines(t *testing.T) {
+	c := testClient()
+	for _, tc := range [][4]string{
+		{"home.arpa.", "laptop.home.arpa.\nupdate add evil.home.arpa. 60 A 10.0.0.1", "A", ""},
+		{"home.arpa.", "laptop.home.arpa.", "A 10.0.0.1", ""},
+		{"home.arpa.", "laptop.home.arpa.", "A", "192.168.1.50\nsend"},
+	} {
+		if err := c.DeleteRecord(tc[0], tc[1], tc[2], tc[3]); !errors.Is(err, ErrInvalidRecord) {
+			t.Errorf("%q: got %v, want ErrInvalidRecord", tc, err)
+		}
+	}
+}
+
+func fakeDDNSRunner(t *testing.T, name string, args ...string) ([]byte, error) {
 	if name != "dig" {
 		t.Fatalf("unexpected command %q", name)
 	}
@@ -118,7 +132,7 @@ func testDynamicRecordsFiltersInfraRecordsCallback(t *testing.T, name string, ar
 	return []byte(axfrSample), nil
 }
 
-func testDeleteRecordScriptForAddressCallback(t *testing.T, script *string, name string, args ...string) ([]byte, error) {
+func captureNsupdateScript(t *testing.T, script *string, name string, args ...string) ([]byte, error) {
 	if name != "nsupdate" {
 		t.Fatalf("unexpected command %q", name)
 	}
@@ -128,7 +142,7 @@ func testDeleteRecordScriptForAddressCallback(t *testing.T, script *string, name
 		t.Fatalf("read script: %v", err)
 	}
 
-	(*script) = string(data)
+	*script = string(data)
 
 	return nil, nil
 }

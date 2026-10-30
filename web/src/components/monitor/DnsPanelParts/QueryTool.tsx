@@ -2,7 +2,7 @@ import {
   dnsQuery,
   type DnsQueryResult
 } from '@/lib/dnsApi'
-import { Button, Card, CardContent, CardHeader, CardTitle, Input } from 'cheval-ui'
+import { Button, Card, CardContent, CardHeader, CardTitle, Input, Table, TableBody, TableCell, TableRow } from 'cheval-ui'
 import { Search } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -28,7 +28,7 @@ export function QueryTool() {
 
   return (
     <Card>
-      <CardHeader><CardTitle className="text-sm">Resolve a name</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="text-sm">Resolve a Name</CardTitle></CardHeader>
       <CardContent className="space-y-3">
         <div className="flex gap-2">
           <Input
@@ -56,20 +56,20 @@ export function QueryTool() {
               {result.server && <span className="font-mono">{result.server}</span>}
             </div>
             {(result.answers ?? []).length === 0 ? (
-              <p className="text-xs text-muted-foreground">No answer records.</p>
+              <p className="text-xs text-muted-foreground">No answer records</p>
             ) : (
-              <table className="w-full text-xs">
-                <tbody>
+              <Table className="w-full text-xs">
+                <TableBody>
                   {(result.answers ?? []).map((a, i) => (
-                    <tr key={i} className="border-t border-border">
-                      <td className="py-1 pr-3 font-mono">{a.name}</td>
-                      <td className="py-1 pr-3 text-muted-foreground">{a.ttl}</td>
-                      <td className="py-1 pr-3 font-mono">{a.type}</td>
-                      <td className="py-1 font-mono">{a.data}</td>
-                    </tr>
+                    <TableRow key={i} className="border-t border-border">
+                      <TableCell className="py-1 pr-3 font-mono">{a.name}</TableCell>
+                      <TableCell className="py-1 pr-3 text-muted-foreground">{a.ttl}</TableCell>
+                      <TableCell className="py-1 pr-3 font-mono">{a.type}</TableCell>
+                      <TableCell className="py-1 font-mono">{a.data}</TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             )}
           </div>
         )}

@@ -68,11 +68,11 @@ func TestFriendsPinIdentityTOFU(t *testing.T) {
 }
 
 func TestFriendsTaggedSectionsAndRemove(t *testing.T) {
-	cfg := &config.Config{Wireguard: map[string]*config.Wireguard{
+	cfg := &config.Config{VPN: config.VPNConfig{Wireguard: map[string]*config.Wireguard{
 		"wg-fr-peer-b": {Friend: "peer-b"},
 		"wg-fr-peer-c": {Friend: "peer-c"},
 		"wg-manual":    {},
-	}}
+	}}}
 
 	tagged := friends.TaggedSections(cfg, "peer-b")
 	if len(tagged) != 1 || tagged[0].Section != "wireguard" || tagged[0].Key != "wg-fr-peer-b" {
@@ -80,22 +80,22 @@ func TestFriendsTaggedSectionsAndRemove(t *testing.T) {
 	}
 
 	friends.RemoveTagged(cfg, "peer-b")
-	if _, ok := cfg.Wireguard["wg-fr-peer-b"]; ok {
+	if _, ok := cfg.VPN.Wireguard["wg-fr-peer-b"]; ok {
 		t.Fatal("tagged interface not removed")
 	}
 
-	if _, ok := cfg.Wireguard["wg-fr-peer-c"]; !ok {
+	if _, ok := cfg.VPN.Wireguard["wg-fr-peer-c"]; !ok {
 		t.Fatal("removed unrelated friend's interface")
 	}
 
-	if _, ok := cfg.Wireguard["wg-manual"]; !ok {
+	if _, ok := cfg.VPN.Wireguard["wg-manual"]; !ok {
 		t.Fatal("removed untagged interface")
 	}
 }
 
 func unitHelloServer(t *testing.T, id *identity.Identity, hostname, token string) *httptest.Server {
 	t.Helper()
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { unitHelloServerCallback(id, hostname, token, w, r) }))
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { serveHello(id, hostname, token, w, r) }))
 }
 
 func mustIdentity(t *testing.T) *identity.Identity {
@@ -149,7 +149,7 @@ func TestFriendsClientBadToken(t *testing.T) {
 	}
 }
 
-func unitHelloServerCallback(id *identity.Identity, hostname string, token string, w http.ResponseWriter, r *http.Request) {
+func serveHello(id *identity.Identity, hostname string, token string, w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("Authorization") != "Bearer "+token {
 		w.WriteHeader(http.StatusUnauthorized)
 		return

@@ -20,7 +20,7 @@ func TestUnixSocketExchange(t *testing.T) {
 
 	defer func(action func() error) { _ = action() }(ln.Close)
 
-	go func() { testUnixSocketExchangeCallback(ln) }()
+	go func() { serveUnixSocketEcho(ln) }()
 
 	c := &Client{unix: true, endpoints: map[string]string{"dhcp4": sock}}
 	subnets, err := c.Subnets("dhcp4")
@@ -41,7 +41,7 @@ type caCall struct {
 
 func fakeCA(t *testing.T, replies map[string]string, record *[]caCall) *httptest.Server {
 	t.Helper()
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { fakeCACallback(t, replies, record, w, r) }))
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { serveFakeControlAgent(t, replies, record, w, r) }))
 }
 
 func TestSubnetsAndLeases(t *testing.T) {
@@ -273,7 +273,7 @@ func TestBasicAuthHeader(t *testing.T) {
 
 func TestLeaseQueryEmptyResults(t *testing.T) {
 	for _, command := range []string{"lease4-get-all", "lease6-get-all", "lease4-get", "lease6-get"} {
-		t.Run(command, func(t *testing.T) { testLeaseQueryEmptyResultsCallback(command, t) })
+		t.Run(command, func(t *testing.T) { checkEmptyLeaseQuery(command, t) })
 	}
 
 	if _, err := parseResponse("lease4-get-all", []byte(`{"result":1,"text":"lease commands hook unavailable"}`)); err == nil {
@@ -285,7 +285,7 @@ func TestLeaseQueryEmptyResults(t *testing.T) {
 	}
 }
 
-func testUnixSocketExchangeCallback(ln net.Listener) {
+func serveUnixSocketEcho(ln net.Listener) {
 	conn, err := ln.Accept()
 	if err != nil {
 		return
@@ -296,7 +296,7 @@ func testUnixSocketExchangeCallback(ln net.Listener) {
 	_, _ = io.WriteString(conn, `{"result":0,"arguments":{"Dhcp4":{"subnet4":[{"id":1,"subnet":"10.0.0.0/24"}]}}}`)
 }
 
-func fakeCACallback(t *testing.T, replies map[string]string, record *[]caCall, w http.ResponseWriter, r *http.Request) {
+func serveFakeControlAgent(t *testing.T, replies map[string]string, record *[]caCall, w http.ResponseWriter, r *http.Request) {
 	body, _ := io.ReadAll(r.Body)
 	var call caCall
 	if err := json.Unmarshal(body, &call); err != nil {
@@ -316,7 +316,7 @@ func fakeCACallback(t *testing.T, replies map[string]string, record *[]caCall, w
 	_, _ = io.WriteString(w, reply)
 }
 
-func testLeaseQueryEmptyResultsCallback(command string, t *testing.T) {
+func checkEmptyLeaseQuery(command string, t *testing.T) {
 	raw, err := parseResponse(command, []byte(`{"result":3,"text":"No matching leases."}`))
 	if err != nil {
 		t.Fatal(err)

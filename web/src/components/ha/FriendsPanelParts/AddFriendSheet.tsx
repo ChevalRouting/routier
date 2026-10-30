@@ -52,13 +52,12 @@ export function AddFriendSheet({ onClose, onAdded }: AddFriendSheetShape) {
           {added.hostname && <div className="flex justify-between"><span className="text-muted-foreground">Hostname</span><span className="font-mono">{added.hostname}</span></div>}
           <div className="flex justify-between gap-4"><span className="text-muted-foreground">Fingerprint</span><span className="font-mono text-xs break-all text-right">{added.fingerprint}</span></div>
           <p className="text-xs text-muted-foreground">
-            Confirm this fingerprint matches the remote node out-of-band, then pair to establish encryption.
-            The friend stays added either way; you can verify later from its detail page.
+            Verify the fingerprint out of band before pairing
           </p>
         </div>
         <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={onClose}>Verify later</Button>
-          <Button onClick={doVerify} disabled={busy}>{busy ? 'Pairing…' : 'Verify & pair'}</Button>
+          <Button variant="outline" onClick={onClose}>Verify Later</Button>
+          <Button onClick={doVerify} disabled={busy}>{busy ? 'Pairing…' : 'Verify & Pair'}</Button>
         </div>
       </div>
     )
@@ -67,11 +66,11 @@ export function AddFriendSheet({ onClose, onAdded }: AddFriendSheetShape) {
   return (
     <div className="space-y-5">
       <PreferencesGroup>
-        <EntryRow title="Friend name" value={name} onChange={(e) => setName(e.target.value)}
+        <EntryRow title="Friend Name" value={name} onChange={(e) => setName(e.target.value)}
           placeholder="edge-b" className="font-mono" autoFocus />
         <EntryRow title="URL" value={url} onChange={(e) => setUrl(e.target.value)}
           placeholder="https://10.0.0.2:8080" className="font-mono" />
-        <EntryRow title="Shared token" type="password" value={token} onChange={(e) => setToken(e.target.value)}
+        <EntryRow title="Shared Token" type="password" value={token} onChange={(e) => setToken(e.target.value)}
           placeholder="bearer token shared by both nodes" className="font-mono" />
         <div className="flex items-center justify-between px-4 py-2.5">
           <span className="text-sm">Skip TLS verification</span>
@@ -79,13 +78,9 @@ export function AddFriendSheet({ onClose, onAdded }: AddFriendSheetShape) {
         </div>
       </PreferencesGroup>
 
-      <p className="text-xs text-muted-foreground px-1">
-        Adding always succeeds. If the friend is reachable we fetch its fingerprint so you can validate it
-        and pair; otherwise it is saved unverified and you can pair later once it is up.
-      </p>
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={onClose}>Cancel</Button>
-        <Button onClick={doAdd} disabled={busy}>{busy ? 'Adding…' : 'Add friend'}</Button>
+        <Button onClick={doAdd} disabled={busy}>{busy ? 'Adding…' : 'Add Friend'}</Button>
       </div>
     </div>
   )

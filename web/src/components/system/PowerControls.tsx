@@ -1,12 +1,16 @@
-import { configLayerRequest } from '@/lib/client'
-import { AlertDialog, Button } from 'cheval-ui'
-import { Power, RotateCcw } from 'lucide-react'
+import { apiRequest } from '@/lib/client'
+import { AlertDialog, MenuButton, type MenuItem } from 'cheval-ui'
+import { EllipsisVertical, Power, RefreshCw, RotateCcw } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
 type PendingAction = 'reboot' | 'shutdown' | null
 
-export function PowerControls() {
+interface PowerControlsProps {
+  onReapply: () => void
+}
+
+export function PowerControls({ onReapply }: PowerControlsProps) {
   const [pending, setPending] = useState<PendingAction>(null)
   const [busy, setBusy] = useState(false)
 
@@ -14,10 +18,8 @@ export function PowerControls() {
     if (!pending) return
     setBusy(true)
     try {
-      await configLayerRequest(`/api/system/${pending}`, { method: 'POST' })
-      toast.message(pending === 'reboot'
-        ? 'Rebooting, the appliance will be unreachable for a moment'
-        : 'Shutting down, the appliance is powering off')
+      await apiRequest(`/api/system/${pending}`, { method: 'POST' })
+      toast.message(pending === 'reboot' ? 'Rebooting' : 'Shutting down')
     } catch (e) {
       toast.error((e as Error).message)
     } finally {
@@ -26,25 +28,29 @@ export function PowerControls() {
     }
   }
 
+  const sections: MenuItem[][] = [
+    [{ key: 'reapply', label: 'Force Re-Apply…', icon: RefreshCw, onSelect: onReapply }],
+    [
+      { key: 'reboot', label: 'Reboot…', icon: RotateCcw, onSelect: () => setPending('reboot') },
+      { key: 'shutdown', label: 'Shut Down…', icon: Power, destructive: true, onSelect: () => setPending('shutdown') },
+    ],
+  ]
+
   return (
     <>
-      <Button variant="outline" size="sm" onClick={() => setPending('reboot')} className="gap-2">
-        <RotateCcw className="h-4 w-4" />Reboot
-      </Button>
-      <Button variant="outline" size="sm" onClick={() => setPending('shutdown')} className="gap-2">
-        <Power className="h-4 w-4" />Shutdown
-      </Button>
+      <MenuButton label="System Actions" sections={sections} className="h-8 w-8">
+        <EllipsisVertical className="h-4 w-4" />
+      </MenuButton>
 
       <AlertDialog
         open={pending !== null}
         onCancel={() => setPending(null)}
         onConfirm={run}
-        title={pending === 'shutdown' ? 'Power off the appliance?' : 'Reboot the appliance?'}
+        title={pending === 'shutdown' ? 'Shut Down Router?' : 'Reboot Router?'}
         description={pending === 'shutdown'
-          ? 'The router will power off and stop forwarding traffic until it is switched back on.'
-          : 'The router will restart. Connectivity will drop for a moment while it comes back up.'}
-        confirmLabel={pending === 'shutdown' ? 'Power off' : 'Reboot'}
-        cancelLabel="Cancel"
+          ? 'Forwarding stops until the router is powered on again'
+          : 'Connectivity drops until the router is back up'}
+        confirmLabel={pending === 'shutdown' ? 'Shut Down' : 'Reboot'}
         destructive
         busy={busy}
       />

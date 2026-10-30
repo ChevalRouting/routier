@@ -3,6 +3,8 @@ package ws
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -60,6 +62,17 @@ func Exec(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var osUser *user.User
+	if name == "debug" {
+		u, err := consoleUser(appctx.UnixUserFromContext(r.Context()))
+		if err != nil {
+			types.Err(http.StatusForbidden, err.Error()).Write(w)
+			return
+		}
+
+		osUser = u
+	}
+
 	conn, err := wsUpgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Error().Err(err).Msg("ws upgrade")
@@ -77,8 +90,12 @@ func Exec(w http.ResponseWriter, r *http.Request) {
 	cmd := exec.CommandContext(r.Context(), args[0], args[1:]...)
 	cmd.Env = append(cmd.Environ(), "TERM=xterm-256color")
 
-	if name == "debug" {
-		dropToUnixUser(cmd, appctx.UsernameFromContext(r.Context()))
+	if osUser != nil {
+		if err := runAsUser(cmd, osUser); err != nil {
+			log.Error().Err(err).Str("user", osUser.Username).Msg("debug console: drop privileges")
+			_ = conn.WriteMessage(websocket.TextMessage, []byte(`{"type":"error","message":"failed to start process"}`))
+			return
+		}
 	}
 
 	ptmx, err := pty.Start(cmd)
@@ -88,9 +105,9 @@ func Exec(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	defer func() { execCallback(cmd, ptmx) }()
+	defer func() { stopProcess(cmd, ptmx) }()
 
-	go func() { execCallback2(conn, ptmx) }()
+	go copyTerminalOutput(conn, ptmx)
 
 	for {
 		_, raw, err := conn.ReadMessage()
@@ -114,30 +131,39 @@ func Exec(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func dropToUnixUser(cmd *exec.Cmd, username string) {
+func consoleUser(username string) (*user.User, error) {
 	if username == "" || username == "root" {
-		return
+		return nil, errors.New("the debug console needs a unix user session")
 	}
 
 	osUser, err := user.Lookup(username)
 	if err != nil {
-		log.Warn().Err(err).Str("user", username).Msg("debug console: unix user lookup failed")
-		return
+		return nil, fmt.Errorf("the debug console needs a unix user session: %s has no unix account", username)
 	}
 
-	uid, uerr := strconv.Atoi(osUser.Uid)
-	gid, gerr := strconv.Atoi(osUser.Gid)
-	if uerr != nil || gerr != nil {
-		return
+	return osUser, nil
+}
+
+func runAsUser(cmd *exec.Cmd, osUser *user.User) error {
+	uid, err := strconv.ParseUint(osUser.Uid, 10, 32)
+	if err != nil {
+		return fmt.Errorf("uid %q: %w", osUser.Uid, err)
+	}
+
+	gid, err := strconv.ParseUint(osUser.Gid, 10, 32)
+	if err != nil {
+		return fmt.Errorf("gid %q: %w", osUser.Gid, err)
 	}
 
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Credential: &syscall.Credential{Uid: uint32(uid), Gid: uint32(gid), Groups: supplementaryGroups(osUser)},
 	}
-	cmd.Env = append(cmd.Env, "HOME="+osUser.HomeDir, "USER="+username, "LOGNAME="+username)
+	cmd.Env = append(cmd.Env, "HOME="+osUser.HomeDir, "USER="+osUser.Username, "LOGNAME="+osUser.Username)
 	if info, err := os.Stat(osUser.HomeDir); err == nil && info.IsDir() {
 		cmd.Dir = osUser.HomeDir
 	}
+
+	return nil
 }
 
 func supplementaryGroups(osUser *user.User) []uint32 {
@@ -146,9 +172,9 @@ func supplementaryGroups(osUser *user.User) []uint32 {
 		return nil
 	}
 
-	var groups []uint32
+	groups := make([]uint32, 0, len(ids))
 	for _, id := range ids {
-		if gid, err := strconv.Atoi(id); err == nil {
+		if gid, err := strconv.ParseUint(id, 10, 32); err == nil {
 			groups = append(groups, uint32(gid))
 		}
 	}
@@ -169,9 +195,9 @@ func runDetachedStream(conn *websocket.Conn, args []string) {
 		return
 	}
 
-	go func() { runDetachedStreamCallback(conn, ptmx) }()
+	go copyTerminalOutput(conn, ptmx)
 
-	go func() { runDetachedStreamCallback2(conn, cancel, cmd, ptmx) }()
+	go closeWhenExited(conn, cancel, cmd, ptmx)
 
 	for {
 		if _, _, err := conn.ReadMessage(); err != nil {
@@ -180,7 +206,7 @@ func runDetachedStream(conn *websocket.Conn, args []string) {
 	}
 }
 
-func execCallback(cmd *exec.Cmd, ptmx *os.File) {
+func stopProcess(cmd *exec.Cmd, ptmx *os.File) {
 	_ = ptmx.Close()
 	if cmd.Process != nil {
 		_ = cmd.Process.Kill()
@@ -189,7 +215,7 @@ func execCallback(cmd *exec.Cmd, ptmx *os.File) {
 	_ = cmd.Wait()
 }
 
-func execCallback2(conn *websocket.Conn, ptmx *os.File) {
+func copyTerminalOutput(conn *websocket.Conn, ptmx *os.File) {
 	buf := make([]byte, 4096)
 	for {
 		n, err := ptmx.Read(buf)
@@ -205,23 +231,7 @@ func execCallback2(conn *websocket.Conn, ptmx *os.File) {
 	}
 }
 
-func runDetachedStreamCallback(conn *websocket.Conn, ptmx *os.File) {
-	buf := make([]byte, 4096)
-	for {
-		n, rerr := ptmx.Read(buf)
-		if n > 0 {
-			if werr := conn.WriteMessage(websocket.BinaryMessage, buf[:n]); werr != nil {
-				return
-			}
-		}
-
-		if rerr != nil {
-			return
-		}
-	}
-}
-
-func runDetachedStreamCallback2(conn *websocket.Conn, cancel context.CancelFunc, cmd *exec.Cmd, ptmx *os.File) {
+func closeWhenExited(conn *websocket.Conn, cancel context.CancelFunc, cmd *exec.Cmd, ptmx *os.File) {
 	_ = cmd.Wait()
 	_ = ptmx.Close()
 	cancel()

@@ -27,46 +27,26 @@ backups in one place.
 
 ## Getting started
 
-Turn a fresh Alpine Linux box into a Routier appliance:
+- **[Try Routier](quickstart.md)** in a virtual machine from the installation
+  ISO. Nothing to install on your own network, about ten minutes.
+- **[Install it](installation.md)** on hardware, from a cloud image, or as a
+  package on an existing Alpine Linux box:
 
-1. **Install the package** from the signed Routier repository:
+  ```bash
+  setup-apkrepos -c -1
+  wget -qO /etc/apk/keys/routier.rsa.pub %%REPO_URL%%/routier.rsa.pub
+  echo %%REPO_URL%%/nightly >> /etc/apk/repositories
+  apk update && apk add routier
+  ```
 
-   ```bash
-   setup-apkrepos -c -1   # enable Alpine's community repo (Routier deps live there)
-   wget -qO /etc/apk/keys/routier.rsa.pub %%REPO_URL%%/routier.rsa.pub
-   apk add --repository %%REPO_URL%%/nightly routier
-   ```
-
-   The post-install step backs up the host's network configuration to
-   `/var/lib/routier/host-backup/` and only takes over networking if it can
-   keep the box online (an existing config, or a DHCP fallback synthesized
-   from the current default route).
-
-2. **Start the services**:
-
-   ```bash
-   rc-service routier start
-   rc-service routier-ui start
-   ```
-
-3. **Open the web UI** on port 8080 and sign in with the default credentials
-   `routier` / `admin`. A fresh install walks you through a short onboarding
-   wizard: set the admin password, hostname, and interfaces (a
-   guided uplink DHCP setup plus an optional static LAN), then review and
-   apply.
-
-4. **Iterate declaratively.** From here on, you edit sections in the UI or in
-   `/etc/routier/config.yml` and apply. Each apply snapshots the previous state
-   and arms the rollback watchdog: confirm the apply once you can still reach
-   the box, or let the watchdog restore the previous state for you.
-
-See [installation.md](installation.md) for the takeover details and upgrades,
-and [configuration.md](configuration.md) for the config model.
+  The package prints the web UI address and a one-time password, and leaves
+  the host's network alone until you apply and confirm a configuration.
+- **[Help test it](help-test.md).** Routier is young; reports from real
+  networks and hardware shape what comes next.
 
 ## How it fits together
 
-- **Config**. One declarative YAML document (`/etc/routier/config.yml`, or a
-  directory of YAML files merged together). See
+- **Config**. One declarative YAML file (`/etc/routier/config.yml`). See
   [configuration.md](configuration.md).
 - **Render**. The config is turned into concrete artifacts: interface setup,
   FRR, nftables, wg-quick, service configs.
@@ -81,7 +61,9 @@ and [configuration.md](configuration.md) for the config model.
 
 | Page | Purpose |
 |------|---------|
-| [installation.md](installation.md) | package install, host takeover, upgrades |
+| [quickstart.md](quickstart.md) | try Routier in a VM from the ISO |
+| [help-test.md](help-test.md) | what to test and how to report it |
+| [installation.md](installation.md) | installation media, cloud images, package install, host takeover, upgrades |
 | [architecture.md](architecture.md) | the load/render/apply pipeline, apply ordering, repository layout |
 | [configuration.md](configuration.md) | the config model: sections, versioning, staging, apply and rollback |
 
@@ -96,7 +78,9 @@ and [configuration.md](configuration.md) for the config model.
 | [wireguard.md](wireguard.md) | WireGuard interfaces and peers |
 | [dhcp.md](dhcp.md) | Kea DHCP subnets, pools, reservations and lease operations |
 | [dns.md](dns.md) | the BIND resolver and authoritative zones (`dns.server`) |
+| [switches.md](switches.md) | managed switches, models, credentials, apply and rollback |
 | [system.md](system.md) | hostname, resolv.conf, SSH, sysctl, users, managed services |
+| [web-tls.md](web-tls.md) | the web UI certificate: self-signed, files, or ACME |
 | [friends.md](friends.md) | mutually-authenticated peer routers, liveness, derived tunnels |
 | [macros.md](macros.md) | saved, reusable config fragments |
 
@@ -117,6 +101,7 @@ and [configuration.md](configuration.md) for the config model.
 | [building.md](building.md) | building and testing the Alpine package |
 | [testing.md](testing.md) | test layout and conventions |
 | [code-style.md](code-style.md) | coding rules gofmt and eslint do not enforce |
+| [ui-guidelines.md](ui-guidelines.md) | web UI rules adapted from the GNOME HIG |
 
 ## AI usage
 

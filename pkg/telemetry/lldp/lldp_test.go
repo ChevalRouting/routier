@@ -115,3 +115,69 @@ func TestShowNeighborsEmpty(t *testing.T) {
 		t.Errorf("ShowNeighbors() = %v, want nil", got)
 	}
 }
+
+const sharedPortJSON = `{
+  "lldp": {
+    "interface": [
+      {
+        "eth0": {
+          "via": "LLDP",
+          "chassis": { "crs310": { "id": { "type": "mac", "value": "48:a9:8a:00:00:01" }, "descr": "MikroTik RouterOS 7.16 (stable) CRS310-8G+2S+" } },
+          "port": { "id": { "type": "ifname", "value": "sfp-sfpplus1" } }
+        }
+      },
+      {
+        "eth0": {
+          "via": "CDP",
+          "chassis": { "crs310": { "id": { "type": "local", "value": "crs310" } } },
+          "port": { "id": { "type": "ifname", "value": "sfp-sfpplus1" } }
+        }
+      },
+      {
+        "eth0": {
+          "via": "LLDP",
+          "chassis": { "phone": { "id": { "type": "mac", "value": "00:04:f2:00:00:01" } } },
+          "port": { "id": { "type": "mac", "value": "00:04:f2:00:00:01" } }
+        }
+      },
+      {
+        "eth1": {
+          "via": "LLDP",
+          "chassis": { "crs309": { "id": { "type": "mac", "value": "48:a9:8a:00:00:02" } } },
+          "port": { "id": { "type": "ifname", "value": "ether1" } }
+        }
+      }
+    ]
+  }
+}`
+
+func TestShowNeighborsKeepsEveryNeighborOfAnInterface(t *testing.T) {
+	restore := SetCommandRunner(func(_ string, _ ...string) ([]byte, error) {
+		return []byte(sharedPortJSON), nil
+	})
+	defer restore()
+
+	got := ShowNeighbors()
+	if len(got) != 4 {
+		t.Fatalf("got %d neighbors, want 4: %+v", len(got), got)
+	}
+
+	want := []string{"eth0/LLDP/crs310", "eth0/CDP/crs310", "eth0/LLDP/phone", "eth1/LLDP/crs309"}
+	for i, n := range got {
+		if key := n.LocalIface + "/" + n.Protocol + "/" + n.ChassisName; key != want[i] {
+			t.Errorf("neighbor %d = %s, want %s", i, key, want[i])
+		}
+	}
+}
+
+func TestShowNeighborsSingleObject(t *testing.T) {
+	restore := SetCommandRunner(func(_ string, _ ...string) ([]byte, error) {
+		return []byte(`{"lldp":{"interface":{"eth2":{"via":"LLDP","chassis":{"sw":{"id":{"value":"aa"}}},"port":{"id":{"value":"ge-0/0/1"}}}}}}`), nil
+	})
+	defer restore()
+
+	got := ShowNeighbors()
+	if len(got) != 1 || got[0].LocalIface != "eth2" || got[0].ChassisName != "sw" || got[0].PortID != "ge-0/0/1" {
+		t.Fatalf("unexpected neighbors %+v", got)
+	}
+}

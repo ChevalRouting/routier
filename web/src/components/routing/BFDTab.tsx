@@ -1,5 +1,6 @@
-import { Badge, Button, EmptyState, EntryRow, Label, PreferencesColumns, PreferencesGroup, Sheet, SwitchRow } from 'cheval-ui'
-import { Plus, Trash2 } from 'lucide-react'
+import { EntityRow } from '@/components/ui/EntityRow'
+import { Badge, Button, EmptyState, EntryRow, PreferencesGroup, Sheet, SwitchRow } from 'cheval-ui'
+import { Plus } from 'lucide-react'
 import React, { useState } from 'react'
 import { BFDProfile } from './types'
 
@@ -38,17 +39,17 @@ export function BFDProfileForm({
   return (
     <div className="space-y-5">
       <PreferencesGroup>
-        <EntryRow title="Profile name" autoFocus value={profile.name} onChange={(e) => set({ name: e.target.value })} placeholder="fast" className="font-mono" />
-        <EntryRow title="Detect multiplier" value={numField(profile.detect_multiplier)} onChange={onNum('detect_multiplier')} placeholder="3" className="font-mono" />
+        <EntryRow title="Profile Name" autoFocus value={profile.name} onChange={(e) => set({ name: e.target.value })} placeholder="fast" className="font-mono" />
+        <EntryRow title="Detect Multiplier" value={numField(profile.detect_multiplier)} onChange={onNum('detect_multiplier')} placeholder="3" className="font-mono" />
         <EntryRow title="Minimum TTL" value={numField(profile.minimum_ttl)} onChange={onNum('minimum_ttl')} placeholder="254" className="font-mono" />
-        <EntryRow title="Receive interval (ms)" value={numField(profile.receive_interval)} onChange={onNum('receive_interval')} placeholder="300" className="font-mono" />
-        <EntryRow title="Transmit interval (ms)" value={numField(profile.transmit_interval)} onChange={onNum('transmit_interval')} placeholder="300" className="font-mono" />
-        <SwitchRow title="Echo mode" checked={!!profile.echo_mode} onCheckedChange={(v) => set({ echo_mode: v })} />
-        <SwitchRow title="Passive mode" checked={!!profile.passive_mode} onCheckedChange={(v) => set({ passive_mode: v })} />
+        <EntryRow title="Receive Interval (ms)" value={numField(profile.receive_interval)} onChange={onNum('receive_interval')} placeholder="300" className="font-mono" />
+        <EntryRow title="Transmit Interval (ms)" value={numField(profile.transmit_interval)} onChange={onNum('transmit_interval')} placeholder="300" className="font-mono" />
+        <SwitchRow title="Echo Mode" checked={!!profile.echo_mode} onCheckedChange={(v) => set({ echo_mode: v })} />
+        <SwitchRow title="Passive Mode" checked={!!profile.passive_mode} onCheckedChange={(v) => set({ passive_mode: v })} />
       </PreferencesGroup>
 
       <div className="flex justify-end gap-2 pt-2">
-        <Button variant="outline" onClick={onDone}>{onAdd ? 'Cancel' : 'Done'}</Button>
+        <Button variant="outline" onClick={onDone}>{onAdd ? 'Cancel' : 'Close'}</Button>
         {onAdd && <Button onClick={onAdd}>Add Profile</Button>}
       </div>
     </div>
@@ -63,26 +64,13 @@ export function BFDProfileRow({
   if (profile.receive_interval) timers.push(`rx ${profile.receive_interval}ms`)
   if (profile.transmit_interval) timers.push(`tx ${profile.transmit_interval}ms`)
   return (
-    <div onClick={onEdit} className="flex items-center gap-3 px-4 py-3 hover:bg-accent/50 cursor-pointer transition-colors">
-      <span className="font-mono font-semibold text-sm w-40 shrink-0 truncate">
-        {profile.name || <span className="text-muted-foreground italic font-normal">unnamed</span>}
-      </span>
-      <div className="flex flex-wrap items-center gap-1.5 flex-1 min-w-0">
-        {timers.length > 0
-          ? timers.map((t) => <Badge key={t} variant="outline" className="text-xs font-mono">{t}</Badge>)
-          : <span className="text-xs text-muted-foreground italic">default timers</span>}
-        {profile.echo_mode && <Badge variant="secondary" className="text-xs">echo</Badge>}
-        {profile.passive_mode && <Badge variant="secondary" className="text-xs">passive</Badge>}
-      </div>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={(e) => { e.stopPropagation(); onDelete() }}
-        className="h-7 w-7 p-0 hover:text-destructive shrink-0"
-      >
-        <Trash2 className="h-3.5 w-3.5" />
-      </Button>
-    </div>
+    <EntityRow title={profile.name} onOpen={onEdit} onRemove={onDelete} removeLabel="Remove Profile">
+      {timers.length > 0
+        ? timers.map((t) => <Badge key={t} variant="outline" className="font-mono">{t}</Badge>)
+        : <span className="text-xs text-muted-foreground">Default timers</span>}
+      {profile.echo_mode && <Badge variant="secondary">echo</Badge>}
+      {profile.passive_mode && <Badge variant="secondary">passive</Badge>}
+    </EntityRow>
   )
 }
 
@@ -112,26 +100,17 @@ export function BFDTab({
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        BFD (Bidirectional Forwarding Detection) profiles define failure-detection timers. Reference a profile
-        from a BGP neighbor to enable sub-second failover. Profiles are shared across the main table and all VRFs.
-      </p>
-
-      <div className="flex items-center justify-between">
-        <Label className="text-sm font-semibold">Profiles</Label>
-        <Button variant="outline" size="sm" onClick={handleAddNew} className="gap-1.5">
-          <Plus className="h-3.5 w-3.5" />Add Profile
-        </Button>
-      </div>
 
       {profiles.length === 0 ? (
         <EmptyState
-          title="No BFD profiles"
-          message="Profiles define failure-detection timers referenced by BGP and OSPF neighbors."
-          action={<Button variant="outline" size="sm" onClick={handleAddNew} className="gap-2"><Plus className="h-4 w-4" />Add profile</Button>}
+          title="No BFD Profiles"
+          action={<Button variant="outline" size="sm" onClick={handleAddNew} className="gap-1.5"><Plus className="h-4 w-4" />Add Profile…</Button>}
         />
       ) : (
-        <PreferencesColumns>
+        <PreferencesGroup
+          title="Profiles"
+          header={<Button variant="outline" size="sm" onClick={handleAddNew} className="gap-1.5"><Plus className="h-4 w-4" />Add Profile…</Button>}
+        >
           {profiles.map((p, idx) => (
             <BFDProfileRow
               key={idx}
@@ -140,10 +119,10 @@ export function BFDTab({
               onDelete={() => remove(idx)}
             />
           ))}
-        </PreferencesColumns>
+        </PreferencesGroup>
       )}
 
-      <Sheet open={openIdx !== null} onClose={handleCloseSheet} title={sheetTitle} className="max-w-xl">
+      <Sheet open={openIdx !== null} onClose={handleCloseSheet} title={sheetTitle}>
         {openIdx !== null && (isAdding ? formDraft : openProfile) && (
           <BFDProfileForm
             profile={isAdding ? formDraft! : openProfile!}

@@ -8,8 +8,10 @@ import {
   BackupApi,
   ConfigApi,
   DhcpApi,
+  FlowsApi,
   FriendsApi,
   HaApi,
+  InstallApi,
   LogsApi,
   MacrosApi,
   NatApi,
@@ -17,14 +19,15 @@ import {
   SetupApi,
   SnapshotsApi,
   StatsApi,
+  SwitchesApi,
   SystemApi,
   ToolsApi,
   UiApi,
+  WebApi,
   WireguardApi,
 } from '../api'
 import { getToken, clearToken } from './utils'
-import { activeBaseUrl } from './instance'
-import { withConfigLayer, type ConfigLayer } from './configLayer'
+import { activeBaseUrl, subscribeInstance } from './instance'
 
 type BodyShape<T> = { result?: T; error?: string }
 
@@ -34,16 +37,34 @@ type ResultShape = { result?: unknown }
 
 export interface StagingState {
   pending: boolean
-  layer: string | null
 }
 
 type StagingListener = (state: StagingState) => void
 const stagingListeners = new Set<StagingListener>()
-let currentStagingState: StagingState = { pending: false, layer: null }
+let currentStagingState: StagingState = { pending: false }
 
 function publishStagingState(state: StagingState): void {
   currentStagingState = state
   stagingListeners.forEach((fn) => fn(state))
+}
+
+let stagingSeedOpen = true
+
+function resetStagingSeed(): void {
+  stagingSeedOpen = true
+}
+
+subscribeInstance(resetStagingSeed)
+
+function applyStagingHeader(response: Response, method?: string): void {
+  const staging = response.headers.get('X-Staging-Pending')
+  if (staging === null) return
+
+  const mutating = !!method && method.toUpperCase() !== 'GET'
+  if (!mutating && !stagingSeedOpen) return
+  if (mutating) stagingSeedOpen = false
+
+  publishStagingState({ pending: staging === 'true' })
 }
 
 export function addStagingListener(fn: StagingListener): () => void {
@@ -56,6 +77,16 @@ export function getStagingState(): StagingState {
   return currentStagingState
 }
 
+function handleAuthenticationResponse(response: Response): Response {
+  const authEndpoint =
+    response.url.endsWith('/api/auth/login') || response.url.endsWith('/api/auth/password')
+  if (response.status === 401 && !authEndpoint) {
+    clearToken()
+    window.location.href = '/login'
+  }
+  return response
+}
+
 const configuration = new Configuration({
   get basePath() {
     return activeBaseUrl()
@@ -66,22 +97,9 @@ const configuration = new Configuration({
   },
   middleware: [
     {
-      async pre({ url, init }) {
-        return { url: withConfigLayer(url), init }
-      },
-      async post({ response }) {
-        const staging = response.headers.get('X-Staging-Pending')
-        if (staging !== null) {
-          const state = { pending: staging === 'true', layer: response.headers.get('X-Staging-Layer') }
-          publishStagingState(state)
-        }
-        const authEndpoint =
-          response.url.endsWith('/api/auth/login') || response.url.endsWith('/api/auth/password')
-        if (response.status === 401 && !authEndpoint) {
-          clearToken()
-          window.location.href = '/login'
-        }
-        return response
+      async post({ init, response }) {
+        applyStagingHeader(response, init.method)
+        return handleAuthenticationResponse(response)
       },
     },
   ],
@@ -93,6 +111,11 @@ const selfConfiguration = new Configuration({
     const token = getToken()
     return token ? `Bearer ${token}` : ''
   },
+  middleware: [{
+    async post({ response }) {
+      return handleAuthenticationResponse(response)
+    },
+  }],
 })
 
 export class ApiError extends Error {
@@ -106,9 +129,9 @@ export class ApiError extends Error {
   }
 }
 
-export async function configLayerRequest<T>(path: string, init?: RequestInit, layer?: ConfigLayer): Promise<T> {
+export async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getToken()
-  const response = await fetch(`${activeBaseUrl()}${withConfigLayer(path, layer)}`, {
+  const response = await fetch(`${activeBaseUrl()}${path}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
@@ -116,11 +139,7 @@ export async function configLayerRequest<T>(path: string, init?: RequestInit, la
       ...init?.headers,
     },
   })
-  const staging = response.headers.get('X-Staging-Pending')
-  if (staging !== null) {
-    const state = { pending: staging === 'true', layer: response.headers.get('X-Staging-Layer') }
-    publishStagingState(state)
-  }
+  applyStagingHeader(response, init?.method)
   const body = await response.json().catch(() => undefined) as BodyShape<T> | undefined
   if (!response.ok) throw new ApiError(body?.error || `HTTP ${response.status}`, response.status, body)
   return body?.result as T
@@ -189,8 +208,10 @@ type Api = Unwrapped<
     Operations<BackupApi> &
     Operations<ConfigApi> &
     Operations<DhcpApi> &
+    Operations<FlowsApi> &
     Operations<FriendsApi> &
     Operations<HaApi> &
+    Operations<InstallApi> &
     Operations<LogsApi> &
     Operations<MacrosApi> &
     Operations<NatApi> &
@@ -198,9 +219,11 @@ type Api = Unwrapped<
     Operations<SetupApi> &
     Operations<SnapshotsApi> &
     Operations<StatsApi> &
+    Operations<SwitchesApi> &
     Operations<SystemApi> &
     Operations<ToolsApi> &
     Operations<UiApi> &
+    Operations<WebApi> &
     Operations<WireguardApi>
 >
 
@@ -211,8 +234,10 @@ export const api = [
   new BackupApi(configuration),
   new ConfigApi(configuration),
   new DhcpApi(configuration),
+  new FlowsApi(configuration),
   new FriendsApi(configuration),
   new HaApi(configuration),
+  new InstallApi(configuration),
   new LogsApi(configuration),
   new MacrosApi(configuration),
   new NatApi(configuration),
@@ -220,9 +245,11 @@ export const api = [
   new SetupApi(configuration),
   new SnapshotsApi(configuration),
   new StatsApi(configuration),
+  new SwitchesApi(configuration),
   new SystemApi(configuration),
   new ToolsApi(configuration),
   new UiApi(configuration),
+  new WebApi(configuration),
   new WireguardApi(configuration),
 ].reduce<Record<string, unknown>>((acc, inst) => Object.assign(acc, operations(inst)), {}) as Api
 

@@ -46,14 +46,14 @@ export function ClauseEditor({
               <SelectContent>
                 {groups.map((g) => (
                   <SelectGroup key={g}>
-                    <SelectLabel className="text-[10px] uppercase tracking-wide text-muted-foreground">{g}</SelectLabel>
+                    <SelectLabel className="text-xs font-semibold text-muted-foreground">{g}</SelectLabel>
                     {catalog.filter((o) => o.group === g).map((o) => (
                       <SelectItem key={o.key} value={o.key} className="text-xs">{o.label}</SelectItem>
                     ))}
                   </SelectGroup>
                 ))}
                 <SelectGroup>
-                  <SelectItem value={CUSTOM_OP} className="text-xs italic">Custom…</SelectItem>
+                  <SelectItem value={CUSTOM_OP} className="text-xs">Custom…</SelectItem>
                 </SelectGroup>
               </SelectContent>
             </Select>
@@ -77,7 +77,7 @@ export function ClauseEditor({
               ) : (
                 <>
                   <ClauseValueInput op={op} value={value} onChange={(v) => upd(_id, { value: v })} prefixListNames={prefixListNames} />
-                  {op && <p className="text-[11px] leading-tight text-muted-foreground px-0.5">{op.desc}</p>}
+                  {op && <p className="text-xs leading-tight text-muted-foreground px-0.5">{op.desc}</p>}
                 </>
               )}
             </div>
@@ -87,7 +87,7 @@ export function ClauseEditor({
               size="icon"
               className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
               onClick={() => remove(_id)}
-            >
+             aria-label="Remove Clause" title="Remove Clause">
               <Trash2 className="h-3 w-3" />
             </Button>
           </div>

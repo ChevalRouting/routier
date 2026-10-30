@@ -76,7 +76,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: LatestLLDPNeighbors :many
 SELECT local_iface, protocol, chassis_id, chassis_name, sys_descr, mgmt_ip, port_id, port_descr, capabilities, vlan, age
-FROM lldp_neighbors WHERE ts = ? ORDER BY local_iface ASC;
+FROM lldp_neighbors WHERE ts = ? ORDER BY local_iface ASC, protocol ASC, chassis_id ASC;
 
 -- name: LastLLDPTS :one
 SELECT CAST(COALESCE(MAX(ts), 0) AS INTEGER) FROM lldp_neighbors;

@@ -7,60 +7,54 @@ import (
 	"path/filepath"
 	"strings"
 
-	v1 "github.com/ChevalRouting/routier/pkg/server/api/routes/v1"
-
-	friendsroutes "github.com/ChevalRouting/routier/pkg/server/api/routes/friends"
-	"github.com/ChevalRouting/routier/pkg/types"
-
-	configroutes "github.com/ChevalRouting/routier/pkg/server/api/routes/config"
-
-	"github.com/ChevalRouting/routier/pkg/server/api/routes/stats"
-
-	"github.com/ChevalRouting/routier/pkg/server/api/workers"
-
-	"github.com/ChevalRouting/routier/pkg/server/api/routes/macros"
-
-	"github.com/ChevalRouting/routier/pkg/server/api/routes/backup"
-
-	"github.com/ChevalRouting/routier/pkg/server/api/routes/announcements"
-	"github.com/ChevalRouting/routier/pkg/server/api/routes/dhcp"
-	dnsroutes "github.com/ChevalRouting/routier/pkg/server/api/routes/dns"
-	natroutes "github.com/ChevalRouting/routier/pkg/server/api/routes/nat"
-	"github.com/ChevalRouting/routier/pkg/server/api/routes/routing"
-
-	"github.com/ChevalRouting/routier/pkg/server/api/friendcache"
-	"github.com/ChevalRouting/routier/pkg/server/api/routes/ws"
-
-	"github.com/ChevalRouting/routier/pkg/server/api/routes/auth"
-
-	"github.com/ChevalRouting/routier/pkg/server/api/routes/snapshots"
-	"github.com/ChevalRouting/routier/pkg/server/api/routes/system"
-
-	failuresroutes "github.com/ChevalRouting/routier/pkg/server/api/routes/failures"
-
-	"github.com/ChevalRouting/routier/pkg/server/api/routes/setup"
-
-	"github.com/ChevalRouting/routier/pkg/server/api/routes/ha"
-	"github.com/ChevalRouting/routier/pkg/server/api/routes/logs"
-
-	"github.com/ChevalRouting/routier/pkg/server/api/routes/apply"
-	"github.com/ChevalRouting/routier/pkg/server/api/routes/ui"
-
-	"github.com/ChevalRouting/routier/pkg/server/api/routes/tools"
-	"github.com/ChevalRouting/routier/pkg/server/api/routes/wireguard"
-
-	webdb "github.com/ChevalRouting/routier/pkg/db"
-	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
+	"github.com/ChevalRouting/routier/pkg/cibi"
 
 	"github.com/ChevalRouting/routier/pkg/auth/identity"
+	webdb "github.com/ChevalRouting/routier/pkg/db"
+	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
+	"github.com/ChevalRouting/routier/pkg/server/api/friendcache"
+	"github.com/ChevalRouting/routier/pkg/server/api/routes/announcements"
+	"github.com/ChevalRouting/routier/pkg/server/api/routes/apply"
+	"github.com/ChevalRouting/routier/pkg/server/api/routes/auth"
+	"github.com/ChevalRouting/routier/pkg/server/api/routes/backup"
+	configroutes "github.com/ChevalRouting/routier/pkg/server/api/routes/config"
+	"github.com/ChevalRouting/routier/pkg/server/api/routes/dhcp"
+	dnsroutes "github.com/ChevalRouting/routier/pkg/server/api/routes/dns"
+	failuresroutes "github.com/ChevalRouting/routier/pkg/server/api/routes/failures"
+	flowroutes "github.com/ChevalRouting/routier/pkg/server/api/routes/flows"
+	friendsroutes "github.com/ChevalRouting/routier/pkg/server/api/routes/friends"
+	"github.com/ChevalRouting/routier/pkg/server/api/routes/ha"
+	"github.com/ChevalRouting/routier/pkg/server/api/routes/install"
+	"github.com/ChevalRouting/routier/pkg/server/api/routes/logs"
+	"github.com/ChevalRouting/routier/pkg/server/api/routes/macros"
+	natroutes "github.com/ChevalRouting/routier/pkg/server/api/routes/nat"
+	"github.com/ChevalRouting/routier/pkg/server/api/routes/routing"
+	"github.com/ChevalRouting/routier/pkg/server/api/routes/setup"
+	"github.com/ChevalRouting/routier/pkg/server/api/routes/snapshots"
+	"github.com/ChevalRouting/routier/pkg/server/api/routes/stats"
+	switchroutes "github.com/ChevalRouting/routier/pkg/server/api/routes/switches"
+	"github.com/ChevalRouting/routier/pkg/server/api/routes/system"
+	"github.com/ChevalRouting/routier/pkg/server/api/routes/tools"
+	"github.com/ChevalRouting/routier/pkg/server/api/routes/ui"
+	v1 "github.com/ChevalRouting/routier/pkg/server/api/routes/v1"
+	"github.com/ChevalRouting/routier/pkg/server/api/routes/webtls"
+	"github.com/ChevalRouting/routier/pkg/server/api/routes/wireguard"
+	"github.com/ChevalRouting/routier/pkg/server/api/routes/ws"
+	"github.com/ChevalRouting/routier/pkg/server/api/workers"
+	"github.com/ChevalRouting/routier/pkg/server/tlscert"
+	"github.com/ChevalRouting/routier/pkg/switches"
+	"github.com/ChevalRouting/routier/pkg/switches/model"
+	"github.com/ChevalRouting/routier/pkg/types"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/rs/zerolog/log"
 )
 
 type Server struct {
-	router *chi.Mux
-	app    *appctx.App
+	router  *chi.Mux
+	app     *appctx.App
+	workers *workers.Group
 }
 
 func New(ctx context.Context, configPath, dbPath string, jwtSecret []byte, debug bool) (*Server, error) {
@@ -77,12 +71,32 @@ func New(ctx context.Context, configPath, dbPath string, jwtSecret []byte, debug
 		app.Identity = id
 	}
 
+	creds, err := switches.OpenCredentials(db, dbPath)
+	if err != nil {
+		return nil, err
+	}
+
+	catalog, err := model.Default()
+	if err != nil {
+		return nil, err
+	}
+
+	app.Switches = switches.NewEngine(creds, catalog, switches.DefaultDrivers)
 	friendcache.SetPath(filepath.Join(filepath.Dir(dbPath), "friends_cache.json"))
 	friendcache.Load()
-	workers.StartCleanup(ctx, db)
-	workers.StartLiveStats()
-	workers.StartFriendPoll(configPath)
-	return &Server{router: buildRouter(app, nil), app: app}, nil
+	group, ctx := workers.NewGroup(ctx)
+	workers.StartCleanup(ctx, group, db)
+	workers.StartLiveStats(ctx, group)
+	workers.StartFriendPoll(ctx, group, configPath)
+	workers.StartSwitchPoll(ctx, group, app.Switches, configPath)
+	workers.StartFlows(ctx, group, db, configPath)
+	workers.StartCibiJoin(ctx, group, db, app.Identity, filepath.Join(filepath.Dir(dbPath), cibi.PendingFilename))
+	return &Server{router: buildRouter(app, nil), app: app, workers: group}, nil
+}
+
+func (s *Server) Close() error {
+	s.workers.Stop()
+	return s.app.DB.Close()
 }
 
 func (s *Server) Handler() http.Handler {
@@ -91,6 +105,10 @@ func (s *Server) Handler() http.Handler {
 
 func (s *Server) SetStaticFS(staticFS fs.FS) {
 	s.router = buildRouter(s.app, staticFS)
+}
+
+func (s *Server) SetCertificates(certificates *tlscert.Provider) {
+	s.app.Certificates = certificates
 }
 
 func (s *Server) SetAdvertise(port int, tls bool) {
@@ -108,26 +126,27 @@ func buildRouter(app *appctx.App, staticFS fs.FS) *chi.Mux {
 
 	r.Post("/api/auth/login", auth.Login)
 
-	r.Group(buildRouterHandler)
+	r.Group(mountAuthenticated)
 
 	v1.Routes(r, jwtMiddleware)
 	docsRoutes(r)
 
 	if staticFS != nil {
 		fileServer := http.FileServer(http.FS(staticFS))
-		r.NotFound(func(w http.ResponseWriter, req *http.Request) { buildRouterCallback(staticFS, fileServer, w, req) })
+		r.NotFound(func(w http.ResponseWriter, req *http.Request) { serveStatic(staticFS, fileServer, w, req) })
 	}
 
 	return r
 }
 
-func buildRouterHandler(r chi.Router) {
+func mountAuthenticated(r chi.Router) {
 	r.Use(jwtMiddleware)
 	r.Use(stagingHeaderMiddleware)
 
 	ws.Routes(r)
 	auth.Routes(r)
 	setup.Routes(r)
+	install.Routes(r)
 	configroutes.Routes(r)
 	apply.Routes(r)
 	snapshots.Routes(r)
@@ -137,6 +156,7 @@ func buildRouterHandler(r chi.Router) {
 	ha.Routes(r)
 	friendsroutes.Routes(r)
 	ui.Routes(r)
+	webtls.Routes(r)
 	wireguard.Routes(r)
 	logs.Routes(r)
 	stats.Routes(r)
@@ -147,9 +167,11 @@ func buildRouterHandler(r chi.Router) {
 	dhcp.Routes(r)
 	dnsroutes.Routes(r)
 	tools.Routes(r)
+	switchroutes.Routes(r)
+	flowroutes.Routes(r)
 }
 
-func buildRouterCallback(staticFS fs.FS, fileServer http.Handler, w http.ResponseWriter, req *http.Request) {
+func serveStatic(staticFS fs.FS, fileServer http.Handler, w http.ResponseWriter, req *http.Request) {
 	if strings.HasPrefix(req.URL.Path, "/api/") {
 		types.Err(http.StatusNotFound, "not found").Write(w)
 		return
@@ -164,11 +186,14 @@ func buildRouterCallback(staticFS fs.FS, fileServer http.Handler, w http.Respons
 		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 	} else if strings.HasPrefix(path, "assets/") {
 		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	} else if path == "manifest.webmanifest" {
+		w.Header().Set("Content-Type", "application/manifest+json")
 	}
 
 	f, err := staticFS.Open(path)
 	if err != nil {
 		if strings.HasPrefix(path, "assets/") {
+			w.Header().Set("Cache-Control", "no-store")
 			http.NotFound(w, req)
 			return
 		}
@@ -180,6 +205,7 @@ func buildRouterCallback(staticFS fs.FS, fileServer http.Handler, w http.Respons
 		}
 
 		_ = f2.Close()
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 		req2 := req.Clone(req.Context())
 		req2.URL.Path = "/"
 		fileServer.ServeHTTP(w, req2)

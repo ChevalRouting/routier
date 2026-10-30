@@ -287,7 +287,7 @@ func TestDDNSForwardClosestZone(t *testing.T) {
 		{"nothome.example", "nothome.example"},
 		{"", ""},
 	} {
-		t.Run(tc.domain, func(t *testing.T) { testDDNSForwardClosestZoneCallback(&tc, t) })
+		t.Run(tc.domain, func(t *testing.T) { checkDDNSForwardClosestZone(&tc, t) })
 	}
 
 	cfg := ddnsCfg()
@@ -306,10 +306,10 @@ type reverseZoneNameCase struct {
 
 type dDNSForwardClosestZoneCase struct{ domain, want string }
 
-func testDDNSForwardClosestZoneCallback(tc *dDNSForwardClosestZoneCase, t *testing.T) {
+func checkDDNSForwardClosestZone(tc *dDNSForwardClosestZoneCase, t *testing.T) {
 	cfg := ddnsCfg()
 	cfg.DNS.Server.Zones = []config.DNSZone{{Name: "ans.home.example."}, {Name: "home.example"}}
-	if got := ddnsForwardUpdateZone(cfg, (*tc).domain); got != (*tc).want {
-		t.Fatalf("got %q, want %q", got, (*tc).want)
+	if got := ddnsForwardUpdateZone(cfg, tc.domain); got != tc.want {
+		t.Fatalf("got %q, want %q", got, tc.want)
 	}
 }

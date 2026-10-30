@@ -24,11 +24,11 @@ func newSnapshotsListCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
 		Short: "list available snapshots",
-		RunE:  newSnapshotsListCommandHandler,
+		RunE:  runSnapshotsList,
 	}
 }
 
-func newSnapshotsListCommandHandler(_ *cobra.Command, _ []string) error {
+func runSnapshotsList(_ *cobra.Command, _ []string) error {
 	infos, err := apply.ListSnapshotInfos()
 	if err != nil {
 		return err

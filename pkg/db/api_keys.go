@@ -2,7 +2,10 @@ package db
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"time"
 
@@ -10,7 +13,25 @@ import (
 	"github.com/ChevalRouting/routier/pkg/types"
 )
 
+const APIKeyPrefix = "rtr_api_"
+
 var ErrAPIKeyNotFound = errors.New("API key not found")
+
+func NewAPIKey(ctx context.Context, db *DB, name, createdBy string) (types.APIKey, string, error) {
+	idBytes := make([]byte, 16)
+	secret := make([]byte, 32)
+	if _, err := rand.Read(idBytes); err != nil {
+		return types.APIKey{}, "", err
+	}
+
+	if _, err := rand.Read(secret); err != nil {
+		return types.APIKey{}, "", err
+	}
+
+	token := APIKeyPrefix + base64.RawURLEncoding.EncodeToString(secret)
+	key := types.APIKey{ID: hex.EncodeToString(idBytes), Name: name, Prefix: token[:16], CreatedAt: time.Now().Unix(), CreatedBy: createdBy}
+	return key, token, CreateAPIKey(ctx, db, key, token)
+}
 
 func apiKey(row generated.ListAPIKeysRow) types.APIKey {
 	return types.APIKey{

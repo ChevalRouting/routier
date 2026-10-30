@@ -77,24 +77,37 @@ it does, the previous state is restored after the timeout. Confirming
 (`routier confirm` / `POST /api/apply/confirm`) clears the pending state and
 commits.
 
+A rollback never rewrites `config.yml`. What the file holds depends on who
+wrote it:
+
+* An apply from the web UI, the API, a macro, a friend or a backup restore
+  keeps the new config in the pending state and writes it to `config.yml` only
+  when the apply is confirmed. Until then the file still holds the last
+  confirmed config, so a rollback has nothing to undo there and a reboot during
+  the window boots the confirmed config. An apply that does not arm the
+  watchdog writes the file as soon as it succeeds.
+* `routier apply` and `routier edit` apply the file the operator wrote. A
+  rollback reverts the services and leaves the file as edited, so it can be
+  fixed and applied again.
+
+While an apply waits for confirmation, a new apply and direct config writes
+such as friend pairing are refused; confirm or roll back first. `routier boot`
+discards a pending apply, since it applies the confirmed config.
+
 ## Staging and promotion
 
 The web UI edits a **per-user staging copy** of the config; changes take
-effect only when applied. Apply validates the staged config, applies
-it, and only then promotes it to `/etc/routier/config.yml`. A failed apply
-leaves the committed file untouched. The staging copy survives until the
-apply is confirmed: if the watchdog rolls back instead, the committed file
-reverts, the staged changes show up as pending again, and the apply can be
-retried. The REST API v1 uses sessions with the
-same property: the committed config is always the single YAML file, and only a
-successful apply writes it.
+effect only when applied. Apply validates the staged config and applies it;
+the staged config is promoted to `/etc/routier/config.yml` when the apply is
+confirmed. A failed apply leaves the committed file untouched. The staging
+copy survives until the apply is confirmed: if the watchdog rolls back instead,
+the staged changes show up as pending again and the apply can be retried. The
+REST API v1 uses sessions with the same property: the committed config is
+always the single YAML file, and only a confirmed apply writes it.
 
 ## Boot
 
-At boot, `routier boot` renders and reloads everything, with no watchdog. When
-a switchover VRRP instance is configured, WireGuard initialization is skipped
-so a standby node does not bring tunnels up before it becomes master;
-keepalived raises the tunnels on the MASTER transition instead.
+At boot, `routier boot` renders and reloads everything, with no watchdog.
 
 ## Repository layout
 

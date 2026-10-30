@@ -77,8 +77,8 @@ func renderWireguard(cfg *config.Config) ([]Output, error) {
 		},
 	}
 
-	names := make([]string, 0, len(cfg.Wireguard))
-	for n := range cfg.Wireguard {
+	names := make([]string, 0, len(cfg.VPN.Wireguard))
+	for n := range cfg.VPN.Wireguard {
 		names = append(names, n)
 	}
 
@@ -86,7 +86,7 @@ func renderWireguard(cfg *config.Config) ([]Output, error) {
 
 	var out []Output
 	for _, name := range names {
-		wg := cfg.Wireguard[name]
+		wg := cfg.VPN.Wireguard[name]
 
 		tmplStr := wgTemplate
 		userPath := filepath.Join(UserDir, "wireguard", name+".conf")

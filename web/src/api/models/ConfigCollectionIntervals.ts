@@ -60,6 +60,12 @@ export interface ConfigCollectionIntervals {
      * @type {number}
      * @memberof ConfigCollectionIntervals
      */
+    switches?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof ConfigCollectionIntervals
+     */
     system?: number;
 }
 
@@ -86,6 +92,7 @@ export function ConfigCollectionIntervalsFromJSONTyped(json: any, ignoreDiscrimi
         'neighbors': json['neighbors'] == null ? undefined : json['neighbors'],
         'proto': json['proto'] == null ? undefined : json['proto'],
         'routes': json['routes'] == null ? undefined : json['routes'],
+        'switches': json['switches'] == null ? undefined : json['switches'],
         'system': json['system'] == null ? undefined : json['system'],
     };
 }
@@ -107,6 +114,7 @@ export function ConfigCollectionIntervalsToJSONTyped(value?: ConfigCollectionInt
         'neighbors': value['neighbors'],
         'proto': value['proto'],
         'routes': value['routes'],
+        'switches': value['switches'],
         'system': value['system'],
     };
 }

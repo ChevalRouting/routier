@@ -1,0 +1,17 @@
+#!/sbin/openrc-run
+
+name="routier-live"
+description="Prepare a live boot: admin login, TLS certificate and console banner"
+
+depend() {
+	need localmount
+	after net routier-firstboot routier
+	before routier-ui
+	keyword -timeout
+}
+
+start() {
+	ebegin "Preparing the live system"
+	/usr/bin/routier live
+	eend $?
+}

@@ -16,8 +16,8 @@ func newInitCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "dump starter config and default templates",
-		RunE: func(unusedArg1 *cobra.Command, unusedArg2 []string) error {
-			return newInitCommandCallback(dir, unusedArg1, unusedArg2)
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return runInit(dir)
 		},
 	}
 
@@ -27,14 +27,14 @@ func newInitCommand() *cobra.Command {
 
 func dumpTemplates(base string) error {
 	tplDir := filepath.Join(base, "templates")
-	return fs.WalkDir(render.Embedded(), "defaults", func(path string, d fs.DirEntry, err error) error { return dumpTemplatesCallback(tplDir, path, d, err) })
+	return fs.WalkDir(render.Embedded(), "defaults", func(path string, d fs.DirEntry, err error) error { return writeEmbeddedTemplate(tplDir, path, d, err) })
 }
 
 func dumpStarterConfig(dir string) error {
 	return os.WriteFile(filepath.Join(dir, "config.yml"), config.DefaultBytes(), 0644)
 }
 
-func newInitCommandCallback(dir string, _ *cobra.Command, _ []string) error {
+func runInit(dir string) error {
 	if err := dumpTemplates(dir); err != nil {
 		return err
 	}
@@ -49,7 +49,7 @@ func newInitCommandCallback(dir string, _ *cobra.Command, _ []string) error {
 	return nil
 }
 
-func dumpTemplatesCallback(tplDir string, path string, d fs.DirEntry, err error) error {
+func writeEmbeddedTemplate(tplDir string, path string, d fs.DirEntry, err error) error {
 	if err != nil || d.IsDir() {
 		return err
 	}

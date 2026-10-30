@@ -10,8 +10,12 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 
+	"github.com/ChevalRouting/routier/pkg/config"
+	"github.com/ChevalRouting/routier/pkg/managers"
 	"github.com/ChevalRouting/routier/pkg/server/api"
+	"github.com/ChevalRouting/routier/pkg/server/tlscert"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -37,8 +41,8 @@ func serveCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "serve",
 		Short: "start the web UI server",
-		RunE: func(cmd *cobra.Command, unusedArg10 []string) error {
-			return serveCmdCallback(configPath, dbPath, addr, secretFile, tlsCert, tlsKey, devDir, debug, logLevel, cmd, unusedArg10)
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runServe(configPath, dbPath, addr, secretFile, tlsCert, tlsKey, devDir, debug, logLevel, cmd)
 		},
 	}
 
@@ -46,8 +50,8 @@ func serveCmd() *cobra.Command {
 	cmd.Flags().StringVar(&dbPath, "db", "/var/lib/routier/web.db", "path to SQLite database")
 	cmd.Flags().StringVar(&addr, "addr", ":8080", "listen address")
 	cmd.Flags().StringVar(&secretFile, "secret-file", defaultSecretFile, "path to JWT signing secret file (created if absent)")
-	cmd.Flags().StringVar(&tlsCert, "tls-cert", defaultTLSCert, "TLS certificate (TLS enabled when both cert and key exist)")
-	cmd.Flags().StringVar(&tlsKey, "tls-key", defaultTLSKey, "TLS private key")
+	cmd.Flags().StringVar(&tlsCert, "tls-cert", defaultTLSCert, "fallback TLS certificate, generated when web.tls is set (TLS enabled when it exists)")
+	cmd.Flags().StringVar(&tlsKey, "tls-key", defaultTLSKey, "fallback TLS private key")
 	cmd.Flags().StringVar(&devDir, "dev-dir", "", "serve static files from this directory instead of embedded FS")
 	cmd.Flags().BoolVar(&debug, "debug", false, "include error details and stack traces in API responses")
 	cmd.Flags().StringVar(&logLevel, "log-level", "info", "log level (debug, info, warn, error)")
@@ -85,7 +89,7 @@ func loadOrCreateSecret(path string) ([]byte, error) {
 	return secret, nil
 }
 
-func serveCmdCallback(configPath string, dbPath string, addr string, secretFile string, tlsCert string, tlsKey string, devDir string, debug bool, logLevel string, cmd *cobra.Command, _ []string) error {
+func runServe(configPath string, dbPath string, addr string, secretFile string, tlsCert string, tlsKey string, devDir string, debug bool, logLevel string, cmd *cobra.Command) error {
 	lvl, err := zerolog.ParseLevel(logLevel)
 	if err != nil {
 		return fmt.Errorf("invalid log level %q", logLevel)
@@ -101,6 +105,8 @@ func serveCmdCallback(configPath string, dbPath string, addr string, secretFile 
 	if err != nil {
 		return fmt.Errorf("create server: %w", err)
 	}
+
+	defer func() { _ = srv.Close() }()
 
 	var staticFS fs.FS
 	if devDir != "" {
@@ -123,21 +129,53 @@ func serveCmdCallback(configPath string, dbPath string, addr string, secretFile 
 	}
 
 	handler := srv.Handler()
+	certificates, err := webCertificates(tlsCert, tlsKey, configPath)
+	if err != nil {
+		return fmt.Errorf("web tls: %w", err)
+	}
 
-	_, certErr := os.Stat(tlsCert)
-	_, keyErr := os.Stat(tlsKey)
-	tlsEnabled := certErr == nil && keyErr == nil
 	if _, portStr, aerr := net.SplitHostPort(addr); aerr == nil {
 		if port, perr := strconv.Atoi(portStr); perr == nil {
-			srv.SetAdvertise(port, tlsEnabled)
+			srv.SetAdvertise(port, certificates != nil)
 		}
 	}
 
-	if tlsEnabled {
-		log.Info().Str("addr", addr).Str("cert", tlsCert).Str("key", tlsKey).Msg("starting web server (TLS)")
-		return http.ListenAndServeTLS(addr, tlsCert, tlsKey, handler)
+	if certificates == nil {
+		log.Info().Str("addr", addr).Str("config", configPath).Msg("starting web server")
+		return http.ListenAndServe(addr, handler)
 	}
 
-	log.Info().Str("addr", addr).Str("config", configPath).Msg("starting web server")
-	return http.ListenAndServe(addr, handler)
+	srv.SetCertificates(certificates)
+	go certificates.Watch(cmd.Context(), managers.LastAppliedPath)
+	server := &http.Server{Addr: addr, Handler: handler, TLSConfig: certificates.TLSConfig(), ReadHeaderTimeout: 30 * time.Second}
+	log.Info().Str("addr", addr).Str("mode", certificates.Status().Mode).Msg("starting web server (TLS)")
+	return server.ListenAndServeTLS("", "")
+}
+
+func webCertificates(certPath, keyPath, configPath string) (*tlscert.Provider, error) {
+	settingsPath := managers.LastAppliedPath
+	if _, err := os.Stat(settingsPath); err != nil {
+		settingsPath = configPath
+	}
+
+	settings, err := tlscert.LoadSettings(settingsPath)
+	if err != nil {
+		log.Warn().Err(err).Str("config", settingsPath).Msg("read web tls settings")
+	}
+
+	_, certErr := os.Stat(certPath)
+	_, keyErr := os.Stat(keyPath)
+	if certErr != nil && keyErr != nil && settings.CertFile == "" && settings.ACME == nil {
+		return nil, nil
+	}
+
+	paths := tlscert.DefaultPaths()
+	paths.CertFile, paths.KeyFile = certPath, keyPath
+	certificates, err := tlscert.New(paths, settings)
+	if err == nil {
+		return certificates, nil
+	}
+
+	log.Error().Err(err).Msg("web tls settings; serving the self-signed certificate")
+	return tlscert.New(paths, config.WebTLS{})
 }

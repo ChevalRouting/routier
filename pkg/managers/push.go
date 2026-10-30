@@ -2,6 +2,7 @@ package managers
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -43,17 +44,17 @@ type PushResult struct {
 	Error string `json:"error,omitempty"`
 }
 
-func pushImportApply(client *http.Client, f *config.Friend, configData []byte) error {
+func pushImportApply(client *http.Client, f *config.Friend, configData []byte) (string, error) {
 	sealed, err := sealForFriend(f, configData)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	baseURL, token := f.URL, f.Token
 
 	req, err := http.NewRequest(http.MethodPut, baseURL+"/api/config/import", bytes.NewReader(sealed))
 	if err != nil {
-		return fmt.Errorf("create request: %w", err)
+		return "", fmt.Errorf("create request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", types.SealedContentType)
@@ -61,32 +62,37 @@ func pushImportApply(client *http.Client, f *config.Friend, configData []byte) e
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("PUT config/import: %w", err)
+		return "", fmt.Errorf("PUT config/import: %w", err)
 	}
 
 	_, _ = io.Copy(io.Discard, resp.Body)
 	_ = resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("PUT config/import: HTTP %d", resp.StatusCode)
+		return "", fmt.Errorf("PUT config/import: HTTP %d", resp.StatusCode)
 	}
 
 	req2, err := http.NewRequest(http.MethodPost, baseURL+"/api/config/apply", nil)
 	if err != nil {
-		return fmt.Errorf("create apply request: %w", err)
+		return "", fmt.Errorf("create apply request: %w", err)
 	}
 
 	req2.Header.Set("Authorization", "Bearer "+token)
 
 	resp2, err := client.Do(req2)
 	if err != nil {
-		return fmt.Errorf("apply: %w", err)
+		return "", fmt.Errorf("apply: %w", err)
 	}
 
-	_, _ = io.Copy(io.Discard, resp2.Body)
+	body, _ := io.ReadAll(resp2.Body)
 	_ = resp2.Body.Close()
 	if resp2.StatusCode != http.StatusOK {
-		return fmt.Errorf("apply: HTTP %d", resp2.StatusCode)
+		return "", fmt.Errorf("apply: HTTP %d", resp2.StatusCode)
 	}
 
-	return nil
+	var env types.Response[types.ApplyResult]
+	if json.Unmarshal(body, &env) == nil && env.Result != nil {
+		return env.Result.Warning, nil
+	}
+
+	return "", nil
 }

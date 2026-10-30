@@ -10,25 +10,34 @@ mkdir -p "$OUTDIR"
 mkdir -p /work
 chown builder:builder /work
 
-cp APKBUILD scripts/routier.post-install scripts/routier.post-upgrade scripts/routier.pre-deinstall /work/
+cp APKBUILD scripts/routier.post-install scripts/routier.post-upgrade scripts/routier.pre-deinstall scripts/routier-openrc.post-install scripts/routier-openrc.pre-deinstall /work/
 
-cp -r . /tmp/routier-${VERSION}
-rm -rf /tmp/routier-${VERSION}/.git /tmp/routier-${VERSION}/dist
+mkdir -p /tmp/routier-${VERSION}
+for entry in .[!.]* *; do
+  [ -e "$entry" ] || continue
+  case "$entry" in
+    .git|dist) continue ;;
+  esac
+  cp -r "$entry" /tmp/routier-${VERSION}/
+done
+
 rm -rf /tmp/routier-${VERSION}/web/node_modules
 rm -rf /tmp/routier-${VERSION}/pkg/server/api/dist
 rm -f /tmp/routier-${VERSION}/go.work /tmp/routier-${VERSION}/go.work.sum
 
-EXTRA_DIRS=""
+cp -r /certs /tmp/certs
+rm -rf /tmp/certs/.git
+EXTRA_DIRS="certs"
 if [ "${LOCAL_ANYK}" = "1" ] && [ -d /anyk ]; then
   cp -r /anyk /tmp/anyk
   rm -rf /tmp/anyk/.git
   [ -f go.work ] && cp go.work /tmp/routier-${VERSION}/
   [ -f go.work.sum ] && cp go.work.sum /tmp/routier-${VERSION}/
-  EXTRA_DIRS="anyk"
+  EXTRA_DIRS="${EXTRA_DIRS} anyk"
 fi
 
 tar czf /work/routier-${VERSION}.tar.gz -C /tmp routier-${VERSION} ${EXTRA_DIRS}
-rm -rf /tmp/routier-${VERSION} /tmp/anyk
+rm -rf /tmp/routier-${VERSION} /tmp/anyk /tmp/certs
 
 chown -Rv builder:builder /work
 

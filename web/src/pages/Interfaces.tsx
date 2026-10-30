@@ -1,12 +1,13 @@
+import { DraftControls } from '@/components/DraftControls'
 import type { TypesSystemNic as SystemNic } from '@/api'
 import { IfaceCard } from '@/components/interfaces/IfaceCard'
 import { IfaceForm } from '@/components/interfaces/IfaceForm'
-import { emptyIface, Iface, IfaceMap, IfaceRow, ifaceToTunnel, matchNic, NEW_KEY, TunnelMap, tunnelToIface } from '@/components/interfaces/shared'
+import { emptyIface, Iface, IfaceMap, IfaceRow, matchNic, NEW_KEY } from '@/components/interfaces/shared'
 import { api } from '@/lib/client'
 import { useDataRefresh } from '@/lib/dataVersion'
 import { useFetch } from '@/lib/useFetch'
 import { usePageSave } from '@/lib/usePageSave'
-import { Button, EmptyState, PageHeader, Pagination, ReloadButton, SaveButton, Segmented, Sheet, Spinner, Table, TableBody, TableHead, TableHeader, TableRow, usePagination } from 'cheval-ui'
+import { Button, EmptyState, PageHeader, Pagination, ReloadButton, Segmented, Sheet, Spinner, Table, TableBody, TableHead, TableHeader, TableRow, usePagination } from 'cheval-ui'
 import {
   Network,
   Plus
@@ -28,7 +29,6 @@ type VrrpShape = { interface: string }
 
 export default function Interfaces() {
   const { data, isLoading, reload } = useFetch<IfaceMap>(() => api.apiConfigSectionGet({ section: 'interfaces' }) as Promise<IfaceMap>)
-  const { data: tunData, reload: reloadTun } = useFetch<TunnelMap>(() => api.apiConfigSectionGet({ section: 'tunnels' }) as Promise<TunnelMap>)
   const { data: vrfsData } = useFetch<Record<string, InterfacesShape4>>(
     () => api.apiConfigSectionGet({ section: 'vrfs' }) as Promise<Record<string, InterfacesShape3>>
   )
@@ -46,32 +46,15 @@ export default function Interfaces() {
   const [formDraft, setFormDraft] = useState<Iface | null>(null)
   const [pendingName, setPendingName] = useState<string | null>(null)
   const { isDirty, markDirty, save, saving, reset } = usePageSave('interfaces')
-  const tun = usePageSave('tunnels')
 
-  useDataRefresh(() => { setEntries(null); reset(); tun.reset() })
+  useDataRefresh(() => { setEntries(null); reset() })
 
-  const merged: IfaceMap = {
-    ...((data as IfaceMap | null) ?? {}),
-    ...Object.fromEntries(Object.entries(tunData ?? {}).map(([n, t]) => [n, tunnelToIface(t)])),
-  }
-  const current: IfaceMap = entries ?? merged
+  const current: IfaceMap = entries ?? data ?? {}
 
-  const saveAll = async () => {
-    const ifaceMap: IfaceMap = {}
-    const tunMap: TunnelMap = {}
-    for (const [name, iface] of Object.entries(current)) {
-      if (iface.type === 'tunnel') {
-        tunMap[name] = ifaceToTunnel(iface)
-      } else {
-        ifaceMap[name] = iface
-      }
-    }
-    if (!await tun.save(tunMap)) return
-    await save(ifaceMap)
-  }
+  const saveAll = async () => { await save(current) }
 
-  const resetAll = () => { setEntries(null); reset(); tun.reset() }
-  const reloadAll = () => { resetAll(); reload(true); reloadTun(true) }
+  const resetAll = () => { setEntries(null); reset() }
+  const reloadAll = () => { resetAll(); reload(true) }
 
   const update = (name: string, iface: Iface) => {
     setEntries({ ...current, [name]: iface })
@@ -125,9 +108,9 @@ export default function Interfaces() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Interfaces" description="Manage network interface configuration" action={
+      <PageHeader title="Interfaces" action={
         <div className="flex items-center gap-2">
-          <SaveButton isDirty={isDirty} saving={saving || tun.saving} onClick={saveAll} onCancel={reloadAll} />
+          <DraftControls isDirty={isDirty} saving={saving} onClick={saveAll} onCancel={reloadAll} />
           <ReloadButton onClick={reloadAll} />
         </div>
       } />
@@ -136,9 +119,8 @@ export default function Interfaces() {
         <EmptyState
           className="max-w-2xl mx-auto"
           icon={<Network />}
-          title="No interfaces"
-          message="Define an interface to assign addresses, VLANs and VRRP."
-          action={<Button variant="outline" size="sm" onClick={handleAddNew} className="gap-2"><Plus className="h-4 w-4" />Add interface</Button>}
+          title="No Interfaces"
+          action={<Button variant="outline" size="sm" onClick={handleAddNew} className="gap-2"><Plus className="h-4 w-4" />Add Interface…</Button>}
         />
       ) : (
         <div className="space-y-3">
@@ -152,7 +134,7 @@ export default function Interfaces() {
                 options={[{ value: 'cards', label: 'Cards' }, { value: 'list', label: 'List' }]}
               />
               <Button variant="outline" size="sm" onClick={handleAddNew} className="gap-1.5">
-                <Plus className="h-4 w-4" />Add
+                <Plus className="h-4 w-4" />Add Interface…
               </Button>
             </div>
           </div>
@@ -207,13 +189,13 @@ export default function Interfaces() {
         open={!!openSheet}
         onClose={handleCloseSheet}
         title={openSheet === NEW_KEY ? 'New Interface' : (pendingName ?? openSheet ?? '')}
-        className="max-w-2xl"
       >
         {openSheet && (openSheet === NEW_KEY ? formDraft : current[openSheet]) && (
           <IfaceForm
             name={openSheet === NEW_KEY ? newName : (pendingName ?? openSheet ?? '')}
             iface={openSheet === NEW_KEY ? formDraft! : current[openSheet]}
             vrfNames={vrfNames}
+            transports={Object.entries(current).filter(([, item]) => item.type === 'vxlan-bridge').map(([key]) => key)}
             parents={parentNames}
             nics={nics ?? []}
             onChange={openSheet === NEW_KEY ? setFormDraft : (u) => update(openSheet, u)}

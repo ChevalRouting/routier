@@ -1,27 +1,557 @@
-version: v3.0.0
-
+version: v5.0.0
 hostname: routier-b
-
+vrfs:
+    lab:
+        table: 1001
+        l3vni:
+            vni: 50001
+            transport: cibi-l2
+            vlan: 4094
 interfaces:
-  lan:
-    select: mac(02:42:0a:50:00:12)
-    addresses: [10.80.0.12/24]
-
-sysctl:
-  net.ipv4.ip_forward: "1"
-  net.ipv6.conf.all.forwarding: "1"
-
+    bench:
+        select: lan
+        type: vlan
+        addresses:
+            - 10.90.0.1/24
+        vlan:
+            id: 90
+    cameras:
+        select: lan
+        type: vlan
+        addresses:
+            - 10.40.0.1/24
+        vlan:
+            id: 10
+    campus:
+        select: cibi-l2
+        type: vnet
+        addresses:
+            - 10.50.0.2/24
+        mtu: 1370
+        bridge:
+            members:
+                - vl40
+        vnet:
+            vni: 10040
+            vlan: 40
+            gateway:
+                ips:
+                    - 10.50.0.10
+    cibi-l2:
+        type: vxlan-bridge
+        mtu: 1370
+        vxlan:
+            local: 10.254.0.2
+            port: 4789
+    cibi-lo:
+        type: dummy
+        addresses:
+            - 10.254.0.2/32
+    lab-b:
+        select: site
+        type: vlan
+        vrf: lab
+        addresses:
+            - 10.61.0.1/24
+        vlan:
+            id: 61
+    lan:
+        select: eth2
+        addresses:
+            - 10.80.0.12/24
+    office:
+        select: lan
+        type: vlan
+        addresses:
+            - 10.30.0.1/24
+            - fd30::1/64
+        vlan:
+            id: 30
+    printers:
+        select: lan
+        type: vlan
+        addresses:
+            - 10.80.10.1/24
+        vlan:
+            id: 80
+    shared:
+        select: lan
+        type: vlan
+        addresses:
+            - 10.70.0.3/24
+        vlan:
+            id: 70
+    site:
+        select: eth1
+    vl40:
+        select: site
+        type: vlan
+        vlan:
+            id: 40
+    wan:
+        select: eth0
+        addresses:
+            - 192.168.148.2/24
+routing:
+    static:
+        - destination: 0.0.0.0/0
+          via: 192.168.148.1
+          dev: wan
+        - destination: 10.20.0.0/24
+          via: 10.255.0.0
+          dev: wg-routier-a
+        - destination: 10.254.0.1/32
+          via: 10.255.0.0
+          dev: wg-routier-a
+        - destination: 10.51.0.0/24
+          via: 10.255.0.0
+          dev: wg-routier-a
+        - destination: fd20::/64
+          dev: wg-routier-a
+    bgp:
+        asn: 4200000002
+        router_id: 10.254.0.2
+        no_ebgp_requires_policy: true
+        allow_inbound:
+            - wg-routier-a
+        neighbors:
+            - address: 10.255.0.0
+              remote_asn: 4200000001
+              description: cibi routier-a
+              address_families:
+                ipv4-unicast:
+                    disabled: true
+                l2vpn-evpn:
+                    route_map_in: CIBI-EVPN
+                    route_map_out: CIBI-EVPN
+                    extra:
+                        - attribute-unchanged next-hop
+        address_families:
+            l2vpn-evpn:
+                advertise_all_vni: true
+        route_maps:
+            CIBI-EVPN:
+                - seq: 10
+                  action: permit
+    radvd:
+        interfaces:
+            office:
+                adv_send_advert: true
+                prefixes:
+                    - prefix: fd30::/64
+                      adv_on_link: true
+                      adv_autonomous: true
+                rdnss:
+                    servers:
+                        - fd30::1
+    vrfs:
+        lab:
+            bgp:
+                asn: 4200000002
+                router_id: 10.254.0.2
+                address_families:
+                    ipv4-unicast:
+                        redistribute:
+                            - connected
+                    l2vpn-evpn:
+                        advertise:
+                            - ipv4-unicast
+vpn:
+    wireguard:
+        wg-routier-a:
+            listen_port: 51820
+            private_key: REDACTED
+            table: "off"
+            addresses:
+                - 10.255.0.1/31
+            peers:
+                - name: routier-a
+                  public_key: 5j3VCVKW+eV1q5BzpoQE/E6DMS3VMpVqwzzvPozw63Y=
+                  preshared_key: REDACTED
+                  endpoint: 10.80.0.11:51820
+                  allowed_ips:
+                    - 10.255.0.0/32
+                    - 10.254.0.1/32
+                    - 10.20.0.0/24
+                    - fd20::/64
+                    - 10.51.0.0/24
+                    - 10.50.0.0/24
+                  keepalive: 25
+            allow_inbound: true
 nftables:
-  chains:
-    input:
-      rules: |
-        iifname "lo" accept
-        ct state established,related accept
-        ct state invalid drop
-        meta l4proto icmp accept
-        meta l4proto icmpv6 accept
-        tcp dport { ssh, 8080 } accept
-    forward:
-      rules: |
-        ct state established,related accept
-        ct state invalid drop
+    chains:
+        forward:
+            rules: |
+                ct state established,related accept
+                ct state invalid drop
+            managed:
+                - comment: 'cibi: replies'
+                  tag: cibi
+                  match:
+                    ct_state: established,related
+                  action: accept
+                - comment: 'cibi: between networks and links'
+                  tag: cibi
+                  match:
+                    iif: '"bench","cameras","campus","office","printers","rtg42c97db3df4b","shared","wg-routier-a"'
+                    oif: '"bench","cameras","campus","office","printers","rtg42c97db3df4b","shared","wg-routier-a"'
+                  action: accept
+                - comment: 'cibi: Office to the Internet'
+                  tag: cibi
+                  match:
+                    iif: '"office"'
+                    oif: $wan_interfaces
+                  action: accept
+                - comment: 'cibi: Shared to the Internet'
+                  tag: cibi
+                  match:
+                    iif: '"shared"'
+                    oif: $wan_interfaces
+                  action: accept
+                - comment: 'cibi: Printers to the Internet'
+                  tag: cibi
+                  match:
+                    iif: '"printers"'
+                    oif: $wan_interfaces
+                  action: accept
+                - comment: 'cibi: forward tcp 631'
+                  tag: cibi
+                  match:
+                    protocol: tcp
+                    iif: $wan_interfaces
+                    daddr: 10.80.10.20
+                    dport: "631"
+                    ct_state: new
+                  action: accept
+                - comment: 'cibi: within VRF lab'
+                  tag: cibi
+                  match:
+                    iif: '"lab","lab-b","rts165845a3dd67"'
+                    oif: '"lab","lab-b","rts165845a3dd67"'
+                  action: accept
+        input:
+            rules: |
+                iifname "lo" accept
+                ct state established,related accept
+                ct state invalid drop
+                meta l4proto icmp accept
+                meta l4proto icmpv6 accept
+                tcp dport { ssh, 8080 } accept
+            managed:
+                - comment: 'cibi: remote access Staff VPN remote resolver'
+                  tag: cibi
+                  match:
+                    protocol: tcp
+                    saddr: 10.255.0.0
+                    daddr: 10.30.0.1
+                    dport: "53"
+                  action: accept
+                - comment: 'cibi: remote access Staff VPN remote resolver'
+                  tag: cibi
+                  match:
+                    protocol: udp
+                    saddr: 10.255.0.0
+                    daddr: 10.30.0.1
+                    dport: "53"
+                  action: accept
+                - comment: 'cibi: remote access Staff VPN remote resolver'
+                  tag: cibi
+                  match:
+                    protocol: tcp
+                    saddr: 10.255.0.2
+                    daddr: 10.30.0.1
+                    dport: "53"
+                  action: accept
+                - comment: 'cibi: remote access Staff VPN remote resolver'
+                  tag: cibi
+                  match:
+                    protocol: udp
+                    saddr: 10.255.0.2
+                    daddr: 10.30.0.1
+                    dport: "53"
+                  action: accept
+                - comment: 'cibi: dhcp on Cameras'
+                  tag: cibi
+                  match:
+                    protocol: udp
+                    iif: '"cameras"'
+                    dport: "67"
+                  action: accept
+                - comment: 'cibi: dhcp on Campus'
+                  tag: cibi
+                  match:
+                    protocol: udp
+                    iif: '"campus"'
+                    dport: "67"
+                  action: accept
+                - comment: 'cibi: dhcp on Lab B'
+                  tag: cibi
+                  match:
+                    protocol: udp
+                    iif: '"lab-b"'
+                    dport: "67"
+                  action: accept
+                - comment: 'cibi: dhcp on Shared'
+                  tag: cibi
+                  match:
+                    protocol: udp
+                    iif: '"shared"'
+                    dport: "67"
+                  action: accept
+                - comment: 'cibi: dhcp on Printers'
+                  tag: cibi
+                  match:
+                    protocol: udp
+                    iif: '"printers"'
+                    dport: "67"
+                  action: accept
+                - comment: 'cibi: vxlan over links'
+                  tag: cibi
+                  match:
+                    protocol: udp
+                    iif: '"wg-routier-a"'
+                    dport: "4789"
+                  action: accept
+                - comment: 'cibi: DNS transfer fleet.test from 10.20.0.1'
+                  tag: cibi
+                  match:
+                    protocol: tcp
+                    saddr: 10.20.0.1
+                    dport: "53"
+                  action: accept
+                - comment: 'cibi: DNS transfer fleet.test from 10.20.0.1'
+                  tag: cibi
+                  match:
+                    protocol: udp
+                    saddr: 10.20.0.1
+                    dport: "53"
+                  action: accept
+                - comment: 'cibi: DNS transfer upstream.test from 10.60.0.1'
+                  tag: cibi
+                  match:
+                    protocol: tcp
+                    iif: '"lab"'
+                    saddr: 10.60.0.1
+                    dport: "53"
+                  action: accept
+                - comment: 'cibi: DNS transfer upstream.test from 10.60.0.1'
+                  tag: cibi
+                  match:
+                    protocol: udp
+                    iif: '"lab"'
+                    saddr: 10.60.0.1
+                    dport: "53"
+                  action: accept
+                - comment: 'cibi: DNS transfer vrf-fleet.test from 10.60.0.1'
+                  tag: cibi
+                  match:
+                    protocol: tcp
+                    iif: '"lab"'
+                    saddr: 10.60.0.1
+                    dport: "53"
+                  action: accept
+                - comment: 'cibi: DNS transfer vrf-fleet.test from 10.60.0.1'
+                  tag: cibi
+                  match:
+                    protocol: udp
+                    iif: '"lab"'
+                    saddr: 10.60.0.1
+                    dport: "53"
+                  action: accept
+                - comment: 'cibi: DNS in VRF lab'
+                  tag: cibi
+                  match:
+                    protocol: tcp
+                    iif: '"lab"'
+                    saddr: 10.61.0.0/24
+                    dport: "53"
+                  action: accept
+                - comment: 'cibi: DNS in VRF lab'
+                  tag: cibi
+                  match:
+                    protocol: udp
+                    iif: '"lab"'
+                    saddr: 10.61.0.0/24
+                    dport: "53"
+                  action: accept
+        postrouting:
+            managed:
+                - comment: 'cibi: masquerade Office'
+                  tag: cibi
+                  match:
+                    oif: $wan_interfaces
+                    saddr: $office_network
+                  action: masquerade
+                - comment: 'cibi: masquerade Shared'
+                  tag: cibi
+                  match:
+                    oif: $wan_interfaces
+                    saddr: $shared_network
+                  action: masquerade
+                - comment: 'cibi: masquerade Printers'
+                  tag: cibi
+                  match:
+                    oif: $wan_interfaces
+                    saddr: $printers_network
+                  action: masquerade
+        prerouting:
+            managed:
+                - comment: 'cibi: forward tcp 631'
+                  tag: cibi
+                  match:
+                    protocol: tcp
+                    iif: $wan_interfaces
+                    dport: "631"
+                  action: dnat
+                  action_to: 10.80.10.20:631
+sysctl:
+    net.ipv4.ip_forward: "1"
+    net.ipv6.conf.all.forwarding: "1"
+dns:
+    server:
+        vrfs:
+            lab:
+                enabled: true
+                listen:
+                    - iface(lab-b)
+                allow_from:
+                    - 10.61.0.0/24
+                zones:
+                    - notify_source: 10.61.0.1
+                      name: upstream.test
+                      nameservers:
+                        - ns.example.net
+                      soa:
+                        email: hostmaster.upstream.test
+                      records:
+                        - name: host
+                          type: A
+                          value: 10.61.0.80
+                          ttl: 30
+                      extra:
+                        - allow-query { routier_clients; 10.60.0.1; };
+                    - transfer_source: 10.61.0.1
+                      name: vrf-fleet.test
+                      primaries:
+                        - 10.60.0.1
+                      extra:
+                        - allow-query { routier_clients; 10.60.0.1; };
+                extra:
+                    - query-source address 10.61.0.1;
+        enabled: true
+        listen:
+            - iface(cameras)
+            - iface(office)
+            - iface(campus)
+            - iface(shared)
+            - iface(bench)
+        allow_from:
+            - 10.40.0.0/24
+            - 10.30.0.0/24
+            - fd30::/64
+            - 10.50.0.0/24
+            - 10.70.0.0/24
+            - 10.90.0.0/24
+            - 10.255.0.0
+            - 10.255.0.2
+        allow_inbound:
+            - cameras
+            - office
+            - campus
+            - shared
+            - bench
+        forward:
+            - domain: apps.test
+              servers:
+                - 10.20.0.1
+        zones:
+            - transfer_source: 10.30.0.1
+              transfer_source_v6: fd30::1
+              name: fleet.test
+              primaries:
+                - 10.20.0.1
+              extra:
+                - allow-query { routier_clients; 10.20.0.1; };
+        extra:
+            - query-source address 10.30.0.1;
+            - query-source-v6 address fd30::1;
+friends:
+    - name: routier-a
+      hostname: routier-a
+      url: https://10.255.0.0:8080
+      token: REDACTED
+      tls_skip_verify: true
+      enabled: true
+      manage: true
+      identity:
+        fingerprint: SHA256:rq4ZDKps0vBcmZ9fa5bXFzgolkweUhOvD5pLG8PZbGE
+        public_key: rKgGKkA5ZClocuG/KanFvSZTqLoXcJvAYFsAhteS0gM=
+        x25519_public_key: xfCEFMK2BkceMow2JqffVrnL/hRt/ufrMH/4sJ65Xyw=
+ha:
+    vrrp:
+        - name: cibi-shared
+          id: 1
+          interface: shared
+          vips:
+            - 10.70.0.1/24
+          priority: 150
+          track_interfaces:
+            - wan
+          allow_inbound: true
+    conntrackd:
+        interface: shared
+        address: 10.70.0.3
+        peer_ips:
+            - 10.70.0.2
+        allow_inbound: true
+monitoring:
+    probes:
+        - name: cibi-wg-routier-a
+          target: 10.255.0.0
+          interval: 60
+dhcp:
+    enabled: true
+    interfaces:
+        - cameras
+        - campus
+        - lab-b
+        - shared
+        - printers
+    subnets4:
+        - subnet: 10.40.0.0/24
+          interface: cameras
+          pools:
+            - 10.40.0.100-10.40.0.199
+          gateway: 10.40.0.1
+          dns:
+            - 10.40.0.1
+        - subnet: 10.50.0.0/24
+          interface: campus
+          pools:
+            - 10.50.0.200-10.50.0.254
+          gateway: 10.50.0.10
+          dns:
+            - 10.50.0.2
+            - 10.50.0.1
+        - subnet: 10.61.0.0/24
+          interface: lab-b
+          pools:
+            - 10.61.0.100-10.61.0.199
+          gateway: 10.61.0.1
+          dns:
+            - 10.61.0.1
+        - subnet: 10.70.0.0/24
+          interface: shared
+          pools:
+            - 10.70.0.200-10.70.0.254
+          gateway: 10.70.0.1
+          dns:
+            - 10.70.0.3
+            - 10.70.0.2
+        - subnet: 10.80.10.0/24
+          interface: printers
+          pools:
+            - 10.80.10.100-10.80.10.199
+          gateway: 10.80.10.1
+          dns:
+            - 9.9.9.9

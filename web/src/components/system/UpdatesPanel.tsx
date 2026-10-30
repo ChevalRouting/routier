@@ -1,4 +1,4 @@
-import { configLayerRequest } from '@/lib/client'
+import { apiRequest } from '@/lib/client'
 import { Badge, Button, PreferencesGroup, Row } from 'cheval-ui'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
@@ -35,14 +35,14 @@ export default function UpdatesPanel() {
   const [rebooting, setRebooting] = useState(false)
 
   const loadVersion = () =>
-    configLayerRequest<SystemVersion>('/api/system/version').then(setVersion).catch(() => {})
+    apiRequest<SystemVersion>('/api/system/version').then(setVersion).catch(() => {})
 
   useEffect(() => { loadVersion() }, [])
 
   const check = async () => {
     setChecking(true)
     try {
-      const result = await configLayerRequest<SystemUpdates>('/api/system/updates?refresh=1')
+      const result = await apiRequest<SystemUpdates>('/api/system/updates?refresh=1')
       result.packages = result.packages ?? []
       setUpdates(result)
       if (result.packages.length === 0) toast.success('System is up to date')
@@ -56,7 +56,7 @@ export default function UpdatesPanel() {
   const reboot = async () => {
     setRebooting(true)
     try {
-      await configLayerRequest('/api/system/reboot', { method: 'POST' })
+      await apiRequest('/api/system/reboot', { method: 'POST' })
       toast.message('Rebooting, the appliance will be unreachable for a moment')
     } catch (e) {
       toast.error((e as Error).message)
@@ -68,15 +68,15 @@ export default function UpdatesPanel() {
   const pkgs = updates?.packages ?? []
 
   return (
-    <PreferencesGroup title="Updates" description="Keep the appliance packages and kernel current.">
-      <Row title="Current version" subtitle={version ? `kernel ${version.kernel}` : undefined}>
+    <PreferencesGroup>
+      <Row title="Current Version" subtitle={version ? `kernel ${version.kernel}` : undefined}>
         <span className="font-mono text-sm">{version?.version || '…'}</span>
       </Row>
 
       {version?.reboot_pending && (
-        <Row title="Reboot pending" subtitle="A new kernel is installed but not yet running.">
+        <Row title="Reboot Pending" subtitle="A new kernel is installed but not running">
           <Button size="sm" variant="destructive" onClick={reboot} disabled={rebooting}>
-            {rebooting ? 'Rebooting…' : 'Reboot now'}
+            {rebooting ? 'Rebooting…' : 'Reboot Now'}
           </Button>
         </Row>
       )}
@@ -90,7 +90,7 @@ export default function UpdatesPanel() {
       {updates && !live && (
         <div className="px-4 py-3 space-y-2">
           {pkgs.length === 0 ? (
-            <p className="text-sm text-muted-foreground">System is up to date.</p>
+            <p className="text-sm text-muted-foreground">System is up to date</p>
           ) : (
             <>
               <div className="flex flex-wrap items-center gap-2">
@@ -112,10 +112,10 @@ export default function UpdatesPanel() {
 
       <div className="flex items-center gap-2 px-4 py-3">
         <Button variant="outline" onClick={check} disabled={checking || live}>
-          {checking ? 'Checking…' : 'Check for updates'}
+          {checking ? 'Checking…' : 'Check for Updates'}
         </Button>
         <Button onClick={() => setUpgradeOpen(true)} disabled={live || pkgs.length === 0}>
-          Update now
+          Update…
         </Button>
       </div>
 

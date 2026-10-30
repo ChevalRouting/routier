@@ -16,22 +16,24 @@ const rtprotKeepalived = 18
 
 func reconcileAddrs(cfg *config.Config, dryRun bool) error {
 	wantByDev := map[string][]string{}
-	addWant := func(dev string, addrs []string) { reconcileAddrsCallback(wantByDev, dev, addrs) }
+	addWant := func(dev string, addrs []string) { addWantedAddrs(wantByDev, dev, addrs) }
 
-	for _, iface := range cfg.Interfaces {
+	noDAD := map[string]bool{}
+	for name, iface := range cfg.Interfaces {
 		addWant(iface.Device, iface.Addresses)
+		if iface.Type == "vnet" && iface.VNet != nil && iface.VNet.Gateway != nil {
+			gateway := config.VNetLinkName(name, "g")
+			addWant(gateway, gatewayAddrs(iface.VNet.Gateway))
+			noDAD[gateway] = true
+		}
 	}
 
-	for name, t := range cfg.Tunnels {
-		addWant(name, t.Addresses)
-	}
-
-	for name, wg := range cfg.Wireguard {
+	for name, wg := range cfg.VPN.Wireguard {
 		addWant(name, wg.Addresses)
 	}
 
 	for dev, cidrs := range wantByDev {
-		if err := syncAddrs(dev, cidrs, dryRun); err != nil {
+		if err := syncAddrs(dev, cidrs, noDAD[dev], dryRun); err != nil {
 			log.Error().Err(err).Str("dev", dev).Msg("addr reconcile")
 		}
 	}
@@ -43,10 +45,14 @@ var dhcpTokens = map[string]bool{
 	"dhcp": true, "dhcp4": true, "dhcp6": true, "slaac": true,
 }
 
-func syncAddrs(dev string, wantCIDRs []string, dryRun bool) error {
+func syncAddrs(dev string, wantCIDRs []string, noDAD, dryRun bool) error {
 	link, err := vnl.LinkByName(dev)
-	if err != nil {
+	if err != nil && dryRun {
 		return nil
+	}
+
+	if err != nil {
+		return fmt.Errorf("find link: %w", err)
 	}
 
 	want := map[string]*vnl.Addr{}
@@ -62,6 +68,9 @@ func syncAddrs(dev string, wantCIDRs []string, dryRun bool) error {
 
 		ipNet.IP = ip
 		want[ipNet.String()] = &vnl.Addr{IPNet: ipNet}
+		if noDAD && ip.To4() == nil {
+			want[ipNet.String()].Flags = unix.IFA_F_NODAD
+		}
 	}
 
 	actual, err := vnl.AddrList(link, vnl.FAMILY_ALL)
@@ -135,7 +144,7 @@ func keepAddr(a vnl.Addr, dev string) bool {
 	return false
 }
 
-func reconcileAddrsCallback(wantByDev map[string][]string, dev string, addrs []string) {
+func addWantedAddrs(wantByDev map[string][]string, dev string, addrs []string) {
 	if dev == "" {
 		return
 	}

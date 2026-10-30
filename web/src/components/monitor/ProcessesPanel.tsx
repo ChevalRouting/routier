@@ -1,11 +1,11 @@
+import { SortableHead } from '@/components/ui/SortableHead'
 import type { TypesProcessInfo as ProcessInfo } from '@/api'
 import { api } from '@/lib/client'
-import { Button, Card, CardContent, cn, fmtBytes, Input, Pagination, Spinner, usePagination } from 'cheval-ui'
-import { ArrowDown, ArrowUp, Pause, Play, RefreshCw, Search } from 'lucide-react'
+import { plural } from '@/lib/utils'
+import { Button, Card, CardContent, cn, fmtBytes, Input, Pagination, Spinner, usePagination, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, StatusChip, ReloadButton } from 'cheval-ui'
+import { Pause, Play, Search } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { OnActionChange } from './shared'
-
-type SortIconShape = { field: 'cpu_pct' | 'mem_rss'; sortField: string; sortDir: string }
 
 type ProcessesPanelShape = { onActionChange: OnActionChange }
 
@@ -14,10 +14,6 @@ export function procStateLabel(s: string): string {
   return m[s] ?? s
 }
 
-function SortIcon({ field, sortField, sortDir }: SortIconShape) {
-  if (sortField !== field) return <ArrowUp className="h-3 w-3 opacity-30" />
-  return sortDir === 'desc' ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />
-}
 
 export function ProcessesPanel({ onActionChange }: ProcessesPanelShape) {
   const [procs, setProcs] = useState<ProcessInfo[] | null>(null)
@@ -50,9 +46,7 @@ export function ProcessesPanel({ onActionChange }: ProcessesPanelShape) {
           {paused ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
           {paused ? 'Resume' : 'Pause'}
         </Button>
-        <Button variant="outline" size="icon" className="h-8 w-8" onClick={fetchProcs}>
-          <RefreshCw className="h-3.5 w-3.5" />
-        </Button>
+        <ReloadButton onClick={fetchProcs} />
       </div>
     )
   }, [paused, lastUpdate, fetchProcs, onActionChange])
@@ -85,58 +79,45 @@ export function ProcessesPanel({ onActionChange }: ProcessesPanelShape) {
           placeholder="Filter processes…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          className="max-w-xs h-8 text-sm"
+          className="h-8 min-w-0 flex-1 text-sm sm:max-w-xs"
         />
-        {sorted && <span className="text-xs text-muted-foreground">{sorted.length} processes</span>}
+        {sorted && <span className="shrink-0 whitespace-nowrap text-xs text-muted-foreground">{plural(sorted.length, 'Process', 'Processes')}</span>}
       </div>
       {!sorted ? <Spinner /> : (
         <Card>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left">
-                    <th className="px-4 py-2.5 font-medium text-muted-foreground w-16">PID</th>
-                    <th className="px-4 py-2.5 font-medium text-muted-foreground">Name</th>
-                    <th className="px-4 py-2.5 font-medium text-muted-foreground">Command</th>
-                    <th className="px-4 py-2.5 font-medium text-muted-foreground text-right w-24">
-                      <button className="inline-flex items-center gap-1 ml-auto hover:text-foreground transition-colors" onClick={() => toggleSort('cpu_pct')}>
-                        CPU% <SortIcon field="cpu_pct" sortField={sortField} sortDir={sortDir} />
-                      </button>
-                    </th>
-                    <th className="px-4 py-2.5 font-medium text-muted-foreground text-right w-28">
-                      <button className="inline-flex items-center gap-1 ml-auto hover:text-foreground transition-colors" onClick={() => toggleSort('mem_rss')}>
-                        Memory <SortIcon field="mem_rss" sortField={sortField} sortDir={sortDir} />
-                      </button>
-                    </th>
-                    <th className="px-4 py-2.5 font-medium text-muted-foreground">State</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table className="w-full text-sm">
+                <TableHeader>
+                  <TableRow className="border-b border-border text-left">
+                    <TableHead className="px-4 py-2.5 font-medium text-muted-foreground w-16">PID</TableHead>
+                    <TableHead className="px-4 py-2.5 font-medium text-muted-foreground">Name</TableHead>
+                    <TableHead className="px-4 py-2.5 font-medium text-muted-foreground">Command</TableHead>
+                    <SortableHead label="CPU %" active={sortField === 'cpu_pct'} direction={sortDir} onSort={() => toggleSort('cpu_pct')} className="w-24 px-4 py-2.5 text-right" />
+                    <SortableHead label="Memory" active={sortField === 'mem_rss'} direction={sortDir} onSort={() => toggleSort('mem_rss')} className="w-28 px-4 py-2.5 text-right" />
+                    <TableHead className="px-4 py-2.5 font-medium text-muted-foreground">State</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {pageItems.map((p) => (
-                    <tr key={p.pid} className="border-b border-border last:border-b-0 hover:bg-muted/30">
-                      <td className="px-4 py-2 font-mono text-xs text-muted-foreground">{p.pid}</td>
-                      <td className="px-4 py-2 font-mono font-medium">{p.name}</td>
-                      <td className="px-4 py-2 font-mono text-xs text-muted-foreground max-w-xs truncate">{p.cmd || '–'}</td>
-                      <td className={cn(
+                    <TableRow key={p.pid} className="border-b border-border last:border-b-0 hover:bg-muted/30">
+                      <TableCell className="px-4 py-2 font-mono text-xs text-muted-foreground">{p.pid}</TableCell>
+                      <TableCell data-title className="px-4 py-2 font-mono font-medium">{p.name}</TableCell>
+                      <TableCell data-wide className="px-4 py-2 font-mono text-xs text-muted-foreground max-w-xs truncate">{p.cmd || '–'}</TableCell>
+                      <TableCell className={cn(
                         'px-4 py-2 text-right font-mono tabular-nums text-xs',
                         p.cpu_pct > 50 ? 'text-danger' : p.cpu_pct > 20 ? 'text-warning' : '',
                       )}>
                         {p.cpu_pct.toFixed(1)}%
-                      </td>
-                      <td className="px-4 py-2 text-right font-mono tabular-nums text-xs">{fmtBytes(p.mem_rss)}</td>
-                      <td className="px-4 py-2">
-                        <span className={cn(
-                          'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
-                          p.state === 'R' ? 'bg-success/15 text-success' :
-                          p.state === 'Z' ? 'bg-danger/15 text-danger' :
-                          'bg-muted text-muted-foreground',
-                        )}>{procStateLabel(p.state)}</span>
-                      </td>
-                    </tr>
+                      </TableCell>
+                      <TableCell className="px-4 py-2 text-right font-mono tabular-nums text-xs">{fmtBytes(p.mem_rss)}</TableCell>
+                      <TableCell className="px-4 py-2">
+                        <StatusChip intent={p.state === 'R' ? 'success' : p.state === 'Z' ? 'danger' : 'neutral'} label={procStateLabel(p.state)} />
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           </CardContent>
         </Card>

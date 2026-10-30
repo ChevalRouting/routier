@@ -1,10 +1,11 @@
+import { DraftControls } from '@/components/DraftControls'
 import { ServiceForm } from '@/components/anycast/ServiceForm'
 import { AnycastService, emptyService, RoutingSection, ServiceRow } from '@/components/anycast/shared'
 import { api } from '@/lib/client'
 import { useDataRefresh } from '@/lib/dataVersion'
 import { useFetch } from '@/lib/useFetch'
 import { usePageSave } from '@/lib/usePageSave'
-import { Button, EmptyState, PageHeader, Pagination, PreferencesColumns, ReloadButton, SaveButton, Sheet, Spinner, usePagination } from 'cheval-ui'
+import { Button, EmptyState, PageHeader, Pagination, ReloadButton, Sheet, Spinner, usePagination, PreferencesGroup } from 'cheval-ui'
 import {
   Plus,
   Radio
@@ -65,9 +66,9 @@ export default function Anycast() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Anycast" description="Manage anycast services and health-checked endpoints" action={
+      <PageHeader title="Anycast" action={
         <div className="flex items-center gap-2">
-          <SaveButton isDirty={isDirty} saving={saving} onClick={() => routing && save(routing)} onCancel={handleCancel} />
+          <DraftControls isDirty={isDirty} saving={saving} onClick={() => routing && save(routing)} onCancel={handleCancel} />
           <ReloadButton onClick={handleClick} />
         </div>
       } />
@@ -76,16 +77,15 @@ export default function Anycast() {
         <EmptyState
           className="max-w-2xl mx-auto"
           icon={<Radio />}
-          title="No anycast services"
-          message="Define an anycast service to advertise a shared address across healthy endpoints."
-          action={<Button variant="outline" size="sm" onClick={handleAddNew} className="gap-2"><Plus className="h-4 w-4" />Add service</Button>}
+          title="No Anycast Services"
+          action={<Button variant="outline" size="sm" onClick={handleAddNew} className="gap-2"><Plus className="h-4 w-4" />Add Service…</Button>}
         />
       ) : (
-        <PreferencesColumns
+        <PreferencesGroup
           title="Services"
           header={
             <Button variant="outline" size="sm" onClick={handleAddNew} className="gap-1.5">
-              <Plus className="h-4 w-4" />Add
+              <Plus className="h-4 w-4" />Add Service…
             </Button>
           }
         >
@@ -100,7 +100,7 @@ export default function Anycast() {
               />
             )
           })}
-        </PreferencesColumns>
+        </PreferencesGroup>
       )}
 
       <Pagination page={page} totalPages={totalPages} total={total} pageSize={pageSize} onPage={setPage} unit="services" />
@@ -109,7 +109,6 @@ export default function Anycast() {
         open={openIdx !== null}
         onClose={handleCloseSheet}
         title={sheetTitle}
-        className="max-w-2xl"
       >
         {openIdx !== null && (isAdding ? formDraft : openSvc) && (
           <ServiceForm

@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"path/filepath"
-	"sort"
 
 	"github.com/ChevalRouting/routier/pkg/config"
 	"github.com/rs/zerolog/log"
@@ -15,10 +13,10 @@ func newMigrateCommand() *cobra.Command {
 	var dryRun bool
 	cmd := &cobra.Command{
 		Use:   "migrate [config]",
-		Short: "migrate config file(s) to the current schema version",
+		Short: "migrate the config file to the current schema version",
 		Args:  cobra.MaximumNArgs(1),
-		RunE: func(unusedArg1 *cobra.Command, args []string) error {
-			return newMigrateCommandCallback(dryRun, unusedArg1, args)
+		RunE: func(_ *cobra.Command, args []string) error {
+			return runMigrate(dryRun, args)
 		},
 	}
 
@@ -26,62 +24,37 @@ func newMigrateCommand() *cobra.Command {
 	return cmd
 }
 
-func newMigrateCommandCallback(dryRun bool, _ *cobra.Command, args []string) error {
+func runMigrate(dryRun bool, args []string) error {
 	path := configArg(args)
-	info, err := os.Stat(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
 
-	var files []string
-	if info.IsDir() {
-		for _, ext := range []string{"*.yml", "*.yaml"} {
-			found, _ := filepath.Glob(filepath.Join(path, ext))
-			files = append(files, found...)
-		}
-
-		sort.Strings(files)
-	} else {
-		files = []string{path}
+	out, changed, err := config.MigrateBytes(data)
+	if err != nil {
+		return fmt.Errorf("%s: %w", path, err)
 	}
 
-	migrated := false
-	for _, f := range files {
-		data, err := os.ReadFile(f)
-		if err != nil {
-			return err
-		}
-
-		out, changed, err := config.MigrateBytes(data)
-		if err != nil {
-			return fmt.Errorf("%s: %w", f, err)
-		}
-
-		if !changed {
-			continue
-		}
-
-		migrated = true
-		if dryRun {
-			log.Info().Str("file", f).Msgf("would migrate to %s", config.CurrentVersion)
-			continue
-		}
-
-		mode := os.FileMode(0600)
-		if fi, err := os.Stat(f); err == nil {
-			mode = fi.Mode().Perm()
-		}
-
-		if err := os.WriteFile(f, out, mode); err != nil {
-			return err
-		}
-
-		log.Info().Str("file", f).Msgf("migrated to %s", config.CurrentVersion)
-	}
-
-	if !migrated {
+	if !changed {
 		log.Info().Str("version", config.CurrentVersion).Msg("config already up to date")
+		return nil
 	}
 
+	if dryRun {
+		log.Info().Str("file", path).Msgf("would migrate to %s", config.CurrentVersion)
+		return nil
+	}
+
+	mode := os.FileMode(0600)
+	if fi, err := os.Stat(path); err == nil {
+		mode = fi.Mode().Perm()
+	}
+
+	if err := os.WriteFile(path, out, mode); err != nil {
+		return err
+	}
+
+	log.Info().Str("file", path).Msgf("migrated to %s", config.CurrentVersion)
 	return nil
 }

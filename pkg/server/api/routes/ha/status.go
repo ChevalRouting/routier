@@ -1,7 +1,6 @@
 package ha
 
 import (
-	"fmt"
 	"net/http"
 	"sort"
 
@@ -39,15 +38,10 @@ func Status(w http.ResponseWriter, r *http.Request) {
 		instances = append(instances, cfg.HA.VRRP...)
 	}
 
-	sort.Slice(instances, func(i, j int) bool { return statusCallback(instances, i, j) })
+	sort.Slice(instances, func(i, j int) bool { return vrrpInstanceLess(instances, i, j) })
 
 	for _, v := range instances {
-		instanceName := fmt.Sprintf("VI_%s_%d", v.Interface, v.ID)
-		if v.Name != "" {
-			instanceName = v.Name
-		}
-
-		kd := states[instanceName]
+		kd := states[v.KeepalivedName()]
 		st := types.VRRPInstanceStatus{
 			Name:      v.Name,
 			Interface: v.Interface,
@@ -93,7 +87,7 @@ func conntrackdStatus() *types.ConntrackdStatus {
 	return st
 }
 
-func statusCallback(instances []*config.VRRPInstance, i, j int) bool {
+func vrrpInstanceLess(instances []*config.VRRPInstance, i, j int) bool {
 	if instances[i].Interface != instances[j].Interface {
 		return instances[i].Interface < instances[j].Interface
 	}

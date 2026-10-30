@@ -9,7 +9,7 @@
 
 FROM golang:1.25-alpine AS build
 
-RUN apk add --no-cache nodejs npm git
+RUN apk add --no-cache nodejs npm git build-base
 
 WORKDIR /src
 
@@ -26,10 +26,10 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.npm \
     if [ -d vendor ]; then export GOFLAGS=-mod=vendor; else go mod download; fi && \
     cd web && npm run build && cd .. && \
-    CGO_ENABLED=0 go build -tags prod \
+    CGO_ENABLED=1 go build -tags prod \
       -ldflags="-s -w -X main.VERSION=${VERSION} -X github.com/ChevalRouting/routier/pkg/server/api/app.Version=${VERSION}" \
       -o /out/routier ./cmd/routier && \
-    CGO_ENABLED=0 go build -tags prod \
+    CGO_ENABLED=1 go build -tags prod \
       -ldflags="-s -w -X main.VERSION=${VERSION} -X github.com/ChevalRouting/routier/pkg/server/api/app.Version=${VERSION}" \
       -o /out/routier-ui ./cmd/routier-ui
 
@@ -43,7 +43,7 @@ RUN --mount=type=cache,target=/etc/apk/cache \
       openrc util-linux-openrc doas \
       nftables frr frr-openrc frr-pythontools wireguard-tools iproute2 dhcpcd cronie \
       openssl chrony keepalived conntrack-tools zstd rrdtool radvd \
-      kea-dhcp4 kea-dhcp6 kea-dhcp-ddns kea-hook-lease-cmds bind bind-tools \
+      kea-dhcp4 kea-dhcp6 kea-dhcp-ddns kea-hook-lease-cmds kea-hook-ha bind bind-tools \
       mtr traceroute curl nmap
 
 COPY --from=build /out/routier /usr/bin/routier

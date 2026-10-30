@@ -142,13 +142,7 @@ func Overview(w http.ResponseWriter, r *http.Request) {
 
 	in := bind.OverviewInput{Listen: render.DNSListenAddresses(cfg), Zones: zoneInputs(s)}
 
-	view, err := client.Overview(in)
-	if err != nil {
-		types.Error(log.Logger, w, types.Wrap(http.StatusBadGateway, err, "failed to query named"))
-		return
-	}
-
-	resp.Overview = view
+	resp.Overview = client.Overview(in)
 
 	types.OK(w, resp)
 }

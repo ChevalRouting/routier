@@ -10,10 +10,11 @@ import (
 func TestMOTDRender(t *testing.T) {
 	routes := motd.RouteSummary{BGP: 3, OSPF: 2, Static: 1, Total: 9}
 	bw := &motd.Bandwidth{RxBytesPS: 125000, TxBytesPS: 250000}
-	out := motd.Render("1.2.3", []string{"eth0: 10.0.0.1/24"}, routes, bw, "admin", "s3cret")
+	out := motd.Render("1.2.3", []string{"eth0: 10.0.0.1/24", "dummy0: 192.0.2.1/32"}, routes, bw, "admin", "s3cret")
 
 	for _, want := range []string{
 		"1.2.3", "Network:", "eth0: 10.0.0.1/24",
+		"dummy0: 192.0.2.1/32",
 		"9 total", "bgp 3", "ospf 2", "static 1",
 		"Traffic (5m avg):", "rx 1.0 Mbps", "tx 2.0 Mbps",
 		"username: admin", "password: s3cret",

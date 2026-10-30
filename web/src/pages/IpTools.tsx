@@ -11,7 +11,7 @@ export default function IpTools() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="IP Tools" description="Subnet breakdown, reverse-DNS names, and range-to-CIDR conversion for IPv4 and IPv6." />
+      <PageHeader title="IP Tools" />
       <div className="flex items-center gap-2 text-muted-foreground">
         <Calculator className="h-4 w-4" />
         <Tabs tabs={TABS} active={tab} onChange={setTab} />

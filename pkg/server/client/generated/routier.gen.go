@@ -27,6 +27,12 @@ const (
 	KindSNAT       NatKind = "snat"
 )
 
+// Defines values for SetupUplinkMode.
+const (
+	Dhcp   SetupUplinkMode = "dhcp"
+	Static SetupUplinkMode = "static"
+)
+
 // Defines values for TypesAnnouncementLevel.
 const (
 	Danger  TypesAnnouncementLevel = "danger"
@@ -54,34 +60,26 @@ const (
 	Https TypesFriendPairRequestScheme = "https"
 )
 
-// Defines values for GetApiConfigParamsLayer.
+// Defines values for TypesInstallStatusState.
 const (
-	GetApiConfigParamsLayerAdvanced GetApiConfigParamsLayer = "advanced"
-	GetApiConfigParamsLayerSimple   GetApiConfigParamsLayer = "simple"
+	TypesInstallStatusStateDone    TypesInstallStatusState = "done"
+	TypesInstallStatusStateFailed  TypesInstallStatusState = "failed"
+	TypesInstallStatusStateIdle    TypesInstallStatusState = "idle"
+	TypesInstallStatusStateRunning TypesInstallStatusState = "running"
 )
 
-// Defines values for PostApiConfigApplyParamsLayer.
+// Defines values for TypesPortMode.
 const (
-	PostApiConfigApplyParamsLayerAdvanced PostApiConfigApplyParamsLayer = "advanced"
-	PostApiConfigApplyParamsLayerSimple   PostApiConfigApplyParamsLayer = "simple"
+	PortAccess    TypesPortMode = "access"
+	PortBondSlave TypesPortMode = "bond-member"
+	PortTrunk     TypesPortMode = "trunk"
+	PortUnbridged TypesPortMode = "unbridged"
 )
 
-// Defines values for DeleteApiConfigStagingParamsLayer.
+// Defines values for GetApiConfigParamsSource.
 const (
-	DeleteApiConfigStagingParamsLayerAdvanced DeleteApiConfigStagingParamsLayer = "advanced"
-	DeleteApiConfigStagingParamsLayerSimple   DeleteApiConfigStagingParamsLayer = "simple"
-)
-
-// Defines values for GetApiConfigSectionParamsLayer.
-const (
-	GetApiConfigSectionParamsLayerAdvanced GetApiConfigSectionParamsLayer = "advanced"
-	GetApiConfigSectionParamsLayerSimple   GetApiConfigSectionParamsLayer = "simple"
-)
-
-// Defines values for PutApiConfigSectionParamsLayer.
-const (
-	Advanced PutApiConfigSectionParamsLayer = "advanced"
-	Simple   PutApiConfigSectionParamsLayer = "simple"
+	GetApiConfigParamsSourceRunning GetApiConfigParamsSource = "running"
+	GetApiConfigParamsSourceStaging GetApiConfigParamsSource = "staging"
 )
 
 // Defines values for GetApiDhcpLeasesStreamParamsSource.
@@ -251,6 +249,8 @@ type ConfigBGP struct {
 	PrefixLists          *map[string][]ConfigPrefixEntry    `json:"prefix_lists,omitempty"`
 	RouteMaps            *map[string][]ConfigRouteMapEntry  `json:"route_maps,omitempty"`
 	RouterId             *string                            `json:"router_id,omitempty"`
+	SharedPrefixLists    *[]string                          `json:"shared_prefix_lists,omitempty"`
+	SharedRouteMaps      *[]string                          `json:"shared_route_maps,omitempty"`
 }
 
 // ConfigBGPAddressFamily defines model for config.BGPAddressFamily.
@@ -264,6 +264,7 @@ type ConfigBGPAddressFamily struct {
 	Extra                   *[]string `json:"extra,omitempty"`
 	ImportVpn               *bool     `json:"import_vpn,omitempty"`
 	ImportVrf               *[]string `json:"import_vrf,omitempty"`
+	ImportVrfRouteMap       *string   `json:"import_vrf_route_map,omitempty"`
 	LabelVpnExportAuto      *bool     `json:"label_vpn_export_auto,omitempty"`
 	MaximumPaths            *int      `json:"maximum_paths,omitempty"`
 	Networks                *[]string `json:"networks,omitempty"`
@@ -340,6 +341,7 @@ type ConfigCollectionIntervals struct {
 	Neighbors *int `json:"neighbors,omitempty"`
 	Proto     *int `json:"proto,omitempty"`
 	Routes    *int `json:"routes,omitempty"`
+	Switches  *int `json:"switches,omitempty"`
 	System    *int `json:"system,omitempty"`
 }
 
@@ -359,12 +361,13 @@ type ConfigConfig struct {
 	Routing     *ConfigRouting              `json:"routing,omitempty"`
 	Services    *map[string]ConfigService   `json:"services,omitempty"`
 	Ssh         *ConfigSSH                  `json:"ssh,omitempty"`
+	Switches    *map[string]ConfigSwitch    `json:"switches,omitempty"`
 	Sysctl      *map[string]string          `json:"sysctl,omitempty"`
-	Tunnels     *map[string]ConfigTunnel    `json:"tunnels,omitempty"`
 	Users       *map[string]ConfigUser      `json:"users,omitempty"`
 	Version     string                      `json:"version"`
+	Vpn         *ConfigVPNConfig            `json:"vpn,omitempty"`
 	Vrfs        *map[string]ConfigVRFConfig `json:"vrfs,omitempty"`
-	Wireguard   *map[string]ConfigWireguard `json:"wireguard,omitempty"`
+	Web         *ConfigWeb                  `json:"web,omitempty"`
 }
 
 // ConfigConntrackd defines model for config.Conntrackd.
@@ -381,6 +384,7 @@ type ConfigDHCP struct {
 	ControlAgent *ConfigKeaControlAgent `json:"control_agent,omitempty"`
 	Ddns         *ConfigDHCPDDNS        `json:"ddns,omitempty"`
 	Enabled      *bool                  `json:"enabled,omitempty"`
+	Ha           *ConfigDHCPHA          `json:"ha,omitempty"`
 	Interfaces   *[]string              `json:"interfaces,omitempty"`
 	Subnets4     *[]ConfigKeaSubnet     `json:"subnets4,omitempty"`
 	Subnets6     *[]ConfigKeaSubnet     `json:"subnets6,omitempty"`
@@ -399,6 +403,26 @@ type ConfigDHCPDDNS struct {
 	ReplaceClientName    *string `json:"replace_client_name,omitempty"`
 	Reverse              *bool   `json:"reverse,omitempty"`
 	Ttl                  *int    `json:"ttl,omitempty"`
+}
+
+// ConfigDHCPHA defines model for config.DHCPHA.
+type ConfigDHCPHA struct {
+	AllowInbound *bool              `json:"allow_inbound,omitempty"`
+	Enabled      *bool              `json:"enabled,omitempty"`
+	Interface    string             `json:"interface"`
+	Mode         *string            `json:"mode,omitempty"`
+	Peers        []ConfigDHCPHAPeer `json:"peers"`
+	Port         *int               `json:"port,omitempty"`
+	Port6        *int               `json:"port6,omitempty"`
+	ThisServer   *string            `json:"this_server,omitempty"`
+}
+
+// ConfigDHCPHAPeer defines model for config.DHCPHAPeer.
+type ConfigDHCPHAPeer struct {
+	Address      string `json:"address"`
+	AutoFailover *bool  `json:"auto_failover,omitempty"`
+	Name         string `json:"name"`
+	Role         string `json:"role"`
 }
 
 // ConfigDNS defines model for config.DNS.
@@ -451,21 +475,29 @@ type ConfigDNSSOA struct {
 
 // ConfigDNSServer defines model for config.DNSServer.
 type ConfigDNSServer struct {
-	AllowFrom    *[]string           `json:"allow_from,omitempty"`
-	AllowInbound *[]string           `json:"allow_inbound,omitempty"`
-	Cache        *ConfigDNSCache     `json:"cache,omitempty"`
-	Dnssec       *bool               `json:"dnssec,omitempty"`
-	Enabled      *bool               `json:"enabled,omitempty"`
-	Extra        *[]string           `json:"extra,omitempty"`
-	Forward      *[]ConfigDNSForward `json:"forward,omitempty"`
-	Listen       *[]string           `json:"listen,omitempty"`
-	LogQueries   *bool               `json:"log_queries,omitempty"`
-	Mode         *string             `json:"mode,omitempty"`
-	Port         *int                `json:"port,omitempty"`
-	Threads      *int                `json:"threads,omitempty"`
-	Upstreams    *[]string           `json:"upstreams,omitempty"`
-	Views        *[]ConfigDNSView    `json:"views,omitempty"`
-	Zones        *[]ConfigDNSZone    `json:"zones,omitempty"`
+	AllowFrom        *[]string                   `json:"allow_from,omitempty"`
+	AllowInbound     *[]string                   `json:"allow_inbound,omitempty"`
+	Cache            *ConfigDNSCache             `json:"cache,omitempty"`
+	DisableAutoRules *bool                       `json:"disable_auto_rules,omitempty"`
+	Dnssec           *bool                       `json:"dnssec,omitempty"`
+	Enabled          *bool                       `json:"enabled,omitempty"`
+	Extra            *[]string                   `json:"extra,omitempty"`
+	Forward          *[]ConfigDNSForward         `json:"forward,omitempty"`
+	Listen           *[]string                   `json:"listen,omitempty"`
+	LogQueries       *bool                       `json:"log_queries,omitempty"`
+	Mode             *string                     `json:"mode,omitempty"`
+	Port             *int                        `json:"port,omitempty"`
+	Threads          *int                        `json:"threads,omitempty"`
+	Upstreams        *[]string                   `json:"upstreams,omitempty"`
+	Views            *[]ConfigDNSView            `json:"views,omitempty"`
+	Vrfs             *map[string]ConfigDNSServer `json:"vrfs,omitempty"`
+	Zones            *[]ConfigDNSZone            `json:"zones,omitempty"`
+}
+
+// ConfigDNSTransferKey defines model for config.DNSTransferKey.
+type ConfigDNSTransferKey struct {
+	Name   string `json:"name"`
+	Secret string `json:"secret"`
 }
 
 // ConfigDNSView defines model for config.DNSView.
@@ -481,15 +513,43 @@ type ConfigDNSView struct {
 
 // ConfigDNSZone defines model for config.DNSZone.
 type ConfigDNSZone struct {
-	Dnssec      *bool              `json:"dnssec,omitempty"`
-	Extra       *[]string          `json:"extra,omitempty"`
-	ForUpstream *bool              `json:"for_upstream,omitempty"`
-	Name        string             `json:"name"`
-	Nameservers *[]string          `json:"nameservers,omitempty"`
-	Primaries   *[]string          `json:"primaries,omitempty"`
-	Records     *[]ConfigDNSRecord `json:"records,omitempty"`
-	Soa         *ConfigDNSSOA      `json:"soa,omitempty"`
-	Ttl         *int               `json:"ttl,omitempty"`
+	Dnssec           *bool                 `json:"dnssec,omitempty"`
+	Extra            *[]string             `json:"extra,omitempty"`
+	ForUpstream      *bool                 `json:"for_upstream,omitempty"`
+	Name             string                `json:"name"`
+	Nameservers      *[]string             `json:"nameservers,omitempty"`
+	NotifySource     *string               `json:"notify_source,omitempty"`
+	NotifySourceV6   *string               `json:"notify_source_v6,omitempty"`
+	Primaries        *[]string             `json:"primaries,omitempty"`
+	Records          *[]ConfigDNSRecord    `json:"records,omitempty"`
+	Secondaries      *[]string             `json:"secondaries,omitempty"`
+	Soa              *ConfigDNSSOA         `json:"soa,omitempty"`
+	TransferKey      *ConfigDNSTransferKey `json:"transfer_key,omitempty"`
+	TransferSource   *string               `json:"transfer_source,omitempty"`
+	TransferSourceV6 *string               `json:"transfer_source_v6,omitempty"`
+	Ttl              *int                  `json:"ttl,omitempty"`
+}
+
+// ConfigFlowCollector defines model for config.FlowCollector.
+type ConfigFlowCollector struct {
+	Address string `json:"address"`
+	Port    *int   `json:"port,omitempty"`
+}
+
+// ConfigFlowRetention defines model for config.FlowRetention.
+type ConfigFlowRetention struct {
+	Hours    *int `json:"hours,omitempty"`
+	MaxFlows *int `json:"max_flows,omitempty"`
+}
+
+// ConfigFlowsConfig defines model for config.FlowsConfig.
+type ConfigFlowsConfig struct {
+	Collectors *[]ConfigFlowCollector `json:"collectors,omitempty"`
+	Enabled    *bool                  `json:"enabled,omitempty"`
+	Interfaces *[]string              `json:"interfaces,omitempty"`
+	Retention  *ConfigFlowRetention   `json:"retention,omitempty"`
+	Sampling   *int                   `json:"sampling,omitempty"`
+	Source     *string                `json:"source,omitempty"`
 }
 
 // ConfigFriend defines model for config.Friend.
@@ -557,10 +617,16 @@ type ConfigInterface struct {
 	Bond        *ConfigBond   `json:"bond,omitempty"`
 	Bridge      *ConfigBridge `json:"bridge,omitempty"`
 	DhcpOptions *[]string     `json:"dhcp_options,omitempty"`
+	Friend      *string       `json:"friend,omitempty"`
+	Local       *string       `json:"local,omitempty"`
+	Mode        *string       `json:"mode,omitempty"`
 	Mtu         *int          `json:"mtu,omitempty"`
+	Remote      *string       `json:"remote,omitempty"`
 	Select      *string       `json:"select,omitempty"`
+	Ttl         *int          `json:"ttl,omitempty"`
 	Type        *string       `json:"type,omitempty"`
 	Vlan        *ConfigVLAN   `json:"vlan,omitempty"`
+	Vnet        *ConfigVNet   `json:"vnet,omitempty"`
 	Vrf         *string       `json:"vrf,omitempty"`
 	Vxlan       *ConfigVXLAN  `json:"vxlan,omitempty"`
 }
@@ -622,6 +688,7 @@ type ConfigManagedRule struct {
 // ConfigMonitoringConfig defines model for config.MonitoringConfig.
 type ConfigMonitoringConfig struct {
 	Collection *ConfigCollectionIntervals `json:"collection,omitempty"`
+	Flows      *ConfigFlowsConfig         `json:"flows,omitempty"`
 	Lldp       *ConfigLLDPConfig          `json:"lldp,omitempty"`
 	Probes     *[]ConfigPingProbe         `json:"probes,omitempty"`
 }
@@ -636,9 +703,10 @@ type ConfigNftChain struct {
 
 // ConfigNftablesConfig defines model for config.NftablesConfig.
 type ConfigNftablesConfig struct {
-	Chains  *map[string]ConfigNftChain `json:"chains,omitempty"`
-	Defines *string                    `json:"defines,omitempty"`
-	Include *[]string                  `json:"include,omitempty"`
+	Chains           *map[string]ConfigNftChain `json:"chains,omitempty"`
+	Defines          *string                    `json:"defines,omitempty"`
+	DisableAutoRules *bool                      `json:"disable_auto_rules,omitempty"`
+	Include          *[]string                  `json:"include,omitempty"`
 }
 
 // ConfigOSPF defines model for config.OSPF.
@@ -738,6 +806,7 @@ type ConfigPBRMapEntry struct {
 	Seq             int     `json:"seq"`
 	SetNexthop      *string `json:"set_nexthop,omitempty"`
 	SetNexthopGroup *string `json:"set_nexthop_group,omitempty"`
+	SetVrf          *string `json:"set_vrf,omitempty"`
 }
 
 // ConfigPBRNexthop defines model for config.PBRNexthop.
@@ -886,18 +955,38 @@ type ConfigStaticRoute struct {
 	Destination string  `json:"destination"`
 	Dev         *string `json:"dev,omitempty"`
 	Metric      *int    `json:"metric,omitempty"`
+	Scope       *string `json:"scope,omitempty"`
+	Src         *string `json:"src,omitempty"`
+	Type        *string `json:"type,omitempty"`
 	Via         *string `json:"via,omitempty"`
 }
 
-// ConfigTunnel defines model for config.Tunnel.
-type ConfigTunnel struct {
-	Addresses *[]string `json:"addresses,omitempty"`
-	Friend    *string   `json:"friend,omitempty"`
-	Local     *string   `json:"local,omitempty"`
-	Mode      string    `json:"mode"`
-	Mtu       *int      `json:"mtu,omitempty"`
-	Remote    *string   `json:"remote,omitempty"`
-	Ttl       *int      `json:"ttl,omitempty"`
+// ConfigSwitch defines model for config.Switch.
+type ConfigSwitch struct {
+	Bonds         *map[string]ConfigSwitchBondConfig `json:"bonds,omitempty"`
+	Host          string                             `json:"host"`
+	Interface     *string                            `json:"interface,omitempty"`
+	Model         string                             `json:"model"`
+	Port          *int                               `json:"port,omitempty"`
+	Ports         *map[string]ConfigSwitchPortConfig `json:"ports,omitempty"`
+	Scheme        *string                            `json:"scheme,omitempty"`
+	TlsSkipVerify *bool                              `json:"tls_skip_verify,omitempty"`
+	Uplink        *string                            `json:"uplink,omitempty"`
+}
+
+// ConfigSwitchBondConfig defines model for config.SwitchBondConfig.
+type ConfigSwitchBondConfig struct {
+	Members []string                `json:"members"`
+	Mode    *string                 `json:"mode,omitempty"`
+	Port    *ConfigSwitchPortConfig `json:"port,omitempty"`
+}
+
+// ConfigSwitchPortConfig defines model for config.SwitchPortConfig.
+type ConfigSwitchPortConfig struct {
+	Mode   string `json:"mode"`
+	Native *int   `json:"native,omitempty"`
+	Tagged *[]int `json:"tagged,omitempty"`
+	Vlan   *int   `json:"vlan,omitempty"`
 }
 
 // ConfigUser defines model for config.User.
@@ -916,9 +1005,35 @@ type ConfigVLAN struct {
 	Id int `json:"id"`
 }
 
+// ConfigVNet defines model for config.VNet.
+type ConfigVNet struct {
+	Gateway *ConfigVNetGateway `json:"gateway,omitempty"`
+	Vlan    int                `json:"vlan"`
+	Vni     int                `json:"vni"`
+}
+
+// ConfigVNetGateway defines model for config.VNetGateway.
+type ConfigVNetGateway struct {
+	Ips []string `json:"ips"`
+	Mac *string  `json:"mac,omitempty"`
+}
+
+// ConfigVPNConfig defines model for config.VPNConfig.
+type ConfigVPNConfig struct {
+	Wireguard *map[string]ConfigWireguard `json:"wireguard,omitempty"`
+}
+
 // ConfigVRFConfig defines model for config.VRFConfig.
 type ConfigVRFConfig struct {
-	Table int `json:"table"`
+	L3vni *ConfigVRFL3VNI `json:"l3vni,omitempty"`
+	Table int             `json:"table"`
+}
+
+// ConfigVRFL3VNI defines model for config.VRFL3VNI.
+type ConfigVRFL3VNI struct {
+	Transport string `json:"transport"`
+	Vlan      int    `json:"vlan"`
+	Vni       int    `json:"vni"`
 }
 
 // ConfigVRFRouting defines model for config.VRFRouting.
@@ -929,20 +1044,27 @@ type ConfigVRFRouting struct {
 	Static *[]ConfigStaticRoute `json:"static,omitempty"`
 }
 
+// ConfigVRRPBGPPrepend defines model for config.VRRPBGPPrepend.
+type ConfigVRRPBGPPrepend struct {
+	Count     *int      `json:"count,omitempty"`
+	Neighbors *[]string `json:"neighbors,omitempty"`
+	Prefixes  *[]string `json:"prefixes,omitempty"`
+}
+
 // ConfigVRRPInstance defines model for config.VRRPInstance.
 type ConfigVRRPInstance struct {
-	AllowInbound    *bool     `json:"allow_inbound,omitempty"`
-	Friend          *string   `json:"friend,omitempty"`
-	Id              int       `json:"id"`
-	Interface       string    `json:"interface"`
-	Name            *string   `json:"name,omitempty"`
-	Password        *string   `json:"password,omitempty"`
-	Priority        *int      `json:"priority,omitempty"`
-	Switchover      *bool     `json:"switchover,omitempty"`
-	TrackInterfaces *[]string `json:"track_interfaces,omitempty"`
-	Transport       *string   `json:"transport,omitempty"`
-	Vips            *[]string `json:"vips,omitempty"`
-	VirtualRoutes   *[]string `json:"virtual_routes,omitempty"`
+	AllowInbound    *bool                 `json:"allow_inbound,omitempty"`
+	BgpPrepend      *ConfigVRRPBGPPrepend `json:"bgp_prepend,omitempty"`
+	Friend          *string               `json:"friend,omitempty"`
+	Id              int                   `json:"id"`
+	Interface       string                `json:"interface"`
+	Name            *string               `json:"name,omitempty"`
+	Password        *string               `json:"password,omitempty"`
+	Priority        *int                  `json:"priority,omitempty"`
+	TrackInterfaces *[]string             `json:"track_interfaces,omitempty"`
+	Transport       *string               `json:"transport,omitempty"`
+	Vips            *[]string             `json:"vips,omitempty"`
+	VirtualRoutes   *[]string             `json:"virtual_routes,omitempty"`
 }
 
 // ConfigVXLAN defines model for config.VXLAN.
@@ -968,6 +1090,29 @@ type ConfigWGPeer struct {
 	PresharedKeyFile *string   `json:"preshared_key_file,omitempty"`
 	PrivateKey       *string   `json:"private_key,omitempty"`
 	PublicKey        *string   `json:"public_key,omitempty"`
+}
+
+// ConfigWeb defines model for config.Web.
+type ConfigWeb struct {
+	Tls *ConfigWebTLS `json:"tls,omitempty"`
+}
+
+// ConfigWebACME defines model for config.WebACME.
+type ConfigWebACME struct {
+	CaPem     *string  `json:"ca_pem,omitempty"`
+	Directory *string  `json:"directory,omitempty"`
+	Domains   []string `json:"domains"`
+	EabKey    *string  `json:"eab_key,omitempty"`
+	EabKid    *string  `json:"eab_kid,omitempty"`
+	Email     *string  `json:"email,omitempty"`
+	HttpPort  *int     `json:"http_port,omitempty"`
+}
+
+// ConfigWebTLS defines model for config.WebTLS.
+type ConfigWebTLS struct {
+	Acme     *ConfigWebACME `json:"acme,omitempty"`
+	CertFile *string        `json:"cert_file,omitempty"`
+	KeyFile  *string        `json:"key_file,omitempty"`
 }
 
 // ConfigWireguard defines model for config.Wireguard.
@@ -1082,6 +1227,34 @@ type DnsStatsResponse struct {
 	Status   *BindStatus        `json:"status,omitempty"`
 }
 
+// FlowsMetadata defines model for flows.Metadata.
+type FlowsMetadata struct {
+	Exporters []FlowsMetadataExporter `json:"exporters"`
+}
+
+// FlowsMetadataExporter defines model for flows.MetadataExporter.
+type FlowsMetadataExporter struct {
+	Default        FlowsMetadataLink        `json:"default"`
+	Exportersubnet string                   `json:"exportersubnet"`
+	Interfaces     []FlowsMetadataInterface `json:"interfaces"`
+	Name           string                   `json:"name"`
+}
+
+// FlowsMetadataInterface defines model for flows.MetadataInterface.
+type FlowsMetadataInterface struct {
+	Description string `json:"description"`
+	Ifindex     int    `json:"ifindex"`
+	Name        string `json:"name"`
+	Speed       int    `json:"speed"`
+}
+
+// FlowsMetadataLink defines model for flows.MetadataLink.
+type FlowsMetadataLink struct {
+	Description string `json:"description"`
+	Name        string `json:"name"`
+	Speed       int    `json:"speed"`
+}
+
 // FriendcacheCachedState defines model for friendcache.CachedState.
 type FriendcacheCachedState struct {
 	Config     *ConfigConfig           `json:"config,omitempty"`
@@ -1167,6 +1340,15 @@ type KeaSubnetView struct {
 	Subnet       string      `json:"subnet"`
 }
 
+// LiveDisk defines model for live.Disk.
+type LiveDisk struct {
+	BootMedia bool    `json:"boot_media"`
+	Model     *string `json:"model,omitempty"`
+	Path      string  `json:"path"`
+	Removable bool    `json:"removable"`
+	Size      int     `json:"size"`
+}
+
 // ManagersPushResult defines model for managers.PushResult.
 type ManagersPushResult struct {
 	Error string `json:"error"`
@@ -1190,9 +1372,63 @@ type NatSpec struct {
 	To      *string `json:"to,omitempty"`
 }
 
+// RenderFriendBGPImportResult defines model for render.FriendBGPImportResult.
+type RenderFriendBGPImportResult struct {
+	PrefixLists []RenderImportedPrefixList `json:"prefix_lists"`
+	RouteMaps   []RenderImportedRouteMap   `json:"route_maps"`
+}
+
+// RenderImportedPrefixList defines model for render.ImportedPrefixList.
+type RenderImportedPrefixList struct {
+	Entries []ConfigPrefixEntry `json:"entries"`
+	Name    string              `json:"name"`
+	Shared  bool                `json:"shared"`
+	Sources []string            `json:"sources"`
+}
+
+// RenderImportedRouteMap defines model for render.ImportedRouteMap.
+type RenderImportedRouteMap struct {
+	Entries []ConfigRouteMapEntry `json:"entries"`
+	Name    string                `json:"name"`
+	Shared  bool                  `json:"shared"`
+	Sources []string              `json:"sources"`
+}
+
 // RenderNftVar defines model for render.NftVar.
 type RenderNftVar struct {
 	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
+// SetupLAN defines model for setup.LAN.
+type SetupLAN struct {
+	Address string `json:"address"`
+	Name    string `json:"name"`
+	Select  string `json:"select"`
+}
+
+// SetupNetwork defines model for setup.Network.
+type SetupNetwork struct {
+	Hostname string       `json:"hostname"`
+	Lans     []SetupLAN   `json:"lans"`
+	Uplink   *SetupUplink `json:"uplink,omitempty"`
+}
+
+// SetupUplink defines model for setup.Uplink.
+type SetupUplink struct {
+	Address *string         `json:"address,omitempty"`
+	Dns     *[]string       `json:"dns,omitempty"`
+	Gateway *string         `json:"gateway,omitempty"`
+	Mode    SetupUplinkMode `json:"mode"`
+	Select  string          `json:"select"`
+}
+
+// SetupUplinkMode defines model for SetupUplink.Mode.
+type SetupUplinkMode string
+
+// SysctlParameter defines model for sysctl.Parameter.
+type SysctlParameter struct {
+	Key   string `json:"key"`
 	Value string `json:"value"`
 }
 
@@ -1201,6 +1437,33 @@ type SystemInterfaceStatus struct {
 	Addr *string                `json:"addr,omitempty"`
 	Bond *BondstatStatus        `json:"bond,omitempty"`
 	Link map[string]interface{} `json:"link"`
+}
+
+// TlscertCertificate defines model for tlscert.Certificate.
+type TlscertCertificate struct {
+	Error    *string `json:"error,omitempty"`
+	Issuer   *string `json:"issuer,omitempty"`
+	Name     string  `json:"name"`
+	NotAfter *string `json:"not_after,omitempty"`
+	Ready    bool    `json:"ready"`
+	Source   string  `json:"source"`
+}
+
+// TlscertLogEntry defines model for tlscert.LogEntry.
+type TlscertLogEntry struct {
+	Domain  *string `json:"domain,omitempty"`
+	Level   string  `json:"level"`
+	Message string  `json:"message"`
+	Time    string  `json:"time"`
+}
+
+// TlscertStatus defines model for tlscert.Status.
+type TlscertStatus struct {
+	Certificates []TlscertCertificate `json:"certificates"`
+	Error        *string              `json:"error,omitempty"`
+	Files        []string             `json:"files"`
+	Log          []TlscertLogEntry    `json:"log"`
+	Mode         string               `json:"mode"`
 }
 
 // TypesAPIKey defines model for types.APIKey.
@@ -1336,7 +1599,8 @@ type TypesConfigureConntrackRequest struct {
 
 // TypesConfigureConntrackResult defines model for types.ConfigureConntrackResult.
 type TypesConfigureConntrackResult struct {
-	Status string `json:"status"`
+	Status  string  `json:"status"`
+	Warning *string `json:"warning,omitempty"`
 }
 
 // TypesConfigureVRRPRequest defines model for types.ConfigureVRRPRequest.
@@ -1376,6 +1640,16 @@ type TypesCreateAPIKeyResponse struct {
 type TypesCreateMacroRequest struct {
 	Description string `json:"description"`
 	Name        string `json:"name"`
+}
+
+// TypesCredentialField defines model for types.CredentialField.
+type TypesCredentialField struct {
+	DefaultValue string `json:"default_value"`
+	Help         string `json:"help"`
+	Key          string `json:"key"`
+	Label        string `json:"label"`
+	Required     bool   `json:"required"`
+	Type         string `json:"type"`
 }
 
 // TypesDeriveTunnelRequest defines model for types.DeriveTunnelRequest.
@@ -1418,6 +1692,15 @@ type TypesDiffLine struct {
 // TypesDiffLineType defines model for TypesDiffLine.Type.
 type TypesDiffLineType string
 
+// TypesFaceplateGroup defines model for types.FaceplateGroup.
+type TypesFaceplateGroup struct {
+	Group string   `json:"group"`
+	Kind  string   `json:"kind"`
+	Order string   `json:"order"`
+	Ports []string `json:"ports"`
+	Rows  int      `json:"rows"`
+}
+
 // TypesFailureRecord defines model for types.FailureRecord.
 type TypesFailureRecord struct {
 	Artifacts *[]string             `json:"artifacts,omitempty"`
@@ -1442,6 +1725,94 @@ type TypesFileDiff struct {
 
 // TypesFileDiffStatus defines model for TypesFileDiff.Status.
 type TypesFileDiffStatus string
+
+// TypesFlow defines model for types.Flow.
+type TypesFlow struct {
+	Bytes   int    `json:"bytes"`
+	Dst     string `json:"dst"`
+	DstPort int    `json:"dst_port"`
+	End     int    `json:"end"`
+	Family  int    `json:"family"`
+	Id      int    `json:"id"`
+	InIf    string `json:"in_if"`
+	OutIf   string `json:"out_if"`
+	Packets int    `json:"packets"`
+	Proto   int    `json:"proto"`
+	Samples int    `json:"samples"`
+	Src     string `json:"src"`
+	SrcPort int    `json:"src_port"`
+	Start   int    `json:"start"`
+}
+
+// TypesFlowCollectorStatus defines model for types.FlowCollectorStatus.
+type TypesFlowCollectorStatus struct {
+	Address string  `json:"address"`
+	Error   *string `json:"error,omitempty"`
+	Errors  int     `json:"errors"`
+	Sent    int     `json:"sent"`
+	Source  *string `json:"source,omitempty"`
+}
+
+// TypesFlowPath defines model for types.FlowPath.
+type TypesFlowPath struct {
+	Bytes   int      `json:"bytes"`
+	Keys    []string `json:"keys"`
+	Packets int      `json:"packets"`
+}
+
+// TypesFlowSankeyResponse defines model for types.FlowSankeyResponse.
+type TypesFlowSankeyResponse struct {
+	Dimensions []string          `json:"dimensions"`
+	Names      map[string]string `json:"names"`
+	Paths      []TypesFlowPath   `json:"paths"`
+	Total      int               `json:"total"`
+}
+
+// TypesFlowSeriesPoint defines model for types.FlowSeriesPoint.
+type TypesFlowSeriesPoint struct {
+	Bytes   int    `json:"bytes"`
+	Iface   string `json:"iface"`
+	Packets int    `json:"packets"`
+	Ts      int    `json:"ts"`
+}
+
+// TypesFlowSeriesResponse defines model for types.FlowSeriesResponse.
+type TypesFlowSeriesResponse struct {
+	Bucket int                    `json:"bucket"`
+	Points []TypesFlowSeriesPoint `json:"points"`
+}
+
+// TypesFlowStatus defines model for types.FlowStatus.
+type TypesFlowStatus struct {
+	Collectors []TypesFlowCollectorStatus `json:"collectors"`
+	Enabled    bool                       `json:"enabled"`
+	Error      *string                    `json:"error,omitempty"`
+	Interfaces []string                   `json:"interfaces"`
+	Overruns   int                        `json:"overruns"`
+	Running    bool                       `json:"running"`
+	Samples    int                        `json:"samples"`
+	Sampling   int                        `json:"sampling"`
+	Stored     int                        `json:"stored"`
+}
+
+// TypesFlowTopEntry defines model for types.FlowTopEntry.
+type TypesFlowTopEntry struct {
+	Bytes   int    `json:"bytes"`
+	Flows   int    `json:"flows"`
+	Key     string `json:"key"`
+	Packets int    `json:"packets"`
+}
+
+// TypesFlowTopResponse defines model for types.FlowTopResponse.
+type TypesFlowTopResponse struct {
+	Dimension string              `json:"dimension"`
+	Entries   []TypesFlowTopEntry `json:"entries"`
+}
+
+// TypesFlowsResponse defines model for types.FlowsResponse.
+type TypesFlowsResponse struct {
+	Flows []TypesFlow `json:"flows"`
+}
 
 // TypesFriendDeleteResult defines model for types.FriendDeleteResult.
 type TypesFriendDeleteResult struct {
@@ -1558,6 +1929,7 @@ type TypesFriendVar struct {
 type TypesFriendsHello struct {
 	Conntrackd          bool                   `json:"conntrackd"`
 	ConntrackdRunning   bool                   `json:"conntrackd_running"`
+	DnsVrf              bool                   `json:"dns_vrf"`
 	Encryption          bool                   `json:"encryption"`
 	Hostname            string                 `json:"hostname"`
 	IdentityFingerprint string                 `json:"identity_fingerprint"`
@@ -1594,13 +1966,14 @@ type TypesIfaceHistoryPoint struct {
 
 // TypesIfaceStats defines model for types.IfaceStats.
 type TypesIfaceStats struct {
-	Operstate string `json:"operstate"`
-	RxBytes   int    `json:"rx_bytes"`
-	RxErrors  int    `json:"rx_errors"`
-	RxPackets int    `json:"rx_packets"`
-	TxBytes   int    `json:"tx_bytes"`
-	TxErrors  int    `json:"tx_errors"`
-	TxPackets int    `json:"tx_packets"`
+	Alias     *string `json:"alias,omitempty"`
+	Operstate string  `json:"operstate"`
+	RxBytes   int     `json:"rx_bytes"`
+	RxErrors  int     `json:"rx_errors"`
+	RxPackets int     `json:"rx_packets"`
+	TxBytes   int     `json:"tx_bytes"`
+	TxErrors  int     `json:"tx_errors"`
+	TxPackets int     `json:"tx_packets"`
 }
 
 // TypesIfaceTotalPoint defines model for types.IfaceTotalPoint.
@@ -1617,6 +1990,27 @@ type TypesIfaceUsagePoint struct {
 	RxBytes int `json:"rx_bytes"`
 	TxBytes int `json:"tx_bytes"`
 }
+
+// TypesInstallRequest defines model for types.InstallRequest.
+type TypesInstallRequest struct {
+	Disk     string `json:"disk"`
+	Hostname string `json:"hostname"`
+	Password string `json:"password"`
+	Timezone string `json:"timezone"`
+}
+
+// TypesInstallStatus defines model for types.InstallStatus.
+type TypesInstallStatus struct {
+	Disk          *string                 `json:"disk,omitempty"`
+	Error         *string                 `json:"error,omitempty"`
+	InstallerOnly bool                    `json:"installer_only"`
+	Live          bool                    `json:"live"`
+	Log           []string                `json:"log"`
+	State         TypesInstallStatusState `json:"state"`
+}
+
+// TypesInstallStatusState defines model for TypesInstallStatus.State.
+type TypesInstallStatusState string
 
 // TypesKernelRoute defines model for types.KernelRoute.
 type TypesKernelRoute struct {
@@ -1772,6 +2166,9 @@ type TypesPasswordHashResponse struct {
 	Hash string `json:"hash"`
 }
 
+// TypesPortMode defines model for types.PortMode.
+type TypesPortMode string
+
 // TypesProbeHistoryPoint defines model for types.ProbeHistoryPoint.
 type TypesProbeHistoryPoint struct {
 	Name      string   `json:"name"`
@@ -1876,6 +2273,14 @@ type TypesResponseArrayKeaSubnetView struct {
 	Status *string          `json:"status,omitempty"`
 }
 
+// TypesResponseArrayLiveDisk defines model for types.Response-array_live_Disk.
+type TypesResponseArrayLiveDisk struct {
+	Code   *int        `json:"code,omitempty"`
+	Error  *string     `json:"error,omitempty"`
+	Result *[]LiveDisk `json:"result,omitempty"`
+	Status *string     `json:"status,omitempty"`
+}
+
 // TypesResponseArrayManagersPushResult defines model for types.Response-array_managers_PushResult.
 type TypesResponseArrayManagersPushResult struct {
 	Code   *int                  `json:"code,omitempty"`
@@ -1898,6 +2303,22 @@ type TypesResponseArrayRenderNftVar struct {
 	Error  *string         `json:"error,omitempty"`
 	Result *[]RenderNftVar `json:"result,omitempty"`
 	Status *string         `json:"status,omitempty"`
+}
+
+// TypesResponseArrayString defines model for types.Response-array_string.
+type TypesResponseArrayString struct {
+	Code   *int      `json:"code,omitempty"`
+	Error  *string   `json:"error,omitempty"`
+	Result *[]string `json:"result,omitempty"`
+	Status *string   `json:"status,omitempty"`
+}
+
+// TypesResponseArraySysctlParameter defines model for types.Response-array_sysctl_Parameter.
+type TypesResponseArraySysctlParameter struct {
+	Code   *int               `json:"code,omitempty"`
+	Error  *string            `json:"error,omitempty"`
+	Result *[]SysctlParameter `json:"result,omitempty"`
+	Status *string            `json:"status,omitempty"`
 }
 
 // TypesResponseArrayTypesAPIKey defines model for types.Response-array_types_APIKey.
@@ -1972,12 +2393,44 @@ type TypesResponseArrayTypesMacroInfo struct {
 	Status *string           `json:"status,omitempty"`
 }
 
+// TypesResponseArrayTypesSwitchCandidate defines model for types.Response-array_types_SwitchCandidate.
+type TypesResponseArrayTypesSwitchCandidate struct {
+	Code   *int                    `json:"code,omitempty"`
+	Error  *string                 `json:"error,omitempty"`
+	Result *[]TypesSwitchCandidate `json:"result,omitempty"`
+	Status *string                 `json:"status,omitempty"`
+}
+
+// TypesResponseArrayTypesSwitchModel defines model for types.Response-array_types_SwitchModel.
+type TypesResponseArrayTypesSwitchModel struct {
+	Code   *int                `json:"code,omitempty"`
+	Error  *string             `json:"error,omitempty"`
+	Result *[]TypesSwitchModel `json:"result,omitempty"`
+	Status *string             `json:"status,omitempty"`
+}
+
+// TypesResponseArrayTypesSwitchStatus defines model for types.Response-array_types_SwitchStatus.
+type TypesResponseArrayTypesSwitchStatus struct {
+	Code   *int                 `json:"code,omitempty"`
+	Error  *string              `json:"error,omitempty"`
+	Result *[]TypesSwitchStatus `json:"result,omitempty"`
+	Status *string              `json:"status,omitempty"`
+}
+
 // TypesResponseArrayTypesSystemNic defines model for types.Response-array_types_SystemNic.
 type TypesResponseArrayTypesSystemNic struct {
 	Code   *int              `json:"code,omitempty"`
 	Error  *string           `json:"error,omitempty"`
 	Result *[]TypesSystemNic `json:"result,omitempty"`
 	Status *string           `json:"status,omitempty"`
+}
+
+// TypesResponseArrayTypesWireguardInterfaceStatus defines model for types.Response-array_types_WireguardInterfaceStatus.
+type TypesResponseArrayTypesWireguardInterfaceStatus struct {
+	Code   *int                             `json:"code,omitempty"`
+	Error  *string                          `json:"error,omitempty"`
+	Result *[]TypesWireguardInterfaceStatus `json:"result,omitempty"`
+	Status *string                          `json:"status,omitempty"`
 }
 
 // TypesResponseBindQueryResult defines model for types.Response-bind_QueryResult.
@@ -2004,6 +2457,14 @@ type TypesResponseConfigConfig struct {
 	Status *string       `json:"status,omitempty"`
 }
 
+// TypesResponseConfigVPNConfig defines model for types.Response-config_VPNConfig.
+type TypesResponseConfigVPNConfig struct {
+	Code   *int             `json:"code,omitempty"`
+	Error  *string          `json:"error,omitempty"`
+	Result *ConfigVPNConfig `json:"result,omitempty"`
+	Status *string          `json:"status,omitempty"`
+}
+
 // TypesResponseDhcpStatsResponse defines model for types.Response-dhcp_statsResponse.
 type TypesResponseDhcpStatsResponse struct {
 	Code   *int               `json:"code,omitempty"`
@@ -2026,6 +2487,14 @@ type TypesResponseDnsStatsResponse struct {
 	Error  *string           `json:"error,omitempty"`
 	Result *DnsStatsResponse `json:"result,omitempty"`
 	Status *string           `json:"status,omitempty"`
+}
+
+// TypesResponseFlowsMetadata defines model for types.Response-flows_Metadata.
+type TypesResponseFlowsMetadata struct {
+	Code   *int           `json:"code,omitempty"`
+	Error  *string        `json:"error,omitempty"`
+	Result *FlowsMetadata `json:"result,omitempty"`
+	Status *string        `json:"status,omitempty"`
 }
 
 // TypesResponseFriendcacheCachedState defines model for types.Response-friendcache_CachedState.
@@ -2060,6 +2529,14 @@ type TypesResponseIpcalcSubnetInfo struct {
 	Status *string           `json:"status,omitempty"`
 }
 
+// TypesResponseRenderFriendBGPImportResult defines model for types.Response-render_FriendBGPImportResult.
+type TypesResponseRenderFriendBGPImportResult struct {
+	Code   *int                         `json:"code,omitempty"`
+	Error  *string                      `json:"error,omitempty"`
+	Result *RenderFriendBGPImportResult `json:"result,omitempty"`
+	Status *string                      `json:"status,omitempty"`
+}
+
 // TypesResponseString defines model for types.Response-string.
 type TypesResponseString struct {
 	Code   *int    `json:"code,omitempty"`
@@ -2074,6 +2551,14 @@ type TypesResponseSystemInterfaceStatus struct {
 	Error  *string                `json:"error,omitempty"`
 	Result *SystemInterfaceStatus `json:"result,omitempty"`
 	Status *string                `json:"status,omitempty"`
+}
+
+// TypesResponseTlscertStatus defines model for types.Response-tlscert_Status.
+type TypesResponseTlscertStatus struct {
+	Code   *int           `json:"code,omitempty"`
+	Error  *string        `json:"error,omitempty"`
+	Result *TlscertStatus `json:"result,omitempty"`
+	Status *string        `json:"status,omitempty"`
 }
 
 // TypesResponseTypesAnnouncement defines model for types.Response-types_Announcement.
@@ -2172,6 +2657,46 @@ type TypesResponseTypesFailuresResponse struct {
 	Status *string                `json:"status,omitempty"`
 }
 
+// TypesResponseTypesFlowSankeyResponse defines model for types.Response-types_FlowSankeyResponse.
+type TypesResponseTypesFlowSankeyResponse struct {
+	Code   *int                     `json:"code,omitempty"`
+	Error  *string                  `json:"error,omitempty"`
+	Result *TypesFlowSankeyResponse `json:"result,omitempty"`
+	Status *string                  `json:"status,omitempty"`
+}
+
+// TypesResponseTypesFlowSeriesResponse defines model for types.Response-types_FlowSeriesResponse.
+type TypesResponseTypesFlowSeriesResponse struct {
+	Code   *int                     `json:"code,omitempty"`
+	Error  *string                  `json:"error,omitempty"`
+	Result *TypesFlowSeriesResponse `json:"result,omitempty"`
+	Status *string                  `json:"status,omitempty"`
+}
+
+// TypesResponseTypesFlowStatus defines model for types.Response-types_FlowStatus.
+type TypesResponseTypesFlowStatus struct {
+	Code   *int             `json:"code,omitempty"`
+	Error  *string          `json:"error,omitempty"`
+	Result *TypesFlowStatus `json:"result,omitempty"`
+	Status *string          `json:"status,omitempty"`
+}
+
+// TypesResponseTypesFlowTopResponse defines model for types.Response-types_FlowTopResponse.
+type TypesResponseTypesFlowTopResponse struct {
+	Code   *int                  `json:"code,omitempty"`
+	Error  *string               `json:"error,omitempty"`
+	Result *TypesFlowTopResponse `json:"result,omitempty"`
+	Status *string               `json:"status,omitempty"`
+}
+
+// TypesResponseTypesFlowsResponse defines model for types.Response-types_FlowsResponse.
+type TypesResponseTypesFlowsResponse struct {
+	Code   *int                `json:"code,omitempty"`
+	Error  *string             `json:"error,omitempty"`
+	Result *TypesFlowsResponse `json:"result,omitempty"`
+	Status *string             `json:"status,omitempty"`
+}
+
 // TypesResponseTypesFriendDeleteResult defines model for types.Response-types_FriendDeleteResult.
 type TypesResponseTypesFriendDeleteResult struct {
 	Code   *int                     `json:"code,omitempty"`
@@ -2234,6 +2759,14 @@ type TypesResponseTypesHAStatusResponse struct {
 	Error  *string                `json:"error,omitempty"`
 	Result *TypesHAStatusResponse `json:"result,omitempty"`
 	Status *string                `json:"status,omitempty"`
+}
+
+// TypesResponseTypesInstallStatus defines model for types.Response-types_InstallStatus.
+type TypesResponseTypesInstallStatus struct {
+	Code   *int                `json:"code,omitempty"`
+	Error  *string             `json:"error,omitempty"`
+	Result *TypesInstallStatus `json:"result,omitempty"`
+	Status *string             `json:"status,omitempty"`
 }
 
 // TypesResponseTypesKeygenResponse defines model for types.Response-types_KeygenResponse.
@@ -2340,6 +2873,14 @@ type TypesResponseTypesRoutesResponse struct {
 	Status *string              `json:"status,omitempty"`
 }
 
+// TypesResponseTypesSetupHost defines model for types.Response-types_SetupHost.
+type TypesResponseTypesSetupHost struct {
+	Code   *int            `json:"code,omitempty"`
+	Error  *string         `json:"error,omitempty"`
+	Result *TypesSetupHost `json:"result,omitempty"`
+	Status *string         `json:"status,omitempty"`
+}
+
 // TypesResponseTypesSetupStatus defines model for types.Response-types_SetupStatus.
 type TypesResponseTypesSetupStatus struct {
 	Code   *int              `json:"code,omitempty"`
@@ -2380,10 +2921,35 @@ type TypesResponseTypesStatusResponse struct {
 	Status *string              `json:"status,omitempty"`
 }
 
+// TypesResponseTypesSwitchPlanPreview defines model for types.Response-types_SwitchPlanPreview.
+type TypesResponseTypesSwitchPlanPreview struct {
+	Code   *int                    `json:"code,omitempty"`
+	Error  *string                 `json:"error,omitempty"`
+	Result *TypesSwitchPlanPreview `json:"result,omitempty"`
+	Status *string                 `json:"status,omitempty"`
+}
+
+// TypesResponseTypesSwitchStatus defines model for types.Response-types_SwitchStatus.
+type TypesResponseTypesSwitchStatus struct {
+	Code   *int               `json:"code,omitempty"`
+	Error  *string            `json:"error,omitempty"`
+	Result *TypesSwitchStatus `json:"result,omitempty"`
+	Status *string            `json:"status,omitempty"`
+}
+
 // TypesRoutesResponse defines model for types.RoutesResponse.
 type TypesRoutesResponse struct {
 	Routes *[]TypesKernelRoute `json:"routes,omitempty"`
 	Total  int                 `json:"total"`
+}
+
+// TypesSetupHost defines model for types.SetupHost.
+type TypesSetupHost struct {
+	DefaultIface *string  `json:"default_iface,omitempty"`
+	DhcpIfaces   []string `json:"dhcp_ifaces"`
+	Gateway4     *string  `json:"gateway4,omitempty"`
+	Nameservers  []string `json:"nameservers"`
+	TakenOver    bool     `json:"taken_over"`
 }
 
 // TypesSetupStatus defines model for types.SetupStatus.
@@ -2427,6 +2993,106 @@ type TypesStatsResponse struct {
 // TypesStatusResponse defines model for types.StatusResponse.
 type TypesStatusResponse struct {
 	Status string `json:"status"`
+}
+
+// TypesSwitchBond defines model for types.SwitchBond.
+type TypesSwitchBond struct {
+	Members []string `json:"members"`
+	Mode    string   `json:"mode"`
+	Name    string   `json:"name"`
+}
+
+// TypesSwitchCandidate defines model for types.SwitchCandidate.
+type TypesSwitchCandidate struct {
+	Capabilities string   `json:"capabilities"`
+	ChassisId    string   `json:"chassis_id"`
+	LocalIface   string   `json:"local_iface"`
+	MgmtIp       string   `json:"mgmt_ip"`
+	ModelId      *string  `json:"model_id,omitempty"`
+	Name         string   `json:"name"`
+	PortId       string   `json:"port_id"`
+	Protocols    []string `json:"protocols"`
+	SysDescr     string   `json:"sys_descr"`
+}
+
+// TypesSwitchCredentialsRequest defines model for types.SwitchCredentialsRequest.
+type TypesSwitchCredentialsRequest struct {
+	Values map[string]string `json:"values"`
+}
+
+// TypesSwitchFacts defines model for types.SwitchFacts.
+type TypesSwitchFacts struct {
+	Identity string `json:"identity"`
+	Model    string `json:"model"`
+	Serial   string `json:"serial"`
+	Version  string `json:"version"`
+}
+
+// TypesSwitchModel defines model for types.SwitchModel.
+type TypesSwitchModel struct {
+	Credentials []TypesCredentialField `json:"credentials"`
+	Driver      string                 `json:"driver"`
+	Faceplate   []TypesFaceplateGroup  `json:"faceplate"`
+	Generic     bool                   `json:"generic"`
+	Id          string                 `json:"id"`
+	Name        string                 `json:"name"`
+	Vendor      string                 `json:"vendor"`
+}
+
+// TypesSwitchPlanPreview defines model for types.SwitchPlanPreview.
+type TypesSwitchPlanPreview struct {
+	Steps []string `json:"steps"`
+}
+
+// TypesSwitchPort defines model for types.SwitchPort.
+type TypesSwitchPort struct {
+	Bond     string        `json:"bond"`
+	Bridge   string        `json:"bridge"`
+	Comment  string        `json:"comment"`
+	Disabled bool          `json:"disabled"`
+	Label    *string       `json:"label,omitempty"`
+	Mac      string        `json:"mac"`
+	Mode     TypesPortMode `json:"mode"`
+	Name     string        `json:"name"`
+	Pvid     int           `json:"pvid"`
+	Rate     string        `json:"rate"`
+	Running  bool          `json:"running"`
+	Tagged   []int         `json:"tagged"`
+	Type     string        `json:"type"`
+	Untagged []int         `json:"untagged"`
+}
+
+// TypesSwitchState defines model for types.SwitchState.
+type TypesSwitchState struct {
+	Bonds         []TypesSwitchBond `json:"bonds"`
+	Bridges       []string          `json:"bridges"`
+	Facts         TypesSwitchFacts  `json:"facts"`
+	Ports         []TypesSwitchPort `json:"ports"`
+	VlanFiltering bool              `json:"vlan_filtering"`
+	Vlans         []TypesSwitchVLAN `json:"vlans"`
+}
+
+// TypesSwitchStatus defines model for types.SwitchStatus.
+type TypesSwitchStatus struct {
+	Error          *string           `json:"error,omitempty"`
+	HasCredentials bool              `json:"has_credentials"`
+	Host           string            `json:"host"`
+	Interface      string            `json:"interface"`
+	Model          TypesSwitchModel  `json:"model"`
+	Name           string            `json:"name"`
+	Reachable      bool              `json:"reachable"`
+	ReadAt         int               `json:"read_at"`
+	State          *TypesSwitchState `json:"state,omitempty"`
+	Uplink         string            `json:"uplink"`
+}
+
+// TypesSwitchVLAN defines model for types.SwitchVLAN.
+type TypesSwitchVLAN struct {
+	Bridge   string   `json:"bridge"`
+	Dynamic  bool     `json:"dynamic"`
+	Id       int      `json:"id"`
+	Tagged   []string `json:"tagged"`
+	Untagged []string `json:"untagged"`
 }
 
 // TypesSystemHistoryPoint defines model for types.SystemHistoryPoint.
@@ -2515,23 +3181,43 @@ type TypesWGEndpoint struct {
 	ListenPort *int    `json:"listen_port,omitempty"`
 }
 
+// TypesWireguardInterfaceStatus defines model for types.WireguardInterfaceStatus.
+type TypesWireguardInterfaceStatus struct {
+	Interface  string                     `json:"interface"`
+	ListenPort int                        `json:"listen_port"`
+	Peers      []TypesWireguardPeerStatus `json:"peers"`
+	PublicKey  string                     `json:"public_key"`
+}
+
+// TypesWireguardPeerStatus defines model for types.WireguardPeerStatus.
+type TypesWireguardPeerStatus struct {
+	AllowedIps      []string `json:"allowed_ips"`
+	Endpoint        *string  `json:"endpoint,omitempty"`
+	LatestHandshake int      `json:"latest_handshake"`
+	Name            *string  `json:"name,omitempty"`
+	PublicKey       string   `json:"public_key"`
+	RxBytes         int      `json:"rx_bytes"`
+	TxBytes         int      `json:"tx_bytes"`
+}
+
+// WebtlsFileRequest defines model for webtls.FileRequest.
+type WebtlsFileRequest struct {
+	Content string `json:"content"`
+}
+
+// WebtlsRenewRequest defines model for webtls.RenewRequest.
+type WebtlsRenewRequest struct {
+	Domain string `json:"domain"`
+}
+
 // GetApiConfigParams defines parameters for GetApiConfig.
 type GetApiConfigParams struct {
-	// Layer configuration layer
-	Layer *GetApiConfigParamsLayer `form:"layer,omitempty" json:"layer,omitempty"`
+	// Source staging (the caller's staged copy when it has one) or running
+	Source *GetApiConfigParamsSource `form:"source,omitempty" json:"source,omitempty"`
 }
 
-// GetApiConfigParamsLayer defines parameters for GetApiConfig.
-type GetApiConfigParamsLayer string
-
-// PostApiConfigApplyParams defines parameters for PostApiConfigApply.
-type PostApiConfigApplyParams struct {
-	// Layer configuration layer
-	Layer *PostApiConfigApplyParamsLayer `form:"layer,omitempty" json:"layer,omitempty"`
-}
-
-// PostApiConfigApplyParamsLayer defines parameters for PostApiConfigApply.
-type PostApiConfigApplyParamsLayer string
+// GetApiConfigParamsSource defines parameters for GetApiConfig.
+type GetApiConfigParamsSource string
 
 // PutApiConfigImportJSONBody defines parameters for PutApiConfigImport.
 type PutApiConfigImportJSONBody = map[string]interface{}
@@ -2539,35 +3225,8 @@ type PutApiConfigImportJSONBody = map[string]interface{}
 // PutApiConfigRawTextBody defines parameters for PutApiConfigRaw.
 type PutApiConfigRawTextBody = string
 
-// DeleteApiConfigStagingParams defines parameters for DeleteApiConfigStaging.
-type DeleteApiConfigStagingParams struct {
-	// Layer configuration layer
-	Layer *DeleteApiConfigStagingParamsLayer `form:"layer,omitempty" json:"layer,omitempty"`
-}
-
-// DeleteApiConfigStagingParamsLayer defines parameters for DeleteApiConfigStaging.
-type DeleteApiConfigStagingParamsLayer string
-
-// GetApiConfigSectionParams defines parameters for GetApiConfigSection.
-type GetApiConfigSectionParams struct {
-	// Layer configuration layer
-	Layer *GetApiConfigSectionParamsLayer `form:"layer,omitempty" json:"layer,omitempty"`
-}
-
-// GetApiConfigSectionParamsLayer defines parameters for GetApiConfigSection.
-type GetApiConfigSectionParamsLayer string
-
 // PutApiConfigSectionJSONBody defines parameters for PutApiConfigSection.
 type PutApiConfigSectionJSONBody = map[string]interface{}
-
-// PutApiConfigSectionParams defines parameters for PutApiConfigSection.
-type PutApiConfigSectionParams struct {
-	// Layer configuration layer
-	Layer *PutApiConfigSectionParamsLayer `form:"layer,omitempty" json:"layer,omitempty"`
-}
-
-// PutApiConfigSectionParamsLayer defines parameters for PutApiConfigSection.
-type PutApiConfigSectionParamsLayer string
 
 // GetApiDhcpFreeIpParams defines parameters for GetApiDhcpFreeIp.
 type GetApiDhcpFreeIpParams struct {
@@ -2590,30 +3249,6 @@ type GetApiDhcpLeasesStreamParams struct {
 // GetApiDhcpLeasesStreamParamsSource defines parameters for GetApiDhcpLeasesStream.
 type GetApiDhcpLeasesStreamParamsSource string
 
-// PostApiDnsCacheFlushJSONBody defines parameters for PostApiDnsCacheFlush.
-type PostApiDnsCacheFlushJSONBody struct {
-	union json.RawMessage
-}
-
-// PostApiDnsCacheFlushJSONBody0 defines parameters for PostApiDnsCacheFlush.
-type PostApiDnsCacheFlushJSONBody0 = map[string]interface{}
-
-// DeleteApiDnsDdnsZoneRecordsJSONBody defines parameters for DeleteApiDnsDdnsZoneRecords.
-type DeleteApiDnsDdnsZoneRecordsJSONBody struct {
-	union json.RawMessage
-}
-
-// DeleteApiDnsDdnsZoneRecordsJSONBody0 defines parameters for DeleteApiDnsDdnsZoneRecords.
-type DeleteApiDnsDdnsZoneRecordsJSONBody0 = map[string]interface{}
-
-// PostApiDnsQueryJSONBody defines parameters for PostApiDnsQuery.
-type PostApiDnsQueryJSONBody struct {
-	union json.RawMessage
-}
-
-// PostApiDnsQueryJSONBody0 defines parameters for PostApiDnsQuery.
-type PostApiDnsQueryJSONBody0 = map[string]interface{}
-
 // GetApiFailuresIdArtifactParams defines parameters for GetApiFailuresIdArtifact.
 type GetApiFailuresIdArtifactParams struct {
 	// Dest rendered artifact destination path
@@ -2624,6 +3259,48 @@ type GetApiFailuresIdArtifactParams struct {
 type GetApiFailuresIdExportParams struct {
 	// Redact redact secrets (default true)
 	Redact *bool `form:"redact,omitempty" json:"redact,omitempty"`
+}
+
+// GetApiFlowsParams defines parameters for GetApiFlows.
+type GetApiFlowsParams struct {
+	// Minutes lookback minutes (default 60)
+	Minutes *int `form:"minutes,omitempty" json:"minutes,omitempty"`
+
+	// Address only flows from or to this address
+	Address *string `form:"address,omitempty" json:"address,omitempty"`
+
+	// Limit maximum flows (default 200)
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// GetApiFlowsSankeyParams defines parameters for GetApiFlowsSankey.
+type GetApiFlowsSankeyParams struct {
+	// Dimensions comma-separated dimensions (default src,service,dst)
+	Dimensions *string `form:"dimensions,omitempty" json:"dimensions,omitempty"`
+
+	// Minutes lookback minutes (default 60)
+	Minutes *int `form:"minutes,omitempty" json:"minutes,omitempty"`
+
+	// Limit maximum paths (default 15)
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// GetApiFlowsSeriesParams defines parameters for GetApiFlowsSeries.
+type GetApiFlowsSeriesParams struct {
+	// Minutes lookback minutes (default 60)
+	Minutes *int `form:"minutes,omitempty" json:"minutes,omitempty"`
+}
+
+// GetApiFlowsTopParams defines parameters for GetApiFlowsTop.
+type GetApiFlowsTopParams struct {
+	// Dimension grouping dimension (default src)
+	Dimension *string `form:"dimension,omitempty" json:"dimension,omitempty"`
+
+	// Minutes lookback minutes (default 60)
+	Minutes *int `form:"minutes,omitempty" json:"minutes,omitempty"`
+
+	// Limit maximum entries (default 10)
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
 // GetApiFriendsHelloParams defines parameters for GetApiFriendsHello.
@@ -2652,6 +3329,12 @@ type GetApiLogsStreamParams struct {
 
 // PutApiNatJSONBody defines parameters for PutApiNat.
 type PutApiNatJSONBody = []NatSpec
+
+// GetApiRoutingBgpNeighborParams defines parameters for GetApiRoutingBgpNeighbor.
+type GetApiRoutingBgpNeighborParams struct {
+	// Address neighbor IP address
+	Address string `form:"address" json:"address"`
+}
 
 // GetApiRoutingLldpParams defines parameters for GetApiRoutingLldp.
 type GetApiRoutingLldpParams struct {
@@ -2692,6 +3375,12 @@ type GetApiRoutingRoutesParams struct {
 // PutApiSetupOnboardingJSONBody defines parameters for PutApiSetupOnboarding.
 type PutApiSetupOnboardingJSONBody = map[string]interface{}
 
+// GetApiSnapshotsIdArtifactParams defines parameters for GetApiSnapshotsIdArtifact.
+type GetApiSnapshotsIdArtifactParams struct {
+	// Dest saved artifact destination path
+	Dest string `form:"dest" json:"dest"`
+}
+
 // GetApiStatsHistoryParams defines parameters for GetApiStatsHistory.
 type GetApiStatsHistoryParams struct {
 	// Minutes lookback minutes
@@ -2702,6 +3391,12 @@ type GetApiStatsHistoryParams struct {
 
 	// Series comma-separated series to include (interfaces,bgp,proto,system,total,usage,probes); default all
 	Series *string `form:"series,omitempty" json:"series,omitempty"`
+}
+
+// GetApiStatsLiveParams defines parameters for GetApiStatsLive.
+type GetApiStatsLiveParams struct {
+	// Iface Kernel interface name
+	Iface string `form:"iface" json:"iface"`
 }
 
 // GetApiSystemUpdatesParams defines parameters for GetApiSystemUpdates.
@@ -2739,6 +3434,9 @@ type PutApiV1SessionsSessionIDBootModulesJSONBody = map[string]interface{}
 
 // PutApiV1SessionsSessionIDConfigTextBody defines parameters for PutApiV1SessionsSessionIDConfig.
 type PutApiV1SessionsSessionIDConfigTextBody = string
+
+// PutApiV1SessionsSessionIDDhcpJSONBody defines parameters for PutApiV1SessionsSessionIDDhcp.
+type PutApiV1SessionsSessionIDDhcpJSONBody = map[string]interface{}
 
 // PutApiV1SessionsSessionIDDnsJSONBody defines parameters for PutApiV1SessionsSessionIDDns.
 type PutApiV1SessionsSessionIDDnsJSONBody = map[string]interface{}
@@ -2778,6 +3476,12 @@ type PutApiV1SessionsSessionIDServicesNameJSONBody = map[string]interface{}
 
 // PutApiV1SessionsSessionIDSshJSONBody defines parameters for PutApiV1SessionsSessionIDSsh.
 type PutApiV1SessionsSessionIDSshJSONBody = map[string]interface{}
+
+// PutApiV1SessionsSessionIDSwitchesJSONBody defines parameters for PutApiV1SessionsSessionIDSwitches.
+type PutApiV1SessionsSessionIDSwitchesJSONBody = map[string]interface{}
+
+// PutApiV1SessionsSessionIDSwitchesNameJSONBody defines parameters for PutApiV1SessionsSessionIDSwitchesName.
+type PutApiV1SessionsSessionIDSwitchesNameJSONBody = map[string]interface{}
 
 // PutApiV1SessionsSessionIDSysctlJSONBody defines parameters for PutApiV1SessionsSessionIDSysctl.
 type PutApiV1SessionsSessionIDSysctlJSONBody = map[string]interface{}
@@ -2861,13 +3565,13 @@ type PostApiDhcpReservationsFromLeaseJSONRequestBody = DhcpReserveFromLeaseReque
 type PostApiDhcpReservationsPersistJSONRequestBody = DhcpTargetRequest
 
 // PostApiDnsCacheFlushJSONRequestBody defines body for PostApiDnsCacheFlush for application/json ContentType.
-type PostApiDnsCacheFlushJSONRequestBody PostApiDnsCacheFlushJSONBody
+type PostApiDnsCacheFlushJSONRequestBody = DnsFlushRequest
 
 // DeleteApiDnsDdnsZoneRecordsJSONRequestBody defines body for DeleteApiDnsDdnsZoneRecords for application/json ContentType.
-type DeleteApiDnsDdnsZoneRecordsJSONRequestBody DeleteApiDnsDdnsZoneRecordsJSONBody
+type DeleteApiDnsDdnsZoneRecordsJSONRequestBody = DnsDdnsDeleteRequest
 
 // PostApiDnsQueryJSONRequestBody defines body for PostApiDnsQuery for application/json ContentType.
-type PostApiDnsQueryJSONRequestBody PostApiDnsQueryJSONBody
+type PostApiDnsQueryJSONRequestBody = DnsQueryRequest
 
 // PostApiFriendsJSONRequestBody defines body for PostApiFriends for application/json ContentType.
 type PostApiFriendsJSONRequestBody = TypesAddFriendRequest
@@ -2896,6 +3600,9 @@ type PostApiFriendsNameVrrpJSONRequestBody = TypesConfigureVRRPRequest
 // PostApiFriendsNameWireguardJSONRequestBody defines body for PostApiFriendsNameWireguard for application/json ContentType.
 type PostApiFriendsNameWireguardJSONRequestBody = TypesDeriveWireguardRequest
 
+// PostApiInstallJSONRequestBody defines body for PostApiInstall for application/json ContentType.
+type PostApiInstallJSONRequestBody = TypesInstallRequest
+
 // PostApiMacrosJSONRequestBody defines body for PostApiMacros for application/json ContentType.
 type PostApiMacrosJSONRequestBody = TypesCreateMacroRequest
 
@@ -2905,8 +3612,14 @@ type PostApiMacrosIdApplyJSONRequestBody = TypesMacroApplyRequest
 // PutApiNatJSONRequestBody defines body for PutApiNat for application/json ContentType.
 type PutApiNatJSONRequestBody = PutApiNatJSONBody
 
+// PutApiSetupNetworkJSONRequestBody defines body for PutApiSetupNetwork for application/json ContentType.
+type PutApiSetupNetworkJSONRequestBody = SetupNetwork
+
 // PutApiSetupOnboardingJSONRequestBody defines body for PutApiSetupOnboarding for application/json ContentType.
 type PutApiSetupOnboardingJSONRequestBody = PutApiSetupOnboardingJSONBody
+
+// PutApiSwitchesNameCredentialsJSONRequestBody defines body for PutApiSwitchesNameCredentials for application/json ContentType.
+type PutApiSwitchesNameCredentialsJSONRequestBody = TypesSwitchCredentialsRequest
 
 // PutApiUiLayoutJSONRequestBody defines body for PutApiUiLayout for application/json ContentType.
 type PutApiUiLayoutJSONRequestBody = PutApiUiLayoutJSONBody
@@ -2916,6 +3629,9 @@ type PutApiV1SessionsSessionIDBootModulesJSONRequestBody = PutApiV1SessionsSessi
 
 // PutApiV1SessionsSessionIDConfigTextRequestBody defines body for PutApiV1SessionsSessionIDConfig for text/plain ContentType.
 type PutApiV1SessionsSessionIDConfigTextRequestBody = PutApiV1SessionsSessionIDConfigTextBody
+
+// PutApiV1SessionsSessionIDDhcpJSONRequestBody defines body for PutApiV1SessionsSessionIDDhcp for application/json ContentType.
+type PutApiV1SessionsSessionIDDhcpJSONRequestBody = PutApiV1SessionsSessionIDDhcpJSONBody
 
 // PutApiV1SessionsSessionIDDnsJSONRequestBody defines body for PutApiV1SessionsSessionIDDns for application/json ContentType.
 type PutApiV1SessionsSessionIDDnsJSONRequestBody = PutApiV1SessionsSessionIDDnsJSONBody
@@ -2956,6 +3672,12 @@ type PutApiV1SessionsSessionIDServicesNameJSONRequestBody = PutApiV1SessionsSess
 // PutApiV1SessionsSessionIDSshJSONRequestBody defines body for PutApiV1SessionsSessionIDSsh for application/json ContentType.
 type PutApiV1SessionsSessionIDSshJSONRequestBody = PutApiV1SessionsSessionIDSshJSONBody
 
+// PutApiV1SessionsSessionIDSwitchesJSONRequestBody defines body for PutApiV1SessionsSessionIDSwitches for application/json ContentType.
+type PutApiV1SessionsSessionIDSwitchesJSONRequestBody = PutApiV1SessionsSessionIDSwitchesJSONBody
+
+// PutApiV1SessionsSessionIDSwitchesNameJSONRequestBody defines body for PutApiV1SessionsSessionIDSwitchesName for application/json ContentType.
+type PutApiV1SessionsSessionIDSwitchesNameJSONRequestBody = PutApiV1SessionsSessionIDSwitchesNameJSONBody
+
 // PutApiV1SessionsSessionIDSysctlJSONRequestBody defines body for PutApiV1SessionsSessionIDSysctl for application/json ContentType.
 type PutApiV1SessionsSessionIDSysctlJSONRequestBody = PutApiV1SessionsSessionIDSysctlJSONBody
 
@@ -2971,6 +3693,9 @@ type PutApiV1SessionsSessionIDUsersJSONRequestBody = PutApiV1SessionsSessionIDUs
 // PutApiV1SessionsSessionIDUsersNameJSONRequestBody defines body for PutApiV1SessionsSessionIDUsersName for application/json ContentType.
 type PutApiV1SessionsSessionIDUsersNameJSONRequestBody = PutApiV1SessionsSessionIDUsersNameJSONBody
 
+// PutApiV1SessionsSessionIDVpnJSONRequestBody defines body for PutApiV1SessionsSessionIDVpn for application/json ContentType.
+type PutApiV1SessionsSessionIDVpnJSONRequestBody = ConfigVPNConfig
+
 // PutApiV1SessionsSessionIDVrfsJSONRequestBody defines body for PutApiV1SessionsSessionIDVrfs for application/json ContentType.
 type PutApiV1SessionsSessionIDVrfsJSONRequestBody = PutApiV1SessionsSessionIDVrfsJSONBody
 
@@ -2982,6 +3707,12 @@ type PutApiV1SessionsSessionIDWireguardJSONRequestBody = PutApiV1SessionsSession
 
 // PutApiV1SessionsSessionIDWireguardNameJSONRequestBody defines body for PutApiV1SessionsSessionIDWireguardName for application/json ContentType.
 type PutApiV1SessionsSessionIDWireguardNameJSONRequestBody = PutApiV1SessionsSessionIDWireguardNameJSONBody
+
+// PutApiWebTlsFilesNameJSONRequestBody defines body for PutApiWebTlsFilesName for application/json ContentType.
+type PutApiWebTlsFilesNameJSONRequestBody = WebtlsFileRequest
+
+// PostApiWebTlsRenewJSONRequestBody defines body for PostApiWebTlsRenew for application/json ContentType.
+type PostApiWebTlsRenewJSONRequestBody = WebtlsRenewRequest
 
 // PostApiWireguardPubkeyTextRequestBody defines body for PostApiWireguardPubkey for text/plain ContentType.
 type PostApiWireguardPubkeyTextRequestBody = PostApiWireguardPubkeyTextBody
@@ -3126,7 +3857,7 @@ type ClientInterface interface {
 	GetApiConfig(ctx context.Context, params *GetApiConfigParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PostApiConfigApply request
-	PostApiConfigApply(ctx context.Context, params *PostApiConfigApplyParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+	PostApiConfigApply(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetApiConfigDiff request
 	GetApiConfigDiff(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -3159,15 +3890,15 @@ type ClientInterface interface {
 	GetApiConfigSchemaVersion(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteApiConfigStaging request
-	DeleteApiConfigStaging(ctx context.Context, params *DeleteApiConfigStagingParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+	DeleteApiConfigStaging(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetApiConfigSection request
-	GetApiConfigSection(ctx context.Context, section string, params *GetApiConfigSectionParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+	GetApiConfigSection(ctx context.Context, section string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PutApiConfigSectionWithBody request with any body
-	PutApiConfigSectionWithBody(ctx context.Context, section string, params *PutApiConfigSectionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	PutApiConfigSectionWithBody(ctx context.Context, section string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	PutApiConfigSection(ctx context.Context, section string, params *PutApiConfigSectionParams, body PutApiConfigSectionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	PutApiConfigSection(ctx context.Context, section string, body PutApiConfigSectionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetApiDhcp request
 	GetApiDhcp(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -3269,6 +4000,24 @@ type ClientInterface interface {
 	// GetApiFailuresIdExport request
 	GetApiFailuresIdExport(ctx context.Context, id string, params *GetApiFailuresIdExportParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetApiFlows request
+	GetApiFlows(ctx context.Context, params *GetApiFlowsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetApiFlowsMetadata request
+	GetApiFlowsMetadata(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetApiFlowsSankey request
+	GetApiFlowsSankey(ctx context.Context, params *GetApiFlowsSankeyParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetApiFlowsSeries request
+	GetApiFlowsSeries(ctx context.Context, params *GetApiFlowsSeriesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetApiFlowsStatus request
+	GetApiFlowsStatus(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetApiFlowsTop request
+	GetApiFlowsTop(ctx context.Context, params *GetApiFlowsTopParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetApiFriends request
 	GetApiFriends(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -3276,6 +4025,9 @@ type ClientInterface interface {
 	PostApiFriendsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	PostApiFriends(ctx context.Context, body PostApiFriendsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetApiFriendsBgpPolicies request
+	GetApiFriendsBgpPolicies(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetApiFriendsExports request
 	GetApiFriendsExports(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -3359,6 +4111,23 @@ type ClientInterface interface {
 	// GetApiHaStatus request
 	GetApiHaStatus(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// PostApiInstallWithBody request with any body
+	PostApiInstallWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PostApiInstall(ctx context.Context, body PostApiInstallJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetApiInstallDisks request
+	GetApiInstallDisks(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PostApiInstallReboot request
+	PostApiInstallReboot(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetApiInstallStatus request
+	GetApiInstallStatus(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetApiInstallTimezones request
+	GetApiInstallTimezones(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetApiLogsStream request
 	GetApiLogsStream(ctx context.Context, params *GetApiLogsStreamParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -3392,6 +4161,9 @@ type ClientInterface interface {
 
 	PutApiNat(ctx context.Context, body PutApiNatJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetApiRoutingBgpNeighbor request
+	GetApiRoutingBgpNeighbor(ctx context.Context, params *GetApiRoutingBgpNeighborParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetApiRoutingLearned request
 	GetApiRoutingLearned(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -3407,6 +4179,14 @@ type ClientInterface interface {
 	// PostApiSetupComplete request
 	PostApiSetupComplete(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetApiSetupHost request
+	GetApiSetupHost(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PutApiSetupNetworkWithBody request with any body
+	PutApiSetupNetworkWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PutApiSetupNetwork(ctx context.Context, body PutApiSetupNetworkJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetApiSetupOnboarding request
 	GetApiSetupOnboarding(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -3421,6 +4201,9 @@ type ClientInterface interface {
 	// GetApiSnapshots request
 	GetApiSnapshots(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetApiSnapshotsIdArtifact request
+	GetApiSnapshotsIdArtifact(ctx context.Context, id string, params *GetApiSnapshotsIdArtifactParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// PostApiSnapshotsIdRestore request
 	PostApiSnapshotsIdRestore(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -3430,6 +4213,9 @@ type ClientInterface interface {
 	// GetApiStatsHistory request
 	GetApiStatsHistory(ctx context.Context, params *GetApiStatsHistoryParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetApiStatsLive request
+	GetApiStatsLive(ctx context.Context, params *GetApiStatsLiveParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetApiStatsLldp request
 	GetApiStatsLldp(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -3438,6 +4224,32 @@ type ClientInterface interface {
 
 	// GetApiStatsProcesses request
 	GetApiStatsProcesses(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetApiSwitchModels request
+	GetApiSwitchModels(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetApiSwitches request
+	GetApiSwitches(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetApiSwitchesCandidates request
+	GetApiSwitchesCandidates(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetApiSwitchesName request
+	GetApiSwitchesName(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteApiSwitchesNameCredentials request
+	DeleteApiSwitchesNameCredentials(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PutApiSwitchesNameCredentialsWithBody request with any body
+	PutApiSwitchesNameCredentialsWithBody(ctx context.Context, name string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PutApiSwitchesNameCredentials(ctx context.Context, name string, body PutApiSwitchesNameCredentialsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetApiSwitchesNamePlan request
+	GetApiSwitchesNamePlan(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PostApiSwitchesNameRefresh request
+	PostApiSwitchesNameRefresh(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetApiSystemBonds request
 	GetApiSystemBonds(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -3453,6 +4265,9 @@ type ClientInterface interface {
 
 	// PostApiSystemShutdown request
 	PostApiSystemShutdown(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetApiSystemSysctl request
+	GetApiSystemSysctl(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetApiSystemUpdates request
 	GetApiSystemUpdates(ctx context.Context, params *GetApiSystemUpdatesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -3516,6 +4331,14 @@ type ClientInterface interface {
 	PutApiV1SessionsSessionIDConfigWithBody(ctx context.Context, sessionID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	PutApiV1SessionsSessionIDConfigWithTextBody(ctx context.Context, sessionID string, body PutApiV1SessionsSessionIDConfigTextRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetApiV1SessionsSessionIDDhcp request
+	GetApiV1SessionsSessionIDDhcp(ctx context.Context, sessionID string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PutApiV1SessionsSessionIDDhcpWithBody request with any body
+	PutApiV1SessionsSessionIDDhcpWithBody(ctx context.Context, sessionID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PutApiV1SessionsSessionIDDhcp(ctx context.Context, sessionID string, body PutApiV1SessionsSessionIDDhcpJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetApiV1SessionsSessionIDDiff request
 	GetApiV1SessionsSessionIDDiff(ctx context.Context, sessionID string, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -3630,6 +4453,25 @@ type ClientInterface interface {
 
 	PutApiV1SessionsSessionIDSsh(ctx context.Context, sessionID string, body PutApiV1SessionsSessionIDSshJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetApiV1SessionsSessionIDSwitches request
+	GetApiV1SessionsSessionIDSwitches(ctx context.Context, sessionID string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PutApiV1SessionsSessionIDSwitchesWithBody request with any body
+	PutApiV1SessionsSessionIDSwitchesWithBody(ctx context.Context, sessionID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PutApiV1SessionsSessionIDSwitches(ctx context.Context, sessionID string, body PutApiV1SessionsSessionIDSwitchesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteApiV1SessionsSessionIDSwitchesName request
+	DeleteApiV1SessionsSessionIDSwitchesName(ctx context.Context, sessionID string, name string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetApiV1SessionsSessionIDSwitchesName request
+	GetApiV1SessionsSessionIDSwitchesName(ctx context.Context, sessionID string, name string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PutApiV1SessionsSessionIDSwitchesNameWithBody request with any body
+	PutApiV1SessionsSessionIDSwitchesNameWithBody(ctx context.Context, sessionID string, name string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PutApiV1SessionsSessionIDSwitchesName(ctx context.Context, sessionID string, name string, body PutApiV1SessionsSessionIDSwitchesNameJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetApiV1SessionsSessionIDSysctl request
 	GetApiV1SessionsSessionIDSysctl(ctx context.Context, sessionID string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -3685,6 +4527,14 @@ type ClientInterface interface {
 	// PostApiV1SessionsSessionIDValidate request
 	PostApiV1SessionsSessionIDValidate(ctx context.Context, sessionID string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetApiV1SessionsSessionIDVpn request
+	GetApiV1SessionsSessionIDVpn(ctx context.Context, sessionID string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PutApiV1SessionsSessionIDVpnWithBody request with any body
+	PutApiV1SessionsSessionIDVpnWithBody(ctx context.Context, sessionID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PutApiV1SessionsSessionIDVpn(ctx context.Context, sessionID string, body PutApiV1SessionsSessionIDVpnJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetApiV1SessionsSessionIDVrfs request
 	GetApiV1SessionsSessionIDVrfs(ctx context.Context, sessionID string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -3723,6 +4573,22 @@ type ClientInterface interface {
 
 	PutApiV1SessionsSessionIDWireguardName(ctx context.Context, sessionID string, name string, body PutApiV1SessionsSessionIDWireguardNameJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetApiWebTls request
+	GetApiWebTls(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetApiWebTlsFilesName request
+	GetApiWebTlsFilesName(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PutApiWebTlsFilesNameWithBody request with any body
+	PutApiWebTlsFilesNameWithBody(ctx context.Context, name string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PutApiWebTlsFilesName(ctx context.Context, name string, body PutApiWebTlsFilesNameJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PostApiWebTlsRenewWithBody request with any body
+	PostApiWebTlsRenewWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PostApiWebTlsRenew(ctx context.Context, body PostApiWebTlsRenewJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// PostApiWireguardKeygen request
 	PostApiWireguardKeygen(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -3730,6 +4596,9 @@ type ClientInterface interface {
 	PostApiWireguardPubkeyWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	PostApiWireguardPubkeyWithTextBody(ctx context.Context, body PostApiWireguardPubkeyTextRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetApiWireguardStatus request
+	GetApiWireguardStatus(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetApiWsExec request
 	GetApiWsExec(ctx context.Context, params *GetApiWsExecParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -4023,8 +4892,8 @@ func (c *Client) GetApiConfig(ctx context.Context, params *GetApiConfigParams, r
 	return c.Client.Do(req)
 }
 
-func (c *Client) PostApiConfigApply(ctx context.Context, params *PostApiConfigApplyParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostApiConfigApplyRequest(c.Server, params)
+func (c *Client) PostApiConfigApply(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostApiConfigApplyRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -4167,8 +5036,8 @@ func (c *Client) GetApiConfigSchemaVersion(ctx context.Context, reqEditors ...Re
 	return c.Client.Do(req)
 }
 
-func (c *Client) DeleteApiConfigStaging(ctx context.Context, params *DeleteApiConfigStagingParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewDeleteApiConfigStagingRequest(c.Server, params)
+func (c *Client) DeleteApiConfigStaging(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteApiConfigStagingRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -4179,8 +5048,8 @@ func (c *Client) DeleteApiConfigStaging(ctx context.Context, params *DeleteApiCo
 	return c.Client.Do(req)
 }
 
-func (c *Client) GetApiConfigSection(ctx context.Context, section string, params *GetApiConfigSectionParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetApiConfigSectionRequest(c.Server, section, params)
+func (c *Client) GetApiConfigSection(ctx context.Context, section string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetApiConfigSectionRequest(c.Server, section)
 	if err != nil {
 		return nil, err
 	}
@@ -4191,8 +5060,8 @@ func (c *Client) GetApiConfigSection(ctx context.Context, section string, params
 	return c.Client.Do(req)
 }
 
-func (c *Client) PutApiConfigSectionWithBody(ctx context.Context, section string, params *PutApiConfigSectionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPutApiConfigSectionRequestWithBody(c.Server, section, params, contentType, body)
+func (c *Client) PutApiConfigSectionWithBody(ctx context.Context, section string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutApiConfigSectionRequestWithBody(c.Server, section, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -4203,8 +5072,8 @@ func (c *Client) PutApiConfigSectionWithBody(ctx context.Context, section string
 	return c.Client.Do(req)
 }
 
-func (c *Client) PutApiConfigSection(ctx context.Context, section string, params *PutApiConfigSectionParams, body PutApiConfigSectionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPutApiConfigSectionRequest(c.Server, section, params, body)
+func (c *Client) PutApiConfigSection(ctx context.Context, section string, body PutApiConfigSectionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutApiConfigSectionRequest(c.Server, section, body)
 	if err != nil {
 		return nil, err
 	}
@@ -4647,6 +5516,78 @@ func (c *Client) GetApiFailuresIdExport(ctx context.Context, id string, params *
 	return c.Client.Do(req)
 }
 
+func (c *Client) GetApiFlows(ctx context.Context, params *GetApiFlowsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetApiFlowsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetApiFlowsMetadata(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetApiFlowsMetadataRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetApiFlowsSankey(ctx context.Context, params *GetApiFlowsSankeyParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetApiFlowsSankeyRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetApiFlowsSeries(ctx context.Context, params *GetApiFlowsSeriesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetApiFlowsSeriesRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetApiFlowsStatus(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetApiFlowsStatusRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetApiFlowsTop(ctx context.Context, params *GetApiFlowsTopParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetApiFlowsTopRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) GetApiFriends(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetApiFriendsRequest(c.Server)
 	if err != nil {
@@ -4673,6 +5614,18 @@ func (c *Client) PostApiFriendsWithBody(ctx context.Context, contentType string,
 
 func (c *Client) PostApiFriends(ctx context.Context, body PostApiFriendsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPostApiFriendsRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetApiFriendsBgpPolicies(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetApiFriendsBgpPoliciesRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -5043,6 +5996,78 @@ func (c *Client) GetApiHaStatus(ctx context.Context, reqEditors ...RequestEditor
 	return c.Client.Do(req)
 }
 
+func (c *Client) PostApiInstallWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostApiInstallRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostApiInstall(ctx context.Context, body PostApiInstallJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostApiInstallRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetApiInstallDisks(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetApiInstallDisksRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostApiInstallReboot(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostApiInstallRebootRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetApiInstallStatus(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetApiInstallStatusRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetApiInstallTimezones(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetApiInstallTimezonesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) GetApiLogsStream(ctx context.Context, params *GetApiLogsStreamParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetApiLogsStreamRequest(c.Server, params)
 	if err != nil {
@@ -5187,6 +6212,18 @@ func (c *Client) PutApiNat(ctx context.Context, body PutApiNatJSONRequestBody, r
 	return c.Client.Do(req)
 }
 
+func (c *Client) GetApiRoutingBgpNeighbor(ctx context.Context, params *GetApiRoutingBgpNeighborParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetApiRoutingBgpNeighborRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) GetApiRoutingLearned(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetApiRoutingLearnedRequest(c.Server)
 	if err != nil {
@@ -5237,6 +6274,42 @@ func (c *Client) GetApiRoutingRoutes(ctx context.Context, params *GetApiRoutingR
 
 func (c *Client) PostApiSetupComplete(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPostApiSetupCompleteRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetApiSetupHost(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetApiSetupHostRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutApiSetupNetworkWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutApiSetupNetworkRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutApiSetupNetwork(ctx context.Context, body PutApiSetupNetworkJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutApiSetupNetworkRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -5307,6 +6380,18 @@ func (c *Client) GetApiSnapshots(ctx context.Context, reqEditors ...RequestEdito
 	return c.Client.Do(req)
 }
 
+func (c *Client) GetApiSnapshotsIdArtifact(ctx context.Context, id string, params *GetApiSnapshotsIdArtifactParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetApiSnapshotsIdArtifactRequest(c.Server, id, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) PostApiSnapshotsIdRestore(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPostApiSnapshotsIdRestoreRequest(c.Server, id)
 	if err != nil {
@@ -5343,6 +6428,18 @@ func (c *Client) GetApiStatsHistory(ctx context.Context, params *GetApiStatsHist
 	return c.Client.Do(req)
 }
 
+func (c *Client) GetApiStatsLive(ctx context.Context, params *GetApiStatsLiveParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetApiStatsLiveRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) GetApiStatsLldp(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetApiStatsLldpRequest(c.Server)
 	if err != nil {
@@ -5369,6 +6466,114 @@ func (c *Client) GetApiStatsNeighbors(ctx context.Context, reqEditors ...Request
 
 func (c *Client) GetApiStatsProcesses(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetApiStatsProcessesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetApiSwitchModels(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetApiSwitchModelsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetApiSwitches(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetApiSwitchesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetApiSwitchesCandidates(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetApiSwitchesCandidatesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetApiSwitchesName(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetApiSwitchesNameRequest(c.Server, name)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteApiSwitchesNameCredentials(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteApiSwitchesNameCredentialsRequest(c.Server, name)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutApiSwitchesNameCredentialsWithBody(ctx context.Context, name string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutApiSwitchesNameCredentialsRequestWithBody(c.Server, name, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutApiSwitchesNameCredentials(ctx context.Context, name string, body PutApiSwitchesNameCredentialsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutApiSwitchesNameCredentialsRequest(c.Server, name, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetApiSwitchesNamePlan(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetApiSwitchesNamePlanRequest(c.Server, name)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostApiSwitchesNameRefresh(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostApiSwitchesNameRefreshRequest(c.Server, name)
 	if err != nil {
 		return nil, err
 	}
@@ -5429,6 +6634,18 @@ func (c *Client) PostApiSystemReboot(ctx context.Context, reqEditors ...RequestE
 
 func (c *Client) PostApiSystemShutdown(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPostApiSystemShutdownRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetApiSystemSysctl(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetApiSystemSysctlRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -5693,6 +6910,42 @@ func (c *Client) PutApiV1SessionsSessionIDConfigWithBody(ctx context.Context, se
 
 func (c *Client) PutApiV1SessionsSessionIDConfigWithTextBody(ctx context.Context, sessionID string, body PutApiV1SessionsSessionIDConfigTextRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPutApiV1SessionsSessionIDConfigRequestWithTextBody(c.Server, sessionID, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetApiV1SessionsSessionIDDhcp(ctx context.Context, sessionID string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetApiV1SessionsSessionIDDhcpRequest(c.Server, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutApiV1SessionsSessionIDDhcpWithBody(ctx context.Context, sessionID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutApiV1SessionsSessionIDDhcpRequestWithBody(c.Server, sessionID, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutApiV1SessionsSessionIDDhcp(ctx context.Context, sessionID string, body PutApiV1SessionsSessionIDDhcpJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutApiV1SessionsSessionIDDhcpRequest(c.Server, sessionID, body)
 	if err != nil {
 		return nil, err
 	}
@@ -6207,6 +7460,90 @@ func (c *Client) PutApiV1SessionsSessionIDSsh(ctx context.Context, sessionID str
 	return c.Client.Do(req)
 }
 
+func (c *Client) GetApiV1SessionsSessionIDSwitches(ctx context.Context, sessionID string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetApiV1SessionsSessionIDSwitchesRequest(c.Server, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutApiV1SessionsSessionIDSwitchesWithBody(ctx context.Context, sessionID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutApiV1SessionsSessionIDSwitchesRequestWithBody(c.Server, sessionID, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutApiV1SessionsSessionIDSwitches(ctx context.Context, sessionID string, body PutApiV1SessionsSessionIDSwitchesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutApiV1SessionsSessionIDSwitchesRequest(c.Server, sessionID, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteApiV1SessionsSessionIDSwitchesName(ctx context.Context, sessionID string, name string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteApiV1SessionsSessionIDSwitchesNameRequest(c.Server, sessionID, name)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetApiV1SessionsSessionIDSwitchesName(ctx context.Context, sessionID string, name string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetApiV1SessionsSessionIDSwitchesNameRequest(c.Server, sessionID, name)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutApiV1SessionsSessionIDSwitchesNameWithBody(ctx context.Context, sessionID string, name string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutApiV1SessionsSessionIDSwitchesNameRequestWithBody(c.Server, sessionID, name, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutApiV1SessionsSessionIDSwitchesName(ctx context.Context, sessionID string, name string, body PutApiV1SessionsSessionIDSwitchesNameJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutApiV1SessionsSessionIDSwitchesNameRequest(c.Server, sessionID, name, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) GetApiV1SessionsSessionIDSysctl(ctx context.Context, sessionID string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetApiV1SessionsSessionIDSysctlRequest(c.Server, sessionID)
 	if err != nil {
@@ -6447,6 +7784,42 @@ func (c *Client) PostApiV1SessionsSessionIDValidate(ctx context.Context, session
 	return c.Client.Do(req)
 }
 
+func (c *Client) GetApiV1SessionsSessionIDVpn(ctx context.Context, sessionID string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetApiV1SessionsSessionIDVpnRequest(c.Server, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutApiV1SessionsSessionIDVpnWithBody(ctx context.Context, sessionID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutApiV1SessionsSessionIDVpnRequestWithBody(c.Server, sessionID, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutApiV1SessionsSessionIDVpn(ctx context.Context, sessionID string, body PutApiV1SessionsSessionIDVpnJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutApiV1SessionsSessionIDVpnRequest(c.Server, sessionID, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) GetApiV1SessionsSessionIDVrfs(ctx context.Context, sessionID string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetApiV1SessionsSessionIDVrfsRequest(c.Server, sessionID)
 	if err != nil {
@@ -6615,6 +7988,78 @@ func (c *Client) PutApiV1SessionsSessionIDWireguardName(ctx context.Context, ses
 	return c.Client.Do(req)
 }
 
+func (c *Client) GetApiWebTls(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetApiWebTlsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetApiWebTlsFilesName(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetApiWebTlsFilesNameRequest(c.Server, name)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutApiWebTlsFilesNameWithBody(ctx context.Context, name string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutApiWebTlsFilesNameRequestWithBody(c.Server, name, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PutApiWebTlsFilesName(ctx context.Context, name string, body PutApiWebTlsFilesNameJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutApiWebTlsFilesNameRequest(c.Server, name, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostApiWebTlsRenewWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostApiWebTlsRenewRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostApiWebTlsRenew(ctx context.Context, body PostApiWebTlsRenewJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostApiWebTlsRenewRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) PostApiWireguardKeygen(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPostApiWireguardKeygenRequest(c.Server)
 	if err != nil {
@@ -6641,6 +8086,18 @@ func (c *Client) PostApiWireguardPubkeyWithBody(ctx context.Context, contentType
 
 func (c *Client) PostApiWireguardPubkeyWithTextBody(ctx context.Context, body PostApiWireguardPubkeyTextRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPostApiWireguardPubkeyRequestWithTextBody(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetApiWireguardStatus(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetApiWireguardStatusRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -7250,9 +8707,9 @@ func NewGetApiConfigRequest(server string, params *GetApiConfigParams) (*http.Re
 	if params != nil {
 		queryValues := queryURL.Query()
 
-		if params.Layer != nil {
+		if params.Source != nil {
 
-			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "layer", runtime.ParamLocationQuery, *params.Layer); err != nil {
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "source", runtime.ParamLocationQuery, *params.Source); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
 				return nil, err
@@ -7278,7 +8735,7 @@ func NewGetApiConfigRequest(server string, params *GetApiConfigParams) (*http.Re
 }
 
 // NewPostApiConfigApplyRequest generates requests for PostApiConfigApply
-func NewPostApiConfigApplyRequest(server string, params *PostApiConfigApplyParams) (*http.Request, error) {
+func NewPostApiConfigApplyRequest(server string) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -7294,28 +8751,6 @@ func NewPostApiConfigApplyRequest(server string, params *PostApiConfigApplyParam
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
-	}
-
-	if params != nil {
-		queryValues := queryURL.Query()
-
-		if params.Layer != nil {
-
-			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "layer", runtime.ParamLocationQuery, *params.Layer); err != nil {
-				return nil, err
-			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-				return nil, err
-			} else {
-				for k, v := range parsed {
-					for _, v2 := range v {
-						queryValues.Add(k, v2)
-					}
-				}
-			}
-
-		}
-
-		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("POST", queryURL.String(), nil)
@@ -7578,7 +9013,7 @@ func NewGetApiConfigSchemaVersionRequest(server string) (*http.Request, error) {
 }
 
 // NewDeleteApiConfigStagingRequest generates requests for DeleteApiConfigStaging
-func NewDeleteApiConfigStagingRequest(server string, params *DeleteApiConfigStagingParams) (*http.Request, error) {
+func NewDeleteApiConfigStagingRequest(server string) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -7596,28 +9031,6 @@ func NewDeleteApiConfigStagingRequest(server string, params *DeleteApiConfigStag
 		return nil, err
 	}
 
-	if params != nil {
-		queryValues := queryURL.Query()
-
-		if params.Layer != nil {
-
-			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "layer", runtime.ParamLocationQuery, *params.Layer); err != nil {
-				return nil, err
-			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-				return nil, err
-			} else {
-				for k, v := range parsed {
-					for _, v2 := range v {
-						queryValues.Add(k, v2)
-					}
-				}
-			}
-
-		}
-
-		queryURL.RawQuery = queryValues.Encode()
-	}
-
 	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
@@ -7627,7 +9040,7 @@ func NewDeleteApiConfigStagingRequest(server string, params *DeleteApiConfigStag
 }
 
 // NewGetApiConfigSectionRequest generates requests for GetApiConfigSection
-func NewGetApiConfigSectionRequest(server string, section string, params *GetApiConfigSectionParams) (*http.Request, error) {
+func NewGetApiConfigSectionRequest(server string, section string) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -7650,28 +9063,6 @@ func NewGetApiConfigSectionRequest(server string, section string, params *GetApi
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
-	}
-
-	if params != nil {
-		queryValues := queryURL.Query()
-
-		if params.Layer != nil {
-
-			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "layer", runtime.ParamLocationQuery, *params.Layer); err != nil {
-				return nil, err
-			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-				return nil, err
-			} else {
-				for k, v := range parsed {
-					for _, v2 := range v {
-						queryValues.Add(k, v2)
-					}
-				}
-			}
-
-		}
-
-		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
@@ -7683,18 +9074,18 @@ func NewGetApiConfigSectionRequest(server string, section string, params *GetApi
 }
 
 // NewPutApiConfigSectionRequest calls the generic PutApiConfigSection builder with application/json body
-func NewPutApiConfigSectionRequest(server string, section string, params *PutApiConfigSectionParams, body PutApiConfigSectionJSONRequestBody) (*http.Request, error) {
+func NewPutApiConfigSectionRequest(server string, section string, body PutApiConfigSectionJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewPutApiConfigSectionRequestWithBody(server, section, params, "application/json", bodyReader)
+	return NewPutApiConfigSectionRequestWithBody(server, section, "application/json", bodyReader)
 }
 
 // NewPutApiConfigSectionRequestWithBody generates requests for PutApiConfigSection with any type of body
-func NewPutApiConfigSectionRequestWithBody(server string, section string, params *PutApiConfigSectionParams, contentType string, body io.Reader) (*http.Request, error) {
+func NewPutApiConfigSectionRequestWithBody(server string, section string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -7717,28 +9108,6 @@ func NewPutApiConfigSectionRequestWithBody(server string, section string, params
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
-	}
-
-	if params != nil {
-		queryValues := queryURL.Query()
-
-		if params.Layer != nil {
-
-			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "layer", runtime.ParamLocationQuery, *params.Layer); err != nil {
-				return nil, err
-			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-				return nil, err
-			} else {
-				for k, v := range parsed {
-					for _, v2 := range v {
-						queryValues.Add(k, v2)
-					}
-				}
-			}
-
-		}
-
-		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("PUT", queryURL.String(), body)
@@ -8762,6 +10131,352 @@ func NewGetApiFailuresIdExportRequest(server string, id string, params *GetApiFa
 	return req, nil
 }
 
+// NewGetApiFlowsRequest generates requests for GetApiFlows
+func NewGetApiFlowsRequest(server string, params *GetApiFlowsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/flows")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Minutes != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "minutes", runtime.ParamLocationQuery, *params.Minutes); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Address != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "address", runtime.ParamLocationQuery, *params.Address); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetApiFlowsMetadataRequest generates requests for GetApiFlowsMetadata
+func NewGetApiFlowsMetadataRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/flows/metadata")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetApiFlowsSankeyRequest generates requests for GetApiFlowsSankey
+func NewGetApiFlowsSankeyRequest(server string, params *GetApiFlowsSankeyParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/flows/sankey")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Dimensions != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "dimensions", runtime.ParamLocationQuery, *params.Dimensions); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Minutes != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "minutes", runtime.ParamLocationQuery, *params.Minutes); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetApiFlowsSeriesRequest generates requests for GetApiFlowsSeries
+func NewGetApiFlowsSeriesRequest(server string, params *GetApiFlowsSeriesParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/flows/series")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Minutes != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "minutes", runtime.ParamLocationQuery, *params.Minutes); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetApiFlowsStatusRequest generates requests for GetApiFlowsStatus
+func NewGetApiFlowsStatusRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/flows/status")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetApiFlowsTopRequest generates requests for GetApiFlowsTop
+func NewGetApiFlowsTopRequest(server string, params *GetApiFlowsTopParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/flows/top")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Dimension != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "dimension", runtime.ParamLocationQuery, *params.Dimension); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Minutes != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "minutes", runtime.ParamLocationQuery, *params.Minutes); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGetApiFriendsRequest generates requests for GetApiFriends
 func NewGetApiFriendsRequest(server string) (*http.Request, error) {
 	var err error
@@ -8825,6 +10540,33 @@ func NewPostApiFriendsRequestWithBody(server string, contentType string, body io
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetApiFriendsBgpPoliciesRequest generates requests for GetApiFriendsBgpPolicies
+func NewGetApiFriendsBgpPoliciesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/friends/bgp-policies")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -9684,6 +11426,154 @@ func NewGetApiHaStatusRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
+// NewPostApiInstallRequest calls the generic PostApiInstall builder with application/json body
+func NewPostApiInstallRequest(server string, body PostApiInstallJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPostApiInstallRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewPostApiInstallRequestWithBody generates requests for PostApiInstall with any type of body
+func NewPostApiInstallRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/install")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetApiInstallDisksRequest generates requests for GetApiInstallDisks
+func NewGetApiInstallDisksRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/install/disks")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPostApiInstallRebootRequest generates requests for PostApiInstallReboot
+func NewPostApiInstallRebootRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/install/reboot")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetApiInstallStatusRequest generates requests for GetApiInstallStatus
+func NewGetApiInstallStatusRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/install/status")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetApiInstallTimezonesRequest generates requests for GetApiInstallTimezones
+func NewGetApiInstallTimezonesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/install/timezones")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGetApiLogsStreamRequest generates requests for GetApiLogsStream
 func NewGetApiLogsStreamRequest(server string, params *GetApiLogsStreamParams) (*http.Request, error) {
 	var err error
@@ -10012,6 +11902,51 @@ func NewPutApiNatRequestWithBody(server string, contentType string, body io.Read
 	return req, nil
 }
 
+// NewGetApiRoutingBgpNeighborRequest generates requests for GetApiRoutingBgpNeighbor
+func NewGetApiRoutingBgpNeighborRequest(server string, params *GetApiRoutingBgpNeighborParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/routing/bgp/neighbor")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "address", runtime.ParamLocationQuery, params.Address); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGetApiRoutingLearnedRequest generates requests for GetApiRoutingLearned
 func NewGetApiRoutingLearnedRequest(server string) (*http.Request, error) {
 	var err error
@@ -10309,6 +12244,73 @@ func NewPostApiSetupCompleteRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
+// NewGetApiSetupHostRequest generates requests for GetApiSetupHost
+func NewGetApiSetupHostRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/setup/host")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPutApiSetupNetworkRequest calls the generic PutApiSetupNetwork builder with application/json body
+func NewPutApiSetupNetworkRequest(server string, body PutApiSetupNetworkJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPutApiSetupNetworkRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewPutApiSetupNetworkRequestWithBody generates requests for PutApiSetupNetwork with any type of body
+func NewPutApiSetupNetworkRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/setup/network")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewGetApiSetupOnboardingRequest generates requests for GetApiSetupOnboarding
 func NewGetApiSetupOnboardingRequest(server string) (*http.Request, error) {
 	var err error
@@ -10420,6 +12422,58 @@ func NewGetApiSnapshotsRequest(server string) (*http.Request, error) {
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetApiSnapshotsIdArtifactRequest generates requests for GetApiSnapshotsIdArtifact
+func NewGetApiSnapshotsIdArtifactRequest(server string, id string, params *GetApiSnapshotsIdArtifactParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/snapshots/%s/artifact", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "dest", runtime.ParamLocationQuery, params.Dest); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
@@ -10572,6 +12626,51 @@ func NewGetApiStatsHistoryRequest(server string, params *GetApiStatsHistoryParam
 	return req, nil
 }
 
+// NewGetApiStatsLiveRequest generates requests for GetApiStatsLive
+func NewGetApiStatsLiveRequest(server string, params *GetApiStatsLiveParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/stats/live")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "iface", runtime.ParamLocationQuery, params.Iface); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGetApiStatsLldpRequest generates requests for GetApiStatsLldp
 func NewGetApiStatsLldpRequest(server string) (*http.Request, error) {
 	var err error
@@ -10646,6 +12745,270 @@ func NewGetApiStatsProcessesRequest(server string) (*http.Request, error) {
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetApiSwitchModelsRequest generates requests for GetApiSwitchModels
+func NewGetApiSwitchModelsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/switch-models")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetApiSwitchesRequest generates requests for GetApiSwitches
+func NewGetApiSwitchesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/switches")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetApiSwitchesCandidatesRequest generates requests for GetApiSwitchesCandidates
+func NewGetApiSwitchesCandidatesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/switches/candidates")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetApiSwitchesNameRequest generates requests for GetApiSwitchesName
+func NewGetApiSwitchesNameRequest(server string, name string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "name", runtime.ParamLocationPath, name)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/switches/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDeleteApiSwitchesNameCredentialsRequest generates requests for DeleteApiSwitchesNameCredentials
+func NewDeleteApiSwitchesNameCredentialsRequest(server string, name string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "name", runtime.ParamLocationPath, name)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/switches/%s/credentials", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPutApiSwitchesNameCredentialsRequest calls the generic PutApiSwitchesNameCredentials builder with application/json body
+func NewPutApiSwitchesNameCredentialsRequest(server string, name string, body PutApiSwitchesNameCredentialsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPutApiSwitchesNameCredentialsRequestWithBody(server, name, "application/json", bodyReader)
+}
+
+// NewPutApiSwitchesNameCredentialsRequestWithBody generates requests for PutApiSwitchesNameCredentials with any type of body
+func NewPutApiSwitchesNameCredentialsRequestWithBody(server string, name string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "name", runtime.ParamLocationPath, name)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/switches/%s/credentials", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetApiSwitchesNamePlanRequest generates requests for GetApiSwitchesNamePlan
+func NewGetApiSwitchesNamePlanRequest(server string, name string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "name", runtime.ParamLocationPath, name)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/switches/%s/plan", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPostApiSwitchesNameRefreshRequest generates requests for PostApiSwitchesNameRefresh
+func NewPostApiSwitchesNameRefreshRequest(server string, name string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "name", runtime.ParamLocationPath, name)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/switches/%s/refresh", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -10788,6 +13151,33 @@ func NewPostApiSystemShutdownRequest(server string) (*http.Request, error) {
 	}
 
 	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetApiSystemSysctlRequest generates requests for GetApiSystemSysctl
+func NewGetApiSystemSysctlRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/system/sysctl")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -11461,6 +13851,87 @@ func NewPutApiV1SessionsSessionIDConfigRequestWithBody(server string, sessionID 
 	}
 
 	operationPath := fmt.Sprintf("/api/v1/sessions/%s/config", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetApiV1SessionsSessionIDDhcpRequest generates requests for GetApiV1SessionsSessionIDDhcp
+func NewGetApiV1SessionsSessionIDDhcpRequest(server string, sessionID string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "sessionID", runtime.ParamLocationPath, sessionID)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/sessions/%s/dhcp", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPutApiV1SessionsSessionIDDhcpRequest calls the generic PutApiV1SessionsSessionIDDhcp builder with application/json body
+func NewPutApiV1SessionsSessionIDDhcpRequest(server string, sessionID string, body PutApiV1SessionsSessionIDDhcpJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPutApiV1SessionsSessionIDDhcpRequestWithBody(server, sessionID, "application/json", bodyReader)
+}
+
+// NewPutApiV1SessionsSessionIDDhcpRequestWithBody generates requests for PutApiV1SessionsSessionIDDhcp with any type of body
+func NewPutApiV1SessionsSessionIDDhcpRequestWithBody(server string, sessionID string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "sessionID", runtime.ParamLocationPath, sessionID)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/sessions/%s/dhcp", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -12677,6 +15148,223 @@ func NewPutApiV1SessionsSessionIDSshRequestWithBody(server string, sessionID str
 	return req, nil
 }
 
+// NewGetApiV1SessionsSessionIDSwitchesRequest generates requests for GetApiV1SessionsSessionIDSwitches
+func NewGetApiV1SessionsSessionIDSwitchesRequest(server string, sessionID string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "sessionID", runtime.ParamLocationPath, sessionID)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/sessions/%s/switches", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPutApiV1SessionsSessionIDSwitchesRequest calls the generic PutApiV1SessionsSessionIDSwitches builder with application/json body
+func NewPutApiV1SessionsSessionIDSwitchesRequest(server string, sessionID string, body PutApiV1SessionsSessionIDSwitchesJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPutApiV1SessionsSessionIDSwitchesRequestWithBody(server, sessionID, "application/json", bodyReader)
+}
+
+// NewPutApiV1SessionsSessionIDSwitchesRequestWithBody generates requests for PutApiV1SessionsSessionIDSwitches with any type of body
+func NewPutApiV1SessionsSessionIDSwitchesRequestWithBody(server string, sessionID string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "sessionID", runtime.ParamLocationPath, sessionID)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/sessions/%s/switches", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteApiV1SessionsSessionIDSwitchesNameRequest generates requests for DeleteApiV1SessionsSessionIDSwitchesName
+func NewDeleteApiV1SessionsSessionIDSwitchesNameRequest(server string, sessionID string, name string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "sessionID", runtime.ParamLocationPath, sessionID)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "name", runtime.ParamLocationPath, name)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/sessions/%s/switches/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetApiV1SessionsSessionIDSwitchesNameRequest generates requests for GetApiV1SessionsSessionIDSwitchesName
+func NewGetApiV1SessionsSessionIDSwitchesNameRequest(server string, sessionID string, name string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "sessionID", runtime.ParamLocationPath, sessionID)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "name", runtime.ParamLocationPath, name)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/sessions/%s/switches/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPutApiV1SessionsSessionIDSwitchesNameRequest calls the generic PutApiV1SessionsSessionIDSwitchesName builder with application/json body
+func NewPutApiV1SessionsSessionIDSwitchesNameRequest(server string, sessionID string, name string, body PutApiV1SessionsSessionIDSwitchesNameJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPutApiV1SessionsSessionIDSwitchesNameRequestWithBody(server, sessionID, name, "application/json", bodyReader)
+}
+
+// NewPutApiV1SessionsSessionIDSwitchesNameRequestWithBody generates requests for PutApiV1SessionsSessionIDSwitchesName with any type of body
+func NewPutApiV1SessionsSessionIDSwitchesNameRequestWithBody(server string, sessionID string, name string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "sessionID", runtime.ParamLocationPath, sessionID)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "name", runtime.ParamLocationPath, name)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/sessions/%s/switches/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewGetApiV1SessionsSessionIDSysctlRequest generates requests for GetApiV1SessionsSessionIDSysctl
 func NewGetApiV1SessionsSessionIDSysctlRequest(server string, sessionID string) (*http.Request, error) {
 	var err error
@@ -13308,6 +15996,87 @@ func NewPostApiV1SessionsSessionIDValidateRequest(server string, sessionID strin
 	return req, nil
 }
 
+// NewGetApiV1SessionsSessionIDVpnRequest generates requests for GetApiV1SessionsSessionIDVpn
+func NewGetApiV1SessionsSessionIDVpnRequest(server string, sessionID string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "sessionID", runtime.ParamLocationPath, sessionID)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/sessions/%s/vpn", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPutApiV1SessionsSessionIDVpnRequest calls the generic PutApiV1SessionsSessionIDVpn builder with application/json body
+func NewPutApiV1SessionsSessionIDVpnRequest(server string, sessionID string, body PutApiV1SessionsSessionIDVpnJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPutApiV1SessionsSessionIDVpnRequestWithBody(server, sessionID, "application/json", bodyReader)
+}
+
+// NewPutApiV1SessionsSessionIDVpnRequestWithBody generates requests for PutApiV1SessionsSessionIDVpn with any type of body
+func NewPutApiV1SessionsSessionIDVpnRequestWithBody(server string, sessionID string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "sessionID", runtime.ParamLocationPath, sessionID)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/sessions/%s/vpn", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewGetApiV1SessionsSessionIDVrfsRequest generates requests for GetApiV1SessionsSessionIDVrfs
 func NewGetApiV1SessionsSessionIDVrfsRequest(server string, sessionID string) (*http.Request, error) {
 	var err error
@@ -13742,6 +16511,154 @@ func NewPutApiV1SessionsSessionIDWireguardNameRequestWithBody(server string, ses
 	return req, nil
 }
 
+// NewGetApiWebTlsRequest generates requests for GetApiWebTls
+func NewGetApiWebTlsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/web/tls")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetApiWebTlsFilesNameRequest generates requests for GetApiWebTlsFilesName
+func NewGetApiWebTlsFilesNameRequest(server string, name string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "name", runtime.ParamLocationPath, name)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/web/tls/files/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPutApiWebTlsFilesNameRequest calls the generic PutApiWebTlsFilesName builder with application/json body
+func NewPutApiWebTlsFilesNameRequest(server string, name string, body PutApiWebTlsFilesNameJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPutApiWebTlsFilesNameRequestWithBody(server, name, "application/json", bodyReader)
+}
+
+// NewPutApiWebTlsFilesNameRequestWithBody generates requests for PutApiWebTlsFilesName with any type of body
+func NewPutApiWebTlsFilesNameRequestWithBody(server string, name string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "name", runtime.ParamLocationPath, name)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/web/tls/files/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewPostApiWebTlsRenewRequest calls the generic PostApiWebTlsRenew builder with application/json body
+func NewPostApiWebTlsRenewRequest(server string, body PostApiWebTlsRenewJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPostApiWebTlsRenewRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewPostApiWebTlsRenewRequestWithBody generates requests for PostApiWebTlsRenew with any type of body
+func NewPostApiWebTlsRenewRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/web/tls/renew")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewPostApiWireguardKeygenRequest generates requests for PostApiWireguardKeygen
 func NewPostApiWireguardKeygenRequest(server string) (*http.Request, error) {
 	var err error
@@ -13801,6 +16718,33 @@ func NewPostApiWireguardPubkeyRequestWithBody(server string, contentType string,
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetApiWireguardStatusRequest generates requests for GetApiWireguardStatus
+func NewGetApiWireguardStatusRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/wireguard/status")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -13960,7 +16904,7 @@ type ClientWithResponsesInterface interface {
 	GetApiConfigWithResponse(ctx context.Context, params *GetApiConfigParams, reqEditors ...RequestEditorFn) (*GetApiConfigResponse, error)
 
 	// PostApiConfigApplyWithResponse request
-	PostApiConfigApplyWithResponse(ctx context.Context, params *PostApiConfigApplyParams, reqEditors ...RequestEditorFn) (*PostApiConfigApplyResponse, error)
+	PostApiConfigApplyWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PostApiConfigApplyResponse, error)
 
 	// GetApiConfigDiffWithResponse request
 	GetApiConfigDiffWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiConfigDiffResponse, error)
@@ -13993,15 +16937,15 @@ type ClientWithResponsesInterface interface {
 	GetApiConfigSchemaVersionWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiConfigSchemaVersionResponse, error)
 
 	// DeleteApiConfigStagingWithResponse request
-	DeleteApiConfigStagingWithResponse(ctx context.Context, params *DeleteApiConfigStagingParams, reqEditors ...RequestEditorFn) (*DeleteApiConfigStagingResponse, error)
+	DeleteApiConfigStagingWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*DeleteApiConfigStagingResponse, error)
 
 	// GetApiConfigSectionWithResponse request
-	GetApiConfigSectionWithResponse(ctx context.Context, section string, params *GetApiConfigSectionParams, reqEditors ...RequestEditorFn) (*GetApiConfigSectionResponse, error)
+	GetApiConfigSectionWithResponse(ctx context.Context, section string, reqEditors ...RequestEditorFn) (*GetApiConfigSectionResponse, error)
 
 	// PutApiConfigSectionWithBodyWithResponse request with any body
-	PutApiConfigSectionWithBodyWithResponse(ctx context.Context, section string, params *PutApiConfigSectionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutApiConfigSectionResponse, error)
+	PutApiConfigSectionWithBodyWithResponse(ctx context.Context, section string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutApiConfigSectionResponse, error)
 
-	PutApiConfigSectionWithResponse(ctx context.Context, section string, params *PutApiConfigSectionParams, body PutApiConfigSectionJSONRequestBody, reqEditors ...RequestEditorFn) (*PutApiConfigSectionResponse, error)
+	PutApiConfigSectionWithResponse(ctx context.Context, section string, body PutApiConfigSectionJSONRequestBody, reqEditors ...RequestEditorFn) (*PutApiConfigSectionResponse, error)
 
 	// GetApiDhcpWithResponse request
 	GetApiDhcpWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiDhcpResponse, error)
@@ -14103,6 +17047,24 @@ type ClientWithResponsesInterface interface {
 	// GetApiFailuresIdExportWithResponse request
 	GetApiFailuresIdExportWithResponse(ctx context.Context, id string, params *GetApiFailuresIdExportParams, reqEditors ...RequestEditorFn) (*GetApiFailuresIdExportResponse, error)
 
+	// GetApiFlowsWithResponse request
+	GetApiFlowsWithResponse(ctx context.Context, params *GetApiFlowsParams, reqEditors ...RequestEditorFn) (*GetApiFlowsResponse, error)
+
+	// GetApiFlowsMetadataWithResponse request
+	GetApiFlowsMetadataWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiFlowsMetadataResponse, error)
+
+	// GetApiFlowsSankeyWithResponse request
+	GetApiFlowsSankeyWithResponse(ctx context.Context, params *GetApiFlowsSankeyParams, reqEditors ...RequestEditorFn) (*GetApiFlowsSankeyResponse, error)
+
+	// GetApiFlowsSeriesWithResponse request
+	GetApiFlowsSeriesWithResponse(ctx context.Context, params *GetApiFlowsSeriesParams, reqEditors ...RequestEditorFn) (*GetApiFlowsSeriesResponse, error)
+
+	// GetApiFlowsStatusWithResponse request
+	GetApiFlowsStatusWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiFlowsStatusResponse, error)
+
+	// GetApiFlowsTopWithResponse request
+	GetApiFlowsTopWithResponse(ctx context.Context, params *GetApiFlowsTopParams, reqEditors ...RequestEditorFn) (*GetApiFlowsTopResponse, error)
+
 	// GetApiFriendsWithResponse request
 	GetApiFriendsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiFriendsResponse, error)
 
@@ -14110,6 +17072,9 @@ type ClientWithResponsesInterface interface {
 	PostApiFriendsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostApiFriendsResponse, error)
 
 	PostApiFriendsWithResponse(ctx context.Context, body PostApiFriendsJSONRequestBody, reqEditors ...RequestEditorFn) (*PostApiFriendsResponse, error)
+
+	// GetApiFriendsBgpPoliciesWithResponse request
+	GetApiFriendsBgpPoliciesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiFriendsBgpPoliciesResponse, error)
 
 	// GetApiFriendsExportsWithResponse request
 	GetApiFriendsExportsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiFriendsExportsResponse, error)
@@ -14193,6 +17158,23 @@ type ClientWithResponsesInterface interface {
 	// GetApiHaStatusWithResponse request
 	GetApiHaStatusWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiHaStatusResponse, error)
 
+	// PostApiInstallWithBodyWithResponse request with any body
+	PostApiInstallWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostApiInstallResponse, error)
+
+	PostApiInstallWithResponse(ctx context.Context, body PostApiInstallJSONRequestBody, reqEditors ...RequestEditorFn) (*PostApiInstallResponse, error)
+
+	// GetApiInstallDisksWithResponse request
+	GetApiInstallDisksWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiInstallDisksResponse, error)
+
+	// PostApiInstallRebootWithResponse request
+	PostApiInstallRebootWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PostApiInstallRebootResponse, error)
+
+	// GetApiInstallStatusWithResponse request
+	GetApiInstallStatusWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiInstallStatusResponse, error)
+
+	// GetApiInstallTimezonesWithResponse request
+	GetApiInstallTimezonesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiInstallTimezonesResponse, error)
+
 	// GetApiLogsStreamWithResponse request
 	GetApiLogsStreamWithResponse(ctx context.Context, params *GetApiLogsStreamParams, reqEditors ...RequestEditorFn) (*GetApiLogsStreamResponse, error)
 
@@ -14226,6 +17208,9 @@ type ClientWithResponsesInterface interface {
 
 	PutApiNatWithResponse(ctx context.Context, body PutApiNatJSONRequestBody, reqEditors ...RequestEditorFn) (*PutApiNatResponse, error)
 
+	// GetApiRoutingBgpNeighborWithResponse request
+	GetApiRoutingBgpNeighborWithResponse(ctx context.Context, params *GetApiRoutingBgpNeighborParams, reqEditors ...RequestEditorFn) (*GetApiRoutingBgpNeighborResponse, error)
+
 	// GetApiRoutingLearnedWithResponse request
 	GetApiRoutingLearnedWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiRoutingLearnedResponse, error)
 
@@ -14241,6 +17226,14 @@ type ClientWithResponsesInterface interface {
 	// PostApiSetupCompleteWithResponse request
 	PostApiSetupCompleteWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PostApiSetupCompleteResponse, error)
 
+	// GetApiSetupHostWithResponse request
+	GetApiSetupHostWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiSetupHostResponse, error)
+
+	// PutApiSetupNetworkWithBodyWithResponse request with any body
+	PutApiSetupNetworkWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutApiSetupNetworkResponse, error)
+
+	PutApiSetupNetworkWithResponse(ctx context.Context, body PutApiSetupNetworkJSONRequestBody, reqEditors ...RequestEditorFn) (*PutApiSetupNetworkResponse, error)
+
 	// GetApiSetupOnboardingWithResponse request
 	GetApiSetupOnboardingWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiSetupOnboardingResponse, error)
 
@@ -14255,6 +17248,9 @@ type ClientWithResponsesInterface interface {
 	// GetApiSnapshotsWithResponse request
 	GetApiSnapshotsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiSnapshotsResponse, error)
 
+	// GetApiSnapshotsIdArtifactWithResponse request
+	GetApiSnapshotsIdArtifactWithResponse(ctx context.Context, id string, params *GetApiSnapshotsIdArtifactParams, reqEditors ...RequestEditorFn) (*GetApiSnapshotsIdArtifactResponse, error)
+
 	// PostApiSnapshotsIdRestoreWithResponse request
 	PostApiSnapshotsIdRestoreWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*PostApiSnapshotsIdRestoreResponse, error)
 
@@ -14264,6 +17260,9 @@ type ClientWithResponsesInterface interface {
 	// GetApiStatsHistoryWithResponse request
 	GetApiStatsHistoryWithResponse(ctx context.Context, params *GetApiStatsHistoryParams, reqEditors ...RequestEditorFn) (*GetApiStatsHistoryResponse, error)
 
+	// GetApiStatsLiveWithResponse request
+	GetApiStatsLiveWithResponse(ctx context.Context, params *GetApiStatsLiveParams, reqEditors ...RequestEditorFn) (*GetApiStatsLiveResponse, error)
+
 	// GetApiStatsLldpWithResponse request
 	GetApiStatsLldpWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiStatsLldpResponse, error)
 
@@ -14272,6 +17271,32 @@ type ClientWithResponsesInterface interface {
 
 	// GetApiStatsProcessesWithResponse request
 	GetApiStatsProcessesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiStatsProcessesResponse, error)
+
+	// GetApiSwitchModelsWithResponse request
+	GetApiSwitchModelsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiSwitchModelsResponse, error)
+
+	// GetApiSwitchesWithResponse request
+	GetApiSwitchesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiSwitchesResponse, error)
+
+	// GetApiSwitchesCandidatesWithResponse request
+	GetApiSwitchesCandidatesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiSwitchesCandidatesResponse, error)
+
+	// GetApiSwitchesNameWithResponse request
+	GetApiSwitchesNameWithResponse(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*GetApiSwitchesNameResponse, error)
+
+	// DeleteApiSwitchesNameCredentialsWithResponse request
+	DeleteApiSwitchesNameCredentialsWithResponse(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*DeleteApiSwitchesNameCredentialsResponse, error)
+
+	// PutApiSwitchesNameCredentialsWithBodyWithResponse request with any body
+	PutApiSwitchesNameCredentialsWithBodyWithResponse(ctx context.Context, name string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutApiSwitchesNameCredentialsResponse, error)
+
+	PutApiSwitchesNameCredentialsWithResponse(ctx context.Context, name string, body PutApiSwitchesNameCredentialsJSONRequestBody, reqEditors ...RequestEditorFn) (*PutApiSwitchesNameCredentialsResponse, error)
+
+	// GetApiSwitchesNamePlanWithResponse request
+	GetApiSwitchesNamePlanWithResponse(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*GetApiSwitchesNamePlanResponse, error)
+
+	// PostApiSwitchesNameRefreshWithResponse request
+	PostApiSwitchesNameRefreshWithResponse(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*PostApiSwitchesNameRefreshResponse, error)
 
 	// GetApiSystemBondsWithResponse request
 	GetApiSystemBondsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiSystemBondsResponse, error)
@@ -14287,6 +17312,9 @@ type ClientWithResponsesInterface interface {
 
 	// PostApiSystemShutdownWithResponse request
 	PostApiSystemShutdownWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PostApiSystemShutdownResponse, error)
+
+	// GetApiSystemSysctlWithResponse request
+	GetApiSystemSysctlWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiSystemSysctlResponse, error)
 
 	// GetApiSystemUpdatesWithResponse request
 	GetApiSystemUpdatesWithResponse(ctx context.Context, params *GetApiSystemUpdatesParams, reqEditors ...RequestEditorFn) (*GetApiSystemUpdatesResponse, error)
@@ -14350,6 +17378,14 @@ type ClientWithResponsesInterface interface {
 	PutApiV1SessionsSessionIDConfigWithBodyWithResponse(ctx context.Context, sessionID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutApiV1SessionsSessionIDConfigResponse, error)
 
 	PutApiV1SessionsSessionIDConfigWithTextBodyWithResponse(ctx context.Context, sessionID string, body PutApiV1SessionsSessionIDConfigTextRequestBody, reqEditors ...RequestEditorFn) (*PutApiV1SessionsSessionIDConfigResponse, error)
+
+	// GetApiV1SessionsSessionIDDhcpWithResponse request
+	GetApiV1SessionsSessionIDDhcpWithResponse(ctx context.Context, sessionID string, reqEditors ...RequestEditorFn) (*GetApiV1SessionsSessionIDDhcpResponse, error)
+
+	// PutApiV1SessionsSessionIDDhcpWithBodyWithResponse request with any body
+	PutApiV1SessionsSessionIDDhcpWithBodyWithResponse(ctx context.Context, sessionID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutApiV1SessionsSessionIDDhcpResponse, error)
+
+	PutApiV1SessionsSessionIDDhcpWithResponse(ctx context.Context, sessionID string, body PutApiV1SessionsSessionIDDhcpJSONRequestBody, reqEditors ...RequestEditorFn) (*PutApiV1SessionsSessionIDDhcpResponse, error)
 
 	// GetApiV1SessionsSessionIDDiffWithResponse request
 	GetApiV1SessionsSessionIDDiffWithResponse(ctx context.Context, sessionID string, reqEditors ...RequestEditorFn) (*GetApiV1SessionsSessionIDDiffResponse, error)
@@ -14464,6 +17500,25 @@ type ClientWithResponsesInterface interface {
 
 	PutApiV1SessionsSessionIDSshWithResponse(ctx context.Context, sessionID string, body PutApiV1SessionsSessionIDSshJSONRequestBody, reqEditors ...RequestEditorFn) (*PutApiV1SessionsSessionIDSshResponse, error)
 
+	// GetApiV1SessionsSessionIDSwitchesWithResponse request
+	GetApiV1SessionsSessionIDSwitchesWithResponse(ctx context.Context, sessionID string, reqEditors ...RequestEditorFn) (*GetApiV1SessionsSessionIDSwitchesResponse, error)
+
+	// PutApiV1SessionsSessionIDSwitchesWithBodyWithResponse request with any body
+	PutApiV1SessionsSessionIDSwitchesWithBodyWithResponse(ctx context.Context, sessionID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutApiV1SessionsSessionIDSwitchesResponse, error)
+
+	PutApiV1SessionsSessionIDSwitchesWithResponse(ctx context.Context, sessionID string, body PutApiV1SessionsSessionIDSwitchesJSONRequestBody, reqEditors ...RequestEditorFn) (*PutApiV1SessionsSessionIDSwitchesResponse, error)
+
+	// DeleteApiV1SessionsSessionIDSwitchesNameWithResponse request
+	DeleteApiV1SessionsSessionIDSwitchesNameWithResponse(ctx context.Context, sessionID string, name string, reqEditors ...RequestEditorFn) (*DeleteApiV1SessionsSessionIDSwitchesNameResponse, error)
+
+	// GetApiV1SessionsSessionIDSwitchesNameWithResponse request
+	GetApiV1SessionsSessionIDSwitchesNameWithResponse(ctx context.Context, sessionID string, name string, reqEditors ...RequestEditorFn) (*GetApiV1SessionsSessionIDSwitchesNameResponse, error)
+
+	// PutApiV1SessionsSessionIDSwitchesNameWithBodyWithResponse request with any body
+	PutApiV1SessionsSessionIDSwitchesNameWithBodyWithResponse(ctx context.Context, sessionID string, name string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutApiV1SessionsSessionIDSwitchesNameResponse, error)
+
+	PutApiV1SessionsSessionIDSwitchesNameWithResponse(ctx context.Context, sessionID string, name string, body PutApiV1SessionsSessionIDSwitchesNameJSONRequestBody, reqEditors ...RequestEditorFn) (*PutApiV1SessionsSessionIDSwitchesNameResponse, error)
+
 	// GetApiV1SessionsSessionIDSysctlWithResponse request
 	GetApiV1SessionsSessionIDSysctlWithResponse(ctx context.Context, sessionID string, reqEditors ...RequestEditorFn) (*GetApiV1SessionsSessionIDSysctlResponse, error)
 
@@ -14519,6 +17574,14 @@ type ClientWithResponsesInterface interface {
 	// PostApiV1SessionsSessionIDValidateWithResponse request
 	PostApiV1SessionsSessionIDValidateWithResponse(ctx context.Context, sessionID string, reqEditors ...RequestEditorFn) (*PostApiV1SessionsSessionIDValidateResponse, error)
 
+	// GetApiV1SessionsSessionIDVpnWithResponse request
+	GetApiV1SessionsSessionIDVpnWithResponse(ctx context.Context, sessionID string, reqEditors ...RequestEditorFn) (*GetApiV1SessionsSessionIDVpnResponse, error)
+
+	// PutApiV1SessionsSessionIDVpnWithBodyWithResponse request with any body
+	PutApiV1SessionsSessionIDVpnWithBodyWithResponse(ctx context.Context, sessionID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutApiV1SessionsSessionIDVpnResponse, error)
+
+	PutApiV1SessionsSessionIDVpnWithResponse(ctx context.Context, sessionID string, body PutApiV1SessionsSessionIDVpnJSONRequestBody, reqEditors ...RequestEditorFn) (*PutApiV1SessionsSessionIDVpnResponse, error)
+
 	// GetApiV1SessionsSessionIDVrfsWithResponse request
 	GetApiV1SessionsSessionIDVrfsWithResponse(ctx context.Context, sessionID string, reqEditors ...RequestEditorFn) (*GetApiV1SessionsSessionIDVrfsResponse, error)
 
@@ -14557,6 +17620,22 @@ type ClientWithResponsesInterface interface {
 
 	PutApiV1SessionsSessionIDWireguardNameWithResponse(ctx context.Context, sessionID string, name string, body PutApiV1SessionsSessionIDWireguardNameJSONRequestBody, reqEditors ...RequestEditorFn) (*PutApiV1SessionsSessionIDWireguardNameResponse, error)
 
+	// GetApiWebTlsWithResponse request
+	GetApiWebTlsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiWebTlsResponse, error)
+
+	// GetApiWebTlsFilesNameWithResponse request
+	GetApiWebTlsFilesNameWithResponse(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*GetApiWebTlsFilesNameResponse, error)
+
+	// PutApiWebTlsFilesNameWithBodyWithResponse request with any body
+	PutApiWebTlsFilesNameWithBodyWithResponse(ctx context.Context, name string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutApiWebTlsFilesNameResponse, error)
+
+	PutApiWebTlsFilesNameWithResponse(ctx context.Context, name string, body PutApiWebTlsFilesNameJSONRequestBody, reqEditors ...RequestEditorFn) (*PutApiWebTlsFilesNameResponse, error)
+
+	// PostApiWebTlsRenewWithBodyWithResponse request with any body
+	PostApiWebTlsRenewWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostApiWebTlsRenewResponse, error)
+
+	PostApiWebTlsRenewWithResponse(ctx context.Context, body PostApiWebTlsRenewJSONRequestBody, reqEditors ...RequestEditorFn) (*PostApiWebTlsRenewResponse, error)
+
 	// PostApiWireguardKeygenWithResponse request
 	PostApiWireguardKeygenWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PostApiWireguardKeygenResponse, error)
 
@@ -14564,6 +17643,9 @@ type ClientWithResponsesInterface interface {
 	PostApiWireguardPubkeyWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostApiWireguardPubkeyResponse, error)
 
 	PostApiWireguardPubkeyWithTextBodyWithResponse(ctx context.Context, body PostApiWireguardPubkeyTextRequestBody, reqEditors ...RequestEditorFn) (*PostApiWireguardPubkeyResponse, error)
+
+	// GetApiWireguardStatusWithResponse request
+	GetApiWireguardStatusWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiWireguardStatusResponse, error)
 
 	// GetApiWsExecWithResponse request
 	GetApiWsExecWithResponse(ctx context.Context, params *GetApiWsExecParams, reqEditors ...RequestEditorFn) (*GetApiWsExecResponse, error)
@@ -15841,6 +18923,138 @@ func (r GetApiFailuresIdExportResponse) StatusCode() int {
 	return 0
 }
 
+type GetApiFlowsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TypesResponseTypesFlowsResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetApiFlowsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetApiFlowsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetApiFlowsMetadataResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TypesResponseFlowsMetadata
+}
+
+// Status returns HTTPResponse.Status
+func (r GetApiFlowsMetadataResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetApiFlowsMetadataResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetApiFlowsSankeyResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TypesResponseTypesFlowSankeyResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetApiFlowsSankeyResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetApiFlowsSankeyResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetApiFlowsSeriesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TypesResponseTypesFlowSeriesResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetApiFlowsSeriesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetApiFlowsSeriesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetApiFlowsStatusResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TypesResponseTypesFlowStatus
+}
+
+// Status returns HTTPResponse.Status
+func (r GetApiFlowsStatusResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetApiFlowsStatusResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetApiFlowsTopResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TypesResponseTypesFlowTopResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetApiFlowsTopResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetApiFlowsTopResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type GetApiFriendsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -15879,6 +19093,28 @@ func (r PostApiFriendsResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r PostApiFriendsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetApiFriendsBgpPoliciesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TypesResponseRenderFriendBGPImportResult
+}
+
+// Status returns HTTPResponse.Status
+func (r GetApiFriendsBgpPoliciesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetApiFriendsBgpPoliciesResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -16369,6 +19605,116 @@ func (r GetApiHaStatusResponse) StatusCode() int {
 	return 0
 }
 
+type PostApiInstallResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TypesResponseTypesInstallStatus
+}
+
+// Status returns HTTPResponse.Status
+func (r PostApiInstallResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostApiInstallResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetApiInstallDisksResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TypesResponseArrayLiveDisk
+}
+
+// Status returns HTTPResponse.Status
+func (r GetApiInstallDisksResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetApiInstallDisksResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PostApiInstallRebootResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TypesResponseTypesStatusResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PostApiInstallRebootResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostApiInstallRebootResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetApiInstallStatusResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TypesResponseTypesInstallStatus
+}
+
+// Status returns HTTPResponse.Status
+func (r GetApiInstallStatusResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetApiInstallStatusResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetApiInstallTimezonesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TypesResponseArrayString
+}
+
+// Status returns HTTPResponse.Status
+func (r GetApiInstallTimezonesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetApiInstallTimezonesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type GetApiLogsStreamResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -16566,6 +19912,28 @@ func (r PutApiNatResponse) StatusCode() int {
 	return 0
 }
 
+type GetApiRoutingBgpNeighborResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TypesResponseString
+}
+
+// Status returns HTTPResponse.Status
+func (r GetApiRoutingBgpNeighborResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetApiRoutingBgpNeighborResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type GetApiRoutingLearnedResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -16676,6 +20044,50 @@ func (r PostApiSetupCompleteResponse) StatusCode() int {
 	return 0
 }
 
+type GetApiSetupHostResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TypesResponseTypesSetupHost
+}
+
+// Status returns HTTPResponse.Status
+func (r GetApiSetupHostResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetApiSetupHostResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PutApiSetupNetworkResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TypesResponseTypesStatusResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PutApiSetupNetworkResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PutApiSetupNetworkResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type GetApiSetupOnboardingResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -16764,6 +20176,28 @@ func (r GetApiSnapshotsResponse) StatusCode() int {
 	return 0
 }
 
+type GetApiSnapshotsIdArtifactResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TypesResponseTypesArtifactContent
+}
+
+// Status returns HTTPResponse.Status
+func (r GetApiSnapshotsIdArtifactResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetApiSnapshotsIdArtifactResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type PostApiSnapshotsIdRestoreResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -16830,6 +20264,27 @@ func (r GetApiStatsHistoryResponse) StatusCode() int {
 	return 0
 }
 
+type GetApiStatsLiveResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r GetApiStatsLiveResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetApiStatsLiveResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type GetApiStatsLldpResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -16890,6 +20345,182 @@ func (r GetApiStatsProcessesResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r GetApiStatsProcessesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetApiSwitchModelsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TypesResponseArrayTypesSwitchModel
+}
+
+// Status returns HTTPResponse.Status
+func (r GetApiSwitchModelsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetApiSwitchModelsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetApiSwitchesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TypesResponseArrayTypesSwitchStatus
+}
+
+// Status returns HTTPResponse.Status
+func (r GetApiSwitchesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetApiSwitchesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetApiSwitchesCandidatesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TypesResponseArrayTypesSwitchCandidate
+}
+
+// Status returns HTTPResponse.Status
+func (r GetApiSwitchesCandidatesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetApiSwitchesCandidatesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetApiSwitchesNameResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TypesResponseTypesSwitchStatus
+}
+
+// Status returns HTTPResponse.Status
+func (r GetApiSwitchesNameResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetApiSwitchesNameResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteApiSwitchesNameCredentialsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TypesResponseTypesStatusResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteApiSwitchesNameCredentialsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteApiSwitchesNameCredentialsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PutApiSwitchesNameCredentialsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TypesResponseTypesStatusResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PutApiSwitchesNameCredentialsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PutApiSwitchesNameCredentialsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetApiSwitchesNamePlanResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TypesResponseTypesSwitchPlanPreview
+}
+
+// Status returns HTTPResponse.Status
+func (r GetApiSwitchesNamePlanResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetApiSwitchesNamePlanResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PostApiSwitchesNameRefreshResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TypesResponseTypesSwitchStatus
+}
+
+// Status returns HTTPResponse.Status
+func (r PostApiSwitchesNameRefreshResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostApiSwitchesNameRefreshResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -17000,6 +20631,28 @@ func (r PostApiSystemShutdownResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r PostApiSystemShutdownResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetApiSystemSysctlResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TypesResponseArraySysctlParameter
+}
+
+// Status returns HTTPResponse.Status
+func (r GetApiSystemSysctlResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetApiSystemSysctlResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -17421,6 +21074,50 @@ func (r PutApiV1SessionsSessionIDConfigResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r PutApiV1SessionsSessionIDConfigResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetApiV1SessionsSessionIDDhcpResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *map[string]interface{}
+}
+
+// Status returns HTTPResponse.Status
+func (r GetApiV1SessionsSessionIDDhcpResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetApiV1SessionsSessionIDDhcpResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PutApiV1SessionsSessionIDDhcpResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *map[string]interface{}
+}
+
+// Status returns HTTPResponse.Status
+func (r PutApiV1SessionsSessionIDDhcpResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PutApiV1SessionsSessionIDDhcpResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -18065,6 +21762,116 @@ func (r PutApiV1SessionsSessionIDSshResponse) StatusCode() int {
 	return 0
 }
 
+type GetApiV1SessionsSessionIDSwitchesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *map[string]interface{}
+}
+
+// Status returns HTTPResponse.Status
+func (r GetApiV1SessionsSessionIDSwitchesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetApiV1SessionsSessionIDSwitchesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PutApiV1SessionsSessionIDSwitchesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *map[string]interface{}
+}
+
+// Status returns HTTPResponse.Status
+func (r PutApiV1SessionsSessionIDSwitchesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PutApiV1SessionsSessionIDSwitchesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteApiV1SessionsSessionIDSwitchesNameResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *map[string]interface{}
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteApiV1SessionsSessionIDSwitchesNameResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteApiV1SessionsSessionIDSwitchesNameResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetApiV1SessionsSessionIDSwitchesNameResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *map[string]interface{}
+}
+
+// Status returns HTTPResponse.Status
+func (r GetApiV1SessionsSessionIDSwitchesNameResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetApiV1SessionsSessionIDSwitchesNameResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PutApiV1SessionsSessionIDSwitchesNameResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *map[string]interface{}
+}
+
+// Status returns HTTPResponse.Status
+func (r PutApiV1SessionsSessionIDSwitchesNameResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PutApiV1SessionsSessionIDSwitchesNameResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type GetApiV1SessionsSessionIDSysctlResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -18395,6 +22202,50 @@ func (r PostApiV1SessionsSessionIDValidateResponse) StatusCode() int {
 	return 0
 }
 
+type GetApiV1SessionsSessionIDVpnResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TypesResponseConfigVPNConfig
+}
+
+// Status returns HTTPResponse.Status
+func (r GetApiV1SessionsSessionIDVpnResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetApiV1SessionsSessionIDVpnResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PutApiV1SessionsSessionIDVpnResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TypesResponseTypesStatusResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PutApiV1SessionsSessionIDVpnResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PutApiV1SessionsSessionIDVpnResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type GetApiV1SessionsSessionIDVrfsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -18615,6 +22466,94 @@ func (r PutApiV1SessionsSessionIDWireguardNameResponse) StatusCode() int {
 	return 0
 }
 
+type GetApiWebTlsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TypesResponseTlscertStatus
+}
+
+// Status returns HTTPResponse.Status
+func (r GetApiWebTlsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetApiWebTlsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetApiWebTlsFilesNameResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TypesResponseString
+}
+
+// Status returns HTTPResponse.Status
+func (r GetApiWebTlsFilesNameResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetApiWebTlsFilesNameResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PutApiWebTlsFilesNameResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TypesResponseTlscertStatus
+}
+
+// Status returns HTTPResponse.Status
+func (r PutApiWebTlsFilesNameResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PutApiWebTlsFilesNameResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PostApiWebTlsRenewResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TypesResponseTlscertStatus
+}
+
+// Status returns HTTPResponse.Status
+func (r PostApiWebTlsRenewResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostApiWebTlsRenewResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type PostApiWireguardKeygenResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -18653,6 +22592,28 @@ func (r PostApiWireguardPubkeyResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r PostApiWireguardPubkeyResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetApiWireguardStatusResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TypesResponseArrayTypesWireguardInterfaceStatus
+}
+
+// Status returns HTTPResponse.Status
+func (r GetApiWireguardStatusResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetApiWireguardStatusResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -18892,8 +22853,8 @@ func (c *ClientWithResponses) GetApiConfigWithResponse(ctx context.Context, para
 }
 
 // PostApiConfigApplyWithResponse request returning *PostApiConfigApplyResponse
-func (c *ClientWithResponses) PostApiConfigApplyWithResponse(ctx context.Context, params *PostApiConfigApplyParams, reqEditors ...RequestEditorFn) (*PostApiConfigApplyResponse, error) {
-	rsp, err := c.PostApiConfigApply(ctx, params, reqEditors...)
+func (c *ClientWithResponses) PostApiConfigApplyWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PostApiConfigApplyResponse, error) {
+	rsp, err := c.PostApiConfigApply(ctx, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -18997,8 +22958,8 @@ func (c *ClientWithResponses) GetApiConfigSchemaVersionWithResponse(ctx context.
 }
 
 // DeleteApiConfigStagingWithResponse request returning *DeleteApiConfigStagingResponse
-func (c *ClientWithResponses) DeleteApiConfigStagingWithResponse(ctx context.Context, params *DeleteApiConfigStagingParams, reqEditors ...RequestEditorFn) (*DeleteApiConfigStagingResponse, error) {
-	rsp, err := c.DeleteApiConfigStaging(ctx, params, reqEditors...)
+func (c *ClientWithResponses) DeleteApiConfigStagingWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*DeleteApiConfigStagingResponse, error) {
+	rsp, err := c.DeleteApiConfigStaging(ctx, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -19006,8 +22967,8 @@ func (c *ClientWithResponses) DeleteApiConfigStagingWithResponse(ctx context.Con
 }
 
 // GetApiConfigSectionWithResponse request returning *GetApiConfigSectionResponse
-func (c *ClientWithResponses) GetApiConfigSectionWithResponse(ctx context.Context, section string, params *GetApiConfigSectionParams, reqEditors ...RequestEditorFn) (*GetApiConfigSectionResponse, error) {
-	rsp, err := c.GetApiConfigSection(ctx, section, params, reqEditors...)
+func (c *ClientWithResponses) GetApiConfigSectionWithResponse(ctx context.Context, section string, reqEditors ...RequestEditorFn) (*GetApiConfigSectionResponse, error) {
+	rsp, err := c.GetApiConfigSection(ctx, section, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -19015,16 +22976,16 @@ func (c *ClientWithResponses) GetApiConfigSectionWithResponse(ctx context.Contex
 }
 
 // PutApiConfigSectionWithBodyWithResponse request with arbitrary body returning *PutApiConfigSectionResponse
-func (c *ClientWithResponses) PutApiConfigSectionWithBodyWithResponse(ctx context.Context, section string, params *PutApiConfigSectionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutApiConfigSectionResponse, error) {
-	rsp, err := c.PutApiConfigSectionWithBody(ctx, section, params, contentType, body, reqEditors...)
+func (c *ClientWithResponses) PutApiConfigSectionWithBodyWithResponse(ctx context.Context, section string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutApiConfigSectionResponse, error) {
+	rsp, err := c.PutApiConfigSectionWithBody(ctx, section, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
 	return ParsePutApiConfigSectionResponse(rsp)
 }
 
-func (c *ClientWithResponses) PutApiConfigSectionWithResponse(ctx context.Context, section string, params *PutApiConfigSectionParams, body PutApiConfigSectionJSONRequestBody, reqEditors ...RequestEditorFn) (*PutApiConfigSectionResponse, error) {
-	rsp, err := c.PutApiConfigSection(ctx, section, params, body, reqEditors...)
+func (c *ClientWithResponses) PutApiConfigSectionWithResponse(ctx context.Context, section string, body PutApiConfigSectionJSONRequestBody, reqEditors ...RequestEditorFn) (*PutApiConfigSectionResponse, error) {
+	rsp, err := c.PutApiConfigSection(ctx, section, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -19347,6 +23308,60 @@ func (c *ClientWithResponses) GetApiFailuresIdExportWithResponse(ctx context.Con
 	return ParseGetApiFailuresIdExportResponse(rsp)
 }
 
+// GetApiFlowsWithResponse request returning *GetApiFlowsResponse
+func (c *ClientWithResponses) GetApiFlowsWithResponse(ctx context.Context, params *GetApiFlowsParams, reqEditors ...RequestEditorFn) (*GetApiFlowsResponse, error) {
+	rsp, err := c.GetApiFlows(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetApiFlowsResponse(rsp)
+}
+
+// GetApiFlowsMetadataWithResponse request returning *GetApiFlowsMetadataResponse
+func (c *ClientWithResponses) GetApiFlowsMetadataWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiFlowsMetadataResponse, error) {
+	rsp, err := c.GetApiFlowsMetadata(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetApiFlowsMetadataResponse(rsp)
+}
+
+// GetApiFlowsSankeyWithResponse request returning *GetApiFlowsSankeyResponse
+func (c *ClientWithResponses) GetApiFlowsSankeyWithResponse(ctx context.Context, params *GetApiFlowsSankeyParams, reqEditors ...RequestEditorFn) (*GetApiFlowsSankeyResponse, error) {
+	rsp, err := c.GetApiFlowsSankey(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetApiFlowsSankeyResponse(rsp)
+}
+
+// GetApiFlowsSeriesWithResponse request returning *GetApiFlowsSeriesResponse
+func (c *ClientWithResponses) GetApiFlowsSeriesWithResponse(ctx context.Context, params *GetApiFlowsSeriesParams, reqEditors ...RequestEditorFn) (*GetApiFlowsSeriesResponse, error) {
+	rsp, err := c.GetApiFlowsSeries(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetApiFlowsSeriesResponse(rsp)
+}
+
+// GetApiFlowsStatusWithResponse request returning *GetApiFlowsStatusResponse
+func (c *ClientWithResponses) GetApiFlowsStatusWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiFlowsStatusResponse, error) {
+	rsp, err := c.GetApiFlowsStatus(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetApiFlowsStatusResponse(rsp)
+}
+
+// GetApiFlowsTopWithResponse request returning *GetApiFlowsTopResponse
+func (c *ClientWithResponses) GetApiFlowsTopWithResponse(ctx context.Context, params *GetApiFlowsTopParams, reqEditors ...RequestEditorFn) (*GetApiFlowsTopResponse, error) {
+	rsp, err := c.GetApiFlowsTop(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetApiFlowsTopResponse(rsp)
+}
+
 // GetApiFriendsWithResponse request returning *GetApiFriendsResponse
 func (c *ClientWithResponses) GetApiFriendsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiFriendsResponse, error) {
 	rsp, err := c.GetApiFriends(ctx, reqEditors...)
@@ -19371,6 +23386,15 @@ func (c *ClientWithResponses) PostApiFriendsWithResponse(ctx context.Context, bo
 		return nil, err
 	}
 	return ParsePostApiFriendsResponse(rsp)
+}
+
+// GetApiFriendsBgpPoliciesWithResponse request returning *GetApiFriendsBgpPoliciesResponse
+func (c *ClientWithResponses) GetApiFriendsBgpPoliciesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiFriendsBgpPoliciesResponse, error) {
+	rsp, err := c.GetApiFriendsBgpPolicies(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetApiFriendsBgpPoliciesResponse(rsp)
 }
 
 // GetApiFriendsExportsWithResponse request returning *GetApiFriendsExportsResponse
@@ -19635,6 +23659,59 @@ func (c *ClientWithResponses) GetApiHaStatusWithResponse(ctx context.Context, re
 	return ParseGetApiHaStatusResponse(rsp)
 }
 
+// PostApiInstallWithBodyWithResponse request with arbitrary body returning *PostApiInstallResponse
+func (c *ClientWithResponses) PostApiInstallWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostApiInstallResponse, error) {
+	rsp, err := c.PostApiInstallWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostApiInstallResponse(rsp)
+}
+
+func (c *ClientWithResponses) PostApiInstallWithResponse(ctx context.Context, body PostApiInstallJSONRequestBody, reqEditors ...RequestEditorFn) (*PostApiInstallResponse, error) {
+	rsp, err := c.PostApiInstall(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostApiInstallResponse(rsp)
+}
+
+// GetApiInstallDisksWithResponse request returning *GetApiInstallDisksResponse
+func (c *ClientWithResponses) GetApiInstallDisksWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiInstallDisksResponse, error) {
+	rsp, err := c.GetApiInstallDisks(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetApiInstallDisksResponse(rsp)
+}
+
+// PostApiInstallRebootWithResponse request returning *PostApiInstallRebootResponse
+func (c *ClientWithResponses) PostApiInstallRebootWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PostApiInstallRebootResponse, error) {
+	rsp, err := c.PostApiInstallReboot(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostApiInstallRebootResponse(rsp)
+}
+
+// GetApiInstallStatusWithResponse request returning *GetApiInstallStatusResponse
+func (c *ClientWithResponses) GetApiInstallStatusWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiInstallStatusResponse, error) {
+	rsp, err := c.GetApiInstallStatus(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetApiInstallStatusResponse(rsp)
+}
+
+// GetApiInstallTimezonesWithResponse request returning *GetApiInstallTimezonesResponse
+func (c *ClientWithResponses) GetApiInstallTimezonesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiInstallTimezonesResponse, error) {
+	rsp, err := c.GetApiInstallTimezones(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetApiInstallTimezonesResponse(rsp)
+}
+
 // GetApiLogsStreamWithResponse request returning *GetApiLogsStreamResponse
 func (c *ClientWithResponses) GetApiLogsStreamWithResponse(ctx context.Context, params *GetApiLogsStreamParams, reqEditors ...RequestEditorFn) (*GetApiLogsStreamResponse, error) {
 	rsp, err := c.GetApiLogsStream(ctx, params, reqEditors...)
@@ -19740,6 +23817,15 @@ func (c *ClientWithResponses) PutApiNatWithResponse(ctx context.Context, body Pu
 	return ParsePutApiNatResponse(rsp)
 }
 
+// GetApiRoutingBgpNeighborWithResponse request returning *GetApiRoutingBgpNeighborResponse
+func (c *ClientWithResponses) GetApiRoutingBgpNeighborWithResponse(ctx context.Context, params *GetApiRoutingBgpNeighborParams, reqEditors ...RequestEditorFn) (*GetApiRoutingBgpNeighborResponse, error) {
+	rsp, err := c.GetApiRoutingBgpNeighbor(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetApiRoutingBgpNeighborResponse(rsp)
+}
+
 // GetApiRoutingLearnedWithResponse request returning *GetApiRoutingLearnedResponse
 func (c *ClientWithResponses) GetApiRoutingLearnedWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiRoutingLearnedResponse, error) {
 	rsp, err := c.GetApiRoutingLearned(ctx, reqEditors...)
@@ -19783,6 +23869,32 @@ func (c *ClientWithResponses) PostApiSetupCompleteWithResponse(ctx context.Conte
 		return nil, err
 	}
 	return ParsePostApiSetupCompleteResponse(rsp)
+}
+
+// GetApiSetupHostWithResponse request returning *GetApiSetupHostResponse
+func (c *ClientWithResponses) GetApiSetupHostWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiSetupHostResponse, error) {
+	rsp, err := c.GetApiSetupHost(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetApiSetupHostResponse(rsp)
+}
+
+// PutApiSetupNetworkWithBodyWithResponse request with arbitrary body returning *PutApiSetupNetworkResponse
+func (c *ClientWithResponses) PutApiSetupNetworkWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutApiSetupNetworkResponse, error) {
+	rsp, err := c.PutApiSetupNetworkWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutApiSetupNetworkResponse(rsp)
+}
+
+func (c *ClientWithResponses) PutApiSetupNetworkWithResponse(ctx context.Context, body PutApiSetupNetworkJSONRequestBody, reqEditors ...RequestEditorFn) (*PutApiSetupNetworkResponse, error) {
+	rsp, err := c.PutApiSetupNetwork(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutApiSetupNetworkResponse(rsp)
 }
 
 // GetApiSetupOnboardingWithResponse request returning *GetApiSetupOnboardingResponse
@@ -19829,6 +23941,15 @@ func (c *ClientWithResponses) GetApiSnapshotsWithResponse(ctx context.Context, r
 	return ParseGetApiSnapshotsResponse(rsp)
 }
 
+// GetApiSnapshotsIdArtifactWithResponse request returning *GetApiSnapshotsIdArtifactResponse
+func (c *ClientWithResponses) GetApiSnapshotsIdArtifactWithResponse(ctx context.Context, id string, params *GetApiSnapshotsIdArtifactParams, reqEditors ...RequestEditorFn) (*GetApiSnapshotsIdArtifactResponse, error) {
+	rsp, err := c.GetApiSnapshotsIdArtifact(ctx, id, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetApiSnapshotsIdArtifactResponse(rsp)
+}
+
 // PostApiSnapshotsIdRestoreWithResponse request returning *PostApiSnapshotsIdRestoreResponse
 func (c *ClientWithResponses) PostApiSnapshotsIdRestoreWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*PostApiSnapshotsIdRestoreResponse, error) {
 	rsp, err := c.PostApiSnapshotsIdRestore(ctx, id, reqEditors...)
@@ -19856,6 +23977,15 @@ func (c *ClientWithResponses) GetApiStatsHistoryWithResponse(ctx context.Context
 	return ParseGetApiStatsHistoryResponse(rsp)
 }
 
+// GetApiStatsLiveWithResponse request returning *GetApiStatsLiveResponse
+func (c *ClientWithResponses) GetApiStatsLiveWithResponse(ctx context.Context, params *GetApiStatsLiveParams, reqEditors ...RequestEditorFn) (*GetApiStatsLiveResponse, error) {
+	rsp, err := c.GetApiStatsLive(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetApiStatsLiveResponse(rsp)
+}
+
 // GetApiStatsLldpWithResponse request returning *GetApiStatsLldpResponse
 func (c *ClientWithResponses) GetApiStatsLldpWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiStatsLldpResponse, error) {
 	rsp, err := c.GetApiStatsLldp(ctx, reqEditors...)
@@ -19881,6 +24011,86 @@ func (c *ClientWithResponses) GetApiStatsProcessesWithResponse(ctx context.Conte
 		return nil, err
 	}
 	return ParseGetApiStatsProcessesResponse(rsp)
+}
+
+// GetApiSwitchModelsWithResponse request returning *GetApiSwitchModelsResponse
+func (c *ClientWithResponses) GetApiSwitchModelsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiSwitchModelsResponse, error) {
+	rsp, err := c.GetApiSwitchModels(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetApiSwitchModelsResponse(rsp)
+}
+
+// GetApiSwitchesWithResponse request returning *GetApiSwitchesResponse
+func (c *ClientWithResponses) GetApiSwitchesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiSwitchesResponse, error) {
+	rsp, err := c.GetApiSwitches(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetApiSwitchesResponse(rsp)
+}
+
+// GetApiSwitchesCandidatesWithResponse request returning *GetApiSwitchesCandidatesResponse
+func (c *ClientWithResponses) GetApiSwitchesCandidatesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiSwitchesCandidatesResponse, error) {
+	rsp, err := c.GetApiSwitchesCandidates(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetApiSwitchesCandidatesResponse(rsp)
+}
+
+// GetApiSwitchesNameWithResponse request returning *GetApiSwitchesNameResponse
+func (c *ClientWithResponses) GetApiSwitchesNameWithResponse(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*GetApiSwitchesNameResponse, error) {
+	rsp, err := c.GetApiSwitchesName(ctx, name, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetApiSwitchesNameResponse(rsp)
+}
+
+// DeleteApiSwitchesNameCredentialsWithResponse request returning *DeleteApiSwitchesNameCredentialsResponse
+func (c *ClientWithResponses) DeleteApiSwitchesNameCredentialsWithResponse(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*DeleteApiSwitchesNameCredentialsResponse, error) {
+	rsp, err := c.DeleteApiSwitchesNameCredentials(ctx, name, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteApiSwitchesNameCredentialsResponse(rsp)
+}
+
+// PutApiSwitchesNameCredentialsWithBodyWithResponse request with arbitrary body returning *PutApiSwitchesNameCredentialsResponse
+func (c *ClientWithResponses) PutApiSwitchesNameCredentialsWithBodyWithResponse(ctx context.Context, name string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutApiSwitchesNameCredentialsResponse, error) {
+	rsp, err := c.PutApiSwitchesNameCredentialsWithBody(ctx, name, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutApiSwitchesNameCredentialsResponse(rsp)
+}
+
+func (c *ClientWithResponses) PutApiSwitchesNameCredentialsWithResponse(ctx context.Context, name string, body PutApiSwitchesNameCredentialsJSONRequestBody, reqEditors ...RequestEditorFn) (*PutApiSwitchesNameCredentialsResponse, error) {
+	rsp, err := c.PutApiSwitchesNameCredentials(ctx, name, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutApiSwitchesNameCredentialsResponse(rsp)
+}
+
+// GetApiSwitchesNamePlanWithResponse request returning *GetApiSwitchesNamePlanResponse
+func (c *ClientWithResponses) GetApiSwitchesNamePlanWithResponse(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*GetApiSwitchesNamePlanResponse, error) {
+	rsp, err := c.GetApiSwitchesNamePlan(ctx, name, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetApiSwitchesNamePlanResponse(rsp)
+}
+
+// PostApiSwitchesNameRefreshWithResponse request returning *PostApiSwitchesNameRefreshResponse
+func (c *ClientWithResponses) PostApiSwitchesNameRefreshWithResponse(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*PostApiSwitchesNameRefreshResponse, error) {
+	rsp, err := c.PostApiSwitchesNameRefresh(ctx, name, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostApiSwitchesNameRefreshResponse(rsp)
 }
 
 // GetApiSystemBondsWithResponse request returning *GetApiSystemBondsResponse
@@ -19926,6 +24136,15 @@ func (c *ClientWithResponses) PostApiSystemShutdownWithResponse(ctx context.Cont
 		return nil, err
 	}
 	return ParsePostApiSystemShutdownResponse(rsp)
+}
+
+// GetApiSystemSysctlWithResponse request returning *GetApiSystemSysctlResponse
+func (c *ClientWithResponses) GetApiSystemSysctlWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiSystemSysctlResponse, error) {
+	rsp, err := c.GetApiSystemSysctl(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetApiSystemSysctlResponse(rsp)
 }
 
 // GetApiSystemUpdatesWithResponse request returning *GetApiSystemUpdatesResponse
@@ -20121,6 +24340,32 @@ func (c *ClientWithResponses) PutApiV1SessionsSessionIDConfigWithTextBodyWithRes
 		return nil, err
 	}
 	return ParsePutApiV1SessionsSessionIDConfigResponse(rsp)
+}
+
+// GetApiV1SessionsSessionIDDhcpWithResponse request returning *GetApiV1SessionsSessionIDDhcpResponse
+func (c *ClientWithResponses) GetApiV1SessionsSessionIDDhcpWithResponse(ctx context.Context, sessionID string, reqEditors ...RequestEditorFn) (*GetApiV1SessionsSessionIDDhcpResponse, error) {
+	rsp, err := c.GetApiV1SessionsSessionIDDhcp(ctx, sessionID, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetApiV1SessionsSessionIDDhcpResponse(rsp)
+}
+
+// PutApiV1SessionsSessionIDDhcpWithBodyWithResponse request with arbitrary body returning *PutApiV1SessionsSessionIDDhcpResponse
+func (c *ClientWithResponses) PutApiV1SessionsSessionIDDhcpWithBodyWithResponse(ctx context.Context, sessionID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutApiV1SessionsSessionIDDhcpResponse, error) {
+	rsp, err := c.PutApiV1SessionsSessionIDDhcpWithBody(ctx, sessionID, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutApiV1SessionsSessionIDDhcpResponse(rsp)
+}
+
+func (c *ClientWithResponses) PutApiV1SessionsSessionIDDhcpWithResponse(ctx context.Context, sessionID string, body PutApiV1SessionsSessionIDDhcpJSONRequestBody, reqEditors ...RequestEditorFn) (*PutApiV1SessionsSessionIDDhcpResponse, error) {
+	rsp, err := c.PutApiV1SessionsSessionIDDhcp(ctx, sessionID, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutApiV1SessionsSessionIDDhcpResponse(rsp)
 }
 
 // GetApiV1SessionsSessionIDDiffWithResponse request returning *GetApiV1SessionsSessionIDDiffResponse
@@ -20488,6 +24733,67 @@ func (c *ClientWithResponses) PutApiV1SessionsSessionIDSshWithResponse(ctx conte
 	return ParsePutApiV1SessionsSessionIDSshResponse(rsp)
 }
 
+// GetApiV1SessionsSessionIDSwitchesWithResponse request returning *GetApiV1SessionsSessionIDSwitchesResponse
+func (c *ClientWithResponses) GetApiV1SessionsSessionIDSwitchesWithResponse(ctx context.Context, sessionID string, reqEditors ...RequestEditorFn) (*GetApiV1SessionsSessionIDSwitchesResponse, error) {
+	rsp, err := c.GetApiV1SessionsSessionIDSwitches(ctx, sessionID, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetApiV1SessionsSessionIDSwitchesResponse(rsp)
+}
+
+// PutApiV1SessionsSessionIDSwitchesWithBodyWithResponse request with arbitrary body returning *PutApiV1SessionsSessionIDSwitchesResponse
+func (c *ClientWithResponses) PutApiV1SessionsSessionIDSwitchesWithBodyWithResponse(ctx context.Context, sessionID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutApiV1SessionsSessionIDSwitchesResponse, error) {
+	rsp, err := c.PutApiV1SessionsSessionIDSwitchesWithBody(ctx, sessionID, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutApiV1SessionsSessionIDSwitchesResponse(rsp)
+}
+
+func (c *ClientWithResponses) PutApiV1SessionsSessionIDSwitchesWithResponse(ctx context.Context, sessionID string, body PutApiV1SessionsSessionIDSwitchesJSONRequestBody, reqEditors ...RequestEditorFn) (*PutApiV1SessionsSessionIDSwitchesResponse, error) {
+	rsp, err := c.PutApiV1SessionsSessionIDSwitches(ctx, sessionID, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutApiV1SessionsSessionIDSwitchesResponse(rsp)
+}
+
+// DeleteApiV1SessionsSessionIDSwitchesNameWithResponse request returning *DeleteApiV1SessionsSessionIDSwitchesNameResponse
+func (c *ClientWithResponses) DeleteApiV1SessionsSessionIDSwitchesNameWithResponse(ctx context.Context, sessionID string, name string, reqEditors ...RequestEditorFn) (*DeleteApiV1SessionsSessionIDSwitchesNameResponse, error) {
+	rsp, err := c.DeleteApiV1SessionsSessionIDSwitchesName(ctx, sessionID, name, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteApiV1SessionsSessionIDSwitchesNameResponse(rsp)
+}
+
+// GetApiV1SessionsSessionIDSwitchesNameWithResponse request returning *GetApiV1SessionsSessionIDSwitchesNameResponse
+func (c *ClientWithResponses) GetApiV1SessionsSessionIDSwitchesNameWithResponse(ctx context.Context, sessionID string, name string, reqEditors ...RequestEditorFn) (*GetApiV1SessionsSessionIDSwitchesNameResponse, error) {
+	rsp, err := c.GetApiV1SessionsSessionIDSwitchesName(ctx, sessionID, name, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetApiV1SessionsSessionIDSwitchesNameResponse(rsp)
+}
+
+// PutApiV1SessionsSessionIDSwitchesNameWithBodyWithResponse request with arbitrary body returning *PutApiV1SessionsSessionIDSwitchesNameResponse
+func (c *ClientWithResponses) PutApiV1SessionsSessionIDSwitchesNameWithBodyWithResponse(ctx context.Context, sessionID string, name string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutApiV1SessionsSessionIDSwitchesNameResponse, error) {
+	rsp, err := c.PutApiV1SessionsSessionIDSwitchesNameWithBody(ctx, sessionID, name, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutApiV1SessionsSessionIDSwitchesNameResponse(rsp)
+}
+
+func (c *ClientWithResponses) PutApiV1SessionsSessionIDSwitchesNameWithResponse(ctx context.Context, sessionID string, name string, body PutApiV1SessionsSessionIDSwitchesNameJSONRequestBody, reqEditors ...RequestEditorFn) (*PutApiV1SessionsSessionIDSwitchesNameResponse, error) {
+	rsp, err := c.PutApiV1SessionsSessionIDSwitchesName(ctx, sessionID, name, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutApiV1SessionsSessionIDSwitchesNameResponse(rsp)
+}
+
 // GetApiV1SessionsSessionIDSysctlWithResponse request returning *GetApiV1SessionsSessionIDSysctlResponse
 func (c *ClientWithResponses) GetApiV1SessionsSessionIDSysctlWithResponse(ctx context.Context, sessionID string, reqEditors ...RequestEditorFn) (*GetApiV1SessionsSessionIDSysctlResponse, error) {
 	rsp, err := c.GetApiV1SessionsSessionIDSysctl(ctx, sessionID, reqEditors...)
@@ -20663,6 +24969,32 @@ func (c *ClientWithResponses) PostApiV1SessionsSessionIDValidateWithResponse(ctx
 	return ParsePostApiV1SessionsSessionIDValidateResponse(rsp)
 }
 
+// GetApiV1SessionsSessionIDVpnWithResponse request returning *GetApiV1SessionsSessionIDVpnResponse
+func (c *ClientWithResponses) GetApiV1SessionsSessionIDVpnWithResponse(ctx context.Context, sessionID string, reqEditors ...RequestEditorFn) (*GetApiV1SessionsSessionIDVpnResponse, error) {
+	rsp, err := c.GetApiV1SessionsSessionIDVpn(ctx, sessionID, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetApiV1SessionsSessionIDVpnResponse(rsp)
+}
+
+// PutApiV1SessionsSessionIDVpnWithBodyWithResponse request with arbitrary body returning *PutApiV1SessionsSessionIDVpnResponse
+func (c *ClientWithResponses) PutApiV1SessionsSessionIDVpnWithBodyWithResponse(ctx context.Context, sessionID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutApiV1SessionsSessionIDVpnResponse, error) {
+	rsp, err := c.PutApiV1SessionsSessionIDVpnWithBody(ctx, sessionID, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutApiV1SessionsSessionIDVpnResponse(rsp)
+}
+
+func (c *ClientWithResponses) PutApiV1SessionsSessionIDVpnWithResponse(ctx context.Context, sessionID string, body PutApiV1SessionsSessionIDVpnJSONRequestBody, reqEditors ...RequestEditorFn) (*PutApiV1SessionsSessionIDVpnResponse, error) {
+	rsp, err := c.PutApiV1SessionsSessionIDVpn(ctx, sessionID, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutApiV1SessionsSessionIDVpnResponse(rsp)
+}
+
 // GetApiV1SessionsSessionIDVrfsWithResponse request returning *GetApiV1SessionsSessionIDVrfsResponse
 func (c *ClientWithResponses) GetApiV1SessionsSessionIDVrfsWithResponse(ctx context.Context, sessionID string, reqEditors ...RequestEditorFn) (*GetApiV1SessionsSessionIDVrfsResponse, error) {
 	rsp, err := c.GetApiV1SessionsSessionIDVrfs(ctx, sessionID, reqEditors...)
@@ -20785,6 +25117,58 @@ func (c *ClientWithResponses) PutApiV1SessionsSessionIDWireguardNameWithResponse
 	return ParsePutApiV1SessionsSessionIDWireguardNameResponse(rsp)
 }
 
+// GetApiWebTlsWithResponse request returning *GetApiWebTlsResponse
+func (c *ClientWithResponses) GetApiWebTlsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiWebTlsResponse, error) {
+	rsp, err := c.GetApiWebTls(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetApiWebTlsResponse(rsp)
+}
+
+// GetApiWebTlsFilesNameWithResponse request returning *GetApiWebTlsFilesNameResponse
+func (c *ClientWithResponses) GetApiWebTlsFilesNameWithResponse(ctx context.Context, name string, reqEditors ...RequestEditorFn) (*GetApiWebTlsFilesNameResponse, error) {
+	rsp, err := c.GetApiWebTlsFilesName(ctx, name, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetApiWebTlsFilesNameResponse(rsp)
+}
+
+// PutApiWebTlsFilesNameWithBodyWithResponse request with arbitrary body returning *PutApiWebTlsFilesNameResponse
+func (c *ClientWithResponses) PutApiWebTlsFilesNameWithBodyWithResponse(ctx context.Context, name string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutApiWebTlsFilesNameResponse, error) {
+	rsp, err := c.PutApiWebTlsFilesNameWithBody(ctx, name, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutApiWebTlsFilesNameResponse(rsp)
+}
+
+func (c *ClientWithResponses) PutApiWebTlsFilesNameWithResponse(ctx context.Context, name string, body PutApiWebTlsFilesNameJSONRequestBody, reqEditors ...RequestEditorFn) (*PutApiWebTlsFilesNameResponse, error) {
+	rsp, err := c.PutApiWebTlsFilesName(ctx, name, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutApiWebTlsFilesNameResponse(rsp)
+}
+
+// PostApiWebTlsRenewWithBodyWithResponse request with arbitrary body returning *PostApiWebTlsRenewResponse
+func (c *ClientWithResponses) PostApiWebTlsRenewWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostApiWebTlsRenewResponse, error) {
+	rsp, err := c.PostApiWebTlsRenewWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostApiWebTlsRenewResponse(rsp)
+}
+
+func (c *ClientWithResponses) PostApiWebTlsRenewWithResponse(ctx context.Context, body PostApiWebTlsRenewJSONRequestBody, reqEditors ...RequestEditorFn) (*PostApiWebTlsRenewResponse, error) {
+	rsp, err := c.PostApiWebTlsRenew(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostApiWebTlsRenewResponse(rsp)
+}
+
 // PostApiWireguardKeygenWithResponse request returning *PostApiWireguardKeygenResponse
 func (c *ClientWithResponses) PostApiWireguardKeygenWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PostApiWireguardKeygenResponse, error) {
 	rsp, err := c.PostApiWireguardKeygen(ctx, reqEditors...)
@@ -20809,6 +25193,15 @@ func (c *ClientWithResponses) PostApiWireguardPubkeyWithTextBodyWithResponse(ctx
 		return nil, err
 	}
 	return ParsePostApiWireguardPubkeyResponse(rsp)
+}
+
+// GetApiWireguardStatusWithResponse request returning *GetApiWireguardStatusResponse
+func (c *ClientWithResponses) GetApiWireguardStatusWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetApiWireguardStatusResponse, error) {
+	rsp, err := c.GetApiWireguardStatus(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetApiWireguardStatusResponse(rsp)
 }
 
 // GetApiWsExecWithResponse request returning *GetApiWsExecResponse
@@ -22285,6 +26678,162 @@ func ParseGetApiFailuresIdExportResponse(rsp *http.Response) (*GetApiFailuresIdE
 	return response, nil
 }
 
+// ParseGetApiFlowsResponse parses an HTTP response from a GetApiFlowsWithResponse call
+func ParseGetApiFlowsResponse(rsp *http.Response) (*GetApiFlowsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetApiFlowsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TypesResponseTypesFlowsResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetApiFlowsMetadataResponse parses an HTTP response from a GetApiFlowsMetadataWithResponse call
+func ParseGetApiFlowsMetadataResponse(rsp *http.Response) (*GetApiFlowsMetadataResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetApiFlowsMetadataResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TypesResponseFlowsMetadata
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetApiFlowsSankeyResponse parses an HTTP response from a GetApiFlowsSankeyWithResponse call
+func ParseGetApiFlowsSankeyResponse(rsp *http.Response) (*GetApiFlowsSankeyResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetApiFlowsSankeyResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TypesResponseTypesFlowSankeyResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetApiFlowsSeriesResponse parses an HTTP response from a GetApiFlowsSeriesWithResponse call
+func ParseGetApiFlowsSeriesResponse(rsp *http.Response) (*GetApiFlowsSeriesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetApiFlowsSeriesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TypesResponseTypesFlowSeriesResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetApiFlowsStatusResponse parses an HTTP response from a GetApiFlowsStatusWithResponse call
+func ParseGetApiFlowsStatusResponse(rsp *http.Response) (*GetApiFlowsStatusResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetApiFlowsStatusResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TypesResponseTypesFlowStatus
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetApiFlowsTopResponse parses an HTTP response from a GetApiFlowsTopWithResponse call
+func ParseGetApiFlowsTopResponse(rsp *http.Response) (*GetApiFlowsTopResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetApiFlowsTopResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TypesResponseTypesFlowTopResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseGetApiFriendsResponse parses an HTTP response from a GetApiFriendsWithResponse call
 func ParseGetApiFriendsResponse(rsp *http.Response) (*GetApiFriendsResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -22327,6 +26876,32 @@ func ParsePostApiFriendsResponse(rsp *http.Response) (*PostApiFriendsResponse, e
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest TypesResponseTypesFriendInfo
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetApiFriendsBgpPoliciesResponse parses an HTTP response from a GetApiFriendsBgpPoliciesWithResponse call
+func ParseGetApiFriendsBgpPoliciesResponse(rsp *http.Response) (*GetApiFriendsBgpPoliciesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetApiFriendsBgpPoliciesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TypesResponseRenderFriendBGPImportResult
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -22909,6 +27484,136 @@ func ParseGetApiHaStatusResponse(rsp *http.Response) (*GetApiHaStatusResponse, e
 	return response, nil
 }
 
+// ParsePostApiInstallResponse parses an HTTP response from a PostApiInstallWithResponse call
+func ParsePostApiInstallResponse(rsp *http.Response) (*PostApiInstallResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostApiInstallResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TypesResponseTypesInstallStatus
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetApiInstallDisksResponse parses an HTTP response from a GetApiInstallDisksWithResponse call
+func ParseGetApiInstallDisksResponse(rsp *http.Response) (*GetApiInstallDisksResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetApiInstallDisksResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TypesResponseArrayLiveDisk
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePostApiInstallRebootResponse parses an HTTP response from a PostApiInstallRebootWithResponse call
+func ParsePostApiInstallRebootResponse(rsp *http.Response) (*PostApiInstallRebootResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostApiInstallRebootResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TypesResponseTypesStatusResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetApiInstallStatusResponse parses an HTTP response from a GetApiInstallStatusWithResponse call
+func ParseGetApiInstallStatusResponse(rsp *http.Response) (*GetApiInstallStatusResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetApiInstallStatusResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TypesResponseTypesInstallStatus
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetApiInstallTimezonesResponse parses an HTTP response from a GetApiInstallTimezonesWithResponse call
+func ParseGetApiInstallTimezonesResponse(rsp *http.Response) (*GetApiInstallTimezonesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetApiInstallTimezonesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TypesResponseArrayString
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseGetApiLogsStreamResponse parses an HTTP response from a GetApiLogsStreamWithResponse call
 func ParseGetApiLogsStreamResponse(rsp *http.Response) (*GetApiLogsStreamResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -23133,6 +27838,32 @@ func ParsePutApiNatResponse(rsp *http.Response) (*PutApiNatResponse, error) {
 	return response, nil
 }
 
+// ParseGetApiRoutingBgpNeighborResponse parses an HTTP response from a GetApiRoutingBgpNeighborWithResponse call
+func ParseGetApiRoutingBgpNeighborResponse(rsp *http.Response) (*GetApiRoutingBgpNeighborResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetApiRoutingBgpNeighborResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TypesResponseString
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseGetApiRoutingLearnedResponse parses an HTTP response from a GetApiRoutingLearnedWithResponse call
 func ParseGetApiRoutingLearnedResponse(rsp *http.Response) (*GetApiRoutingLearnedResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -23263,6 +27994,58 @@ func ParsePostApiSetupCompleteResponse(rsp *http.Response) (*PostApiSetupComplet
 	return response, nil
 }
 
+// ParseGetApiSetupHostResponse parses an HTTP response from a GetApiSetupHostWithResponse call
+func ParseGetApiSetupHostResponse(rsp *http.Response) (*GetApiSetupHostResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetApiSetupHostResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TypesResponseTypesSetupHost
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePutApiSetupNetworkResponse parses an HTTP response from a PutApiSetupNetworkWithResponse call
+func ParsePutApiSetupNetworkResponse(rsp *http.Response) (*PutApiSetupNetworkResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PutApiSetupNetworkResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TypesResponseTypesStatusResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseGetApiSetupOnboardingResponse parses an HTTP response from a GetApiSetupOnboardingWithResponse call
 func ParseGetApiSetupOnboardingResponse(rsp *http.Response) (*GetApiSetupOnboardingResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -23367,6 +28150,32 @@ func ParseGetApiSnapshotsResponse(rsp *http.Response) (*GetApiSnapshotsResponse,
 	return response, nil
 }
 
+// ParseGetApiSnapshotsIdArtifactResponse parses an HTTP response from a GetApiSnapshotsIdArtifactWithResponse call
+func ParseGetApiSnapshotsIdArtifactResponse(rsp *http.Response) (*GetApiSnapshotsIdArtifactResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetApiSnapshotsIdArtifactResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TypesResponseTypesArtifactContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParsePostApiSnapshotsIdRestoreResponse parses an HTTP response from a PostApiSnapshotsIdRestoreWithResponse call
 func ParsePostApiSnapshotsIdRestoreResponse(rsp *http.Response) (*PostApiSnapshotsIdRestoreResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -23445,6 +28254,22 @@ func ParseGetApiStatsHistoryResponse(rsp *http.Response) (*GetApiStatsHistoryRes
 	return response, nil
 }
 
+// ParseGetApiStatsLiveResponse parses an HTTP response from a GetApiStatsLiveWithResponse call
+func ParseGetApiStatsLiveResponse(rsp *http.Response) (*GetApiStatsLiveResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetApiStatsLiveResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
 // ParseGetApiStatsLldpResponse parses an HTTP response from a GetApiStatsLldpWithResponse call
 func ParseGetApiStatsLldpResponse(rsp *http.Response) (*GetApiStatsLldpResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -23513,6 +28338,214 @@ func ParseGetApiStatsProcessesResponse(rsp *http.Response) (*GetApiStatsProcesse
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest TypesResponseTypesProcessesResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetApiSwitchModelsResponse parses an HTTP response from a GetApiSwitchModelsWithResponse call
+func ParseGetApiSwitchModelsResponse(rsp *http.Response) (*GetApiSwitchModelsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetApiSwitchModelsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TypesResponseArrayTypesSwitchModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetApiSwitchesResponse parses an HTTP response from a GetApiSwitchesWithResponse call
+func ParseGetApiSwitchesResponse(rsp *http.Response) (*GetApiSwitchesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetApiSwitchesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TypesResponseArrayTypesSwitchStatus
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetApiSwitchesCandidatesResponse parses an HTTP response from a GetApiSwitchesCandidatesWithResponse call
+func ParseGetApiSwitchesCandidatesResponse(rsp *http.Response) (*GetApiSwitchesCandidatesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetApiSwitchesCandidatesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TypesResponseArrayTypesSwitchCandidate
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetApiSwitchesNameResponse parses an HTTP response from a GetApiSwitchesNameWithResponse call
+func ParseGetApiSwitchesNameResponse(rsp *http.Response) (*GetApiSwitchesNameResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetApiSwitchesNameResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TypesResponseTypesSwitchStatus
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteApiSwitchesNameCredentialsResponse parses an HTTP response from a DeleteApiSwitchesNameCredentialsWithResponse call
+func ParseDeleteApiSwitchesNameCredentialsResponse(rsp *http.Response) (*DeleteApiSwitchesNameCredentialsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteApiSwitchesNameCredentialsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TypesResponseTypesStatusResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePutApiSwitchesNameCredentialsResponse parses an HTTP response from a PutApiSwitchesNameCredentialsWithResponse call
+func ParsePutApiSwitchesNameCredentialsResponse(rsp *http.Response) (*PutApiSwitchesNameCredentialsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PutApiSwitchesNameCredentialsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TypesResponseTypesStatusResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetApiSwitchesNamePlanResponse parses an HTTP response from a GetApiSwitchesNamePlanWithResponse call
+func ParseGetApiSwitchesNamePlanResponse(rsp *http.Response) (*GetApiSwitchesNamePlanResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetApiSwitchesNamePlanResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TypesResponseTypesSwitchPlanPreview
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePostApiSwitchesNameRefreshResponse parses an HTTP response from a PostApiSwitchesNameRefreshWithResponse call
+func ParsePostApiSwitchesNameRefreshResponse(rsp *http.Response) (*PostApiSwitchesNameRefreshResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostApiSwitchesNameRefreshResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TypesResponseTypesSwitchStatus
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -23643,6 +28676,32 @@ func ParsePostApiSystemShutdownResponse(rsp *http.Response) (*PostApiSystemShutd
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest TypesResponseTypesStatusResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetApiSystemSysctlResponse parses an HTTP response from a GetApiSystemSysctlWithResponse call
+func ParseGetApiSystemSysctlResponse(rsp *http.Response) (*GetApiSystemSysctlResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetApiSystemSysctlResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TypesResponseArraySysctlParameter
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -24151,6 +29210,58 @@ func ParsePutApiV1SessionsSessionIDConfigResponse(rsp *http.Response) (*PutApiV1
 	}
 
 	response := &PutApiV1SessionsSessionIDConfigResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest map[string]interface{}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetApiV1SessionsSessionIDDhcpResponse parses an HTTP response from a GetApiV1SessionsSessionIDDhcpWithResponse call
+func ParseGetApiV1SessionsSessionIDDhcpResponse(rsp *http.Response) (*GetApiV1SessionsSessionIDDhcpResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetApiV1SessionsSessionIDDhcpResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest map[string]interface{}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePutApiV1SessionsSessionIDDhcpResponse parses an HTTP response from a PutApiV1SessionsSessionIDDhcpWithResponse call
+func ParsePutApiV1SessionsSessionIDDhcpResponse(rsp *http.Response) (*PutApiV1SessionsSessionIDDhcpResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PutApiV1SessionsSessionIDDhcpResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -24922,6 +30033,136 @@ func ParsePutApiV1SessionsSessionIDSshResponse(rsp *http.Response) (*PutApiV1Ses
 	return response, nil
 }
 
+// ParseGetApiV1SessionsSessionIDSwitchesResponse parses an HTTP response from a GetApiV1SessionsSessionIDSwitchesWithResponse call
+func ParseGetApiV1SessionsSessionIDSwitchesResponse(rsp *http.Response) (*GetApiV1SessionsSessionIDSwitchesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetApiV1SessionsSessionIDSwitchesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest map[string]interface{}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePutApiV1SessionsSessionIDSwitchesResponse parses an HTTP response from a PutApiV1SessionsSessionIDSwitchesWithResponse call
+func ParsePutApiV1SessionsSessionIDSwitchesResponse(rsp *http.Response) (*PutApiV1SessionsSessionIDSwitchesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PutApiV1SessionsSessionIDSwitchesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest map[string]interface{}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteApiV1SessionsSessionIDSwitchesNameResponse parses an HTTP response from a DeleteApiV1SessionsSessionIDSwitchesNameWithResponse call
+func ParseDeleteApiV1SessionsSessionIDSwitchesNameResponse(rsp *http.Response) (*DeleteApiV1SessionsSessionIDSwitchesNameResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteApiV1SessionsSessionIDSwitchesNameResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest map[string]interface{}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetApiV1SessionsSessionIDSwitchesNameResponse parses an HTTP response from a GetApiV1SessionsSessionIDSwitchesNameWithResponse call
+func ParseGetApiV1SessionsSessionIDSwitchesNameResponse(rsp *http.Response) (*GetApiV1SessionsSessionIDSwitchesNameResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetApiV1SessionsSessionIDSwitchesNameResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest map[string]interface{}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePutApiV1SessionsSessionIDSwitchesNameResponse parses an HTTP response from a PutApiV1SessionsSessionIDSwitchesNameWithResponse call
+func ParsePutApiV1SessionsSessionIDSwitchesNameResponse(rsp *http.Response) (*PutApiV1SessionsSessionIDSwitchesNameResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PutApiV1SessionsSessionIDSwitchesNameResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest map[string]interface{}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseGetApiV1SessionsSessionIDSysctlResponse parses an HTTP response from a GetApiV1SessionsSessionIDSysctlWithResponse call
 func ParseGetApiV1SessionsSessionIDSysctlResponse(rsp *http.Response) (*GetApiV1SessionsSessionIDSysctlResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -25312,6 +30553,58 @@ func ParsePostApiV1SessionsSessionIDValidateResponse(rsp *http.Response) (*PostA
 	return response, nil
 }
 
+// ParseGetApiV1SessionsSessionIDVpnResponse parses an HTTP response from a GetApiV1SessionsSessionIDVpnWithResponse call
+func ParseGetApiV1SessionsSessionIDVpnResponse(rsp *http.Response) (*GetApiV1SessionsSessionIDVpnResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetApiV1SessionsSessionIDVpnResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TypesResponseConfigVPNConfig
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePutApiV1SessionsSessionIDVpnResponse parses an HTTP response from a PutApiV1SessionsSessionIDVpnWithResponse call
+func ParsePutApiV1SessionsSessionIDVpnResponse(rsp *http.Response) (*PutApiV1SessionsSessionIDVpnResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PutApiV1SessionsSessionIDVpnResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TypesResponseTypesStatusResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseGetApiV1SessionsSessionIDVrfsResponse parses an HTTP response from a GetApiV1SessionsSessionIDVrfsWithResponse call
 func ParseGetApiV1SessionsSessionIDVrfsResponse(rsp *http.Response) (*GetApiV1SessionsSessionIDVrfsResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -25572,6 +30865,110 @@ func ParsePutApiV1SessionsSessionIDWireguardNameResponse(rsp *http.Response) (*P
 	return response, nil
 }
 
+// ParseGetApiWebTlsResponse parses an HTTP response from a GetApiWebTlsWithResponse call
+func ParseGetApiWebTlsResponse(rsp *http.Response) (*GetApiWebTlsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetApiWebTlsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TypesResponseTlscertStatus
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetApiWebTlsFilesNameResponse parses an HTTP response from a GetApiWebTlsFilesNameWithResponse call
+func ParseGetApiWebTlsFilesNameResponse(rsp *http.Response) (*GetApiWebTlsFilesNameResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetApiWebTlsFilesNameResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TypesResponseString
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePutApiWebTlsFilesNameResponse parses an HTTP response from a PutApiWebTlsFilesNameWithResponse call
+func ParsePutApiWebTlsFilesNameResponse(rsp *http.Response) (*PutApiWebTlsFilesNameResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PutApiWebTlsFilesNameResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TypesResponseTlscertStatus
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePostApiWebTlsRenewResponse parses an HTTP response from a PostApiWebTlsRenewWithResponse call
+func ParsePostApiWebTlsRenewResponse(rsp *http.Response) (*PostApiWebTlsRenewResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostApiWebTlsRenewResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TypesResponseTlscertStatus
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParsePostApiWireguardKeygenResponse parses an HTTP response from a PostApiWireguardKeygenWithResponse call
 func ParsePostApiWireguardKeygenResponse(rsp *http.Response) (*PostApiWireguardKeygenResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -25614,6 +31011,32 @@ func ParsePostApiWireguardPubkeyResponse(rsp *http.Response) (*PostApiWireguardP
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest TypesResponseTypesPubKeyResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetApiWireguardStatusResponse parses an HTTP response from a GetApiWireguardStatusWithResponse call
+func ParseGetApiWireguardStatusResponse(rsp *http.Response) (*GetApiWireguardStatusResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetApiWireguardStatusResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TypesResponseArrayTypesWireguardInterfaceStatus
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

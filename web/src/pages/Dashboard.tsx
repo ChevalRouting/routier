@@ -5,19 +5,11 @@ import { PowerControls } from '@/components/system/PowerControls'
 import { SystemOverview } from '@/components/SystemOverview'
 import { api } from '@/lib/client'
 import { useFetch } from '@/lib/useFetch'
-import { Button, Card, CardContent, CardHeader, CardTitle, cn, PageHeader } from 'cheval-ui'
-import {
-  Activity,
-  GitBranch,
-  Handshake,
-  Lock,
-  Network,
-  RefreshCw,
-  Server,
-  Shield, Users,
-} from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle, cn, PageHeader } from 'cheval-ui'
+import { Activity, GitBranch, Handshake, Lock, Network, Server, Shield, Users } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { plural } from '@/lib/utils'
 
 type RoutingShape = { bgp?: BgpShape }
 
@@ -37,11 +29,14 @@ type StatCardShape = {
 
 type IconShape = { className?: string }
 
+type VPNShape = { wireguard?: Record<string, unknown> }
+
+type DashboardInterface = { type?: string }
+
 interface Config {
   hostname?: string
-  interfaces?: Record<string, unknown>
-  tunnels?: Record<string, unknown>
-  wireguard?: Record<string, unknown>
+  interfaces?: Record<string, DashboardInterface>
+  vpn?: VPNShape
   routing?: RoutingShape
   nftables?: unknown[]
   users?: Record<string, unknown>
@@ -50,13 +45,13 @@ interface Config {
 }
 
 function SkeletonBox({ className }: SkeletonBoxShape) {
-  return <div className={`animate-pulse rounded-md bg-muted ${className ?? ''}`} />
+  return <div className={`rounded-md bg-muted ${className ?? ''}`} />
 }
 
 function DashboardSkeleton() {
   return (
     <div className="space-y-5">
-      <PageHeader title="Dashboard" description="Network configuration overview" />
+      <PageHeader title="Dashboard" />
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 8 }).map((_, i) => (
           <div key={i} className="rounded-xl bg-card p-5 min-h-28 shadow-[var(--card-shadow)]">
@@ -110,8 +105,8 @@ export default function Dashboard() {
   if (error) return <div className="text-sm text-danger">Failed to load: {error}</div>
 
   const ifaceCount = Object.keys(config?.interfaces ?? {}).length
-  const tunnelCount = Object.keys(config?.tunnels ?? {}).length
-  const wgCount = Object.keys(config?.wireguard ?? {}).length
+  const tunnelCount = Object.values(config?.interfaces ?? {}).filter((iface) => iface.type === 'tunnel').length
+  const wgCount = Object.keys(config?.vpn?.wireguard ?? {}).length
   const userCount = Object.keys(config?.users ?? {}).length
   const svcCount = Object.keys(config?.services ?? {}).length
   const extraRules = config?.nftables?.length ?? 0
@@ -119,26 +114,9 @@ export default function Dashboard() {
   const friendsAlive = (friendStats ?? []).filter((f) => f.reachable).length
   const bgpCfg = config?.routing?.bgp
 
-  const powerActions = (
-    <>
-      <Button variant="outline" size="sm" onClick={() => setReapplyOpen(true)} className="gap-2">
-        <RefreshCw className="h-4 w-4" />Force Re-apply
-      </Button>
-      <PowerControls />
-    </>
-  )
-
   return (
     <div className="flex flex-col gap-5">
-      <div className="hidden md:block">
-        <PageHeader title="Dashboard" description="Network configuration overview" action={
-          <div className="flex items-center gap-2">{powerActions}</div>
-        } />
-      </div>
-      <div className="md:hidden space-y-3">
-        <PageHeader title="Dashboard" description="Network configuration overview" />
-        <div className="flex flex-wrap items-center gap-2">{powerActions}</div>
-      </div>
+      <PageHeader title="Dashboard" action={<PowerControls onReapply={() => setReapplyOpen(true)} />} />
 
       <ApplyStreamModal open={reapplyOpen} onClose={() => setReapplyOpen(false)} />
 
@@ -175,7 +153,7 @@ export default function Dashboard() {
               ? <span className="text-sm font-medium">BGP AS{bgpCfg.asn}</span>
               : <span className="text-muted-foreground text-base font-normal">no routing</span>
           }
-          sub={bgpCfg ? `${bgpCfg.neighbors?.length ?? 0} neighbor(s)` : undefined}
+          sub={bgpCfg ? plural(bgpCfg.neighbors?.length ?? 0, 'neighbor') : undefined}
         />
       </div>
 

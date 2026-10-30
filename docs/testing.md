@@ -93,3 +93,50 @@ links/addrs/routes; on a host where netlink sockets are unavailable the test
 skips rather than fails. The privileged *write* paths (creating links,
 killing dhcpcd, applying nft) only run for real on an appliance, but every
 package is covered.
+
+## Live DNS transfer verification
+
+`TestDNSLiveTransfers` starts two BIND instances and checks initial AXFR,
+notifications after a serial advance, multiple allowed source IPs, missing or
+wrong keys, and rejection of a valid key from an unauthorized IP. It runs only
+with `ROUTIER_TEST_DNS_LIVE=1` and needs an isolated network namespace with
+loopback addresses `127.0.0.20` and `127.0.0.21`, plus BIND and dig.
+
+```sh
+docker compose -f dev/docker-compose.yml run --rm --no-deps \
+  --cap-add NET_ADMIN --user root --entrypoint sh tools -c '
+    apk add --no-cache bind bind-tools iproute2 &&
+    ip addr add 127.0.0.20/8 dev lo &&
+    ip addr add 127.0.0.21/8 dev lo &&
+    ROUTIER_TEST_DNS_LIVE=1 go test ./tests/render -run TestDNSLiveTransfers -v
+  '
+```
+
+## Link benchmark
+
+`task bench` measures TCP and UDP throughput between routers, loopback to
+loopback, over every directed pair in turn. Each host is given as
+`user@loopback`; the address after `@` is both the SSH target and the address
+iperf3 binds to, so traffic follows the same routed path as inter-router
+traffic.
+
+```sh
+task bench HOSTS="routier@198.51.100.11 routier@198.51.100.12 routier@198.51.100.13"
+task bench HOSTS="routier@198.51.100.11 routier@198.51.100.12" STREAMS=8 UDP_RATES="1G 3G"
+```
+
+| Variable | Default | Meaning |
+|----------|---------|---------|
+| `DURATION` | `8` | seconds per test |
+| `STREAMS` | `1` | parallel TCP streams |
+| `UDP_RATES` | `200M 1G` | UDP target rates, one test each |
+| `UDP_LENGTH` | `1350` | UDP datagram size, below the WireGuard MTU |
+| `PORT` | `5201` | iperf3 port |
+
+The TCP line reports the receiver rate and the sender's retransmits; the UDP
+lines report the received rate, loss and jitter. For the run, each router gets
+iperf3 (installed only if missing), a server bound to its loopback, and an
+input rule accepting the port from the benchmarked loopbacks only, tagged with
+the comment `routier-bench`. All of it is removed on exit, including on
+interrupt; iperf3 is uninstalled only where the run installed it. The rule is
+added outside the config, so an apply during a run removes it.

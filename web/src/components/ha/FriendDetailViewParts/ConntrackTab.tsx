@@ -2,10 +2,10 @@ import type {
   TypesConntrackdStatus as ConntrackdStatus,
   TypesFriendInterface as FriendInterface
 } from '@/api'
-import { Field } from '@/components/ha/FriendDetailView'
+import { Field, LoadingState } from '@/components/ha/FriendDetailView'
 import { api } from '@/lib/client'
 import { useFetch } from '@/lib/useFetch'
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Spinner } from 'cheval-ui'
+import { Button, Card, CardContent, CardHeader, CardTitle, ComboRow, EntryRow, PreferencesGroup, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, StatusChip, SwitchRow } from 'cheval-ui'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -14,7 +14,7 @@ type ConntrackTabShape = { friendName: string; cd?: ConntrackdStatus }
 type ExShape = { interface?: string; address?: string; port?: number; allow_inbound?: boolean }
 
 export function ConntrackTab({ friendName, cd }: ConntrackTabShape) {
-  const { data: cfg } = useFetch(() => api.apiConfigGet() as unknown as Promise<Record<string, unknown>>)
+  const { data: cfg, error: cfgError, reload: reloadCfg } = useFetch(() => api.apiConfigGet() as unknown as Promise<Record<string, unknown>>)
   const { data: selfIfaces } = useFetch(() => api.apiFriendsInterfacesGet())
   const { data: friendIfaces } = useFetch(() => api.apiFriendsNameInterfacesGet({ name: friendName }))
   const [localSel, setLocalSel] = useState('')
@@ -38,7 +38,7 @@ export function ConntrackTab({ friendName, cd }: ConntrackTabShape) {
 
   const ipSelect = (value: string, set: (v: string) => void, ifs: FriendInterface[] | null) => (
     <Select value={value} onValueChange={set}>
-      <SelectTrigger className="h-9"><SelectValue placeholder="select IP" /></SelectTrigger>
+      <SelectTrigger><SelectValue placeholder="Select address" /></SelectTrigger>
       <SelectContent>
         {opts(ifs).map((o) => (
           <SelectItem key={`${o.iface}|${o.addr}`} value={`${o.iface}|${o.addr}`} className="font-mono">{o.addr} ({o.iface})</SelectItem>
@@ -54,13 +54,17 @@ export function ConntrackTab({ friendName, cd }: ConntrackTabShape) {
     if (!fi || !fa) { toast.error("Select the friend's sync IP"); return }
     setSaving(true)
     try {
-      await api.apiFriendsNameConntrackPost({ name: friendName, TypesConfigureConntrackRequest: {
+      const res = await api.apiFriendsNameConntrackPost({ name: friendName, TypesConfigureConntrackRequest: {
         local_interface: li, local_address: la,
         friend_interface: fi, friend_address: fa,
         ...(port ? { port: Number(port) } : {}),
         allow_inbound: allowInbound,
       } })
-      toast.success('conntrackd configured and applied on both sides')
+      if (res.warning) {
+        toast.warning(`conntrackd applied with warnings: ${res.warning}`)
+      } else {
+        toast.success('conntrackd configured and applied on both sides')
+      }
     } catch (e) {
       toast.error((e as Error).message)
     } finally {
@@ -71,48 +75,29 @@ export function ConntrackTab({ friendName, cd }: ConntrackTabShape) {
   return (
     <div className="space-y-4">
       <Card>
-        <CardHeader><CardTitle>Conntrackd status</CardTitle></CardHeader>
-        <CardContent className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm md:grid-cols-3">
-          <Field label="Running" value={<Badge variant={cd?.running ? 'success' : 'destructive'}>{cd?.running ? 'yes' : 'no'}</Badge>} />
-          <Field label="Tracked entries" value={cd?.entries} />
+        <CardHeader><CardTitle>Conntrackd Status</CardTitle></CardHeader>
+        <CardContent className="grid grid-cols-1 gap-x-6 gap-y-3 text-sm sm:grid-cols-2 md:grid-cols-3">
+          <Field label="Running" value={<StatusChip intent={cd?.running ? 'success' : 'danger'} label={cd?.running ? 'Running' : 'Stopped'} />} />
+          <Field label="Tracked Entries" value={cd?.entries} />
           {cd?.by_proto && Object.entries(cd.by_proto).map(([p, n]) => <Field key={p} label={`${p} entries`} value={n} />)}
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader><CardTitle>Configure conntrackd with this friend</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          {!cfg ? <Spinner /> : (
-            <>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Our sync IP</label>
-                  {ipSelect(localSel, setLocalSel, selfIfaces)}
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Friend sync IP</label>
-                  {ipSelect(friendSel, setFriendSel, friendIfaces ?? null)}
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Port (optional)</label>
-                  <Input value={port} onChange={(e) => setPort(e.target.value)} className="font-mono text-sm" placeholder="3780" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Allow inbound</label>
-                  <div>
-                    <button type="button" onClick={() => setAllowInbound((v) => !v)}>
-                      <Badge variant={allowInbound ? 'success' : 'outline'} className="cursor-pointer">{allowInbound ? 'yes' : 'no'}</Badge>
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <Button onClick={save} disabled={saving}>{saving ? 'Applying…' : 'Configure & apply on both sides'}</Button>
-            </>
+      {!cfg ? <LoadingState error={cfgError} onRetry={() => reloadCfg(true)} /> : (
+        <PreferencesGroup
+          title="Configure conntrackd With This Friend"
+          header={(
+            <Button variant="suggested" onClick={save} disabled={saving || !localSel || !friendSel}>
+              {saving ? 'Applying…' : 'Configure & Apply on Both Sides'}
+            </Button>
           )}
-        </CardContent>
-      </Card>
+        >
+          <ComboRow title="Our Sync Address">{ipSelect(localSel, setLocalSel, selfIfaces)}</ComboRow>
+          <ComboRow title="Friend Sync Address">{ipSelect(friendSel, setFriendSel, friendIfaces ?? null)}</ComboRow>
+          <EntryRow title="Port" value={port} onChange={(e) => setPort(e.target.value)} className="font-mono" placeholder="3780" />
+          <SwitchRow title="Allow Inbound" checked={allowInbound} onCheckedChange={setAllowInbound} />
+        </PreferencesGroup>
+      )}
     </div>
   )
 }

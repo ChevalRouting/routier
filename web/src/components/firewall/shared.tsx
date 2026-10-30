@@ -1,8 +1,8 @@
 import type { TypesNftValidateResult as NftValidateResult, RenderNftVar as NftVar } from '@/api'
 import { nftAutocomplete, nftErrorHighlight, nftExtensions, nftTheme } from '@/lib/nftables-lang'
 import CodeMirror from '@uiw/react-codemirror'
-import { Badge } from 'cheval-ui'
-import { AlertCircle, CheckCircle2, EyeOff, Loader2 } from 'lucide-react'
+import { Badge, Spinner } from 'cheval-ui'
+import { AlertCircle, CheckCircle2, EyeOff } from 'lucide-react'
 import { useMemo } from 'react'
 
 type OWNEDCHAINSShape = { name: string; kind: 'filter' | 'nat'; defPolicy: string }
@@ -49,6 +49,7 @@ export interface NftChain {
 }
 
 export interface NftablesConfig {
+  disable_auto_rules?: boolean
   defines?: string
   chains?: Record<string, NftChain>
   include?: string[]
@@ -90,7 +91,7 @@ export function emptyRule(): ManagedRule {
 
 export function fromApi(raw: unknown): NftablesConfig {
   const r = (raw && typeof raw === 'object') ? raw as NftablesConfig : {}
-  return { defines: r.defines ?? '', chains: r.chains ?? {}, include: r.include ?? [] }
+  return { disable_auto_rules: r.disable_auto_rules ?? false, defines: r.defines ?? '', chains: r.chains ?? {}, include: r.include ?? [] }
 }
 
 export function trimRuleBlock(s: string): string {
@@ -120,6 +121,7 @@ export function cleanChain(ch: NftChain): NftChain | null {
 
 export function toApi(cfg: NftablesConfig): NftablesConfig {
   const out: NftablesConfig = {}
+  if (cfg.disable_auto_rules) out.disable_auto_rules = true
   if (cfg.defines && cfg.defines.trim()) out.defines = trimRuleBlock(cfg.defines)
   const chains: Record<string, NftChain> = {}
   for (const [name, ch] of Object.entries(cfg.chains ?? {})) {
@@ -198,8 +200,8 @@ export function RuleSummary({ rule, index }: RuleSummaryShape) {
       <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">
         {ruleSummary(rule)}
       </span>
-      {rule.tag && <Badge variant="secondary" className="shrink-0 text-[10px]">{rule.tag}</Badge>}
-      <span className={`shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium ${actionColor}`}>
+      {rule.tag && <Badge variant="secondary" className="shrink-0 text-xs">{rule.tag}</Badge>}
+      <span className={`shrink-0 rounded px-1.5 py-0.5 text-xs font-medium ${actionColor}`}>
         {rule.action}
       </span>
       {rule.disabled && <EyeOff className="h-3 w-3 shrink-0 text-muted-foreground" />}
@@ -213,7 +215,7 @@ export function ValidationStrip({ validating, result }: ValidationStripShape) {
   if (validating && !result) {
     return (
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <Loader2 className="h-3.5 w-3.5 animate-spin" />Checking ruleset…
+        <Spinner size="sm" />Checking ruleset…
       </div>
     )
   }
@@ -236,7 +238,7 @@ export function ValidationStrip({ validating, result }: ValidationStripShape) {
       </div>
       <ul className="space-y-0.5">
         {errors.map((e, i) => (
-          <li key={i} className="font-mono text-[11px] text-danger/90">
+          <li key={i} className="font-mono text-xs text-danger/90">
             {e.section ? `${e.section} ` : ''}{e.line > 0 ? `line ${e.line}: ` : ''}{e.message}
           </li>
         ))}

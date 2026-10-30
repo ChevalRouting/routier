@@ -207,7 +207,7 @@ routing:
 	}
 
 	for name, yaml := range cases {
-		t.Run(name, func(t *testing.T) { testValidateDuplicateSeqCallback(yaml, t) })
+		t.Run(name, func(t *testing.T) { checkDuplicateSeqRejected(yaml, t) })
 	}
 }
 
@@ -230,6 +230,68 @@ routing:
 
 	if msg := validateErr(t, yaml); msg != "" {
 		t.Fatalf("expected distinct seqs to pass, got: %s", msg)
+	}
+}
+
+func TestValidateFriendPolicyRefsAccepted(t *testing.T) {
+	yaml := `version: v3.0.0
+hostname: gw
+routing:
+  bgp:
+    asn: 65000
+    router_id: 10.0.0.1
+    neighbors:
+      - address: 10.0.0.2
+        remote_asn: 65001
+        address_families:
+          ipv4-unicast:
+            route_map_in: friends_edge-b_IN
+            prefix_list_out: friends_edge-b_LOCAL
+`
+
+	if msg := validateErr(t, yaml); msg != "" {
+		t.Fatalf("expected friends_-prefixed refs to pass, got: %s", msg)
+	}
+}
+
+func TestValidateSharedPolicyMustExist(t *testing.T) {
+	yaml := `version: v3.0.0
+hostname: gw
+routing:
+  bgp:
+    asn: 65000
+    router_id: 10.0.0.1
+    prefix_lists:
+      BOGONS:
+        - { seq: 5, action: deny, prefix: "10.0.0.0/8" }
+    shared_prefix_lists: [BOGONS]
+    shared_route_maps: [NOPE]
+`
+
+	msg := validateErr(t, yaml)
+	if strings.Contains(msg, "shared_prefix_lists") {
+		t.Fatalf("existing shared prefix list should pass, got: %s", msg)
+	}
+
+	if !strings.Contains(msg, `shared_route_maps: "NOPE" not found`) {
+		t.Fatalf("expected missing shared route-map rejection, got: %s", msg)
+	}
+}
+
+func TestValidateFriendPolicyNameReserved(t *testing.T) {
+	yaml := `version: v3.0.0
+hostname: gw
+routing:
+  bgp:
+    asn: 65000
+    router_id: 10.0.0.1
+    route_maps:
+      friends_edge-b_IN:
+        - { seq: 5, action: permit }
+`
+
+	if msg := validateErr(t, yaml); !strings.Contains(msg, "reserved for imported friend policy") {
+		t.Fatalf("expected reserved-name rejection, got: %s", msg)
 	}
 }
 
@@ -418,7 +480,7 @@ interfaces:
 	}
 
 	for name, yaml := range cases {
-		t.Run(name, func(t *testing.T) { testValidateRejectsReservedDeviceNamesCallback(yaml, t) })
+		t.Run(name, func(t *testing.T) { checkReservedDeviceNameRejected(yaml, t) })
 	}
 }
 
@@ -515,7 +577,7 @@ interfaces:
 	}
 
 	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) { testValidateVXLANExternalRejectedCallback(&tc, t) })
+		t.Run(name, func(t *testing.T) { checkVXLANExternalRejected(&tc, t) })
 	}
 }
 
@@ -645,7 +707,7 @@ interfaces:
 	}
 
 	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) { testValidateBondRejectedCallback(&tc, t) })
+		t.Run(name, func(t *testing.T) { checkBondRejected(&tc, t) })
 	}
 }
 
@@ -765,7 +827,7 @@ routing:
 	}
 
 	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) { testValidateBGPVPNRouteMapsCallback(&tc, t) })
+		t.Run(name, func(t *testing.T) { checkBGPVPNRouteMaps(&tc, t) })
 	}
 }
 
@@ -794,14 +856,14 @@ type validateBondRejectedCase struct{ yaml, want string }
 
 type validateBGPVPNRouteMapsCase struct{ yaml, want string }
 
-func testValidateDuplicateSeqCallback(yaml string, t *testing.T) {
+func checkDuplicateSeqRejected(yaml string, t *testing.T) {
 	msg := validateErr(t, yaml)
 	if !strings.Contains(msg, "duplicate seq") {
 		t.Fatalf("expected duplicate seq error, got: %q", msg)
 	}
 }
 
-func testValidateRejectsReservedDeviceNamesCallback(yaml string, t *testing.T) {
+func checkReservedDeviceNameRejected(yaml string, t *testing.T) {
 	got := validateErr(t, yaml)
 	if got == "" {
 		t.Fatal("expected validation error")
@@ -812,23 +874,245 @@ func testValidateRejectsReservedDeviceNamesCallback(yaml string, t *testing.T) {
 	}
 }
 
-func testValidateVXLANExternalRejectedCallback(tc *validateVXLANExternalRejectedCase, t *testing.T) {
-	msg := validateErr(t, (*tc).yaml)
-	if !strings.Contains(msg, (*tc).want) {
-		t.Fatalf("expected error containing %q, got: %s", (*tc).want, msg)
+func checkVXLANExternalRejected(tc *validateVXLANExternalRejectedCase, t *testing.T) {
+	msg := validateErr(t, tc.yaml)
+	if !strings.Contains(msg, tc.want) {
+		t.Fatalf("expected error containing %q, got: %s", tc.want, msg)
 	}
 }
 
-func testValidateBondRejectedCallback(tc *validateBondRejectedCase, t *testing.T) {
-	msg := validateErr(t, (*tc).yaml)
-	if !strings.Contains(msg, (*tc).want) {
-		t.Fatalf("expected error containing %q, got: %s", (*tc).want, msg)
+func checkBondRejected(tc *validateBondRejectedCase, t *testing.T) {
+	msg := validateErr(t, tc.yaml)
+	if !strings.Contains(msg, tc.want) {
+		t.Fatalf("expected error containing %q, got: %s", tc.want, msg)
 	}
 }
 
-func testValidateBGPVPNRouteMapsCallback(tc *validateBGPVPNRouteMapsCase, t *testing.T) {
-	msg := validateErr(t, (*tc).yaml)
-	if !strings.Contains(msg, (*tc).want) {
-		t.Fatalf("expected error containing %q, got: %s", (*tc).want, msg)
+func checkBGPVPNRouteMaps(tc *validateBGPVPNRouteMapsCase, t *testing.T) {
+	msg := validateErr(t, tc.yaml)
+	if !strings.Contains(msg, tc.want) {
+		t.Fatalf("expected error containing %q, got: %s", tc.want, msg)
+	}
+}
+
+const dhcpHABase = `version: v3.0.0
+hostname: gw1
+interfaces:
+  lan:
+    select: name=eth0
+    addresses: ["10.0.0.1/24"]
+  sync:
+    select: name=eth1
+    addresses: ["10.9.0.1/30"]
+dhcp:
+  enabled: true
+  subnets4:
+    - subnet: 10.0.0.0/24
+      interface: lan
+  ha:
+    enabled: true
+    interface: sync
+`
+
+func TestValidateDHCPHA(t *testing.T) {
+	valid := map[string]string{
+		"hot standby": dhcpHABase + `    peers:
+      - {name: gw1, address: 10.9.0.1, role: primary}
+      - {name: gw2, address: 10.9.0.2, role: standby}
+`,
+		"load balancing with a backup": dhcpHABase + `    mode: load-balancing
+    peers:
+      - {name: gw1, address: 10.9.0.1, role: primary}
+      - {name: gw2, address: 10.9.0.2, role: secondary}
+      - {name: gw3, address: 10.9.0.3, role: backup}
+`,
+	}
+
+	for name, yaml := range valid {
+		t.Run(name, func(t *testing.T) {
+			if msg := validateErr(t, yaml); msg != "" {
+				t.Fatalf("expected valid dhcp ha config, got: %s", msg)
+			}
+		})
+	}
+
+	invalid := map[string]string{
+		"unknown mode": dhcpHABase + `    mode: active-active
+    peers:
+      - {name: gw1, address: 10.9.0.1, role: primary}
+      - {name: gw2, address: 10.9.0.2, role: standby}
+`,
+		"unknown interface": strings.Replace(dhcpHABase, "interface: sync", "interface: wan", 1) + `    peers:
+      - {name: gw1, address: 10.9.0.1, role: primary}
+      - {name: gw2, address: 10.9.0.2, role: standby}
+`,
+		"secondary in hot standby": dhcpHABase + `    peers:
+      - {name: gw1, address: 10.9.0.1, role: primary}
+      - {name: gw2, address: 10.9.0.2, role: secondary}
+`,
+		"two primaries": dhcpHABase + `    peers:
+      - {name: gw1, address: 10.9.0.1, role: primary}
+      - {name: gw2, address: 10.9.0.2, role: primary}
+`,
+		"this server missing": dhcpHABase + `    peers:
+      - {name: gw2, address: 10.9.0.2, role: primary}
+      - {name: gw3, address: 10.9.0.3, role: standby}
+`,
+		"bad address": dhcpHABase + `    peers:
+      - {name: gw1, address: sync, role: primary}
+      - {name: gw2, address: 10.9.0.2, role: standby}
+`,
+		"same ports": dhcpHABase + `    port: 8006
+    peers:
+      - {name: gw1, address: 10.9.0.1, role: primary}
+      - {name: gw2, address: 10.9.0.2, role: standby}
+`,
+	}
+
+	for name, yaml := range invalid {
+		t.Run(name, func(t *testing.T) {
+			if validateErr(t, yaml) == "" {
+				t.Fatal("expected validation error")
+			}
+		})
+	}
+}
+
+func TestValidateVRRPPrepend(t *testing.T) {
+	base := `version: v3.0.0
+hostname: gw
+interfaces:
+  lan:
+    select: name=eth0
+    addresses: ["10.0.0.1/24"]
+ha:
+  vrrp:
+    - id: 51
+      interface: lan
+      vips: ["10.0.0.254/24"]
+      bgp_prepend:
+`
+
+	bgp := `routing:
+  bgp:
+    asn: 65010
+    router_id: 10.0.0.1
+    neighbors:
+      - {address: 192.0.2.1, remote_asn: 64500}
+`
+
+	if msg := validateErr(t, base+"        count: 2\n"+bgp); msg != "" {
+		t.Fatalf("expected a valid prepend, got: %s", msg)
+	}
+
+	invalid := map[string]string{
+		"without bgp":      base + "        count: 2\n",
+		"count too high":   base + "        count: 20\n" + bgp,
+		"unknown neighbor": base + "        neighbors: [198.51.100.1]\n" + bgp,
+		"bad prefix":       base + "        prefixes: [10.0.0.0/33]\n" + bgp,
+	}
+
+	for name, yaml := range invalid {
+		t.Run(name, func(t *testing.T) {
+			if validateErr(t, yaml) == "" {
+				t.Fatal("expected validation error")
+			}
+		})
+	}
+}
+
+func TestValidateUsers(t *testing.T) {
+	base := "version: v3.0.0\nhostname: gw\nusers:\n"
+	if got := validateErr(t, base+"  ops:\n    groups: [wheel]\n    shell: /bin/ash\n    password_hash: \"$6$salt$hash\"\n"); got != "" {
+		t.Fatalf("valid user rejected: %s", got)
+	}
+
+	for user, want := range map[string]string{
+		"  \"-o\": {}\n": "name must start",
+		"  ops:\n    password_hash: \"$6$x\\nroot:$6$y\"\n": "single crypt hash",
+		"  ops:\n    home: home/ops\n":                      "home must be an absolute path",
+		"  ops:\n    groups: [\"wheel adm\"]\n":             "not a valid group name",
+	} {
+		if got := validateErr(t, base+user); !strings.Contains(got, want) {
+			t.Errorf("%q: got %q, want %q", user, got, want)
+		}
+	}
+}
+
+func TestValidatePBRSetVRF(t *testing.T) {
+	accepted := `version: v3.0.0
+hostname: gw
+routing:
+  pbr:
+    maps:
+      P1:
+        - { seq: 10, match_dst: 100.64.0.0/10, set_vrf: unchanged }
+        - { seq: 20, match_src: 192.0.2.56/32, set_nexthop: 198.51.100.11 }
+`
+
+	if msg := validateErr(t, accepted); msg != "" {
+		t.Fatalf("expected set_vrf unchanged to pass, got: %s", msg)
+	}
+
+	cases := map[string]string{
+		"unknown vrf": `version: v3.0.0
+hostname: gw
+routing:
+  pbr:
+    maps:
+      P1:
+        - { seq: 10, set_vrf: missing }
+`,
+		"two actions": `version: v3.0.0
+hostname: gw
+routing:
+  pbr:
+    maps:
+      P1:
+        - { seq: 10, set_vrf: unchanged, set_nexthop: 10.0.0.2 }
+`,
+	}
+
+	for name, yaml := range cases {
+		t.Run(name, func(t *testing.T) { checkRejected(yaml, t) })
+	}
+}
+
+func TestValidateStaticRouteType(t *testing.T) {
+	accepted := `version: v3.0.0
+hostname: gw
+routing:
+  static:
+    - { destination: 10.0.0.0/8, type: blackhole }
+    - { destination: 172.16.0.0/12, type: unreachable }
+`
+
+	if msg := validateErr(t, accepted); msg != "" {
+		t.Fatalf("expected typed routes to pass, got: %s", msg)
+	}
+
+	cases := map[string]string{
+		"unknown type": `version: v3.0.0
+hostname: gw
+routing:
+  static:
+    - { destination: 10.0.0.0/8, type: drop }
+`,
+		"blackhole with via": `version: v3.0.0
+hostname: gw
+routing:
+  static:
+    - { destination: 10.0.0.0/8, type: blackhole, via: 192.0.2.1 }
+`,
+	}
+
+	for name, yaml := range cases {
+		t.Run(name, func(t *testing.T) { checkRejected(yaml, t) })
+	}
+}
+
+func checkRejected(yaml string, t *testing.T) {
+	if msg := validateErr(t, yaml); msg == "" {
+		t.Fatal("expected validation error")
 	}
 }

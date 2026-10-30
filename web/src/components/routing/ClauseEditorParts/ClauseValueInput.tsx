@@ -13,7 +13,7 @@ export function ClauseValueInput({
 }: ClauseValueInputShape) {
   const cls = 'font-mono h-7 text-xs'
   if (op?.kind === 'none') {
-    return <div className="flex h-7 items-center px-1 text-xs text-muted-foreground italic">no value needed</div>
+    return <div className="flex h-7 items-center px-1 text-xs text-muted-foreground">no value needed</div>
   }
   if (op?.kind === 'prefix-list') {
     return (

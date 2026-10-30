@@ -84,3 +84,11 @@ function formatV6(n: bigint): string {
   }
   return groups.join(':')
 }
+
+export function cidrContains(cidr: string, ip: string): boolean {
+  const slash = cidr.indexOf('/')
+  if (slash < 0) return false
+
+  const net = cidrNetwork(cidr)
+  return net !== null && net === cidrNetwork(`${ip}${cidr.slice(slash)}`)
+}

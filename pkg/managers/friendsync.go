@@ -174,13 +174,14 @@ func pushToFriend(f *config.Friend, payload PushPayload) error {
 		return fmt.Errorf("marshal payload: %w", err)
 	}
 
-	return pushImportApply(friendClient(f), f, data)
+	_, err = pushImportApply(friendClient(f), f, data)
+	return err
 }
 
 func PushWireguardCounterpart(f *config.Friend, version, name string, wg *config.Wireguard) error {
 	payload := PushPayload{Config: &config.Config{
-		Version:   version,
-		Wireguard: map[string]*config.Wireguard{name: wg},
+		Version: version,
+		VPN:     config.VPNConfig{Wireguard: map[string]*config.Wireguard{name: wg}},
 	}}
 
 	return pushToFriend(f, payload)

@@ -35,10 +35,14 @@ func runBootHook(_ *cobra.Command, args []string) error {
 
 func bootHookPre() error {
 	if err := os.MkdirAll(filepath.Dir(kernelStateFile), 0755); err != nil {
+		warn("cannot record the running kernel before the upgrade: %v", err)
 		return nil
 	}
 
-	_ = os.WriteFile(kernelStateFile, []byte(kernelFingerprint()), 0644)
+	if err := os.WriteFile(kernelStateFile, []byte(kernelFingerprint()), 0644); err != nil {
+		warn("cannot record the running kernel before the upgrade: %v", err)
+	}
+
 	return nil
 }
 
@@ -47,7 +51,7 @@ func bootHookPost() error {
 	_ = os.Remove(kernelStateFile)
 
 	after := kernelFingerprint()
-	if err == nil && strings.TrimSpace(string(before)) == after {
+	if err != nil || strings.TrimSpace(string(before)) == after {
 		return nil
 	}
 
@@ -56,7 +60,7 @@ func bootHookPost() error {
 		return nil
 	}
 
-	chosen, note, rerr := boot.Reconcile("/", boot.HostArch())
+	chosen, written, note, rerr := boot.Reconcile("/", boot.HostArch())
 	if rerr != nil {
 		warn("could not update the bootloader: %v. Verify /boot before rebooting.", rerr)
 		return nil
@@ -66,7 +70,10 @@ func bootHookPost() error {
 		warn("%s", note)
 	}
 
-	_, _ = fmt.Fprintf(os.Stderr, "routier: bootloader set to boot linux-%s (%s)\n", chosen.Flavor, chosen.Version)
+	if written {
+		_, _ = fmt.Fprintf(os.Stderr, "routier: bootloader set to boot linux-%s (%s)\n", chosen.Flavor, chosen.Version)
+	}
+
 	return nil
 }
 
@@ -86,4 +93,23 @@ func kernelFingerprint() string {
 
 func warn(format string, args ...any) {
 	_, _ = fmt.Fprintf(os.Stderr, "routier: "+format+"\n", args...)
+}
+
+func newGrubConfigCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:    "grub-config <flavor>",
+		Short:  "print the grub.cfg routier maintains for a kernel flavor",
+		Hidden: true,
+		Args:   cobra.ExactArgs(1),
+		RunE:   runGrubConfig,
+	}
+	cmd.Flags().String("root-args", boot.DefaultRootArgs, "kernel root= and rootfstype= arguments")
+
+	return cmd
+}
+
+func runGrubConfig(cmd *cobra.Command, args []string) error {
+	rootArgs, _ := cmd.Flags().GetString("root-args")
+	_, _ = fmt.Fprint(cmd.OutOrStdout(), boot.GrubConfig(boot.HostArch(), args[0], rootArgs))
+	return nil
 }

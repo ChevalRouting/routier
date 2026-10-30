@@ -95,7 +95,7 @@ func handleV1PutSysctlKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := v1Mutate(r, func(c *config.Config) error { return handleV1PutSysctlKeyCallback(key, &body, c) }); err != nil {
+	if err := v1Mutate(r, func(c *config.Config) error { return putSysctlKey(key, &body, c) }); err != nil {
 		types.Error(log.Logger, w, err)
 		return
 	}
@@ -113,7 +113,7 @@ func handleV1PutSysctlKey(w http.ResponseWriter, r *http.Request) {
 // @Router /api/v1/sessions/{sessionID}/sysctl/{key} [delete]
 func handleV1DeleteSysctlKey(w http.ResponseWriter, r *http.Request) {
 	key := chi.URLParam(r, "key")
-	if err := v1Mutate(r, func(c *config.Config) error { return handleV1DeleteSysctlKeyCallback(key, c) }); err != nil {
+	if err := v1Mutate(r, func(c *config.Config) error { return deleteSysctlKey(key, c) }); err != nil {
 		types.Error(log.Logger, w, err)
 		return
 	}
@@ -121,16 +121,16 @@ func handleV1DeleteSysctlKey(w http.ResponseWriter, r *http.Request) {
 	types.OK(w, types.StatusResponse{Status: "deleted"})
 }
 
-func handleV1PutSysctlKeyCallback(key string, body *putSysctlKeyBody, c *config.Config) error {
+func putSysctlKey(key string, body *putSysctlKeyBody, c *config.Config) error {
 	if c.Sysctl == nil {
 		c.Sysctl = make(map[string]string)
 	}
 
-	c.Sysctl[key] = (*body).Value
+	c.Sysctl[key] = body.Value
 	return nil
 }
 
-func handleV1DeleteSysctlKeyCallback(key string, c *config.Config) error {
+func deleteSysctlKey(key string, c *config.Config) error {
 	if _, exists := c.Sysctl[key]; !exists {
 		return types.Errorf(http.StatusNotFound, "sysctl key %q not found", key)
 	}

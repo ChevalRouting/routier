@@ -1,8 +1,7 @@
 import { DiffView, withContext, type ViewLine } from '@/components/DiffView'
 import { ApplyDialogProps } from '@/components/macros/shared'
 import { api } from '@/lib/client'
-import { Button, Dialog } from 'cheval-ui'
-import { RefreshCw } from 'lucide-react'
+import { Button, Dialog, Spinner } from 'cheval-ui'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -62,19 +61,18 @@ export function ApplyDialog({ macro, onClose, onApplied }: ApplyDialogProps) {
             disabled={applying || !!diffError}
             className="gap-2"
           >
-            {applying && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
-            {applying ? 'Applying...' : 'Apply'}
+            {applying ? 'Applying…' : 'Apply'}
           </Button>
         </>
       }
     >
       {diffError && (
-        <p className="text-sm text-destructive">{diffError}</p>
+        <p className="text-sm text-danger">{diffError}</p>
       )}
 
       {!diffError && loadingDiff && (
         <div className="flex items-center justify-center h-32">
-          <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
+          <Spinner />
         </div>
       )}
 
@@ -82,7 +80,7 @@ export function ApplyDialog({ macro, onClose, onApplied }: ApplyDialogProps) {
         diffLines.length === 0
           ? (
             <p className="text-sm text-muted-foreground text-center py-10">
-              No changes, macro result is identical to current config.
+              No changes
             </p>
           )
           : (

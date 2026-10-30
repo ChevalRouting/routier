@@ -152,7 +152,7 @@ func logicalLines(content string) []logicalLine {
 		blank bool
 	)
 
-	flush := func() { logicalLinesCallback(&out, &buf, blank) }
+	flush := func() { flushLogicalLine(&out, &buf, blank) }
 
 	for _, line := range strings.Split(content, "\n") {
 		stripped := stripComment(line)
@@ -238,9 +238,9 @@ func relativeOwner(absolute, origin string) string {
 	return strings.TrimSuffix(absolute, ".")
 }
 
-func logicalLinesCallback(out *[]logicalLine, buf *strings.Builder, blank bool) {
-	if (*buf).Len() > 0 {
-		(*out) = append((*out), logicalLine{text: (*buf).String(), ownerBlank: blank})
-		(*buf).Reset()
+func flushLogicalLine(out *[]logicalLine, buf *strings.Builder, blank bool) {
+	if buf.Len() > 0 {
+		*out = append(*out, logicalLine{text: buf.String(), ownerBlank: blank})
+		buf.Reset()
 	}
 }

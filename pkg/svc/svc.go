@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -45,7 +44,7 @@ func runCmdOutput(args []string, timeout time.Duration) error {
 	return err
 }
 
-func Reload(actions []Action, dryRun bool) error {
+func Reload(actions []Action, dryRun bool, warnings *[]string) error {
 	for _, a := range actions {
 		if dryRun {
 			log.Info().Strs("cmd", a.Args).Msgf("would: %s", a.Desc)
@@ -56,6 +55,10 @@ func Reload(actions []Action, dryRun bool) error {
 		if err := runCmdOutput(a.Args, a.Timeout); err != nil {
 			if a.BestEffort {
 				log.Warn().Err(err).Msgf("%s failed (best-effort, continuing)", a.Desc)
+				if warnings != nil {
+					*warnings = append(*warnings, fmt.Sprintf("%s failed: %v", a.Desc, err))
+				}
+
 				continue
 			}
 
@@ -89,14 +92,62 @@ type reloadConfig struct {
 	KeaDHCP6    bool
 	KeaDDNS     bool
 	Named       bool
-	Wireguard   []string
 
 	NamedZones []string
 }
 
-func ReloadFromOutputs(names []string, cfg *config.Config, dryRun bool, skipWireguard bool) error {
-	rc := reloadConfig{}
+var reconcileNetworkLinks = netlink.ReconcileLinksWithVPN
 
+var reconcileNetworkState = netlink.ReconcileAddressesAndRoutes
+
+func ReloadFromOutputs(names []string, cfg *config.Config, dryRun bool, warn ...*[]string) error {
+	r := &reload{rc: parseReloadConfig(names), cfg: cfg, dryRun: dryRun, vpn: planVPN(names, cfg)}
+	if len(warn) > 0 {
+		r.warnings = warn[0]
+	}
+
+	if err := Reload(r.moduleActions(), dryRun, r.warnings); err != nil {
+		return err
+	}
+
+	if err := r.reconcileNetwork(); err != nil {
+		return err
+	}
+
+	if err := Reload(r.firewallActions(), dryRun, r.warnings); err != nil {
+		return err
+	}
+
+	actions, err := r.reloadFRR()
+	if err != nil {
+		return err
+	}
+
+	if err := Reload(append(actions, r.serviceActions()...), dryRun, r.warnings); err != nil {
+		return err
+	}
+
+	if dryRun {
+		return nil
+	}
+
+	if err := r.applyRuntime(); err != nil {
+		return err
+	}
+
+	return applyDNSVRFs(cfg)
+}
+
+type reload struct {
+	rc       reloadConfig
+	cfg      *config.Config
+	dryRun   bool
+	warnings *[]string
+	vpn      vpnPlan
+}
+
+func parseReloadConfig(names []string) reloadConfig {
+	rc := reloadConfig{}
 	for _, n := range names {
 		switch n {
 		case "sysctl/routier.conf":
@@ -134,144 +185,168 @@ func ReloadFromOutputs(names []string, cfg *config.Config, dryRun bool, skipWire
 		if strings.HasPrefix(n, render.NamedZoneName) {
 			rc.NamedZones = append(rc.NamedZones, render.ZoneOriginFromName(n))
 		}
+	}
 
-		if strings.HasPrefix(n, "wireguard/") && strings.HasSuffix(n, ".conf") {
-			wg := strings.TrimSuffix(strings.TrimPrefix(n, "wireguard/"), ".conf")
-			rc.Wireguard = append(rc.Wireguard, wg)
+	return rc
+}
+
+func (r *reload) moduleActions() []Action {
+	if !r.rc.ModulesLoad || r.cfg == nil {
+		return nil
+	}
+
+	actions := make([]Action, 0, len(r.cfg.BootModules))
+	for _, mod := range r.cfg.BootModules {
+		actions = append(actions, Action{Desc: "load kernel module " + mod, Args: []string{"modprobe", mod}, BestEffort: true})
+	}
+
+	return actions
+}
+
+func (r *reload) applyVPN() error {
+	return applyVPN(r.cfg, r.vpn, r.dryRun, r.warnings)
+}
+
+func (r *reload) reconcileNetwork() error {
+	switch {
+	case r.cfg == nil:
+		if err := r.applyVPN(); err != nil {
+			return err
 		}
-	}
-
-	if skipWireguard {
-		rc.Wireguard = nil
-	}
-
-	if cfg != nil && !skipWireguard {
-		queued := make(map[string]bool, len(rc.Wireguard))
-		for _, wg := range rc.Wireguard {
-			queued[wg] = true
+	case r.dryRun:
+		log.Info().Msg("would: reconcile network")
+		if err := r.applyVPN(); err != nil {
+			return err
 		}
-
-		for name := range cfg.Wireguard {
-			if queued[name] {
-				continue
-			}
-
-			if !netlink.LinkExists(name) {
-				log.Info().Str("interface", name).Msg("wireguard interface missing, bringing it up")
-				rc.Wireguard = append(rc.Wireguard, name)
-			}
-		}
-	}
-
-	var pre []Action
-	if rc.Sysctl {
-		pre = append(pre, Action{Desc: "apply sysctl", Args: []string{"sysctl", "-p", "/etc/sysctl.d/99-routier.conf"}})
-	}
-
-	if cfg != nil {
-		if dryRun {
-			log.Info().Msg("would: reconcile network")
-		} else {
-			if len(cfg.VRFs) > 0 {
-				if err := ensureModule("vrf"); err != nil {
-					return err
-				}
-			}
-
-			if err := netlink.Reconcile(cfg, dryRun); err != nil {
+	default:
+		if len(r.cfg.VRFs) > 0 {
+			if err := ensureModule("vrf"); err != nil {
 				return err
 			}
 		}
+
+		if err := reconcileNetworkLinks(r.cfg, r.dryRun, r.applyVPN); err != nil {
+			return err
+		}
 	}
 
-	if rc.Nftables {
-		pre = append(pre,
-			Action{Desc: "validate nftables", Args: []string{"nft", "-c", "-f", "/etc/nftables.d/routier.nft"}},
-			Action{Desc: "load nftables", Args: []string{"nft", "-f", "/etc/nftables.d/routier.nft"}},
-		)
+	var sysctl []Action
+	if r.rc.Sysctl {
+		sysctl = append(sysctl, Action{Desc: "apply sysctl", Args: []string{"sysctl", "-p", "/etc/sysctl.d/99-routier.conf"}})
 	}
 
-	if err := Reload(pre, dryRun); err != nil {
+	if err := Reload(sysctl, r.dryRun, r.warnings); err != nil {
 		return err
 	}
 
-	var actions []Action
-	if rc.FRRConf || rc.FRRDaemons {
-		if rc.FRRDaemons && frrStatus() == svcStarted {
-
-			if dryRun {
-				log.Info().Msg("would: validate frr config")
-				log.Info().Msg("would: restart frr (daemons changed)")
-			} else {
-				if err := runCmdOutput([]string{"vtysh", "-C", "-f", "/etc/frr/frr.conf"}, 0); err != nil {
-					return err
-				}
-
-				if err := frrRestart(); err != nil {
-					return err
-				}
-			}
-		} else if rc.FRRDaemons {
-			if dryRun {
-				log.Info().Msg("would: start frr (daemons changed)")
-			} else if err := frrStart(); err != nil {
-				return err
-			}
-		} else if frrStatus() == svcStarted {
-			if script := frrReloadScript(); script != "" {
-				actions = append(actions, Action{
-					Desc: "validate frr config",
-					Args: []string{"vtysh", "-C", "-f", "/etc/frr/frr.conf"},
-				})
-				actions = append(actions, Action{
-					Desc:    "reload frr config",
-					Args:    []string{script, "--reload", "/etc/frr/frr.conf"},
-					Timeout: 60 * time.Second,
-				})
-			} else {
-				if dryRun {
-					log.Info().Msg("would: validate frr config")
-					log.Info().Msg("would: restart frr (no reload script)")
-				} else {
-					if err := runCmdOutput([]string{"vtysh", "-C", "-f", "/etc/frr/frr.conf"}, 0); err != nil {
-						return err
-					}
-
-					if err := frrRestart(); err != nil {
-						return err
-					}
-				}
-			}
-		} else {
-			if dryRun {
-				log.Info().Msg("would: start frr")
-			} else if frrStatus() == svcCrashed {
-				if err := frrRestart(); err != nil {
-					return err
-				}
-			} else {
-				if err := frrStart(); err != nil {
-					return err
-				}
-			}
-		}
+	if r.cfg == nil || r.dryRun {
+		return nil
 	}
 
+	return reconcileNetworkState(r.cfg, r.dryRun)
+}
+
+func (r *reload) firewallActions() []Action {
+	if !r.rc.Nftables {
+		return nil
+	}
+
+	return []Action{
+		{Desc: "validate nftables", Args: []string{"nft", "-c", "-f", "/etc/nftables.d/routier.nft"}},
+		{Desc: "load nftables", Args: []string{"nft", "-f", "/etc/nftables.d/routier.nft"}},
+	}
+}
+
+func (r *reload) validateAndRestartFRR(reason string) error {
+	if r.dryRun {
+		log.Info().Msg("would: validate frr config")
+		log.Info().Msgf("would: restart frr (%s)", reason)
+		return nil
+	}
+
+	if err := runCmdOutput([]string{"vtysh", "-C", "-f", "/etc/frr/frr.conf"}, 0); err != nil {
+		return err
+	}
+
+	return frrRestart()
+}
+
+func (r *reload) startFRR(dryRunMsg string, restartCrashed bool) error {
+	if r.dryRun {
+		log.Info().Msg(dryRunMsg)
+		return nil
+	}
+
+	if restartCrashed && frrStatus() == svcCrashed {
+		return frrRestart()
+	}
+
+	return frrStart()
+}
+
+func (r *reload) reloadFRR() ([]Action, error) {
+	if !r.rc.FRRConf && !r.rc.FRRDaemons {
+		return nil, nil
+	}
+
+	running := frrStatus() == svcStarted
+	switch {
+	case r.rc.FRRDaemons && running:
+		return nil, r.validateAndRestartFRR("daemons changed")
+	case r.rc.FRRDaemons:
+		return nil, r.startFRR("would: start frr (daemons changed)", false)
+	case !running:
+		return nil, r.startFRR("would: start frr", true)
+	}
+
+	script := frrReloadScript()
+	if script == "" {
+		return nil, r.validateAndRestartFRR("no reload script")
+	}
+
+	return []Action{
+		{Desc: "validate frr config", Args: []string{"vtysh", "-C", "-f", "/etc/frr/frr.conf"}},
+		{Desc: "reload frr config", Args: []string{script, "--reload", "/etc/frr/frr.conf"}, Timeout: 60 * time.Second},
+	}, nil
+}
+
+func reloadOrStart(service string, validate *Action) []Action {
+	var actions []Action
+	if validate != nil {
+		actions = append(actions, *validate)
+	}
+
+	if ServiceRunning(service) {
+		return append(actions, Action{Desc: "reload " + service, Args: []string{"rc-service", service, "reload"}})
+	}
+
+	return append(actions, startAction(service))
+}
+
+func namedSetupActions() []Action {
+	return []Action{
+		{Desc: "ensure named log dir", Args: []string{"install", "-d", "-m", "0750", "-o", "named", "-g", "named", filepath.Dir(render.NamedLog)}, BestEffort: true},
+		{Desc: "ensure named run dir", Args: []string{"install", "-d", "-m", "0755", "-o", "named", "-g", "named", render.NamedRunDir}, BestEffort: true},
+		{Desc: "ensure named work dir", Args: []string{"install", "-d", "-m", "0755", "-o", "named", "-g", "named", filepath.Dir(render.NamedStats)}, BestEffort: true},
+		{Desc: "ensure named zone dir", Args: []string{"install", "-d", "-m", "0755", "-o", "named", "-g", "named", render.NamedZoneDir}},
+		{Desc: "ensure rndc key", Args: []string{"sh", "-c", "test -s " + bind.RndcKey + " || rndc-confgen -a -c " + bind.RndcKey}, BestEffort: true},
+		{Desc: "own named config", Args: []string{"chown", "root:named", render.NamedConfDest}},
+		{Desc: "protect named config", Args: []string{"chmod", "0640", render.NamedConfDest}},
+		{Desc: "own rndc key", Args: []string{"chown", "named:named", bind.RndcKey}, BestEffort: true},
+		{Desc: "protect rndc key", Args: []string{"chmod", "0640", bind.RndcKey}, BestEffort: true},
+	}
+}
+
+func (r *reload) serviceActions() []Action {
+	rc := r.rc
+	var actions []Action
 	if rc.Keepalived {
-		if ServiceRunning("keepalived") {
-			actions = append(actions, Action{Desc: "reload keepalived", Args: []string{"rc-service", "keepalived", "reload"}})
-		} else {
-			actions = append(actions, startAction("keepalived"))
-		}
+		actions = append(actions, Action{Desc: "ensure keepalived run dir", Args: []string{"install", "-d", "-m", "0755", "/run/keepalived"}, BestEffort: true})
+		actions = append(actions, reloadOrStart("keepalived", nil)...)
 	}
 
 	if rc.RADVD {
-		actions = append(actions, Action{Desc: "validate radvd config", Args: []string{"radvd", "-C", "/etc/radvd.conf", "-c"}})
-		if ServiceRunning("radvd") {
-			actions = append(actions, Action{Desc: "reload radvd", Args: []string{"rc-service", "radvd", "reload"}})
-		} else {
-			actions = append(actions, startAction("radvd"))
-		}
+		actions = append(actions, reloadOrStart("radvd", &Action{Desc: "validate radvd config", Args: []string{"radvd", "-C", "/etc/radvd.conf", "-c"}})...)
 	}
 
 	if rc.LLDP && ServiceRunning("lldpd") {
@@ -279,13 +354,13 @@ func ReloadFromOutputs(names []string, cfg *config.Config, dryRun bool, skipWire
 	}
 
 	if rc.Conntrackd {
+		restart := startAction("conntrackd")
 		if ServiceRunning("conntrackd") {
-			actions = append(actions, Action{Desc: "restart conntrackd", Args: []string{"rc-service", "conntrackd", "restart"}, BestEffort: true})
-		} else {
-			a := startAction("conntrackd")
-			a.BestEffort = true
-			actions = append(actions, a)
+			restart = Action{Desc: "restart conntrackd", Args: []string{"rc-service", "conntrackd", "restart"}}
 		}
+
+		restart.BestEffort = true
+		actions = append(actions, restart)
 	}
 
 	if rc.SSH {
@@ -303,100 +378,40 @@ func ReloadFromOutputs(names []string, cfg *config.Config, dryRun bool, skipWire
 	}
 
 	if rc.Named || len(rc.NamedZones) > 0 {
-		actions = append(actions,
-			Action{Desc: "ensure named log dir", Args: []string{"install", "-d", "-m", "0750", "-o", "named", "-g", "named", filepath.Dir(render.NamedLog)}, BestEffort: true},
-			Action{Desc: "ensure named run dir", Args: []string{"install", "-d", "-m", "0755", "-o", "named", "-g", "named", render.NamedRunDir}, BestEffort: true},
-			Action{Desc: "ensure named work dir", Args: []string{"install", "-d", "-m", "0755", "-o", "named", "-g", "named", filepath.Dir(render.NamedStats)}, BestEffort: true},
-			Action{Desc: "ensure named zone dir", Args: []string{"install", "-d", "-m", "0755", "-o", "named", "-g", "named", render.NamedZoneDir}},
-			Action{Desc: "ensure rndc key", Args: []string{"sh", "-c", "test -s " + bind.RndcKey + " || rndc-confgen -a -c " + bind.RndcKey}, BestEffort: true},
-			Action{Desc: "own rndc key", Args: []string{"chown", "named:named", bind.RndcKey}, BestEffort: true},
-			Action{Desc: "protect rndc key", Args: []string{"chmod", "0640", bind.RndcKey}, BestEffort: true},
-		)
+		actions = append(actions, namedSetupActions()...)
 	}
 
-	if rc.ModulesLoad && cfg != nil {
-		for _, mod := range cfg.BootModules {
-			actions = append(actions, Action{
-				Desc:       "load kernel module " + mod,
-				Args:       []string{"modprobe", mod},
-				BestEffort: true,
-			})
+	return actions
+}
+
+func (r *reload) applyRuntime() error {
+	rc := r.rc
+	if rc.Named || len(rc.NamedZones) > 0 {
+		if err := applyNamed(rc, r.cfg); err != nil {
+			return err
 		}
 	}
 
-	var removedWG []string
-	if cfg != nil {
-		desired := make(map[string]bool, len(cfg.Wireguard))
-		for name := range cfg.Wireguard {
-			desired[name] = true
-		}
-
-		seen := map[string]bool{}
-		for _, wg := range append(netlink.ManagedWireguardLinks(), managedWireguardConfs()...) {
-			if desired[wg] || seen[wg] {
-				continue
-			}
-
-			seen[wg] = true
-			removedWG = append(removedWG, wg)
-		}
-
-		sort.Strings(removedWG)
-		for _, wg := range removedWG {
-			actions = append(actions, Action{
-				Desc:       "wireguard down " + wg + " (removed)",
-				Args:       []string{"wg-quick", "down", wg},
-				BestEffort: true,
-			})
+	if rc.KeaDDNS {
+		if err := applyKeaDDNS(); err != nil {
+			return err
 		}
 	}
 
-	for _, wg := range rc.Wireguard {
-		actions = append(actions,
-			Action{
-				Desc:       "wireguard down " + wg,
-				Args:       []string{"wg-quick", "down", wg},
-				BestEffort: true,
-			},
-			Action{
-				Desc: "wireguard up " + wg,
-				Args: []string{"wg-quick", "up", wg},
-			},
-		)
+	if rc.KeaDHCP4 {
+		if err := applyKeaServer("kea-dhcp4", "dhcp4"); err != nil {
+			return err
+		}
 	}
 
-	if err := Reload(actions, dryRun); err != nil {
-		return err
+	if rc.KeaDHCP6 {
+		if err := applyKeaServer("kea-dhcp6", "dhcp6"); err != nil {
+			return err
+		}
 	}
 
-	if !dryRun {
-		for _, wg := range removedWG {
-			pruneWireguardConf(wg)
-		}
-
-		if rc.Named || len(rc.NamedZones) > 0 {
-			if err := applyNamed(rc, cfg); err != nil {
-				return err
-			}
-		}
-
-		if rc.KeaDDNS {
-			if err := applyKeaDDNS(); err != nil {
-				return err
-			}
-		}
-
-		if rc.KeaDHCP4 {
-			if err := applyKeaServer("kea-dhcp4", "dhcp4"); err != nil {
-				return err
-			}
-		}
-
-		if rc.KeaDHCP6 {
-			if err := applyKeaServer("kea-dhcp6", "dhcp6"); err != nil {
-				return err
-			}
-		}
+	if rc.FRRConf || rc.FRRDaemons || rc.Keepalived {
+		syncVRRPHooks(r.cfg)
 	}
 
 	return nil
@@ -499,6 +514,7 @@ func applyNamed(rc reloadConfig, cfg *config.Config) error {
 	if cerr == nil {
 		if err := client.Reconfig(); err == nil {
 			log.Info().Msg("named: reconfigured")
+			syncNamedQueryLog(client, cfg)
 			return nil
 		} else {
 			log.Warn().Err(err).Msg("named: rndc reconfig failed, falling back")
@@ -516,6 +532,13 @@ func applyNamed(rc reloadConfig, cfg *config.Config) error {
 	return nil
 }
 
+func syncNamedQueryLog(client *bind.Client, cfg *config.Config) {
+	on := cfg.DNS != nil && cfg.DNS.Server != nil && cfg.DNS.Server.LogQueries
+	if err := client.QueryLog(on); err != nil {
+		log.Warn().Err(err).Bool("on", on).Msg("named: could not switch query logging")
+	}
+}
+
 func syncDDNSZone(client *bind.Client, cfg *config.Config, zone string) error {
 	path := filepath.Join(render.NamedZoneDir, render.ZoneFileName(zone))
 
@@ -524,7 +547,7 @@ func syncDDNSZone(client *bind.Client, cfg *config.Config, zone string) error {
 	}
 
 	thawed := false
-	thaw := func() { syncDDNSZoneCallback(client, zone, &thawed) }
+	thaw := func() { thawZoneOnce(client, zone, &thawed) }
 	defer thaw()
 
 	frozen, err := os.ReadFile(path)
@@ -788,6 +811,7 @@ type serviceEntry struct {
 	name       string
 	needed     bool
 	bestEffort bool
+	afterLinks bool
 }
 
 func ReconcileServices(cfg *config.Config, dryRun bool) error {
@@ -846,9 +870,9 @@ func ReconcileServices(cfg *config.Config, dryRun bool) error {
 		{name: "radvd", needed: needRAVD},
 		{name: "lldpd", needed: needLLDP, bestEffort: true},
 		{name: "conntrackd", needed: needConntrackd, bestEffort: true},
-		{name: "kea-dhcp4", needed: needKeaV4, bestEffort: true},
-		{name: "kea-dhcp6", needed: needKeaV6, bestEffort: true},
-		{name: "kea-dhcp-ddns", needed: needKeaDDNS, bestEffort: true},
+		{name: "kea-dhcp4", needed: needKeaV4, bestEffort: true, afterLinks: true},
+		{name: "kea-dhcp6", needed: needKeaV6, bestEffort: true, afterLinks: true},
+		{name: "kea-dhcp-ddns", needed: needKeaDDNS, bestEffort: true, afterLinks: true},
 		{name: "named", needed: render.LocalDNSServerEnabled(cfg), bestEffort: true},
 	}
 
@@ -887,7 +911,7 @@ func ReconcileServices(cfg *config.Config, dryRun bool) error {
 			}
 		}
 
-		setBootRunlevel(s.name, s.needed, dryRun)
+		setBootRunlevel(s.name, s.needed && !s.afterLinks, dryRun)
 	}
 
 	setBootRunlevel("frr", needFRR, dryRun)
@@ -928,12 +952,12 @@ func inDefaultRunlevel(name string) bool {
 	return false
 }
 
-func syncDDNSZoneCallback(client *bind.Client, zone string, thawed *bool) {
+func thawZoneOnce(client *bind.Client, zone string, thawed *bool) {
 	if *thawed {
 		return
 	}
 
-	(*thawed) = true
+	*thawed = true
 	if err := client.Thaw(zone); err != nil {
 		log.Warn().Err(err).Str("zone", zone).Msg("named: thaw failed")
 	}

@@ -1,8 +1,8 @@
 import type { TypesLLDPNeighbor as LLDPNeighbor, TypesNeighbor as Neighbor } from '@/api'
 import { LLDPTable, NeighborTable } from '@/components/monitor/NeighborsPanel'
 import { api } from '@/lib/client'
-import { Button, Input, Spinner } from 'cheval-ui'
-import { RefreshCw, Search } from 'lucide-react'
+import { Input, Spinner, ReloadButton } from 'cheval-ui'
+import { Search } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 export function NeighborsPanel() {
@@ -43,9 +43,7 @@ export function NeighborsPanel() {
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {lastUpdated && <span className="text-xs text-muted-foreground hidden sm:inline">{lastUpdated.toLocaleTimeString()}</span>}
-          <Button variant="outline" size="sm" onClick={refresh} disabled={loading} className="gap-1.5">
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />Refresh
-          </Button>
+          <ReloadButton onClick={refresh} loading={loading} />
         </div>
       </div>
 

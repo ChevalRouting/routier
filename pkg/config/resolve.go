@@ -19,15 +19,11 @@ func ResolveInterfaces(cfg *Config) {
 
 func resolveInterfaces(cfg *Config, add addfunc) {
 	for name, iface := range cfg.Interfaces {
-		resolveBridgeMembers := func() { resolveInterfacesCallback(cfg, add, name, iface) }
-
-		resolveBondMembers := func() { resolveInterfacesCallback2(cfg, add, name, iface) }
-
 		switch iface.Type {
-		case "dummy", "bridge", "vxlan", "bond", "vlan":
+		case "dummy", "bridge", "vxlan", "bond", "vlan", "vxlan-bridge", "vnet", "tunnel":
 			iface.Device = name
-			resolveBridgeMembers()
-			resolveBondMembers()
+			resolveBridgeMembers(cfg, add, name, iface)
+			resolveBondMembers(cfg, add, name, iface)
 		default:
 			if iface.Bridge != nil {
 				iface.Device = iface.Select
@@ -35,7 +31,7 @@ func resolveInterfaces(cfg *Config, add addfunc) {
 					add("interfaces.%s: select %q is used as the bridge device name and %s", name, iface.Select, ifnameRule)
 				}
 
-				resolveBridgeMembers()
+				resolveBridgeMembers(cfg, add, name, iface)
 			} else {
 				dev, err := resolveSelector(iface.Select)
 				if err != nil {
@@ -50,9 +46,10 @@ func resolveInterfaces(cfg *Config, add addfunc) {
 
 	if cfg.HA != nil {
 		for i, v := range cfg.HA.VRRP {
+			v.TrackDevices = make([]string, 0, len(v.TrackInterfaces))
 			for j, sel := range v.TrackInterfaces {
 				if iface, ok := cfg.Interfaces[sel]; ok {
-					v.TrackInterfaces[j] = iface.Device
+					v.TrackDevices = append(v.TrackDevices, iface.Device)
 				} else {
 					dev, err := resolveSelector(sel)
 					if err != nil {
@@ -60,7 +57,7 @@ func resolveInterfaces(cfg *Config, add addfunc) {
 						continue
 					}
 
-					v.TrackInterfaces[j] = dev
+					v.TrackDevices = append(v.TrackDevices, dev)
 				}
 			}
 		}
@@ -80,7 +77,7 @@ func resolveInterfaces(cfg *Config, add addfunc) {
 func resolveMemberDevice(cfg *Config, sel string) (string, error) {
 	if member, ok := cfg.Interfaces[sel]; ok {
 		switch member.Type {
-		case "dummy", "bridge", "vxlan", "bond":
+		case "dummy", "bridge", "vxlan", "bond", "vlan", "vxlan-bridge", "vnet", "tunnel":
 			return sel, nil
 		default:
 			return resolveSelector(member.Select)
@@ -124,7 +121,7 @@ func ResolveMACAt(root, mac string) (string, error) {
 		return "", err
 	}
 
-	var physical, virtual []string
+	var physical, virtual, stacked []string
 	for _, e := range entries {
 		base := filepath.Join(root, e.Name())
 		data, err := os.ReadFile(filepath.Join(base, "bonding_slave", "perm_hwaddr"))
@@ -136,9 +133,12 @@ func ResolveMACAt(root, mac string) (string, error) {
 			continue
 		}
 
-		if _, err := os.Stat(filepath.Join(base, "device")); err == nil {
+		switch {
+		case hasSysfsEntry(base, "device"):
 			physical = append(physical, e.Name())
-		} else {
+		case isStackedDevice(base):
+			stacked = append(stacked, e.Name())
+		default:
 			virtual = append(virtual, e.Name())
 		}
 	}
@@ -146,6 +146,10 @@ func ResolveMACAt(root, mac string) (string, error) {
 	matches := physical
 	if len(matches) == 0 {
 		matches = virtual
+	}
+
+	if len(matches) == 0 {
+		matches = stacked
 	}
 
 	if len(matches) == 1 {
@@ -157,6 +161,16 @@ func ResolveMACAt(root, mac string) (string, error) {
 	}
 
 	return "", fmt.Errorf("mac(%s): no interface found", mac)
+}
+
+func hasSysfsEntry(base, name string) bool {
+	_, err := os.Stat(filepath.Join(base, name))
+	return err == nil
+}
+
+func isStackedDevice(base string) bool {
+	uevent, err := os.ReadFile(filepath.Join(base, "uevent"))
+	return err == nil && strings.Contains(string(uevent), "DEVTYPE=")
 }
 
 func listNetDevices(prefix string) ([]string, error) {
@@ -184,7 +198,7 @@ func checkIfaceExists(name string) error {
 	return nil
 }
 
-func resolveInterfacesCallback(cfg *Config, add addfunc, name string, iface *Interface) {
+func resolveBridgeMembers(cfg *Config, add addfunc, name string, iface *Interface) {
 	if iface.Bridge == nil {
 		return
 	}
@@ -201,7 +215,7 @@ func resolveInterfacesCallback(cfg *Config, add addfunc, name string, iface *Int
 	}
 }
 
-func resolveInterfacesCallback2(cfg *Config, add addfunc, name string, iface *Interface) {
+func resolveBondMembers(cfg *Config, add addfunc, name string, iface *Interface) {
 	if iface.Bond == nil {
 		return
 	}

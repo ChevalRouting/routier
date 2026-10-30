@@ -8,6 +8,7 @@ type IfaceStats struct {
 	RxErrors  uint64 `json:"rx_errors"`
 	TxErrors  uint64 `json:"tx_errors"`
 	OperState string `json:"operstate"`
+	Alias     string `json:"alias,omitempty" validate:"optional"`
 }
 
 type ProtoStats struct {

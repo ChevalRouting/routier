@@ -20,8 +20,8 @@ func serveCmd() *cobra.Command {
 		Version:       version(),
 		SilenceUsage:  true,
 		SilenceErrors: true,
-		RunE: func(cmd *cobra.Command, unusedArg3 []string) error {
-			return serveCmdCallback(configPath, logLevel, cmd, unusedArg3)
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runServe(configPath, logLevel, cmd)
 		},
 	}
 
@@ -31,7 +31,7 @@ func serveCmd() *cobra.Command {
 	return cmd
 }
 
-func serveCmdCallback(configPath string, logLevel string, cmd *cobra.Command, _ []string) error {
+func runServe(configPath string, logLevel string, cmd *cobra.Command) error {
 	lvl, err := zerolog.ParseLevel(logLevel)
 	if err != nil {
 		return fmt.Errorf("invalid log level %q", logLevel)

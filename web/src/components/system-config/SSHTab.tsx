@@ -4,7 +4,7 @@ import { useDataRefresh } from '@/lib/dataVersion'
 import { useFetch } from '@/lib/useFetch'
 import { usePageSave } from '@/lib/usePageSave'
 import { checkPort } from '@/lib/validate'
-import { Button, ComboRow, EntryRow, Input, PreferencesGroup, PreferencesGroups, Row, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Spinner } from 'cheval-ui'
+import { Button, ComboRow, EntryRow, Input, PreferencesGroup, Row, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Spinner } from 'cheval-ui'
 import { Plus, X } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 
@@ -90,35 +90,35 @@ export function SSHTab({ onStateChange }: SSHTabShape) {
   if (isLoading) return <Spinner />
 
   return (
-    <PreferencesGroups className="max-w-4xl">
+    <div className="max-w-3xl space-y-6">
       <PreferencesGroup title="Connection">
         <EntryRow title="Port" value={port} onChange={(e) => { setPort(e.target.value); markDirty() }} placeholder="22 (default)" className="font-mono" error={checkPort(port)} />
-        <EntryRow title="Max auth tries" value={maxAuthTries} onChange={(e) => { setMaxAuthTries(e.target.value); markDirty() }} placeholder="6 (default)" className="font-mono" />
-        <EntryRow title="Login grace time (s)" value={loginGraceTime} onChange={(e) => { setLoginGraceTime(e.target.value); markDirty() }} placeholder="120 (default)" className="font-mono" />
-        <EntryRow title="Client alive interval (s)" value={clientAliveInterval} onChange={(e) => { setClientAliveInterval(e.target.value); markDirty() }} placeholder="0 (disabled)" className="font-mono" />
-        <EntryRow title="Client alive count max" value={clientAliveCountMax} onChange={(e) => { setClientAliveCountMax(e.target.value); markDirty() }} placeholder="3 (default)" className="font-mono" />
+        <EntryRow title="Max Auth Tries" value={maxAuthTries} onChange={(e) => { setMaxAuthTries(e.target.value); markDirty() }} placeholder="6 (default)" className="font-mono" />
+        <EntryRow title="Login Grace Time (s)" value={loginGraceTime} onChange={(e) => { setLoginGraceTime(e.target.value); markDirty() }} placeholder="120 (default)" className="font-mono" />
+        <EntryRow title="Client Alive Interval (s)" value={clientAliveInterval} onChange={(e) => { setClientAliveInterval(e.target.value); markDirty() }} placeholder="0 (disabled)" className="font-mono" />
+        <EntryRow title="Client Alive Count Max" value={clientAliveCountMax} onChange={(e) => { setClientAliveCountMax(e.target.value); markDirty() }} placeholder="3 (default)" className="font-mono" />
       </PreferencesGroup>
 
       <PreferencesGroup title="Authentication">
-        <ComboRow title="Permit root login">{optionSelect(permitRootLogin, setPermitRootLogin, ROOT_LOGIN_OPTS)}</ComboRow>
-        <ComboRow title="Password authentication">{optionSelect(passwordAuth, setPasswordAuth, YES_NO)}</ComboRow>
-        <ComboRow title="Pubkey authentication">{optionSelect(pubkeyAuth, setPubkeyAuth, YES_NO)}</ComboRow>
+        <ComboRow title="Permit Root Login">{optionSelect(permitRootLogin, setPermitRootLogin, ROOT_LOGIN_OPTS)}</ComboRow>
+        <ComboRow title="Password Authentication">{optionSelect(passwordAuth, setPasswordAuth, YES_NO)}</ComboRow>
+        <ComboRow title="Pubkey Authentication">{optionSelect(pubkeyAuth, setPubkeyAuth, YES_NO)}</ComboRow>
       </PreferencesGroup>
 
       <PreferencesGroup title="Forwarding">
-        <ComboRow title="Allow TCP forwarding">{optionSelect(allowTcpForwarding, setAllowTcpForwarding, TCP_FWD_OPTS)}</ComboRow>
-        <ComboRow title="X11 forwarding">{optionSelect(x11Forwarding, setX11Forwarding, YES_NO)}</ComboRow>
+        <ComboRow title="Allow TCP Forwarding">{optionSelect(allowTcpForwarding, setAllowTcpForwarding, TCP_FWD_OPTS)}</ComboRow>
+        <ComboRow title="X11 Forwarding">{optionSelect(x11Forwarding, setX11Forwarding, YES_NO)}</ComboRow>
       </PreferencesGroup>
 
-      <PreferencesGroup title="Allow users" description="When empty, all users may log in.">
+      <PreferencesGroup title="Allow Users" description="Empty allows every user">
         {allowUsers.map((u) => (
           <Row key={u} title={<span className="font-mono">{u}</span>}>
-            <button onClick={() => { setAllowUsers(allowUsers.filter((x) => x !== u)); markDirty() }} className="text-muted-foreground hover:text-destructive" aria-label={`Remove ${u}`}>
+            <Button variant="ghost" size="icon" onClick={() => { setAllowUsers(allowUsers.filter((x) => x !== u)); markDirty() }} className="text-muted-foreground hover:text-destructive" aria-label={`Remove ${u}`} title="Remove">
               <X className="h-4 w-4" />
-            </button>
+            </Button>
           </Row>
         ))}
-        <ComboRow title="Add user">
+        <ComboRow title="Add User">
 <div className="flex w-full items-center gap-2">
           <Input value={newUser} onChange={(e) => setNewUser(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addToList(allowUsers, setAllowUsers, newUser, setNewUser)} placeholder="username" className="min-w-0 flex-1 bg-transparent font-mono text-sm text-foreground outline-none placeholder:text-muted-foreground/50" />
           <Button variant="ghost" size="sm" onClick={() => addToList(allowUsers, setAllowUsers, newUser, setNewUser)} className="shrink-0 gap-1"><Plus className="h-4 w-4" />Add</Button>
@@ -126,15 +126,15 @@ export function SSHTab({ onStateChange }: SSHTabShape) {
 </ComboRow>
       </PreferencesGroup>
 
-      <PreferencesGroup title="Allow groups" description="When empty, all groups may log in.">
+      <PreferencesGroup title="Allow Groups" description="Empty allows every group">
         {allowGroups.map((g) => (
           <Row key={g} title={<span className="font-mono">{g}</span>}>
-            <button onClick={() => { setAllowGroups(allowGroups.filter((x) => x !== g)); markDirty() }} className="text-muted-foreground hover:text-destructive" aria-label={`Remove ${g}`}>
+            <Button variant="ghost" size="icon" onClick={() => { setAllowGroups(allowGroups.filter((x) => x !== g)); markDirty() }} className="text-muted-foreground hover:text-destructive" aria-label={`Remove ${g}`} title="Remove">
               <X className="h-4 w-4" />
-            </button>
+            </Button>
           </Row>
         ))}
-        <ComboRow title="Add group">
+        <ComboRow title="Add Group">
 <div className="flex w-full items-center gap-2">
           <Input value={newGroup} onChange={(e) => setNewGroup(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addToList(allowGroups, setAllowGroups, newGroup, setNewGroup)} placeholder="groupname" className="min-w-0 flex-1 bg-transparent font-mono text-sm text-foreground outline-none placeholder:text-muted-foreground/50" />
           <Button variant="ghost" size="sm" onClick={() => addToList(allowGroups, setAllowGroups, newGroup, setNewGroup)} className="shrink-0 gap-1"><Plus className="h-4 w-4" />Add</Button>
@@ -142,9 +142,9 @@ export function SSHTab({ onStateChange }: SSHTabShape) {
 </ComboRow>
       </PreferencesGroup>
 
-      <PreferencesGroup title="Banner" description="Path to a file whose contents are sent to the client before authentication.">
-        <EntryRow title="Banner file" value={banner} onChange={(e) => { setBanner(e.target.value); markDirty() }} placeholder="/etc/issue.net" className="font-mono" />
+      <PreferencesGroup title="Banner" description="Sent to clients before authentication">
+        <EntryRow title="Banner File" value={banner} onChange={(e) => { setBanner(e.target.value); markDirty() }} placeholder="/etc/issue.net" className="font-mono" />
       </PreferencesGroup>
-    </PreferencesGroups>
+    </div>
   )
 }

@@ -18,6 +18,7 @@ func Routes(r chi.Router) {
 	r.Post("/api/friends/sync", SyncAll)
 	r.Get("/api/friends/interfaces", Interfaces)
 	r.Get("/api/friends/exports", Exports)
+	r.Get("/api/friends/bgp-policies", BGPImport)
 	r.Put("/api/friends/{name}", Update)
 	r.Delete("/api/friends/{name}", Delete)
 	r.Post("/api/friends/{name}/sync", Sync)

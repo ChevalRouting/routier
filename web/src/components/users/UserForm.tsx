@@ -1,6 +1,6 @@
 import { activeBaseUrl } from '@/lib/instance'
 import { getToken } from '@/lib/utils'
-import { Button, EntryRow, Input, PreferencesGroup, SwitchRow, TagInput } from 'cheval-ui'
+import { Button, ComboRow, EntryRow, PreferencesGroup, SwitchRow, TagInput } from 'cheval-ui'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
@@ -44,12 +44,12 @@ export function UserFields({ user, onChange }: UserFieldsShape) {
   const set = <K extends keyof UserConfig>(key: K, val: UserConfig[K]) => onChange({ ...user, [key]: val })
 
   const setPassword = async () => {
-    if (!pw) return
+    if (!pw || hashing) return
     setHashing(true)
     try {
       set('password_hash', await hashPassword(pw))
       setPw('')
-      toast.success('Password set, apply to activate')
+      toast.success('Password updated, save the draft and apply to activate')
     } catch (err: unknown) {
       toast.error((err as Error).message || 'Failed to set password')
     } finally {
@@ -59,14 +59,14 @@ export function UserFields({ user, onChange }: UserFieldsShape) {
 
   return (
     <div className="space-y-5">
-      <PreferencesGroup>
-        <EntryRow title="UID (0 = auto)" value={user.uid || ''} onChange={(e) => set('uid', Number(e.target.value) || 0)} placeholder="0" className="font-mono" />
-        <EntryRow title="Shell" value={user.shell} onChange={(e) => set('shell', e.target.value)} placeholder="/bin/ash" className="font-mono" />
-        <EntryRow title="Home directory" value={user.home} onChange={(e) => set('home', e.target.value)} placeholder="/home/username" className="font-mono" />
-        <SwitchRow title="System account" subtitle="Create as a system user" checked={user.system} onCheckedChange={(v) => set('system', v)} />
+      <PreferencesGroup title="Account">
+        <EntryRow title="UID" type="number" min={0} step={1} help="Use 0 to assign a UID automatically" value={user.uid || ''} onChange={(e) => set('uid', Number(e.target.value) || 0)} placeholder="0" />
+        <EntryRow title="Shell" value={user.shell} onChange={(e) => set('shell', e.target.value)} placeholder="/bin/ash" />
+        <EntryRow title="Home Directory" value={user.home} onChange={(e) => set('home', e.target.value)} placeholder="/home/username" />
+        <SwitchRow title="System Account" subtitle="Create as a system user" checked={user.system} onCheckedChange={(v) => set('system', v)} />
         <SwitchRow
-          title="Routier administrator"
-          subtitle="Adds the wheel group: can sign in to this UI (verified against the system password) and run doas."
+          title="Routier Administrator"
+          subtitle="Adds the wheel group: UI sign-in and doas"
           checked={isAdmin(user)}
           onCheckedChange={(v) => set('groups', v
             ? [...new Set([...(user.groups ?? []), 'wheel'])]
@@ -74,28 +74,28 @@ export function UserFields({ user, onChange }: UserFieldsShape) {
         />
       </PreferencesGroup>
 
-      <PreferencesGroup title="Password" description="Stored as a hash and applied to the system on save. A user with no password cannot sign in.">
-        <div className="space-y-2 px-4 py-3">
-          <p className="text-xs text-muted-foreground">
-            {user.password_hash ? 'A password is set. Enter a new one to change it.' : 'No password set.'}
-          </p>
-          <div className="flex gap-2">
-            <Input type="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="New password" autoComplete="new-password" />
-            <Button variant="outline" disabled={!pw || hashing} onClick={setPassword} className="shrink-0">Set</Button>
-          </div>
-        </div>
+      <PreferencesGroup title="Password" description="Save the draft and apply to activate a password change">
+        <EntryRow
+          title="New Password"
+          type="password"
+          value={pw}
+          onChange={(e) => setPw(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') setPassword() }}
+          placeholder="Enter a new password"
+          autoComplete="new-password"
+          disabled={hashing}
+          help={user.password_hash ? 'A password is set; leave empty to keep it' : 'No password is set'}
+          suffix={<Button variant="outline" disabled={!pw || hashing} onClick={setPassword}>{hashing ? 'Setting…' : 'Set Password'}</Button>}
+        />
       </PreferencesGroup>
 
-      <PreferencesGroup title="Groups">
-        <div className="px-4 py-3">
+      <PreferencesGroup title="Access">
+        <ComboRow title="Groups" subtitle="Additional groups for this account">
           <TagInput values={user.groups ?? []} onChange={(v) => set('groups', v)} placeholder="Add group…" />
-        </div>
-      </PreferencesGroup>
-
-      <PreferencesGroup title="SSH keys" description="Authorized keys for SSH access.">
-        <div className="px-4 py-3">
+        </ComboRow>
+        <ComboRow title="SSH Keys" subtitle="Public keys allowed to sign in">
           <TagInput values={user.ssh_keys ?? []} onChange={(v) => set('ssh_keys', v)} placeholder="ssh-ed25519 AAAA…" mono />
-        </div>
+        </ComboRow>
       </PreferencesGroup>
     </div>
   )

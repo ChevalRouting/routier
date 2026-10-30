@@ -1,0 +1,10 @@
+id: mikrotik-generic
+vendor: mikrotik
+name: MikroTik RouterOS 7
+driver: routeros-rest
+generic: true
+match:
+  sys_descr: 'MikroTik RouterOS'
+credentials:
+  - { key: username, label: Username, type: text, default: admin, required: true }
+  - { key: password, label: Password, type: password, required: true }

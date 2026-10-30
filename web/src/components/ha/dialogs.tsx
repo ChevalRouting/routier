@@ -17,7 +17,7 @@ export function addrOptions(ifs: FriendInterface[] | null) {
 export function AddressSelect({ value, onChange, ifs, placeholder }: AddressSelectShape) {
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="h-9"><SelectValue placeholder={placeholder} /></SelectTrigger>
+      <SelectTrigger><SelectValue placeholder={placeholder} /></SelectTrigger>
       <SelectContent>
         {addrOptions(ifs).map((o) => (
           <SelectItem key={`${o.iface}|${o.addr}`} value={`${o.iface}|${o.addr}`} className="font-mono">{o.addr} ({o.iface})</SelectItem>

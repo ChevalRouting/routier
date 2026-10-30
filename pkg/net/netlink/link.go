@@ -26,21 +26,26 @@ const (
 	kindWireguard
 	kindVRF
 	kindDummy
+	kindVeth
+	kindMacvlan
 )
 
 type linkSpec struct {
-	kind     linkKind
-	device   string
-	mtu      int
-	members  []string
-	stp      bool
-	bond     *config.Bond
-	parent   string
-	vlanID   int
-	vxlan    *config.VXLAN
-	tunnel   *config.Tunnel
-	vrfTable int
-	vrf      string
+	kind              linkKind
+	device            string
+	mtu               int
+	members           []string
+	stp               bool
+	bond              *config.Bond
+	parent            string
+	vlanID            int
+	vxlan             *config.VXLAN
+	tunnel            *config.Tunnel
+	vrfTable          int
+	vrf               string
+	preserveUnmanaged bool
+	peer              string
+	mac               string
 }
 
 func buildDesiredLinks(cfg *config.Config) map[string]linkSpec {
@@ -52,6 +57,9 @@ func buildDesiredLinks(cfg *config.Config) map[string]linkSpec {
 	for _, iface := range cfg.Interfaces {
 		spec := linkSpec{kind: kindPhysical, device: iface.Device, mtu: iface.MTU, vrf: iface.VRF}
 		switch iface.Type {
+		case "tunnel":
+			spec.kind = kindTunnel
+			spec.tunnel = iface.Tunnel()
 		case "dummy":
 			spec.kind = kindDummy
 		case "bridge":
@@ -83,11 +91,9 @@ func buildDesiredLinks(cfg *config.Config) map[string]linkSpec {
 		out[iface.Device] = spec
 	}
 
-	for name, t := range cfg.Tunnels {
-		out[name] = linkSpec{kind: kindTunnel, device: name, mtu: t.MTU, tunnel: t}
-	}
+	addVNetLinks(cfg, out)
 
-	for name, wg := range cfg.Wireguard {
+	for name, wg := range cfg.VPN.Wireguard {
 		out[name] = linkSpec{kind: kindWireguard, device: name, mtu: wg.MTU}
 	}
 
@@ -126,9 +132,13 @@ func reconcileLinks(cfg *config.Config, dryRun bool) error {
 }
 
 func ReconcileLinks(cfg *config.Config, dryRun bool) error {
+	return ReconcileLinksWithVPN(cfg, dryRun, func() error { return ReconcileTunnels(cfg, dryRun) })
+}
+
+func listLinks() ([]vnl.Link, map[string]vnl.Link, error) {
 	all, err := vnl.LinkList()
 	if err != nil {
-		return fmt.Errorf("netlink link list: %w", err)
+		return nil, nil, fmt.Errorf("netlink link list: %w", err)
 	}
 
 	actual := make(map[string]vnl.Link, len(all))
@@ -136,131 +146,227 @@ func ReconcileLinks(cfg *config.Config, dryRun bool) error {
 		actual[l.Attrs().Name] = l
 	}
 
+	return all, actual, nil
+}
+
+func ReconcileLinksWithVPN(cfg *config.Config, dryRun bool, applyVPN func() error) error {
+	all, actual, err := listLinks()
+	if err != nil {
+		return err
+	}
+
 	desired := buildDesiredLinks(cfg)
+	if err := validateVNetOwnership(cfg, actual); err != nil {
+		return err
+	}
 
-	for _, pass := range []linkKind{kindVLAN, kindVXLAN, kindBridge, kindBond, kindTunnel, kindVRF, kindDummy} {
-		for _, l := range all {
-			attrs := l.Attrs()
-			if attrs.Alias != managedAlias {
-				continue
-			}
+	if err := deleteStaleLinks(all, actual, desired, dryRun); err != nil {
+		return err
+	}
 
-			if _, keep := desired[attrs.Name]; keep {
-				continue
-			}
+	resetRemovedInterfaces(all, desired, dryRun)
+	if err := createDesiredLinks(desired, actual, all, dryRun); err != nil {
+		return err
+	}
 
-			lk := linkKindOf(l)
-			if lk < 0 || lk != pass {
-				continue
-			}
+	if err := applyVPN(); err != nil {
+		return err
+	}
 
-			if dryRun {
-				log.Info().Str("link", attrs.Name).Msg("would delete stale link")
-				continue
-			}
+	all, actual, err = listLinks()
+	if err != nil {
+		return err
+	}
 
-			log.Info().Str("link", attrs.Name).Msg("delete stale link")
-			if err := linkDel(l); err != nil {
-				return fmt.Errorf("delete stale link %s: %w", attrs.Name, err)
-			}
+	if err := attachAfterVPN(cfg, desired, actual, all, dryRun); err != nil {
+		return err
+	}
 
-			delete(actual, attrs.Name)
+	refreshed, _, err := listLinks()
+	if err != nil {
+		return err
+	}
+
+	for _, l := range refreshed {
+		actual[l.Attrs().Name] = l
+	}
+
+	applyLinkSettings(desired, actual, dryRun)
+	keepBridgedFramesOutOfNetfilter(cfg, sysctlRoot, dryRun)
+	keepAnycastGatewaysLocal(cfg, sysctlRoot, dryRun)
+	bindServicesInVRFs(cfg, sysctlRoot, dryRun)
+	isolateVRFs(cfg, dryRun)
+	if err := bringUpLinks(desired, actual, dryRun, linkSetUp); err != nil {
+		return err
+	}
+
+	for _, spec := range desired {
+		if ifaceLink, ok := actual[spec.device]; ok {
+			reconcileVRFMembership(spec, ifaceLink, actual, dryRun)
 		}
 	}
 
+	return nil
+}
+
+func isStaleManagedLink(l vnl.Link, actual map[string]vnl.Link, desired map[string]linkSpec, pass linkKind) bool {
+	attrs := l.Attrs()
+	if _, present := actual[attrs.Name]; !present || attrs.Alias != managedAlias {
+		return false
+	}
+
+	if _, keep := desired[attrs.Name]; keep {
+		return false
+	}
+
+	return linkKindOf(l) == pass
+}
+
+func forgetDeletedVethPeers(actual map[string]vnl.Link) {
+	for peerName, peer := range actual {
+		if peer.Type() != "veth" {
+			continue
+		}
+
+		if _, err := vnl.LinkByName(peerName); err != nil {
+			delete(actual, peerName)
+		}
+	}
+}
+
+func deleteStaleLinks(all []vnl.Link, actual map[string]vnl.Link, desired map[string]linkSpec, dryRun bool) error {
+	for _, pass := range []linkKind{kindMacvlan, kindVeth, kindVLAN, kindVXLAN, kindBridge, kindBond, kindVRF, kindDummy} {
+		for _, l := range all {
+			if !isStaleManagedLink(l, actual, desired, pass) {
+				continue
+			}
+
+			name := l.Attrs().Name
+			if dryRun {
+				log.Info().Str("link", name).Msg("would delete stale link")
+				continue
+			}
+
+			log.Info().Str("link", name).Msg("delete stale link")
+			if err := linkDel(l); err != nil {
+				return fmt.Errorf("delete stale link %s: %w", name, err)
+			}
+
+			delete(actual, name)
+			if pass == kindVeth {
+				forgetDeletedVethPeers(actual)
+			}
+		}
+	}
+
+	return nil
+}
+
+func resetRemovedInterfaces(all []vnl.Link, desired map[string]linkSpec, dryRun bool) {
 	for _, l := range all {
 		attrs := l.Attrs()
 		if attrs.Alias != managedAlias || !isPhysical(l) {
 			continue
 		}
 
-		if _, keep := desired[attrs.Name]; keep {
+		if _, keep := desired[attrs.Name]; !keep {
+			cleanupRemovedInterface(l, dryRun)
+		}
+	}
+}
+
+func specsOfKind(desired map[string]linkSpec, kind linkKind) []linkSpec {
+	var specs []linkSpec
+	for _, spec := range desired {
+		if spec.kind == kind {
+			specs = append(specs, spec)
+		}
+	}
+
+	return specs
+}
+
+func createDesiredLinks(desired map[string]linkSpec, actual map[string]vnl.Link, all []vnl.Link, dryRun bool) error {
+	for _, spec := range specsOfKind(desired, kindVRF) {
+		if err := ensureVRF(spec, actual, dryRun); err != nil {
+			log.Error().Err(err).Str("link", spec.device).Msg("vrf reconcile")
+		}
+	}
+
+	for _, spec := range specsOfKind(desired, kindDummy) {
+		if err := ensureDummy(spec, actual, dryRun); err != nil {
+			log.Error().Err(err).Str("link", spec.device).Msg("dummy reconcile")
+		}
+	}
+
+	for _, spec := range specsOfKind(desired, kindVXLAN) {
+		if err := ensureVXLAN(spec, actual, dryRun); err != nil {
+			return fmt.Errorf("vxlan reconcile %s: %w", spec.device, err)
+		}
+	}
+
+	for _, spec := range specsOfKind(desired, kindVeth) {
+		if spec.peer == "" {
 			continue
 		}
 
-		cleanupRemovedInterface(l, dryRun)
-	}
-
-	for _, spec := range desired {
-		if spec.kind == kindVRF {
-			if err := ensureVRF(spec, actual, dryRun); err != nil {
-				log.Error().Err(err).Str("link", spec.device).Msg("vrf reconcile")
-			}
+		if err := ensureVNetPair(spec, actual, dryRun); err != nil {
+			return err
 		}
 	}
 
-	for _, spec := range desired {
-		if spec.kind == kindDummy {
-			if err := ensureDummy(spec, actual, dryRun); err != nil {
-				log.Error().Err(err).Str("link", spec.device).Msg("dummy reconcile")
-			}
+	for _, spec := range specsOfKind(desired, kindBridge) {
+		if err := ensureBridge(spec, actual, all, dryRun); err != nil {
+			return fmt.Errorf("bridge reconcile %s: %w", spec.device, err)
 		}
 	}
 
-	for _, spec := range desired {
-		if spec.kind == kindVXLAN {
-			if err := ensureVXLAN(spec, actual, dryRun); err != nil {
-				return fmt.Errorf("vxlan reconcile %s: %w", spec.device, err)
-			}
+	for _, spec := range specsOfKind(desired, kindBond) {
+		if err := ensureBond(spec, actual, dryRun); err != nil {
+			return fmt.Errorf("bond reconcile %s: %w", spec.device, err)
 		}
 	}
 
-	for _, spec := range desired {
-		if spec.kind == kindBridge {
-			if err := ensureBridge(spec, actual, all, dryRun); err != nil {
-				log.Error().Err(err).Str("link", spec.device).Msg("bridge reconcile")
-			}
+	for _, spec := range specsOfKind(desired, kindMacvlan) {
+		if err := ensureMacvlan(spec, actual, dryRun); err != nil {
+			return fmt.Errorf("gateway reconcile %s: %w", spec.device, err)
 		}
 	}
 
-	for _, spec := range desired {
-		if spec.kind == kindBond {
-			if err := ensureBond(spec, actual, dryRun); err != nil {
-				return fmt.Errorf("bond reconcile %s: %w", spec.device, err)
-			}
+	for _, spec := range specsOfKind(desired, kindVLAN) {
+		if err := ensureVLAN(spec, actual, dryRun); err != nil {
+			log.Error().Err(err).Str("link", spec.device).Msg("vlan reconcile")
 		}
 	}
 
-	for _, spec := range desired {
-		if spec.kind == kindVLAN {
-			if err := ensureVLAN(spec, actual, dryRun); err != nil {
-				log.Error().Err(err).Str("link", spec.device).Msg("vlan reconcile")
-			}
+	return nil
+}
+
+func attachAfterVPN(cfg *config.Config, desired map[string]linkSpec, actual map[string]vnl.Link, all []vnl.Link, dryRun bool) error {
+	for _, spec := range specsOfKind(desired, kindBridge) {
+		if err := ensureBridge(spec, actual, all, dryRun); err != nil {
+			return err
 		}
 	}
 
-	for _, spec := range desired {
-		if spec.kind == kindTunnel {
-			if err := ensureTunnel(spec, actual, dryRun); err != nil {
-				log.Error().Err(err).Str("link", spec.device).Msg("tunnel reconcile")
-			}
-		}
+	if err := reconcileVNetMappings(cfg, actual, dryRun); err != nil {
+		return err
 	}
 
-	if !dryRun {
-		for _, spec := range desired {
-			if spec.kind != kindWireguard {
-				continue
-			}
+	if dryRun {
+		return nil
+	}
 
-			l, ok := actual[spec.device]
-			if !ok || l.Attrs().Alias == managedAlias {
-				continue
-			}
-
+	for _, spec := range specsOfKind(desired, kindWireguard) {
+		if l, ok := actual[spec.device]; ok && l.Attrs().Alias != managedAlias {
 			_ = linkSetAlias(l, managedAlias)
 		}
 	}
 
-	all, err = vnl.LinkList()
-	if err != nil {
-		return fmt.Errorf("netlink link list: %w", err)
-	}
+	return nil
+}
 
-	for _, l := range all {
-		actual[l.Attrs().Name] = l
-	}
-
+func applyLinkSettings(desired map[string]linkSpec, actual map[string]vnl.Link, dryRun bool) {
 	for _, spec := range desired {
 		l, ok := actual[spec.device]
 		if !ok {
@@ -273,73 +379,71 @@ func ReconcileLinks(cfg *config.Config, dryRun bool) error {
 			}
 		}
 
-		if spec.mtu > 0 && l.Attrs().MTU != spec.mtu {
-			if dryRun {
-				log.Info().Str("link", spec.device).Int("mtu", spec.mtu).Msg("would set MTU")
-			} else if err := linkSetMTU(l, spec.mtu); err != nil {
-				log.Warn().Err(err).Str("link", spec.device).Msg("set MTU")
-			}
-		}
-	}
-
-	if err := bringUpLinks(desired, actual, dryRun, linkSetUp); err != nil {
-		return err
-	}
-
-	for _, spec := range desired {
-		ifaceLink, ok := actual[spec.device]
-		if !ok {
-			continue
-		}
-
-		masterIdx := ifaceLink.Attrs().MasterIndex
-		if spec.vrf == "" {
-			if masterIdx == 0 {
-				continue
-			}
-
-			masterLink, err := vnl.LinkByIndex(masterIdx)
-			if err != nil || masterLink == nil {
-				continue
-			}
-
-			if _, isVRF := masterLink.(*vnl.Vrf); !isVRF {
-				continue
-			}
-
-			if dryRun {
-				log.Info().Str("iface", spec.device).Msg("would remove from vrf")
-			} else {
-				log.Info().Str("iface", spec.device).Msg("remove from vrf")
-				if err := linkSetNoMaster(ifaceLink); err != nil {
-					log.Warn().Err(err).Str("iface", spec.device).Msg("remove from vrf")
-				}
-			}
-
-			continue
-		}
-
-		vrfLink, ok := actual[spec.vrf]
-		if !ok {
-			log.Warn().Str("iface", spec.device).Str("vrf", spec.vrf).Msg("vrf device not found, skipping enslave")
-			continue
-		}
-
-		if masterIdx == vrfLink.Attrs().Index {
+		if spec.mtu <= 0 || l.Attrs().MTU == spec.mtu {
 			continue
 		}
 
 		if dryRun {
-			log.Info().Str("iface", spec.device).Str("vrf", spec.vrf).Msg("would enslave to vrf")
-		} else {
-			log.Info().Str("iface", spec.device).Str("vrf", spec.vrf).Msg("enslave to vrf")
-			if err := linkSetMaster(ifaceLink, vrfLink); err != nil {
-				log.Warn().Err(err).Str("iface", spec.device).Str("vrf", spec.vrf).Msg("enslave to vrf")
-			}
+			log.Info().Str("link", spec.device).Int("mtu", spec.mtu).Msg("would set MTU")
+		} else if err := linkSetMTU(l, spec.mtu); err != nil {
+			log.Warn().Err(err).Str("link", spec.device).Msg("set MTU")
 		}
 	}
+}
 
-	return nil
+func masterIsVRF(index int) bool {
+	if index == 0 {
+		return false
+	}
+
+	master, err := vnl.LinkByIndex(index)
+	if err != nil || master == nil {
+		return false
+	}
+
+	_, isVRF := master.(*vnl.Vrf)
+	return isVRF
+}
+
+func reconcileVRFMembership(spec linkSpec, ifaceLink vnl.Link, actual map[string]vnl.Link, dryRun bool) {
+	masterIdx := ifaceLink.Attrs().MasterIndex
+	if spec.vrf == "" {
+		if !masterIsVRF(masterIdx) {
+			return
+		}
+
+		if dryRun {
+			log.Info().Str("iface", spec.device).Msg("would remove from vrf")
+			return
+		}
+
+		log.Info().Str("iface", spec.device).Msg("remove from vrf")
+		if err := linkSetNoMaster(ifaceLink); err != nil {
+			log.Warn().Err(err).Str("iface", spec.device).Msg("remove from vrf")
+		}
+
+		return
+	}
+
+	vrfLink, ok := actual[spec.vrf]
+	if !ok {
+		log.Warn().Str("iface", spec.device).Str("vrf", spec.vrf).Msg("vrf device not found, skipping enslave")
+		return
+	}
+
+	if masterIdx == vrfLink.Attrs().Index {
+		return
+	}
+
+	if dryRun {
+		log.Info().Str("iface", spec.device).Str("vrf", spec.vrf).Msg("would enslave to vrf")
+		return
+	}
+
+	log.Info().Str("iface", spec.device).Str("vrf", spec.vrf).Msg("enslave to vrf")
+	if err := linkSetMaster(ifaceLink, vrfLink); err != nil {
+		log.Warn().Err(err).Str("iface", spec.device).Str("vrf", spec.vrf).Msg("enslave to vrf")
+	}
 }
 
 func cleanupRemovedInterface(l vnl.Link, dryRun bool) {
@@ -351,7 +455,7 @@ func cleanupRemovedInterface(l vnl.Link, dryRun bool) {
 
 	log.Info().Str("link", dev).Msg("reset removed interface")
 
-	if err := syncAddrs(dev, nil, false); err != nil {
+	if err := syncAddrs(dev, nil, false, false); err != nil {
 		log.Warn().Err(err).Str("dev", dev).Msg("flush removed interface addresses")
 	}
 
@@ -377,6 +481,8 @@ func resetSLAAC(dev string) {
 
 func linkKindOf(l vnl.Link) linkKind {
 	switch l.(type) {
+	case *vnl.Veth:
+		return kindVeth
 	case *vnl.Vlan:
 		return kindVLAN
 	case *vnl.Vxlan:
@@ -393,6 +499,8 @@ func linkKindOf(l vnl.Link) linkKind {
 		return kindVRF
 	case *vnl.Dummy:
 		return kindDummy
+	case *vnl.Macvlan:
+		return kindMacvlan
 	}
 
 	return -1
@@ -499,7 +607,15 @@ func ensureBridge(spec linkSpec, actual map[string]vnl.Link, all []vnl.Link, dry
 	if bridgeLink != nil {
 		bridgeIdx := bridgeLink.Attrs().Index
 		for _, l := range all {
+			if _, present := actual[l.Attrs().Name]; !present {
+				continue
+			}
+
 			if l.Attrs().MasterIndex != bridgeIdx {
+				continue
+			}
+
+			if spec.preserveUnmanaged && l.Attrs().Alias != managedAlias {
 				continue
 			}
 
@@ -793,7 +909,7 @@ func ensureVXLAN(spec linkSpec, actual map[string]vnl.Link, dryRun bool) error {
 	}
 
 	actual[spec.device] = created
-	return nil
+	return markManagedVXLAN(created, dryRun, linkSetAlias)
 }
 
 func markManagedVXLAN(link vnl.Link, dryRun bool, setAlias func(vnl.Link, string) error) error {
@@ -828,13 +944,27 @@ func vxlanChanged(existing vnl.Link, want *vnl.Vxlan) bool {
 }
 
 func ensureVLAN(spec linkSpec, actual map[string]vnl.Link, dryRun bool) error {
-	if _, exists := actual[spec.device]; exists {
-		return nil
-	}
-
 	parent, ok := actual[spec.parent]
 	if !ok {
 		return fmt.Errorf("parent %s not found for vlan %s", spec.parent, spec.device)
+	}
+
+	if existing, exists := actual[spec.device]; exists {
+		if !vlanMoved(existing, parent, spec.vlanID) {
+			return nil
+		}
+
+		if dryRun {
+			log.Info().Str("link", spec.device).Str("parent", spec.parent).Int("id", spec.vlanID).Msg("would recreate vlan")
+			return nil
+		}
+
+		log.Info().Str("link", spec.device).Str("parent", spec.parent).Int("id", spec.vlanID).Msg("recreate vlan")
+		if err := linkDel(existing); err != nil {
+			return fmt.Errorf("delete vlan %s: %w", spec.device, err)
+		}
+
+		delete(actual, spec.device)
 	}
 
 	if dryRun {
@@ -860,6 +990,15 @@ func ensureVLAN(spec linkSpec, actual map[string]vnl.Link, dryRun bool) error {
 	_ = linkSetAlias(created, managedAlias)
 	actual[spec.device] = created
 	return nil
+}
+
+func vlanMoved(existing, parent vnl.Link, id int) bool {
+	vlan, ok := existing.(*vnl.Vlan)
+	if !ok || existing.Attrs().Alias != managedAlias {
+		return false
+	}
+
+	return vlan.ParentIndex != parent.Attrs().Index || vlan.VlanId != id
 }
 
 func ensureTunnel(spec linkSpec, actual map[string]vnl.Link, dryRun bool) error {
@@ -1049,7 +1188,7 @@ func tunnelChanged(existing vnl.Link, t *config.Tunnel) bool {
 func bringUpLinks(desired map[string]linkSpec, actual map[string]vnl.Link, dryRun bool, up func(vnl.Link) error) error {
 	state := map[string]int{}
 	var visit func(string) error
-	visit = func(name string) error { return bringUpLinksCallback(desired, actual, dryRun, up, state, visit, name) }
+	visit = func(name string) error { return visitLinkForBringUp(desired, actual, dryRun, up, state, visit, name) }
 	for name := range desired {
 		if err := visit(name); err != nil {
 			return err
@@ -1059,7 +1198,7 @@ func bringUpLinks(desired map[string]linkSpec, actual map[string]vnl.Link, dryRu
 	return nil
 }
 
-func bringUpLinksCallback(desired map[string]linkSpec, actual map[string]vnl.Link, dryRun bool, up func(vnl.Link) error, state map[string]int, visit func(string) error, name string) error {
+func visitLinkForBringUp(desired map[string]linkSpec, actual map[string]vnl.Link, dryRun bool, up func(vnl.Link) error, state map[string]int, visit func(string) error, name string) error {
 	if state[name] == 2 {
 		return nil
 	}

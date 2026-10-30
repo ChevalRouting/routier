@@ -56,8 +56,8 @@ func newDNSCommand() *cobra.Command {
 		Use:   "dns",
 		Short: "inspect the local DNS server (BIND)",
 		Args:  cobra.NoArgs,
-		RunE: func(unusedArg1 *cobra.Command, unusedArg2 []string) error {
-			return newDNSCommandCallback(configPath, unusedArg1, unusedArg2)
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return runDNS(configPath)
 		},
 	}
 
@@ -78,7 +78,7 @@ func newDNSStatsCommand() *cobra.Command {
 		Use:   "stats",
 		Short: "show resolver statistics",
 		Args:  cobra.NoArgs,
-		RunE:  newDNSStatsCommandHandler,
+		RunE:  runDNSStats,
 	}
 }
 
@@ -87,8 +87,8 @@ func newDNSZonesCommand(configPath *string) *cobra.Command {
 		Use:   "zones [name]",
 		Short: "list authoritative zones and their records",
 		Args:  cobra.MaximumNArgs(1),
-		RunE: func(unusedArg1 *cobra.Command, args []string) error {
-			return newDNSZonesCommandCallback(configPath, unusedArg1, args)
+		RunE: func(_ *cobra.Command, args []string) error {
+			return runDNSZones(configPath, args)
 		},
 	}
 }
@@ -98,7 +98,7 @@ func newDNSQueryCommand() *cobra.Command {
 		Use:   "query <name> [type]",
 		Short: "resolve a name through the local resolver",
 		Args:  cobra.RangeArgs(1, 2),
-		RunE:  newDNSQueryCommandHandler,
+		RunE:  runDNSQuery,
 	}
 }
 
@@ -107,7 +107,7 @@ func newDNSFlushCommand() *cobra.Command {
 		Use:   "flush [name]",
 		Short: "flush the resolver cache, or one name within it",
 		Args:  cobra.MaximumNArgs(1),
-		RunE:  newDNSFlushCommandHandler,
+		RunE:  runDNSFlush,
 	}
 }
 
@@ -116,11 +116,11 @@ func newDNSReloadCommand() *cobra.Command {
 		Use:   "reload [zone]",
 		Short: "reload the resolver config, or one authoritative zone",
 		Args:  cobra.MaximumNArgs(1),
-		RunE:  newDNSReloadCommandHandler,
+		RunE:  runDNSReload,
 	}
 }
 
-func newDNSStatsCommandHandler(_ *cobra.Command, _ []string) error {
+func runDNSStats(_ *cobra.Command, _ []string) error {
 	client, err := namedClient()
 	if err != nil {
 		return err
@@ -139,7 +139,7 @@ func newDNSStatsCommandHandler(_ *cobra.Command, _ []string) error {
 	return w.Flush()
 }
 
-func newDNSQueryCommandHandler(_ *cobra.Command, args []string) error {
+func runDNSQuery(_ *cobra.Command, args []string) error {
 	client, err := namedClient()
 	if err != nil {
 		return err
@@ -168,7 +168,7 @@ func newDNSQueryCommandHandler(_ *cobra.Command, args []string) error {
 	return w.Flush()
 }
 
-func newDNSFlushCommandHandler(_ *cobra.Command, args []string) error {
+func runDNSFlush(_ *cobra.Command, args []string) error {
 	client, err := namedClient()
 	if err != nil {
 		return err
@@ -193,7 +193,7 @@ func newDNSFlushCommandHandler(_ *cobra.Command, args []string) error {
 	return nil
 }
 
-func newDNSReloadCommandHandler(_ *cobra.Command, args []string) error {
+func runDNSReload(_ *cobra.Command, args []string) error {
 	client, err := namedClient()
 	if err != nil {
 		return err
@@ -218,7 +218,7 @@ func newDNSReloadCommandHandler(_ *cobra.Command, args []string) error {
 	return nil
 }
 
-func newDNSCommandCallback(configPath string, _ *cobra.Command, _ []string) error {
+func runDNS(configPath string) error {
 	cfg, s, err := dnsServerConfig(configPath)
 	if err != nil {
 		return err
@@ -231,13 +231,10 @@ func newDNSCommandCallback(configPath string, _ *cobra.Command, _ []string) erro
 
 	config.ResolveInterfaces(cfg)
 
-	view, err := client.Overview(bind.OverviewInput{
+	view := client.Overview(bind.OverviewInput{
 		Listen: render.DNSListenAddresses(cfg),
 		Zones:  dnsZoneInputs(s),
 	})
-	if err != nil {
-		return err
-	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 8, 2, ' ', 0)
 	_, _ = fmt.Fprintf(w, "mode\t%s\n", s.ResolvedMode())
@@ -259,7 +256,7 @@ func newDNSCommandCallback(configPath string, _ *cobra.Command, _ []string) erro
 	return w.Flush()
 }
 
-func newDNSZonesCommandCallback(configPath *string, _ *cobra.Command, args []string) error {
+func runDNSZones(configPath *string, args []string) error {
 	_, s, err := dnsServerConfig(*configPath)
 	if err != nil {
 		return err

@@ -151,3 +151,26 @@ func TestMigrateIdempotentAtCurrent(t *testing.T) {
 		t.Fatal("current-version config should not change")
 	}
 }
+
+func TestLoadDropsRetiredVRRPSwitchover(t *testing.T) {
+	in := `version: v5.0.0
+hostname: rtr
+interfaces:
+  lan:
+    select: name=eth0
+ha:
+  vrrp:
+    - id: 51
+      interface: lan
+      vips: ["10.0.0.254/24"]
+      switchover: true
+`
+	cfg, err := config.LoadBytes([]byte(in))
+	if err != nil {
+		t.Fatalf("a config with the retired switchover field must still load: %v", err)
+	}
+
+	if len(cfg.HA.VRRP) != 1 || cfg.HA.VRRP[0].ID != 51 {
+		t.Fatalf("vrrp instance lost: %+v", cfg.HA)
+	}
+}

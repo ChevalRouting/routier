@@ -3,6 +3,7 @@ package config
 import (
 	"net/http"
 
+	"github.com/ChevalRouting/routier/pkg/apply"
 	cfgpkg "github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/diffutil"
 	"github.com/ChevalRouting/routier/pkg/friends"
@@ -52,6 +53,10 @@ func renderedFiles(cfg *cfgpkg.Config, loadErr error, vars map[string]friends.Va
 	cfgpkg.ResolveInterfaces(cfg)
 	outputs, err := render.All(cfg, render.WithFriends(vars))
 	if err != nil {
+		return map[string]string{}
+	}
+
+	if err := apply.PrepareDNSZoneSerials(cfg, outputs); err != nil {
 		return map[string]string{}
 	}
 

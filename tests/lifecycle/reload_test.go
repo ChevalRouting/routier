@@ -61,7 +61,7 @@ func TestFRRDaemonsChangeRestartsWhenRunning(t *testing.T) {
 	restore := svc.SetCommandRunner(rec.run)
 	defer restore()
 
-	if err := svc.ReloadFromOutputs([]string{"frr/daemons"}, &config.Config{}, false, false); err != nil {
+	if err := svc.ReloadFromOutputs([]string{"frr/daemons"}, &config.Config{}, false); err != nil {
 		t.Fatalf("reload: %v", err)
 	}
 
@@ -79,7 +79,7 @@ func TestFRRDaemonsChangeStartsWhenStopped(t *testing.T) {
 	restore := svc.SetCommandRunner(rec.run)
 	defer restore()
 
-	if err := svc.ReloadFromOutputs([]string{"frr/daemons"}, &config.Config{}, false, false); err != nil {
+	if err := svc.ReloadFromOutputs([]string{"frr/daemons"}, &config.Config{}, false); err != nil {
 		t.Fatalf("reload: %v", err)
 	}
 
@@ -93,7 +93,7 @@ func TestFRRReloadDryRunIsInert(t *testing.T) {
 	restore := svc.SetCommandRunner(rec.run)
 	defer restore()
 
-	if err := svc.ReloadFromOutputs([]string{"frr/daemons", "frr/conf"}, &config.Config{}, true, false); err != nil {
+	if err := svc.ReloadFromOutputs([]string{"frr/daemons", "frr/conf"}, &config.Config{}, true); err != nil {
 		t.Fatalf("dry-run reload: %v", err)
 	}
 
@@ -134,7 +134,7 @@ func TestFirewallAndSysctlLoadBeforeFRRRestart(t *testing.T) {
 	defer restore()
 
 	names := []string{"sysctl/routier.conf", "nftables/routier.nft", "frr/daemons"}
-	if err := svc.ReloadFromOutputs(names, &config.Config{}, false, false); err != nil {
+	if err := svc.ReloadFromOutputs(names, &config.Config{}, false); err != nil {
 		t.Fatalf("reload: %v", err)
 	}
 

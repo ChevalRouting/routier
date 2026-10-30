@@ -1,0 +1,12 @@
+id: mikrotik-crs309-1g-8s
+vendor: mikrotik
+name: CRS309-1G-8S+
+driver: routeros-rest
+match:
+  sys_descr: 'CRS309-1G-8S\+'
+credentials:
+  - { key: username, label: Username, type: text, default: admin, required: true }
+  - { key: password, label: Password, type: password, required: true }
+faceplate:
+  - { group: "10G SFP+", ports: "sfp-sfpplus[1-8]", kind: sfp-plus, rows: 1 }
+  - { group: "1GBASE-T", ports: "ether1", kind: rj45, rows: 1 }

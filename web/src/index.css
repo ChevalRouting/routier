@@ -32,12 +32,47 @@ body {
 }
 
 @media (display-mode: standalone) {
+  html,
+  body,
+  #root {
+    height: 100vh;
+  }
+
+  html:has(.app-shell),
+  body:has(.app-shell),
+  #root:has(.app-shell) {
+    overflow: hidden;
+  }
+
+  .app-shell {
+    position: fixed;
+    top: 0;
+    right: 0;
+    left: 0;
+    height: 100vh;
+  }
+
   .safe-top {
     padding-top: env(safe-area-inset-top);
   }
 
   .safe-bottom {
     padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  [role='dialog'].top-0.h-full {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .mobile-nav.safe-bottom {
+    --nav-bottom-inset: clamp(0px, env(safe-area-inset-bottom, 0px), 34px);
+    box-sizing: border-box;
+    flex: 0 0 auto;
+    height: calc(3.5rem + 1px + var(--nav-bottom-inset));
+    max-height: calc(3.5rem + 1px + var(--nav-bottom-inset));
+    padding-bottom: var(--nav-bottom-inset);
+    overflow: hidden;
   }
 }
 

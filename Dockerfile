@@ -18,6 +18,7 @@ RUN mkdir /work && chown builder:builder /work
 USER builder
 WORKDIR /home/builder
 COPY --chown=builder:builder go.mod go.sum /home/builder/
+COPY --from=certs --chown=builder:builder . /home/certs/
 
 # github.com/m-vinc/anyk is a personal module the public proxy/sumdb cannot serve,
 # so fetch it (and any other m-vinc module) straight from its source repo.

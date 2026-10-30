@@ -205,11 +205,11 @@ func TestNftWireguardAllowOptIn(t *testing.T) {
 	cfg := &config.Config{
 		Hostname:   "rtr",
 		Interfaces: map[string]*config.Interface{"wan": {Device: "eth0", Addresses: []string{"203.0.113.2/24"}}},
-		Wireguard: map[string]*config.Wireguard{
+		VPN: config.VPNConfig{Wireguard: map[string]*config.Wireguard{
 			"wg0": {ListenPort: 51900, AllowInbound: true},
 			"wg1": {ListenPort: 51820, AllowInbound: true},
 			"wg2": {ListenPort: 51000},
-		},
+		}},
 	}
 	out := renderNft(t, cfg)
 	if !strings.Contains(out, `udp dport { 51820, 51900 } accept comment "routier: wireguard"`) {
@@ -405,9 +405,9 @@ func TestNftScopedAllowResolvesVLANAndWireguard(t *testing.T) {
 				VLAN:      &config.VLAN{ID: 100},
 			},
 		},
-		Wireguard: map[string]*config.Wireguard{
+		VPN: config.VPNConfig{Wireguard: map[string]*config.Wireguard{
 			"tun0": {Addresses: []string{"172.31.0.1/29"}, PrivateKey: "dGVzdA=="},
-		},
+		}},
 		Routing: &config.Routing{
 			BGP:  &config.BGP{ASN: 65000, RouterID: "10.0.0.1", AllowInbound: []string{"tun0"}},
 			OSPF: &config.OSPF{RouterID: "10.0.0.1", AllowInbound: []string{"servers"}},
@@ -443,5 +443,65 @@ func TestNftVRRPAllowResolvesTransportDevice(t *testing.T) {
 
 	if strings.Contains(out, `iifname "sync"`) {
 		t.Fatalf("vrrp allow must not use the logical name, got:\n%s", out)
+	}
+}
+
+func TestNftDisableAutoRules(t *testing.T) {
+	cfg := &config.Config{
+		Hostname: "rtr",
+		Interfaces: map[string]*config.Interface{
+			"lan": {Device: "eth1", Addresses: []string{"10.0.0.1/24", "2001:db8::1/64"}},
+		},
+		VPN: config.VPNConfig{Wireguard: map[string]*config.Wireguard{"wg0": {ListenPort: 51820, AllowInbound: true}}},
+		Routing: &config.Routing{
+			BGP:   &config.BGP{ASN: 65000, AllowInbound: []string{"lan"}},
+			OSPF:  &config.OSPF{AllowInbound: []string{"lan"}},
+			OSPF6: &config.OSPF6{AllowInbound: []string{"lan"}},
+		},
+		HA: &config.HA{
+			Conntrackd: &config.Conntrackd{Interface: "lan", AllowInbound: true},
+			VRRP:       []*config.VRRPInstance{{ID: 1, Interface: "lan", VIPs: []string{"10.0.0.2/24"}, AllowInbound: true}},
+		},
+		DNS: &config.DNS{Server: &config.DNSServer{Enabled: true, Listen: []string{"iface(lan)"}, AllowFrom: []string{"10.0.0.0/24"}, AllowInbound: []string{"lan"}}},
+		Nftables: &config.NftablesConfig{Chains: map[string]*config.NftChain{
+			"input": {Policy: "accept", Rules: "tcp dport 443 accept", Managed: []config.ManagedRule{{Action: "accept", Comment: "my rule"}}},
+		}},
+	}
+	for _, disabled := range []bool{false, true} {
+		cfg.Nftables.DisableAutoRules = disabled
+		out := renderNft(t, cfg)
+		for _, service := range []string{"wireguard", "bgp", "ospf", "ospf6", "conntrackd", "vrrp", "dns"} {
+			if present := strings.Contains(out, "routier: "+service+`"`); present == disabled {
+				t.Errorf("disable_auto_rules=%v: unexpected automatic %s rule presence", disabled, service)
+			}
+		}
+
+		for _, want := range []string{"policy accept;", "tcp dport 443 accept", `accept comment "my rule"`, "define lan_interfaces"} {
+			if !strings.Contains(out, want) {
+				t.Errorf("disable_auto_rules=%v: missing %q", disabled, want)
+			}
+		}
+	}
+}
+
+func TestNftTypedTunnelDefinesOnceWithVRF(t *testing.T) {
+	cfg := &config.Config{
+		Hostname: "router",
+		Interfaces: map[string]*config.Interface{
+			"lan":        {Type: "dummy", Addresses: []string{"10.0.0.1/24"}},
+			"gre-office": {Type: "tunnel", Mode: "gre", Local: "192.0.2.1", Remote: "192.0.2.2", Addresses: []string{"10.1.0.1/30"}, VRF: "blue"},
+		},
+		VRFs: map[string]*config.VRFConfig{"blue": {Table: 100}},
+	}
+	config.ResolveInterfaces(cfg)
+	out := renderNft(t, cfg)
+	if strings.Count(out, "define gre_office_interfaces = ") != 1 {
+		t.Fatalf("tunnel must have exactly one interface define: %s", out)
+	}
+
+	for _, want := range []string{`define gre_office_interfaces = "gre-office"`, `define tunnels = "gre-office"`, `define vrf_blue_members = "gre-office"`} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("missing %q: %s", want, out)
+		}
 	}
 }

@@ -17,33 +17,15 @@ import (
 // @Tags config
 // @Produce json
 // @Param section path string true "section name"
-// @Param layer query string false "configuration layer" Enums(advanced, simple)
 // @Success 200 {object} object
 // @Security BearerAuth
 // @Router /api/config/{section} [get]
 func GetSection(w http.ResponseWriter, r *http.Request) {
 	app := appctx.FromContext(r.Context())
 	section := chi.URLParam(r, "section")
-	layer, appErr := requestLayer(r)
-	if appErr != nil {
-		types.Error(log.Logger, w, appErr)
-		return
-	}
-
-	cfg, err := cfgstore.ReadLayer(app.ConfigPath, appctx.UsernameFromContext(r.Context()), layer.Name())
+	cfg, err := cfgstore.Read(app.ConfigPath, appctx.UsernameFromContext(r.Context()))
 	if err != nil {
 		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "failed to read config"))
-		return
-	}
-
-	if layer.Name() != "advanced" {
-		data, err := layer.ProjectSection(cfg, section)
-		if err != nil {
-			types.Err(http.StatusNotFound, err.Error()).Write(w)
-			return
-		}
-
-		types.OK(w, data)
 		return
 	}
 
@@ -51,12 +33,14 @@ func GetSection(w http.ResponseWriter, r *http.Request) {
 	switch section {
 	case "interfaces":
 		data = cfg.Interfaces
-	case "tunnels":
-		data = cfg.Tunnels
+	case "vpn":
+		data = cfg.VPN
+	case "tunnels", "vpn.tunnels":
+		data = cfg.Tunnels()
 	case "routing":
 		data = cfg.Routing
-	case "wireguard":
-		data = cfg.Wireguard
+	case "wireguard", "vpn.wireguard":
+		data = cfg.VPN.Wireguard
 	case "nftables":
 		data = cfg.Nftables
 	case "sysctl":
@@ -85,6 +69,10 @@ func GetSection(w http.ResponseWriter, r *http.Request) {
 		data = cfg.Monitoring
 	case "dhcp":
 		data = cfg.DHCP
+	case "switches":
+		data = cfg.Switches
+	case "web":
+		data = cfg.Web
 	default:
 		types.Err(http.StatusNotFound, "unknown section: "+section).Write(w)
 		return
@@ -98,7 +86,6 @@ func GetSection(w http.ResponseWriter, r *http.Request) {
 // @Accept json
 // @Produce json
 // @Param section path string true "section name"
-// @Param layer query string false "configuration layer" Enums(advanced, simple)
 // @Success 200 {object} types.Response[types.StatusResponse]
 // @Security BearerAuth
 // @Router /api/config/{section} [put]
@@ -106,13 +93,7 @@ func PutSection(w http.ResponseWriter, r *http.Request) {
 	app := appctx.FromContext(r.Context())
 	section := chi.URLParam(r, "section")
 	username := appctx.UsernameFromContext(r.Context())
-	layer, appErr := requestLayer(r)
-	if appErr != nil {
-		types.Error(log.Logger, w, appErr)
-		return
-	}
-
-	cfg, err := cfgstore.ReadLayer(app.ConfigPath, username, layer.Name())
+	cfg, err := cfgstore.Read(app.ConfigPath, username)
 	if err != nil {
 		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "failed to read config"))
 		return
@@ -124,17 +105,9 @@ func PutSection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if layer.Name() == "advanced" {
-		if appErr := applySectionBody(cfg, section, body); appErr != nil {
-			types.Error(log.Logger, w, appErr)
-			return
-		}
-	} else {
-		cfg, err = layer.ReplaceSection(cfg, section, body)
-		if err != nil {
-			types.Err(http.StatusBadRequest, err.Error()).Write(w)
-			return
-		}
+	if appErr := applySectionBody(cfg, section, body); appErr != nil {
+		types.Error(log.Logger, w, appErr)
+		return
 	}
 
 	if appErr := cfgstore.ValidationError(cfg); appErr != nil {
@@ -142,7 +115,7 @@ func PutSection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := cfgstore.WriteStagingLayer(app.ConfigPath, username, layer.Name(), cfg); err != nil {
+	if err := cfgstore.WriteStaging(app.ConfigPath, username, cfg); err != nil {
 		types.Error(log.Logger, w, cfgstore.StagingError(err, "failed to write staging config"))
 		return
 	}
@@ -163,13 +136,22 @@ func applySectionBody(cfg *cfgpkg.Config, section string, body []byte) *types.Ap
 		}
 
 		cfg.Interfaces = v
-	case "tunnels":
+	case "vpn":
+		var v cfgpkg.VPNConfig
+		if err := json.Unmarshal(body, &v); err != nil {
+			return unmarshalErr(err)
+		}
+
+		cfg.VPN = v
+	case "tunnels", "vpn.tunnels":
 		var v map[string]*cfgpkg.Tunnel
 		if err := json.Unmarshal(body, &v); err != nil {
 			return unmarshalErr(err)
 		}
 
-		cfg.Tunnels = v
+		if err := cfg.ReplaceTunnels(v); err != nil {
+			return unmarshalErr(err)
+		}
 	case "routing":
 		var v *cfgpkg.Routing
 		if err := json.Unmarshal(body, &v); err != nil {
@@ -177,13 +159,13 @@ func applySectionBody(cfg *cfgpkg.Config, section string, body []byte) *types.Ap
 		}
 
 		cfg.Routing = v
-	case "wireguard":
+	case "wireguard", "vpn.wireguard":
 		var v map[string]*cfgpkg.Wireguard
 		if err := json.Unmarshal(body, &v); err != nil {
 			return unmarshalErr(err)
 		}
 
-		cfg.Wireguard = v
+		cfg.VPN.Wireguard = v
 	case "nftables":
 		var v cfgpkg.NftablesConfig
 		if err := json.Unmarshal(body, &v); err != nil {
@@ -283,6 +265,20 @@ func applySectionBody(cfg *cfgpkg.Config, section string, body []byte) *types.Ap
 		}
 
 		cfg.DHCP = v
+	case "switches":
+		var v map[string]*cfgpkg.Switch
+		if err := json.Unmarshal(body, &v); err != nil {
+			return unmarshalErr(err)
+		}
+
+		cfg.Switches = v
+	case "web":
+		var v *cfgpkg.Web
+		if err := json.Unmarshal(body, &v); err != nil {
+			return unmarshalErr(err)
+		}
+
+		cfg.Web = v
 	default:
 		return types.Errorf(http.StatusNotFound, "unknown section: %s", section)
 	}

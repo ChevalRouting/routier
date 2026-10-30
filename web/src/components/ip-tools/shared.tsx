@@ -1,4 +1,4 @@
-import { Card, CardContent, CopyButton, Input, Label } from 'cheval-ui'
+import { Card, CardContent, CopyButton, Input, Label, Table, TableBody, TableCell, TableRow } from 'cheval-ui'
 import { useEffect, useState } from 'react'
 
 type BinaryRowShape = { bits: string; prefix: number; is4: boolean }
@@ -62,24 +62,24 @@ export function ResultTable({ rows, prefix, is4 }: ResultTableShape) {
   return (
     <Card>
       <CardContent className="overflow-x-auto p-0">
-        <table className="w-full text-sm">
-          <tbody>
+        <Table className="w-full text-sm">
+          <TableBody>
             {rows.map((row) => (
-              <tr key={row.label} className="border-b border-border last:border-0">
-                <td className="py-2 pl-4 pr-3 align-top font-medium text-muted-foreground w-28 whitespace-nowrap">{row.label}</td>
-                <td className="py-2 pr-3 align-top font-mono whitespace-nowrap">
+              <TableRow key={row.label} className="border-b border-border last:border-0">
+                <TableCell className="py-2 pl-4 pr-3 align-top font-medium text-muted-foreground w-28 whitespace-nowrap">{row.label}</TableCell>
+                <TableCell className="py-2 pr-3 align-top font-mono whitespace-nowrap">
                   <span className="inline-flex items-center gap-1.5">
                     {row.value}
                     <CopyButton text={row.value} />
                   </span>
-                </td>
-                <td className="py-2 pr-4 align-top">
+                </TableCell>
+                <TableCell className="hidden py-2 pr-4 align-top sm:table-cell">
                   {row.bits && <BinaryRow bits={row.bits} prefix={prefix} is4={is4} />}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </CardContent>
     </Card>
   )
@@ -96,11 +96,11 @@ export function ToolInput({ label, hint, ...props }: ToolInputShape & React.Inpu
 }
 
 export function ErrorNote({ message }: ErrorNoteShape) {
-  return <p className="text-sm text-destructive">{message}</p>
+  return <p className="text-sm text-danger">{message}</p>
 }
 
 export const TABS: TABSShape[] = [
-  { key: 'subnet', label: 'Subnet calculator' },
+  { key: 'subnet', label: 'Subnet Calculator' },
   { key: 'reverse', label: 'Reverse DNS' },
   { key: 'range', label: 'Range to CIDR' },
 ]

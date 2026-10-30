@@ -13,7 +13,7 @@ func newConfirmCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "confirm",
 		Short: "confirm pending apply, disarm rollback",
-		RunE:  newConfirmCommandHandler,
+		RunE:  runConfirm,
 	}
 }
 
@@ -23,8 +23,8 @@ func newRollbackCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "rollback",
 		Short: "restore previous snapshot",
-		RunE: func(unusedArg2 *cobra.Command, unusedArg3 []string) error {
-			return newRollbackCommandCallback(&id, offset, unusedArg2, unusedArg3)
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return runRollback(&id, offset)
 		},
 	}
 
@@ -33,7 +33,7 @@ func newRollbackCommand() *cobra.Command {
 	return cmd
 }
 
-func newConfirmCommandHandler(_ *cobra.Command, _ []string) error {
+func runConfirm(_ *cobra.Command, _ []string) error {
 	id, err := managers.ConfirmPending()
 	if err != nil {
 		return err
@@ -44,8 +44,8 @@ func newConfirmCommandHandler(_ *cobra.Command, _ []string) error {
 	return nil
 }
 
-func newRollbackCommandCallback(id *string, offset int, _ *cobra.Command, _ []string) error {
-	if (*id) != "" && offset != 0 {
+func runRollback(id *string, offset int) error {
+	if *id != "" && offset != 0 {
 		return fmt.Errorf("--snapshot and --offset are mutually exclusive")
 	}
 
@@ -60,10 +60,10 @@ func newRollbackCommandCallback(id *string, offset int, _ *cobra.Command, _ []st
 			return fmt.Errorf("offset %d out of range (have %d snapshots)", offset, len(snapshots))
 		}
 
-		(*id) = snapshots[idx]
+		*id = snapshots[idx]
 	}
 
-	resolved, err := managers.Rollback((*id))
+	resolved, err := managers.Rollback(*id)
 	if err != nil {
 		return err
 	}

@@ -1,0 +1,213 @@
+{
+  "/system/identity": {
+    "name": "crs310-lab"
+  },
+  "/system/resource": {
+    "board-name": "CRS310-8G+2S+",
+    "version": "7.16 (stable)",
+    "architecture-name": "arm64",
+    "uptime": "1d2h"
+  },
+  "/system/routerboard": {
+    "routerboard": "true",
+    "model": "CRS310-8G+2S+",
+    "serial-number": "HJ0123456",
+    "current-firmware": "7.16"
+  },
+  "/interface": [
+    {
+      ".id": "*1",
+      "name": "ether1",
+      "type": "ether",
+      "running": "true",
+      "disabled": "false",
+      "mac-address": "48:A9:8A:00:00:01",
+      "comment": "desk"
+    },
+    {
+      ".id": "*2",
+      "name": "ether2",
+      "type": "ether",
+      "running": "true",
+      "disabled": "false",
+      "mac-address": "48:A9:8A:00:00:02"
+    },
+    {
+      ".id": "*3",
+      "name": "ether3",
+      "type": "ether",
+      "running": "false",
+      "disabled": "false",
+      "mac-address": "48:A9:8A:00:00:03"
+    },
+    {
+      ".id": "*7",
+      "name": "ether7",
+      "type": "ether",
+      "running": "true",
+      "disabled": "false",
+      "mac-address": "48:A9:8A:00:00:07",
+      "slave": "true"
+    },
+    {
+      ".id": "*8",
+      "name": "ether8",
+      "type": "ether",
+      "running": "true",
+      "disabled": "false",
+      "mac-address": "48:A9:8A:00:00:08",
+      "slave": "true"
+    },
+    {
+      ".id": "*9",
+      "name": "sfp-sfpplus1",
+      "type": "ether",
+      "running": "true",
+      "disabled": "false",
+      "mac-address": "48:A9:8A:00:00:09"
+    },
+    {
+      ".id": "*A",
+      "name": "sfp-sfpplus2",
+      "type": "ether",
+      "running": "false",
+      "disabled": "true",
+      "mac-address": "48:A9:8A:00:00:0A"
+    },
+    {
+      ".id": "*B",
+      "name": "bond1",
+      "type": "bond",
+      "running": "true",
+      "disabled": "false",
+      "mac-address": "48:A9:8A:00:00:07"
+    },
+    {
+      ".id": "*C",
+      "name": "bridge",
+      "type": "bridge",
+      "running": "true",
+      "disabled": "false",
+      "mac-address": "48:A9:8A:00:00:01"
+    },
+    {
+      ".id": "*D",
+      "name": "mgmt",
+      "type": "vlan",
+      "running": "true",
+      "disabled": "false",
+      "mac-address": "48:A9:8A:00:00:01"
+    }
+  ],
+  "/interface/bridge": [
+    {
+      ".id": "*C",
+      "name": "bridge",
+      "vlan-filtering": "true",
+      "pvid": "1",
+      "protocol-mode": "rstp"
+    }
+  ],
+  "/interface/bridge/port": [
+    {
+      ".id": "*0",
+      "interface": "ether1",
+      "bridge": "bridge",
+      "pvid": "10",
+      "frame-types": "admit-only-untagged-and-priority-tagged",
+      "dynamic": "false",
+      "disabled": "false"
+    },
+    {
+      ".id": "*1",
+      "interface": "ether2",
+      "bridge": "bridge",
+      "pvid": "1",
+      "frame-types": "admit-all",
+      "dynamic": "false",
+      "disabled": "false"
+    },
+    {
+      ".id": "*2",
+      "interface": "ether3",
+      "bridge": "bridge",
+      "pvid": "20",
+      "frame-types": "admit-only-untagged-and-priority-tagged",
+      "dynamic": "false",
+      "disabled": "false"
+    },
+    {
+      ".id": "*3",
+      "interface": "bond1",
+      "bridge": "bridge",
+      "pvid": "1",
+      "frame-types": "admit-only-vlan-tagged",
+      "dynamic": "false",
+      "disabled": "false"
+    },
+    {
+      ".id": "*4",
+      "interface": "sfp-sfpplus1",
+      "bridge": "bridge",
+      "pvid": "1",
+      "frame-types": "admit-only-vlan-tagged",
+      "dynamic": "false",
+      "disabled": "false"
+    }
+  ],
+  "/interface/bridge/vlan": [
+    {
+      ".id": "*1",
+      "bridge": "bridge",
+      "vlan-ids": "10",
+      "tagged": "bridge,ether2,sfp-sfpplus1",
+      "untagged": "",
+      "current-tagged": "bridge,ether2,sfp-sfpplus1",
+      "current-untagged": "ether1",
+      "dynamic": "false",
+      "disabled": "false"
+    },
+    {
+      ".id": "*2",
+      "bridge": "bridge",
+      "vlan-ids": "20",
+      "tagged": "ether2,sfp-sfpplus1,bond1",
+      "untagged": "ether3",
+      "current-tagged": "ether2,sfp-sfpplus1,bond1",
+      "current-untagged": "ether3",
+      "dynamic": "false",
+      "disabled": "false"
+    },
+    {
+      ".id": "*3",
+      "bridge": "bridge",
+      "vlan-ids": "100-102",
+      "tagged": "sfp-sfpplus1",
+      "untagged": "",
+      "current-tagged": "sfp-sfpplus1",
+      "current-untagged": "",
+      "dynamic": "false",
+      "disabled": "false"
+    },
+    {
+      ".id": "*4",
+      "bridge": "bridge",
+      "vlan-ids": "1",
+      "tagged": "",
+      "untagged": "",
+      "current-tagged": "",
+      "current-untagged": "bridge,ether2",
+      "dynamic": "true",
+      "disabled": "false"
+    }
+  ],
+  "/interface/bonding": [
+    {
+      ".id": "*B",
+      "name": "bond1",
+      "slaves": "ether7,ether8",
+      "mode": "802.3ad",
+      "transmit-hash-policy": "layer-2-and-3"
+    }
+  ]
+}

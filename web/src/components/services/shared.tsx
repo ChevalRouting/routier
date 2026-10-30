@@ -1,5 +1,6 @@
-import { Badge, Button } from 'cheval-ui'
-import { Trash2 } from 'lucide-react'
+import { plural } from '@/lib/utils'
+import { EntityRow } from '@/components/ui/EntityRow'
+import { Badge, StatusChip } from 'cheval-ui'
 
 export interface ServiceConfig {
   enable: boolean
@@ -59,31 +60,11 @@ export interface ServiceRowProps {
 
 export function ServiceRow({ name, service, configCount, onEdit, onDelete }: ServiceRowProps) {
   return (
-    <div
-      onClick={onEdit}
-      className="flex items-start gap-3 px-4 py-3 hover:bg-accent/50 cursor-pointer transition-colors"
-    >
-      <span className="font-mono font-semibold text-sm w-28 shrink-0 truncate pt-0.5">{name}</span>
-      <div className="flex flex-wrap gap-1 flex-1 min-w-0">
-        <Badge variant={service.enable ? 'success' : 'neutral'} className="text-xs">
-          {service.enable ? 'enabled' : 'disabled'}
-        </Badge>
-        {service.after && (
-          <Badge variant="outline" className="text-xs font-mono">after: {service.after}</Badge>
-        )}
-        {configCount > 0 && (
-          <Badge variant="outline" className="text-xs">{configCount} file{configCount !== 1 ? 's' : ''}</Badge>
-        )}
-      </div>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={(e) => { e.stopPropagation(); onDelete() }}
-        className="h-7 w-7 p-0 hover:text-destructive shrink-0"
-      >
-        <Trash2 className="h-3.5 w-3.5" />
-      </Button>
-    </div>
+    <EntityRow title={name} onOpen={onEdit} onRemove={onDelete} removeLabel="Remove Service">
+      <StatusChip intent={service.enable ? 'success' : 'neutral'} label={service.enable ? 'Enabled' : 'Disabled'} />
+      {service.after && <Badge variant="outline" className="font-mono">after: {service.after}</Badge>}
+      {configCount > 0 && <Badge variant="outline">{plural(configCount, 'file')}</Badge>}
+    </EntityRow>
   )
 }
 

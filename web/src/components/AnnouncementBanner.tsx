@@ -3,6 +3,7 @@ import { api } from '@/lib/client'
 import { useDataVersion } from '@/lib/dataVersion'
 import { X } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { Button } from 'cheval-ui'
 
 const DISMISS_KEY = 'routier:dismissed-announcements'
 
@@ -44,9 +45,9 @@ export function AnnouncementBanner() {
         <div key={a.id} className={`flex items-center gap-3 border-b px-4 py-2 text-sm ${LEVEL_CLASS[a.level] ?? LEVEL_CLASS.info}`}>
           <span className="flex-1 min-w-0 break-words">{a.message}</span>
           {a.dismissible && (
-            <button type="button" onClick={() => dismiss(a)} className="shrink-0 opacity-70 hover:opacity-100" aria-label="Dismiss">
+            <Button variant="ghost" size="icon" onClick={() => dismiss(a)} className="shrink-0" aria-label="Dismiss" title="Dismiss">
               <X className="h-4 w-4" />
-            </button>
+            </Button>
           )}
         </div>
       ))}

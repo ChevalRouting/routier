@@ -49,9 +49,9 @@ func TestValidateArtifactsSkipsMissingTool(t *testing.T) {
 	}
 }
 
-func TestValidateArtifactsBeforeApplyDefersKea(t *testing.T) {
+func TestValidateArtifactsBeforeApplyDefersNetworkValidators(t *testing.T) {
 	binDir := t.TempDir()
-	for _, bin := range []string{"kea-dhcp4", "kea-dhcp6", "nft"} {
+	for _, bin := range []string{"kea-dhcp4", "kea-dhcp6", "nft", "vtysh"} {
 		if err := os.WriteFile(filepath.Join(binDir, bin), []byte("#!/bin/sh\nexit 1\n"), 0755); err != nil {
 			t.Fatal(err)
 		}
@@ -68,12 +68,13 @@ func TestValidateArtifactsBeforeApplyDefersKea(t *testing.T) {
 		{Name: "kea/kea-dhcp4.conf", Dest: "/etc/kea/kea-dhcp4.conf", Content: "{}"},
 		{Name: "kea/kea-dhcp6.conf", Dest: "/etc/kea/kea-dhcp6.conf", Content: "{}"},
 		{Name: "nftables/routier.nft", Dest: "/etc/nftables.d/routier.nft", Content: "table inet routier {}"},
+		{Name: "frr/frr.conf", Dest: "/etc/frr/frr.conf", Content: "hostname r\n"},
 	}
 	if errs := ValidateArtifactsBeforeApply(outputs); len(errs) != 0 {
 		t.Fatal(errs)
 	}
 
-	if len(calls) != 1 || calls[0] != "nft" {
+	if len(calls) != 1 || calls[0] != "vtysh" {
 		t.Fatalf("pre-apply validators: %v", calls)
 	}
 
@@ -82,7 +83,25 @@ func TestValidateArtifactsBeforeApplyDefersKea(t *testing.T) {
 		t.Fatal(errs)
 	}
 
-	if len(calls) != 3 || calls[0] != "kea-dhcp4" || calls[1] != "kea-dhcp6" {
+	if len(calls) != 4 || calls[0] != "kea-dhcp4" || calls[1] != "kea-dhcp6" || calls[2] != "nft" || calls[3] != "vtysh" {
 		t.Fatalf("standalone validators: %v", calls)
+	}
+}
+
+func TestReloadRejectsInvalidNftablesBeforeLoading(t *testing.T) {
+	var calls [][]string
+	restore := SetCommandRunner(func(_ context.Context, bin string, args ...string) ([]byte, error) {
+		calls = append(calls, append([]string{bin}, args...))
+		return []byte("invalid ruleset"), errors.New("exit status 1")
+	})
+	defer restore()
+
+	err := ReloadFromOutputs([]string{"nftables/routier.nft"}, nil, false)
+	if err == nil {
+		t.Fatal("want validation failure")
+	}
+
+	if len(calls) != 1 || len(calls[0]) != 4 || calls[0][0] != "nft" || calls[0][1] != "-c" {
+		t.Fatalf("must validate without loading invalid ruleset: %v", calls)
 	}
 }

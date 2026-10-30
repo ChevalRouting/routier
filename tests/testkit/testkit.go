@@ -173,7 +173,7 @@ func NewNode(t *testing.T, configContents string) *Node {
 	}
 
 	ts := httptest.NewServer(srv.Handler())
-	t.Cleanup(ts.Close)
+	t.Cleanup(func() { closeNode(t, ts, srv) })
 
 	if u, uerr := url.Parse(ts.URL); uerr == nil {
 		if port, perr := strconv.Atoi(u.Port()); perr == nil {
@@ -250,4 +250,11 @@ func RunCLI(t *testing.T, bin string, args ...string) (string, error) {
 
 type responseData[T any] struct {
 	Result T `json:"result"`
+}
+
+func closeNode(t *testing.T, ts *httptest.Server, srv *api.Server) {
+	ts.Close()
+	if err := srv.Close(); err != nil {
+		t.Errorf("close server: %v", err)
+	}
 }

@@ -1,13 +1,13 @@
 package auth
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"os/exec"
 	"strings"
 
 	"github.com/ChevalRouting/routier/pkg/auth/unixauth"
-	"github.com/ChevalRouting/routier/pkg/config"
 	"github.com/ChevalRouting/routier/pkg/host/motd"
 	appctx "github.com/ChevalRouting/routier/pkg/server/api/app"
 	"github.com/ChevalRouting/routier/pkg/types"
@@ -38,7 +38,12 @@ func ChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cfg, err := config.Load(app.ConfigPath)
+	if strings.ContainsAny(req.New, "\r\n\x00") {
+		types.Err(http.StatusBadRequest, "the new password cannot contain line breaks or NUL characters").Write(w)
+		return
+	}
+
+	cfg, err := loadAdminConfig(app.ConfigPath)
 	if err != nil {
 		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "failed to read config"))
 		return
@@ -77,6 +82,10 @@ func ChangePassword(w http.ResponseWriter, r *http.Request) {
 }
 
 func setUnixPassword(username, password string) error {
+	if strings.ContainsAny(username, ":\r\n\x00") || strings.ContainsAny(password, "\r\n\x00") {
+		return fmt.Errorf("invalid characters in the user name or password")
+	}
+
 	cmd := exec.Command("chpasswd")
 	cmd.Stdin = strings.NewReader(username + ":" + password + "\n")
 	return cmd.Run()

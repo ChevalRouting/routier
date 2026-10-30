@@ -99,32 +99,80 @@ func TestChooseKernelSingleFlavorNoWarn(t *testing.T) {
 	}
 }
 
+func writeGrubConfig(t *testing.T, root, body string) string {
+	t.Helper()
+	path := filepath.Join(root, "boot", "grub", "grub.cfg")
+	if err := os.WriteFile(path, []byte(body), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	return path
+}
+
 func TestReconcileWritesGrubConfig(t *testing.T) {
 	root := makeRoot(t, map[string]string{"6.12.4-0-lts": "lts"}, true)
+	path := writeGrubConfig(t, root, GrubConfig("x86_64", "virt", DefaultRootArgs))
 
-	chosen, _, err := Reconcile(root, "x86_64")
+	chosen, written, _, err := Reconcile(root, "x86_64")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if chosen.Flavor != "lts" {
-		t.Fatalf("chosen = %q", chosen.Flavor)
+	if chosen.Flavor != "lts" || !written {
+		t.Fatalf("chosen = %q, written = %v", chosen.Flavor, written)
 	}
 
-	data, err := os.ReadFile(filepath.Join(root, "boot", "grub", "grub.cfg"))
+	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if !strings.Contains(string(data), "/boot/vmlinuz-lts") || !strings.Contains(string(data), "ttyS0") {
+	if !strings.Contains(string(data), "/boot/vmlinuz-lts root=/dev/routier/root rootfstype=xfs") || !strings.Contains(string(data), "ttyS0") {
 		t.Fatalf("grub.cfg = %s", data)
+	}
+}
+
+func TestReconcileKeepsRootArguments(t *testing.T) {
+	root := makeRoot(t, map[string]string{"6.12.4-0-virt": "virt"}, true)
+	path := writeGrubConfig(t, root, GrubConfig("aarch64", "lts", "root=UUID=1234-abcd rootfstype=ext4"))
+
+	if _, _, _, err := Reconcile(root, "aarch64"); err != nil {
+		t.Fatal(err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(string(data), "/boot/vmlinuz-virt root=UUID=1234-abcd rootfstype=ext4 rootwait") {
+		t.Fatalf("grub.cfg = %s", data)
+	}
+}
+
+func TestReconcileLeavesForeignGrubConfig(t *testing.T) {
+	root := makeRoot(t, map[string]string{"6.12.4-0-lts": "lts"}, true)
+	foreign := "menuentry \"Alpine\" {\n    linux /boot/vmlinuz-lts root=UUID=feed modules=ext4\n}\n"
+	path := writeGrubConfig(t, root, foreign)
+
+	if _, _, _, err := Reconcile(root, "x86_64"); err != nil {
+		t.Fatal(err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if string(data) != foreign {
+		t.Fatalf("foreign grub.cfg rewritten: %s", data)
 	}
 }
 
 func TestReconcileNoGrubTreeSkips(t *testing.T) {
 	root := makeRoot(t, map[string]string{"6.12.4-0-lts": "lts"}, false)
 
-	if _, _, err := Reconcile(root, "x86_64"); err != nil {
+	if _, _, _, err := Reconcile(root, "x86_64"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -136,7 +184,7 @@ func TestReconcileNoGrubTreeSkips(t *testing.T) {
 func TestReconcileNoKernelErrors(t *testing.T) {
 	root := makeRoot(t, map[string]string{}, true)
 
-	if _, _, err := Reconcile(root, "x86_64"); err == nil {
+	if _, _, _, err := Reconcile(root, "x86_64"); err == nil {
 		t.Fatal("want error when no kernel installed")
 	}
 }

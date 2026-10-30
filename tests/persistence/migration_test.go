@@ -40,8 +40,13 @@ func TestInitDBAdoptsExistingSchema(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if version != 2 {
-		t.Fatalf("migration version = %d, want 2", version)
+	migrations, err := filepath.Glob("../../pkg/db/migrations/*.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if version != len(migrations) {
+		t.Fatalf("migration version = %d, want %d", version, len(migrations))
 	}
 
 	if err := database.Close(); err != nil {

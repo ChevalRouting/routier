@@ -84,7 +84,7 @@ nftables:
 		t.Fatalf("legacy HA not dropped:\n%s", s)
 	}
 
-	if !strings.Contains(s, "version: v3.0.0") {
+	if !strings.Contains(s, "version: "+config.CurrentVersion) {
 		t.Fatalf("not migrated to current version:\n%s", s)
 	}
 

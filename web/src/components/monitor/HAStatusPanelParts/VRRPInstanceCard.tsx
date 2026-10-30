@@ -23,7 +23,7 @@ export function VRRPInstanceCard({ inst }: VRRPInstanceCardShape) {
         </div>
         {(inst.vips ?? []).length > 0 && (
           <div className="flex flex-wrap gap-1.5">
-            {(inst.vips ?? []).map((vip) => <span key={vip} className="inline-block px-1.5 py-0.5 rounded bg-muted font-mono text-[11px]">{vip}</span>)}
+            {(inst.vips ?? []).map((vip) => <span key={vip} className="inline-block px-1.5 py-0.5 rounded bg-muted font-mono text-xs">{vip}</span>)}
           </div>
         )}
         {inst.master_ip && inst.master_ip !== 'this system' && (

@@ -1,6 +1,5 @@
 import { api } from '@/lib/client'
 import { Button, SectionLabel, Separator } from 'cheval-ui'
-import { Download, RefreshCw, Upload } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -53,25 +52,24 @@ export function BackupTab({ onChanged }: BackupTabShape) {
   }
 
   return (
-    <div className="space-y-5 max-w-xl">
+    <div className="max-w-3xl space-y-5">
       <div className="space-y-2">
         <SectionLabel>Export</SectionLabel>
         <p className="text-sm text-muted-foreground">
           Download a <code className="text-xs bg-muted px-1 py-0.5 rounded">.bin</code> archive (zstd) of the config and referenced files
-          (nftables, WireGuard keys, template overrides). Keep it safe, it contains private keys.
-        </p>
+          (nftables, WireGuard keys, template overrides). It contains private keys</p>
         <Button onClick={doExport} disabled={exporting} className="gap-2">
-          {exporting ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}Export backup
+          {exporting ? 'Exporting…' : 'Export Backup'}
         </Button>
       </div>
       <Separator />
       <div className="space-y-2">
         <SectionLabel>Import</SectionLabel>
-        <p className="text-sm text-muted-foreground">Restore a <code className="text-xs bg-muted px-1 py-0.5 rounded">.bin</code> archive and apply it. The watchdog is armed, confirm above to keep the changes.</p>
+        <p className="text-sm text-muted-foreground">Restores and applies a <code>.bin</code> archive; confirm within the watchdog window to keep it</p>
         <input ref={fileRef} type="file" accept=".bin" className="hidden"
           onChange={(e) => { const f = e.target.files?.[0]; if (f) doImport(f) }} />
         <Button variant="outline" onClick={() => fileRef.current?.click()} disabled={importing} className="gap-2">
-          {importing ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}Import backup
+          {importing ? 'Importing…' : 'Import Backup…'}
         </Button>
       </div>
     </div>

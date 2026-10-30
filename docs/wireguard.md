@@ -1,23 +1,24 @@
 # WireGuard
 
-`wireguard` maps an interface name to a WireGuard definition, rendered to a
+`vpn.wireguard` maps an interface name to a WireGuard definition, rendered to a
 `wg-quick` config.
 
 ```yaml
-wireguard:
-  wg0:
-    listen_port: 51820
-    private_key: <base64>
-    addresses: ["10.10.0.1/24"]
-    table: "off"
-    allow_inbound: true
-    peers:
-      - name: laptop
-        public_key: <base64>
-        preshared_key: <base64>
-        endpoint: peer.example.com:51820
-        allowed_ips: ["10.10.0.2/32"]
-        keepalive: 25
+vpn:
+  wireguard:
+    wg0:
+      listen_port: 51820
+      private_key: <base64>
+      addresses: ["10.10.0.1/24"]
+      table: "off"
+      allow_inbound: true
+      peers:
+        - name: laptop
+          public_key: <base64>
+          preshared_key: <base64>
+          endpoint: peer.example.com:51820
+          allowed_ips: ["10.10.0.2/32"]
+          keepalive: 25
 ```
 
 Interface fields: `listen_port`, `private_key` or `private_key_file` (one
@@ -32,7 +33,7 @@ Peer fields: `public_key` (required), `private_key`, `preshared_key` or
 
 Key material can be generated via `POST /api/wireguard/keygen`, and
 `POST /api/wireguard/pubkey` derives a public key from a private one. UI:
-**Network > WireGuard**.
+**Network > VPN > WireGuard**.
 
 ## Friend-derived interfaces
 
@@ -50,3 +51,10 @@ A WireGuard tunnel between two Routier nodes can be derived from a
 Derived interfaces appear in the WireGuard list badged `derived . <friend>`
 and remain ordinary, editable WireGuard config. Removing the friend offers to
 cascade-delete them. See [friends.md](friends.md#derived-wireguard).
+
+## Status
+
+`GET /api/wireguard/status` lists each WireGuard interface with its public key
+and listen port, and each peer with its configured name, endpoint, allowed IPs,
+latest handshake (Unix time, 0 when none yet) and received and sent bytes, as
+`wg show all dump` reports them.

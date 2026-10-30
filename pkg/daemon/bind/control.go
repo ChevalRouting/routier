@@ -55,8 +55,13 @@ func (c *Client) Reconfig() error {
 	return err
 }
 
-func (c *Client) ReloadAll() error {
-	_, err := c.rndc("reload")
+func (c *Client) QueryLog(on bool) error {
+	state := "off"
+	if on {
+		state = "on"
+	}
+
+	_, err := c.rndc("querylog", state)
 
 	return err
 }
@@ -87,12 +92,6 @@ func (c *Client) FlushAll() error {
 
 func (c *Client) FlushName(name string) error {
 	_, err := c.rndc("flushname", name)
-
-	return err
-}
-
-func (c *Client) FlushTree(name string) error {
-	_, err := c.rndc("flushtree", name)
 
 	return err
 }

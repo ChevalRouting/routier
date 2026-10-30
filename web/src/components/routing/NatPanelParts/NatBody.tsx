@@ -1,6 +1,6 @@
 import type { NatSpec } from '@/api'
 import { VarPickerInput } from '@/components/VarPickerInput'
-import { Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from 'cheval-ui'
+import { ComboRow, EntryRow, PreferencesGroup, Segmented } from 'cheval-ui'
 
 type NatBodyShape = {
   spec: NatSpec
@@ -9,73 +9,46 @@ type NatBodyShape = {
   onChange: (patch: Partial<NatSpec>) => void
 }
 
+const FAMILIES = [{ value: 'ip', label: 'ip' }, { value: 'ip6', label: 'ip6' }]
+
+const PROTOCOLS = [{ value: 'tcp', label: 'tcp' }, { value: 'udp', label: 'udp' }]
+
 export function NatBody({ spec, ifaceVars, addrVars, onChange }: NatBodyShape) {
+  const source = spec.kind === 'masquerade' || spec.kind === 'snat'
+
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-      {(spec.kind === 'masquerade' || spec.kind === 'snat') && (
-        <div className="space-y-1.5">
-          <Label className="text-[11px]">Out interface</Label>
+    <PreferencesGroup>
+      {source && (
+        <ComboRow title="Out Interface">
           <VarPickerInput value={spec.out ?? ''} onChange={(v) => onChange({ out: v })} vars={ifaceVars} placeholder="$wan_interfaces" mono />
-        </div>
+        </ComboRow>
       )}
       {spec.kind === 'snat' && (
-        <div className="space-y-1.5">
-          <Label className="text-[11px]">SNAT to</Label>
-          <Input value={spec.to ?? ''} onChange={(e) => onChange({ to: e.target.value })} placeholder="203.0.113.5" className="font-mono text-sm h-8" />
-        </div>
+        <EntryRow title="SNAT To" value={spec.to ?? ''} onChange={(e) => onChange({ to: e.target.value })} placeholder="203.0.113.5" className="font-mono" />
       )}
-      {(spec.kind === 'masquerade' || spec.kind === 'snat') && (
-        <>
-          <div className="space-y-1.5">
-            <Label className="text-[11px]">Source (optional)</Label>
-            <VarPickerInput value={spec.source ?? ''} onChange={(v) => onChange({ source: v })} vars={addrVars} placeholder="$lan_network" mono />
-          </div>
-          {spec.source ? (
-            <div className="space-y-1.5">
-              <Label className="text-[11px]">Source family</Label>
-              <Select value={spec.family || 'ip'} onValueChange={(v) => onChange({ family: v })}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ip">ip</SelectItem>
-                  <SelectItem value="ip6">ip6</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          ) : null}
-        </>
+      {source && (
+        <ComboRow title="Source">
+          <VarPickerInput value={spec.source ?? ''} onChange={(v) => onChange({ source: v })} vars={addrVars} placeholder="$lan_network" mono />
+        </ComboRow>
       )}
-
+      {source && spec.source && (
+        <ComboRow title="Source Family">
+          <Segmented value={spec.family || 'ip'} onChange={(v) => onChange({ family: v })} options={FAMILIES} />
+        </ComboRow>
+      )}
       {spec.kind === 'dnat' && (
         <>
-          <div className="space-y-1.5">
-            <Label className="text-[11px]">In interface</Label>
+          <ComboRow title="In Interface">
             <VarPickerInput value={spec.in ?? ''} onChange={(v) => onChange({ in: v })} vars={ifaceVars} placeholder="$wan_interfaces" mono />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-[11px]">Protocol</Label>
-            <Select value={spec.proto || 'tcp'} onValueChange={(v) => onChange({ proto: v })}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="tcp">tcp</SelectItem>
-                <SelectItem value="udp">udp</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-[11px]">Dest port</Label>
-            <Input value={spec.dport ?? ''} onChange={(e) => onChange({ dport: e.target.value })} placeholder="443" className="font-mono text-sm h-8" />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-[11px]">Forward to</Label>
-            <Input value={spec.to ?? ''} onChange={(e) => onChange({ to: e.target.value })} placeholder="10.0.0.5:8443" className="font-mono text-sm h-8" />
-          </div>
+          </ComboRow>
+          <ComboRow title="Protocol">
+            <Segmented value={spec.proto || 'tcp'} onChange={(v) => onChange({ proto: v })} options={PROTOCOLS} />
+          </ComboRow>
+          <EntryRow title="Destination Port" value={spec.dport ?? ''} onChange={(e) => onChange({ dport: e.target.value })} placeholder="443" className="font-mono" />
+          <EntryRow title="Forward To" value={spec.to ?? ''} onChange={(e) => onChange({ to: e.target.value })} placeholder="10.0.0.5:8443" className="font-mono" />
         </>
       )}
-
-      <div className="space-y-1.5">
-        <Label className="text-[11px]">Comment</Label>
-        <Input value={spec.comment ?? ''} onChange={(e) => onChange({ comment: e.target.value })} placeholder="optional" className="text-sm h-8" />
-      </div>
-    </div>
+      <EntryRow title="Comment" value={spec.comment ?? ''} onChange={(e) => onChange({ comment: e.target.value })} />
+    </PreferencesGroup>
   )
 }

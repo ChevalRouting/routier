@@ -1,0 +1,10 @@
+#!/bin/sh
+for svc in routier-ui routier; do
+	rc-service "$svc" stop 2>/dev/null || true
+	rc-update del "$svc" default 2>/dev/null || true
+done
+
+for lvl in sysinit boot default; do
+	rc-update del routier-net "$lvl" 2>/dev/null || true
+	rc-update del routier-firstboot "$lvl" 2>/dev/null || true
+done

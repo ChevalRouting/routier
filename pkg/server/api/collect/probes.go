@@ -48,7 +48,7 @@ func RunProbes(ctx context.Context, dbPath, configPath string) error {
 	var group sync.WaitGroup
 	for _, configured := range due {
 		group.Add(1)
-		go func() { runProbesCallback(now, results, &group, &configured) }()
+		go func() { runProbe(now, results, &group, &configured) }()
 	}
 
 	group.Wait()
@@ -63,11 +63,11 @@ func RunProbes(ctx context.Context, dbPath, configPath string) error {
 	return nil
 }
 
-func runProbesCallback(now int64, results chan types.ProbeHistoryPoint, group *sync.WaitGroup, configured *config.PingProbe) {
-	defer (*group).Done()
-	point := types.ProbeHistoryPoint{TS: now, Name: (*configured).Name, Target: (*configured).Target}
-	timeout := time.Duration((*configured).Timeout) * time.Millisecond
-	if average, pingErr := probe.Ping((*configured).Target, timeout); pingErr == nil {
+func runProbe(now int64, results chan types.ProbeHistoryPoint, group *sync.WaitGroup, configured *config.PingProbe) {
+	defer group.Done()
+	point := types.ProbeHistoryPoint{TS: now, Name: configured.Name, Target: configured.Target}
+	timeout := time.Duration(configured.Timeout) * time.Millisecond
+	if average, pingErr := probe.Ping(configured.Target, timeout); pingErr == nil {
 		point.Reachable = true
 		point.RTTAvgMS = &average
 	}

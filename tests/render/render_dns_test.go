@@ -589,3 +589,15 @@ func TestRenderNamedViews(t *testing.T) {
 		}
 	}
 }
+
+func TestRenderNamedQueryLog(t *testing.T) {
+	off := namedConf(t, dnsForwarderOnly)
+	wantLines(t, "named.conf", off, "querylog no;")
+
+	if strings.Contains(off, "category queries") {
+		t.Errorf("query logging off must not route the queries category:\n%s", off)
+	}
+
+	on := namedConf(t, strings.Replace(dnsForwarderOnly, "    enabled: true\n", "    enabled: true\n    log_queries: true\n", 1))
+	wantLines(t, "named.conf", on, "querylog yes;", "category queries { routier_log; };")
+}
