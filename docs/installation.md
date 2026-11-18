@@ -12,6 +12,14 @@ The installer ISO is published for `x86_64` and `aarch64`:
 Each release is also kept as `routier-installer-<version>-r<release>-<arch>.iso`
 in the same directory.
 
+For virtual machines, the lighter
+[`routier-latest-installer-virt-x86_64.iso`](%%REPO_URL%%/iso/routier-latest-installer-virt-x86_64.iso)
+and
+[`routier-latest-installer-virt-aarch64.iso`](%%REPO_URL%%/iso/routier-latest-installer-virt-aarch64.iso)
+use Alpine's `virt` kernel, which carries only the drivers of virtual hardware
+and no firmware, and install a system that keeps that kernel. Use the regular
+ISO on physical machines and for passed-through network cards.
+
 Two kinds of ISO can be built (see [building.md](building.md)): the light
 installer ISO that is published, and the appliance ISO, which runs the whole
 stack from memory. Both bring every network interface up with DHCP at boot and
@@ -49,8 +57,12 @@ the role of each interface. `routier setup --disk /dev/sda --hostname edge
 
 ## Cloud images
 
-`task cloud` builds a UEFI qcow2 image (see [building.md](building.md)) with
-Alpine, Routier, cloud-init and sshd. The root filesystem grows to the size of
+Every release publishes a UEFI qcow2 image,
+[`routier-latest-cloud-x86_64.qcow2`](%%REPO_URL%%/cloud/routier-latest-cloud-x86_64.qcow2)
+and
+[`routier-latest-cloud-aarch64.qcow2`](%%REPO_URL%%/cloud/routier-latest-cloud-aarch64.qcow2),
+with Alpine on the `virt` kernel, Routier, cloud-init and sshd already
+installed; `task cloud` builds the same image (see [building.md](building.md)). The root filesystem grows to the size of
 the instance disk on first boot, and the serial console is enabled.
 
 cloud-init configures the network and the default `alpine` user, which signs

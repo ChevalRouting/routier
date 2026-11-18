@@ -194,7 +194,9 @@ HTTP server; `apk` checks the index signature:
   routier.rsa.pub                  public signing key
   nightly/<arch>/                  builds of main, kept 30 days
   stable/<arch>/                   tagged releases (v*), kept
-  iso/                             installation media, routier-latest-<arch>.iso
+  iso/                             installation media, routier-latest-<arch>.iso and
+                                   routier-latest-installer-virt-<arch>.iso
+  cloud/                           cloud-init qcow2 images, routier-latest-cloud-<arch>.qcow2
   state/releases/<arch>/<version>  last release number published for a version
 ```
 
@@ -242,11 +244,13 @@ changes:
    `state/releases/<arch>/<version>`, 0 for a new version, so builders of
    different architectures number the same commit alike;
 3. it builds and signs the packages with `task apk` and publishes them;
-4. it builds each ISO flavor of `ISO_FLAVORS` (default `installer`) and
+4. it builds each ISO flavor of `ISO_FLAVORS` (default `installer installer-virt`) and
    publishes it;
-5. it records the release number, so a rebuild of the same commit gets the
+5. it builds the cloud-init qcow2 image with `task cloud` and publishes it,
+   unless `CLOUD_IMAGE=0`;
+6. it records the release number, so a rebuild of the same commit gets the
    next one;
-6. with `SITE_TARGET`, it builds this documentation site and mirrors it there,
+7. with `SITE_TARGET`, it builds this documentation site and mirrors it there,
    leaving the `repo/` directory alone so the repository can live inside it.
 
 With `REPO_HOST`, the release builds locally and publishes on another machine:
@@ -276,11 +280,12 @@ take a lock on `dist/.repo.lock` when `flock` is available.
 | `prune <channel> <arch>` | drop packages older than `KEEP_DAYS` (30 for nightly, never for stable) |
 | `reindex <channel> <arch>` | rebuild and sign the index |
 | `list` | list packages and images |
-| `iso <arch>` | publish the newest `dist/iso` image as `routier-latest-<arch>.iso`, keeping `ISO_KEEP` (5) |
+| `iso <arch> [flavor]` | publish the newest `dist/iso` image of a flavor (default `installer`) as `routier-latest-<arch>.iso`, or `routier-latest-<flavor>-<arch>.iso` for other flavors, keeping `ISO_KEEP` (5) per flavor |
+| `cloud <arch>` | publish the newest `dist/cloud` image as `routier-latest-cloud-<arch>.qcow2`, keeping `ISO_KEEP` (5) |
 | `counter next <arch> <version>`, `counter set <arch> <version> <release>` | read or set the release counter |
 | `site` | mirror `website/build` into the directory, deleting stale files but keeping `repo/` |
 | `page` | rewrite the listing page of every directory, styled by `assets/browse-routier.html`; also done after every channel change and image upload |
-| `receive` | unpack a tar of `<arch>/*.apk` and `iso/*.iso` from stdin into `dist/`, for `REPO_HOST` releases |
+| `receive` | unpack a tar of `<arch>/*.apk`, `iso/*.iso` and `cloud/*.qcow2` from stdin into `dist/`, for `REPO_HOST` releases |
 
 Every change to a channel copies its packages to a staging directory, rebuilds
 and signs `APKINDEX.tar.gz`, checks that the index describes every package and

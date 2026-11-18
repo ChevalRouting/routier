@@ -8,12 +8,13 @@ usage='usage: REPO_TARGET=<directory> repo.sh <command>
   prune <channel> <arch>                     drop packages older than KEEP_DAYS
   reindex <channel> <arch>
   list
-  iso <arch>                                 publish the newest dist/iso image, keep ISO_KEEP per arch
+  iso <arch> [flavor]                        publish the newest dist/iso image of a flavor (installer), keep ISO_KEEP
+  cloud <arch>                               publish the newest dist/cloud qcow2 image, keep ISO_KEEP
   counter next <arch> <version>              print the next release number of a version
   counter set <arch> <version> <release>
   site                                       mirror website/build into the directory, keeping repo/
   page                                       rewrite the index.html of every directory
-  receive                                    unpack a tar of <arch>/*.apk and iso/*.iso from stdin into dist/'
+  receive                                    unpack a tar of <arch>/*.apk, iso/*.iso and cloud/*.qcow2 from stdin into dist/'
 
 die() {
 	echo "$*" >&2
@@ -25,7 +26,7 @@ receive() {
 	trap 'rm -f "$inbox"' EXIT
 	cat > "$inbox"
 	tar -tf "$inbox" | while read -r name; do
-		echo "$name" | grep -Eq '^((x86_64|aarch64)/[A-Za-z0-9._-]+\.apk|iso/[A-Za-z0-9._-]+\.iso)$' || die "refusing $name"
+		echo "$name" | grep -Eq '^((x86_64|aarch64)/[A-Za-z0-9._-]+\.apk|iso/[A-Za-z0-9._-]+\.iso|cloud/[A-Za-z0-9._-]+\.qcow2)$' || die "refusing $name"
 	done
 	tar -xf "$inbox" -C "$root/dist" --no-same-owner --no-same-permissions
 	tar -tf "$inbox" | sed 's/^/received /'
@@ -33,7 +34,7 @@ receive() {
 
 [ $# -ge 1 ] || die "$usage"
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-mkdir -p "$root/dist/iso" "$root/dist/x86_64" "$root/dist/aarch64"
+mkdir -p "$root/dist/iso" "$root/dist/cloud" "$root/dist/x86_64" "$root/dist/aarch64"
 
 if [ "$1" = receive ]; then
 	[ $# -eq 1 ] || die "$usage"
@@ -53,7 +54,8 @@ set -- -e TARGET=/target -e KEEP_DAYS -e ISO_KEEP -e REPO_URL -e SITE_URL \
 	-v "$TARGET:/target" \
 	-v "$root/scripts/repo:/repo:ro" \
 	-v "$root/assets/browse-routier.html:/browse.html:ro" \
-	-v "$root/dist/iso:/iso:ro"
+	-v "$root/dist/iso:/images/iso:ro" \
+	-v "$root/dist/cloud:/images/cloud:ro"
 
 case "$command_args" in
 	site)

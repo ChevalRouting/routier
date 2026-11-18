@@ -20,8 +20,10 @@ Download the newest installer ISO for your architecture:
 
 | File | Use |
 |------|-----|
-| [`routier-latest-x86_64.iso`](%%REPO_URL%%/iso/routier-latest-x86_64.iso) | 64-bit PCs and most VMs |
-| [`routier-latest-aarch64.iso`](%%REPO_URL%%/iso/routier-latest-aarch64.iso) | Arm boards and Apple silicon VMs |
+| [`routier-latest-installer-virt-x86_64.iso`](%%REPO_URL%%/iso/routier-latest-installer-virt-x86_64.iso) | x86_64 VMs, much smaller |
+| [`routier-latest-installer-virt-aarch64.iso`](%%REPO_URL%%/iso/routier-latest-installer-virt-aarch64.iso) | Arm and Apple silicon VMs, much smaller |
+| [`routier-latest-x86_64.iso`](%%REPO_URL%%/iso/routier-latest-x86_64.iso) | 64-bit PCs, and VMs with passed-through network cards |
+| [`routier-latest-aarch64.iso`](%%REPO_URL%%/iso/routier-latest-aarch64.iso) | Arm boards |
 
 Each release is also kept under its own name,
 `routier-installer-<version>-r<release>-<arch>.iso`, in the same directory.
@@ -37,7 +39,7 @@ to your machine:
 ```bash
 qemu-img create -f qcow2 routier.qcow2 10G
 qemu-system-x86_64 -enable-kvm -m 2G -smp 2 \
-  -cdrom routier-latest-x86_64.iso \
+  -cdrom routier-latest-installer-virt-x86_64.iso \
   -drive file=routier.qcow2,if=virtio \
   -netdev user,id=wan,hostfwd=tcp::8080-:8080,hostfwd=tcp::2222-:22 \
   -device virtio-net-pci,netdev=wan \
@@ -47,7 +49,7 @@ qemu-system-x86_64 -enable-kvm -m 2G -smp 2 \
 
 On an aarch64 host, use `qemu-system-aarch64 -M virt -cpu host -accel kvm`
 (or `-accel hvf` on macOS) with UEFI firmware (`-bios QEMU_EFI.fd`) and
-`routier-latest-aarch64.iso`; the other options are the same.
+`routier-latest-installer-virt-aarch64.iso`; the other options are the same.
 
 Every interface comes up with DHCP and the console prints where the web UI
 listens, with a one-time password:

@@ -13,6 +13,7 @@ USAGE = 'unknown command or wrong arguments, run scripts/repo.sh without argumen
 
 CHANNELS = ('nightly', 'stable')
 ARCHES = ('x86_64', 'aarch64')
+FLAVORS = ('installer', 'installer-virt', 'lts', 'virt', 'stable')
 KEY = Path('/key/routier.rsa')
 PACKAGES = ('routier', 'routier-openrc')
 BROWSE = Path('/browse.html')
@@ -99,6 +100,10 @@ class Stage:
 
 def target():
     return Path(os.environ.get('TARGET', '/target'))
+
+
+def images():
+    return Path(os.environ.get('IMAGES', '/images'))
 
 
 def run(*args):
@@ -394,28 +399,45 @@ def cmd_reindex(channel, arch):
 
 def cmd_list():
     for entry in listing(target()):
-        if entry.name.endswith(('.apk', '.iso')):
+        if entry.name.endswith(('.apk', '.iso', '.qcow2')):
             print(f'{entry.stamp} {entry.size:>12} {entry.name}')
 
 
-def cmd_iso(arch):
-    check_arch(arch)
-    images = sorted(Path('/iso').glob(f'*-{arch}.iso'), key=lambda p: p.stat().st_mtime, reverse=True)
-    if not images:
-        raise Failure(f'no dist/iso image for {arch}')
+def iso_names(arch, flavor):
+    image = 'routier' if flavor == 'lts' else f'routier-{flavor}'
+    latest = f'routier-latest-{arch}.iso' if flavor == 'installer' else f'routier-latest-{flavor}-{arch}.iso'
+    return f'{image}-[0-9]*-{arch}.iso', latest
 
-    name = images[0].name
-    iso_dir = target() / 'iso'
-    publish(images[0], iso_dir / name)
-    publish(iso_dir / name, iso_dir / f'routier-latest-{arch}.iso')
-    published = [p for p in iso_dir.glob(f'*-{arch}.iso') if not p.name.startswith('routier-latest-')]
-    published.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+
+def publish_image(kind, pattern, latest):
+    built = sorted((images() / kind).glob(pattern), key=lambda p: p.stat().st_mtime, reverse=True)
+    if not built:
+        raise Failure(f'no dist/{kind} image matching {pattern}')
+
+    name = built[0].name
+    image_dir = target() / kind
+    publish(built[0], image_dir / name)
+    publish(image_dir / name, image_dir / latest)
+    published = sorted(image_dir.glob(pattern), key=lambda p: p.stat().st_mtime, reverse=True)
     for old in published[int(os.environ.get('ISO_KEEP') or 5):]:
         old.unlink()
         print(f'pruned {old.name}')
 
     write_pages()
-    print(f'published {name} as routier-latest-{arch}.iso')
+    print(f'published {name} as {latest}')
+
+
+def cmd_iso(arch, flavor='installer'):
+    check_arch(arch)
+    if flavor not in FLAVORS:
+        raise Failure(f'unsupported flavor {flavor}')
+
+    publish_image('iso', *iso_names(arch, flavor))
+
+
+def cmd_cloud(arch):
+    check_arch(arch)
+    publish_image('cloud', f'routier-cloud-[0-9]*-{arch}.qcow2', f'routier-latest-cloud-{arch}.qcow2')
 
 
 def cmd_page():
@@ -449,7 +471,8 @@ COMMANDS = {
     'prune': (cmd_prune, 2, 2),
     'reindex': (cmd_reindex, 2, 2),
     'list': (cmd_list, 0, 0),
-    'iso': (cmd_iso, 1, 1),
+    'iso': (cmd_iso, 1, 2),
+    'cloud': (cmd_cloud, 1, 1),
     'counter': (cmd_counter, 3, 4),
     'site': (cmd_site, 0, 0),
     'page': (cmd_page, 0, 0),

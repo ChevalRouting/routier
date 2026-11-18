@@ -46,3 +46,12 @@ profile_routier_installer() {
 	_profile_routier_common lts
 	image_name="routier-installer"
 }
+
+profile_routier_installer_virt() {
+	_profile_routier_common virt
+	image_name="routier-installer-virt"
+	case "$ARCH" in
+		arm*|aarch64) kernel_cmdline="console=tty0 console=ttyAMA0" ;;
+	esac
+	syslinux_serial="0 115200"
+}

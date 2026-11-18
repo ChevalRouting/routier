@@ -4,7 +4,8 @@ set -eu
 usage='usage: REPO_TARGET=<directory> SIGN_KEY=<path> release.sh
   REPO_HOST=<user@host> publishes on that host over SSH instead of REPO_TARGET (REPO_SSH, default ssh)
   VERSION, CHANNEL and RELEASE default to the checked out commit and the next release number
-  ISO_FLAVORS lists the ISO flavors to build and publish (default: installer, empty for none)
+  ISO_FLAVORS lists the ISO flavors to build and publish (default: installer installer-virt, empty for none)
+  CLOUD_IMAGE=0 skips the cloud-init qcow2 image
   SITE_TARGET=<directory> also builds the documentation site and publishes it there'
 
 die() {
@@ -31,7 +32,8 @@ cd "$root"
 REPO_SSH="${REPO_SSH:-ssh}"
 SIGN_KEY="${SIGN_KEY:-$root/routier.rsa}"
 ARCH="${ARCH:-$(uname -m | sed s/arm64/aarch64/)}"
-ISO_FLAVORS="${ISO_FLAVORS-installer}"
+ISO_FLAVORS="${ISO_FLAVORS-installer installer-virt}"
+CLOUD_IMAGE="${CLOUD_IMAGE:-1}"
 TASK="${TASK:-task}"
 NODE_IMAGE="${NODE_IMAGE:-docker.io/library/node:24-bookworm-slim}"
 CONTAINER="${CONTAINER:-$(command -v podman >/dev/null 2>&1 && echo podman || echo docker)}"
@@ -70,9 +72,17 @@ repo add "$CHANNEL" "$ARCH" "$VERSION" "$RELEASE"
 
 for flavor in $ISO_FLAVORS; do
 	"$TASK" iso VERSION="$VERSION" RELEASE="$RELEASE" ARCH="$ARCH" FLAVOR="$flavor" CHANNEL="$CHANNEL" PODMAN_TTY=
-	send "iso/$(basename "$(ls -t dist/iso/*-"$ARCH".iso | head -1)")"
-	repo iso "$ARCH"
+	image=routier-$flavor
+	[ "$flavor" = lts ] && image=routier
+	send "iso/$(basename "$(ls -t dist/iso/"$image"-[0-9]*-"$ARCH".iso | head -1)")"
+	repo iso "$ARCH" "$flavor"
 done
+
+if [ "$CLOUD_IMAGE" = 1 ]; then
+	"$TASK" cloud VERSION="$VERSION" RELEASE="$RELEASE" ARCH="$ARCH" CHANNEL="$CHANNEL" PODMAN_TTY=
+	send "cloud/routier-cloud-$VERSION-r$RELEASE-$ARCH.qcow2"
+	repo cloud "$ARCH"
+fi
 
 repo counter set "$ARCH" "$VERSION" "$RELEASE"
 

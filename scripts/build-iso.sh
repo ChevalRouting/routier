@@ -22,7 +22,8 @@ case "$FLAVOR" in
 	virt)      PROFILE="routier_virt"; IMAGE="routier-virt" ;;
 	stable)    PROFILE="routier_stable"; IMAGE="routier-stable" ;;
 	installer) PROFILE="routier_installer"; IMAGE="routier-installer" ;;
-	*) echo "unknown FLAVOR=$FLAVOR (lts|virt|stable|installer)" >&2; exit 1 ;;
+	installer-virt) PROFILE="routier_installer_virt"; IMAGE="routier-installer-virt" ;;
+	*) echo "unknown FLAVOR=$FLAVOR (lts|virt|stable|installer|installer-virt)" >&2; exit 1 ;;
 esac
 
 [ -f "$REPO/$ARCH/APKINDEX.tar.gz" ] || { echo "no signed repo at $REPO/$ARCH, run task apk first" >&2; exit 1; }
@@ -51,7 +52,7 @@ chown builder: "$OUTDIR"
 
 ROUTIER_BIN=""
 BINDIR=""
-if [ "$FLAVOR" = "installer" ]; then
+if [ "$PROFILE" != "${PROFILE#routier_installer}" ]; then
 	ROUTIER_APK=$(ls -t "$REPO/$ARCH"/routier-[0-9]*.apk 2>/dev/null | head -1)
 	[ -n "$ROUTIER_APK" ] || { echo "no routier apk in $REPO/$ARCH, run task apk first" >&2; exit 1; }
 	BINDIR="$OUTDIR/.installer-bin"
@@ -78,9 +79,12 @@ chown -R 0:0 "$OUTDIR"
 
 echo "ISO written to $OUTDIR"
 
-KERNEL=$FLAVOR
-[ "$FLAVOR" = "installer" ] && KERNEL=lts
-ISO=$(ls -t "$OUTDIR/$IMAGE"-*-"$ARCH".iso 2>/dev/null | head -1)
+case "$FLAVOR" in
+	installer) KERNEL=lts ;;
+	installer-virt) KERNEL=virt ;;
+	*) KERNEL=$FLAVOR ;;
+esac
+ISO=$(ls -t "$OUTDIR/$IMAGE"-[0-9]*-"$ARCH".iso 2>/dev/null | head -1)
 if [ -n "$ISO" ]; then
 	BOOTDIR="$HERE/../dist/boot"
 	mkdir -p "$BOOTDIR"

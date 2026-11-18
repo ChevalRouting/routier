@@ -89,6 +89,7 @@ UUID=$root_uuid / ext4 defaults,noatime 0 1
 UUID=$esp_uuid /boot/efi vfat defaults 0 2
 EOF
 
+echo isofs >> "$mnt/etc/modules"
 echo routier > "$mnt/etc/hostname"
 printf '127.0.0.1\tlocalhost localhost.localdomain\n::1\tlocalhost localhost.localdomain\n' > "$mnt/etc/hosts"
 printf 'auto lo\niface lo inet loopback\n' > "$mnt/etc/network/interfaces"

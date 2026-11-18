@@ -410,7 +410,7 @@ tasks:
       - |
         set -e
         for arch in x86_64 aarch64; do
-          for flavor in lts virt stable installer; do
+          for flavor in lts virt stable installer installer-virt; do
             {{.TASK_EXE | shellQuote}} iso ARCH="$arch" FLAVOR="$flavor" \
               VERSION={{.VERSION | shellQuote}} RELEASE={{.RELEASE | shellQuote}} \
               CONTAINER={{.CONTAINER | shellQuote}} OFFLINE={{.OFFLINE | shellQuote}} \

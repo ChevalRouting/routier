@@ -21,6 +21,7 @@ trap cleanup EXIT
 : ${OFFLINE:=0}
 case "$FLAVOR" in
 	installer) MODE=installer; KFLAVOR=lts ;;
+	installer-virt) MODE=installer; KFLAVOR=virt ;;
 	*)         MODE=normal;    KFLAVOR=$FLAVOR ;;
 esac
 

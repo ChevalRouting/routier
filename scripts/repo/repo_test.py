@@ -134,6 +134,41 @@ class HelpersTest(unittest.TestCase):
                   'something else\n')
         self.assertEqual(repo.index_warnings(stderr), 'something else\n')
 
+    def test_iso_names(self):
+        self.assertEqual(repo.iso_names('x86_64', 'installer'),
+                         ('routier-installer-[0-9]*-x86_64.iso', 'routier-latest-x86_64.iso'))
+        self.assertEqual(repo.iso_names('aarch64', 'installer-virt'),
+                         ('routier-installer-virt-[0-9]*-aarch64.iso', 'routier-latest-installer-virt-aarch64.iso'))
+        self.assertEqual(repo.iso_names('x86_64', 'lts')[0], 'routier-[0-9]*-x86_64.iso')
+
+    def test_cloud_and_iso_images_publish_with_latest_names(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            make_tree(root / 'images', {'cloud/routier-cloud-0.0.5-r502-x86_64.qcow2': 7,
+                                        'iso/routier-installer-virt-0.0.5-r502-x86_64.iso': 5})
+            env = {'TARGET': str(root / 'public'), 'IMAGES': str(root / 'images'),
+                   'REPO_URL': 'https://x.org/repo', 'SITE_URL': 'https://x.org'}
+            os.environ.update(env)
+            browse = repo.BROWSE
+            repo.BROWSE = Path(__file__).resolve().parents[2] / 'assets' / 'browse-routier.html'
+            try:
+                repo.cmd_cloud('x86_64')
+                repo.cmd_iso('x86_64', 'installer-virt')
+            finally:
+                repo.BROWSE = browse
+                for key in env:
+                    del os.environ[key]
+            names = sorted(p.relative_to(root / 'public').as_posix() for p in (root / 'public').rglob('*.*'))
+            self.assertIn('cloud/routier-latest-cloud-x86_64.qcow2', names)
+            self.assertIn('iso/routier-latest-installer-virt-x86_64.iso', names)
+            self.assertIn('cloud/index.html', names)
+
+    def test_iso_flavors_do_not_overlap(self):
+        names = ['routier-installer-0.0.5-r502-x86_64.iso', 'routier-installer-virt-0.0.5-r502-x86_64.iso']
+        for flavor, expected in (('installer', names[0]), ('installer-virt', names[1])):
+            pattern = repo.iso_names('x86_64', flavor)[0]
+            self.assertEqual([n for n in names if Path(n).match(pattern)], [expected])
+
     def test_keep_days(self):
         self.assertEqual(repo.keep_days('nightly'), 30)
         self.assertEqual(repo.keep_days('stable'), 0)
