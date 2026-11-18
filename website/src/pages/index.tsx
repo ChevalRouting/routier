@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
 import Link from "@docusaurus/Link";
+import useBaseUrl from "@docusaurus/useBaseUrl";
 import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
 import Layout from "@theme/Layout";
 import CodeBlock from "@theme/CodeBlock";
 
-import { GITHUB_URL, REPO_URL } from "../remark/domains";
 import dashboard from "../../../docs/screenshots/routier-dashboard.png";
 import styles from "./index.module.css";
 
@@ -23,7 +23,7 @@ type TryPath = {
 	body: string;
 	to: string;
 	action: string;
-	code?: string;
+	code?: (repoUrl: string) => string;
 };
 
 const audiences: Audience[] = [
@@ -77,22 +77,23 @@ const tryPaths: TryPath[] = [
 	},
 	{
 		title: "On a cloud provider",
-		body: "Launch the qcow2 cloud image and pass a password and a config through cloud-init user-data.",
+		body: "Build the qcow2 cloud image with task cloud and pass a password and a config through cloud-init user-data.",
 		to: "/docs/installation#cloud-images",
-		action: "Use the cloud image",
+		action: "Build the cloud image",
 	},
 	{
 		title: "On an Alpine Linux box",
 		body: "Add the signed repository and install the package. Networking is left alone until you apply and confirm.",
 		to: "/docs/installation#package-install",
 		action: "Install the package",
-		code: `wget -qO /etc/apk/keys/routier.rsa.pub ${REPO_URL}/routier.rsa.pub
-echo ${REPO_URL}/nightly >> /etc/apk/repositories
+		code: (repoUrl: string) => `setup-apkrepos -c -1
+wget -qO /etc/apk/keys/routier.rsa.pub ${repoUrl}/routier.rsa.pub
+echo ${repoUrl}/nightly >> /etc/apk/repositories
 apk update && apk add routier`,
 	},
 ];
 
-const exampleConfig = `version: v3.0.0
+const exampleConfig = `version: v5.0.0
 
 hostname: router
 
@@ -135,14 +136,21 @@ nftables:
         oifname $wan_interfaces masquerade
 
 dns:
-  nameservers: [1.1.1.1, 9.9.9.9]
+  nameservers: [127.0.0.1]
+  server:
+    enabled: true
+    listen: [127.0.0.1, iface(lan)]
+    allow_from: [127.0.0.1/32, 192.168.1.0/24]
+    allow_inbound: [lan]
+    upstreams: [1.1.1.1, 9.9.9.9]
 `;
 
 function Hero(): ReactNode {
 	const { siteConfig } = useDocusaurusContext();
+	const logo = useBaseUrl("/img/logo.svg");
 	return (
 		<header className={styles.hero}>
-			<img className={styles.heroLogo} src="/img/logo.svg" alt="" />
+			<img className={styles.heroLogo} src={logo} alt="" />
 			<h1 className={styles.heroTitle}>{siteConfig.title}</h1>
 			<p className={styles.heroLead}>
 				A router and firewall for Alpine Linux, configured from one YAML file,
@@ -227,7 +235,13 @@ function Example(): ReactNode {
 	);
 }
 
+function useSiteUrls(): { repoUrl: string; githubUrl: string } {
+	const { siteConfig } = useDocusaurusContext();
+	return siteConfig.customFields as { repoUrl: string; githubUrl: string };
+}
+
 function TryIt(): ReactNode {
+	const { repoUrl } = useSiteUrls();
 	return (
 		<section className={styles.section}>
 			<h2 className={styles.sectionTitle}>Three ways to try it</h2>
@@ -238,7 +252,7 @@ function TryIt(): ReactNode {
 						<p className={styles.cardBody}>{path.body}</p>
 						{path.code && (
 							<CodeBlock language="bash" className={styles.tryCode}>
-								{path.code}
+								{path.code(repoUrl)}
 							</CodeBlock>
 						)}
 						<Link className={styles.tryLink} to={path.to}>
@@ -252,6 +266,7 @@ function TryIt(): ReactNode {
 }
 
 function HelpTest(): ReactNode {
+	const { githubUrl } = useSiteUrls();
 	return (
 		<section className={styles.callout}>
 			<h2 className={styles.sectionTitle}>Help shape Routier</h2>
@@ -261,12 +276,9 @@ function HelpTest(): ReactNode {
 				whether it is a crash or a label that did not make sense.
 			</p>
 			<div className={styles.buttons}>
-				<Link className="button button--primary button--lg" to="/docs/help-test">
-					How to help test
-				</Link>
 				<Link
-					className="button button--secondary button--lg"
-					href={`${GITHUB_URL}/issues/new/choose`}
+					className="button button--primary button--lg"
+					href={`${githubUrl}/issues/new/choose`}
 				>
 					Report an issue
 				</Link>

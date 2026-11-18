@@ -126,11 +126,12 @@ to conceal existing violations.
 
 ## AI usage
 
-This project is open to AI-assisted contributions. I build it with tools like
-Claude Code while reviewing the code they produce, and you are free to use
-Claude, Codex, or just your hands.
+AI-assisted contributions are welcome. The project is built with tools such as
+Claude Code, with every generated change reviewed, and contributors may use
+Claude, Codex or no assistant at all.
 
-Whatever you use, you own the result: know what the code does, test it, and be
-able to explain it. A model writing it changes nothing. I review backend and
-networking code closely, and the frontend (`web/`) more loosely for now, since
-I care more about the UX than the frontend code itself. That may change later.
+Whatever the tool, the contributor owns the result: they know what the code
+does, have tested it, and can explain it; a model writing it changes nothing.
+Backend and networking code is reviewed closely. The frontend (`web/`) is
+reviewed more loosely for now, with the emphasis on the user experience rather
+than on the frontend code itself.

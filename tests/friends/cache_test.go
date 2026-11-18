@@ -11,7 +11,7 @@ import (
 func TestFriendInterfacesCacheFallback(t *testing.T) {
 	const token = "cache-token"
 
-	b := testkit.NewNode(t, `version: v3.0.0
+	b := testkit.NewNode(t, `version: v5.0.0
 hostname: node-b
 interfaces:
   lan:
@@ -24,7 +24,7 @@ friends:
     enabled: true
 `)
 
-	a := testkit.NewNode(t, `version: v3.0.0
+	a := testkit.NewNode(t, `version: v5.0.0
 hostname: node-a
 friends:
   - name: node-b

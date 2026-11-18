@@ -17,7 +17,7 @@ func TestConfirmPreservesNewerDraft(t *testing.T) {
 	t.Cleanup(managers.SetPendingFile(filepath.Join(t.TempDir(), "pending")))
 	node := testkit.NewNode(t, testkit.MinimalConfig)
 	newer := []byte(strings.ReplaceAll(testkit.MinimalConfig, "rtr1", "next-draft"))
-	path := cfgstore.StagingPath(node.Cfg, "admin")
+	path := cfgstore.StagingPath(node.Cfg, "routier")
 	if err := os.WriteFile(path, newer, 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -42,7 +42,7 @@ func TestConfirmPreservesNewerDraft(t *testing.T) {
 func TestConfirmDiscardsOnlyAppliedDraft(t *testing.T) {
 	t.Cleanup(managers.SetPendingFile(filepath.Join(t.TempDir(), "pending")))
 	node := testkit.NewNode(t, testkit.MinimalConfig)
-	for _, username := range []string{"admin", "other"} {
+	for _, username := range []string{"routier", "other"} {
 		if err := os.WriteFile(cfgstore.StagingPath(node.Cfg, username), []byte(testkit.MinimalConfig), 0600); err != nil {
 			t.Fatal(err)
 		}
@@ -55,7 +55,7 @@ func TestConfirmDiscardsOnlyAppliedDraft(t *testing.T) {
 		}
 	}
 
-	if _, err := os.Stat(cfgstore.StagingPath(node.Cfg, "admin")); !os.IsNotExist(err) {
+	if _, err := os.Stat(cfgstore.StagingPath(node.Cfg, "routier")); !os.IsNotExist(err) {
 		t.Fatalf("applied draft remains: %v", err)
 	}
 

@@ -38,6 +38,7 @@ export * from './ConfigDNSServer';
 export * from './ConfigDNSTransferKey';
 export * from './ConfigDNSView';
 export * from './ConfigDNSZone';
+export * from './ConfigExporterConfig';
 export * from './ConfigFlowCollector';
 export * from './ConfigFlowRetention';
 export * from './ConfigFlowsConfig';

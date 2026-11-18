@@ -1,11 +1,4 @@
 # syntax=docker/dockerfile:1
-# Runnable, OpenRC-based routier image for local development and lab testing.
-# Not the package builder at the repo root; this one boots routier like a node.
-#
-# BuildKit cache mounts keep Go modules, the Go build cache, the npm cache and
-# the apk cache warm across builds. After one online build (or `task
-# dev-prefetch`) the caches are populated and further rebuilds run offline.
-# `go mod vendor` (vendor/ present) makes the Go step fully offline regardless.
 
 FROM golang:1.25-alpine AS build
 
@@ -36,8 +29,6 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 
 FROM alpine:3.23
 
-# openrc pulls each daemon's *-openrc service script through Alpine install_if,
-# so rc-service controls them exactly as on a real node.
 RUN --mount=type=cache,target=/etc/apk/cache \
     apk add \
       openrc util-linux-openrc doas \

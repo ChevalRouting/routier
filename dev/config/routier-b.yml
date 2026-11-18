@@ -122,15 +122,15 @@ routing:
                 ipv4-unicast:
                     disabled: true
                 l2vpn-evpn:
-                    route_map_in: CIBI-EVPN
-                    route_map_out: CIBI-EVPN
+                    route_map_in: EVPN-FILTER
+                    route_map_out: EVPN-FILTER
                     extra:
                         - attribute-unchanged next-hop
         address_families:
             l2vpn-evpn:
                 advertise_all_vni: true
         route_maps:
-            CIBI-EVPN:
+            EVPN-FILTER:
                 - seq: 10
                   action: permit
     radvd:
@@ -160,14 +160,14 @@ vpn:
     wireguard:
         wg-routier-a:
             listen_port: 51820
-            private_key: REDACTED
+            private_key: WQpoZlP/SvD6mc/MG1IiWKRNDYwarXV7kO3DZaZKVVQ=
             table: "off"
             addresses:
                 - 10.255.0.1/31
             peers:
                 - name: routier-a
-                  public_key: 5j3VCVKW+eV1q5BzpoQE/E6DMS3VMpVqwzzvPozw63Y=
-                  preshared_key: REDACTED
+                  public_key: kw3ECTEDcFwmaC8idf0CtHYvHOCqs/Mhvr1jcq/JlBU=
+                  preshared_key: 28xnB+7WabZlfo18dB5wCYeffES3KKJ27q3TRkdQi+c=
                   endpoint: 10.80.0.11:51820
                   allowed_ips:
                     - 10.255.0.0/32
@@ -479,7 +479,7 @@ friends:
     - name: routier-a
       hostname: routier-a
       url: https://10.255.0.0:8080
-      token: REDACTED
+      token: On9WCVJ-xelKHuSDtQoNGjbU2K3DVd2LXseFlWZrkY0
       tls_skip_verify: true
       enabled: true
       manage: true

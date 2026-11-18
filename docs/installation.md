@@ -6,9 +6,16 @@ a disk.
 
 ## Installation media
 
-Two kinds of ISO are built (see [building.md](building.md)): the appliance
-ISO, which runs the whole stack from memory, and the lighter installer ISO.
-Both bring every network interface up with DHCP at boot and start the web UI.
+The installer ISO is published for `x86_64` and `aarch64`:
+[`routier-latest-x86_64.iso`](%%REPO_URL%%/iso/routier-latest-x86_64.iso) and
+[`routier-latest-aarch64.iso`](%%REPO_URL%%/iso/routier-latest-aarch64.iso).
+Each release is also kept as `routier-installer-<version>-r<release>-<arch>.iso`
+in the same directory.
+
+Two kinds of ISO can be built (see [building.md](building.md)): the light
+installer ISO that is published, and the appliance ISO, which runs the whole
+stack from memory. Both bring every network interface up with DHCP at boot and
+start the web UI.
 
 The console shows where to reach it and a one-time password, regenerated on
 every live boot:
@@ -58,7 +65,7 @@ ssh_authorized_keys:
 routier:
   password: a-long-admin-password
   config:
-    version: v3.0.0
+    version: v5.0.0
     hostname: edge
     interfaces:
       wan:

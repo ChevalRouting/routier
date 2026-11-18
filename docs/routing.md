@@ -69,6 +69,43 @@ Key fields: `asn` (required), `router_id`, `neighbors`, `address_families`,
 `prefix_lists`, `route_maps`, and the toggles `no_ebgp_requires_policy`,
 `no_default_ipv4_unicast`, `no_import_check`.
 
+### Prefix lists
+
+A prefix list entry has a `seq`, an `action` (`permit` or `deny`), a `prefix`,
+and optional `ge` and `le` length bounds. An entry with an IPv4 prefix renders
+as an FRR `ip prefix-list` entry, and an entry with an IPv6 prefix as an
+`ipv6 prefix-list` entry. A route map matches IPv6 entries with
+`ipv6 address prefix-list`. The following accepts an IPv6 anycast /128 from a
+neighbor:
+
+```yaml
+routing:
+  bgp:
+    neighbors:
+      - address: 2001:db8:100::10
+        remote_asn: 65100
+        address_families:
+          ipv6-unicast:
+            route_map_in: ANYCAST-IN
+    prefix_lists:
+      ANYCAST-V6:
+        - { seq: 10, action: permit, prefix: "2001:db8:53::10/128" }
+    route_maps:
+      ANYCAST-IN:
+        - { seq: 10, action: permit, match: { "ipv6 address prefix-list": ANYCAST-V6 } }
+```
+
+A list can mix both families. It then renders as an `ip prefix-list` and an
+`ipv6 prefix-list` with the same name, which FRR keeps apart:
+
+- `ip address prefix-list` matches only the IPv4 entries, and
+  `ipv6 address prefix-list` only the IPv6 entries.
+- A neighbor's `prefix_list_in` or `prefix_list_out` uses the entries of the
+  address family it is set in.
+- Sequence numbers stay unique across the whole list.
+
+Prefix lists imported from friends follow the same rules.
+
 ### Neighbor policy wrappers
 
 In the default BGP instance, every activated neighbor and address family is

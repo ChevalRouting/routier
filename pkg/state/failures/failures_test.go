@@ -16,7 +16,7 @@ func sampleOutputs() []render.Output {
 func TestSaveListGetReadArtifact(t *testing.T) {
 	defer SetDir(t.TempDir())()
 
-	cfg := &config.Config{Hostname: "r1", Version: "v3.0.0"}
+	cfg := &config.Config{Hostname: "r1", Version: "v5.0.0"}
 	errs := []types.ArtifactError{{Tool: "vtysh", Dest: "/etc/frr/frr.conf", Line: 1, Message: "bad"}}
 	if err := Save("20260101-000000-abcd", "cli", "snap1", cfg, sampleOutputs(), errs); err != nil {
 		t.Fatal(err)
@@ -49,7 +49,7 @@ func TestSaveListGetReadArtifact(t *testing.T) {
 func TestReadArtifactRejectsTraversal(t *testing.T) {
 	defer SetDir(t.TempDir())()
 
-	cfg := &config.Config{Hostname: "r1", Version: "v3.0.0"}
+	cfg := &config.Config{Hostname: "r1", Version: "v5.0.0"}
 	if err := Save("id1", "cli", "", cfg, sampleOutputs(), nil); err != nil {
 		t.Fatal(err)
 	}

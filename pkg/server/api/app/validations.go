@@ -3,6 +3,7 @@ package app
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 
 	"github.com/ChevalRouting/routier/pkg/types"
@@ -15,8 +16,10 @@ func NewValidator() *validator.Validate {
 	return v
 }
 
+const maxJSONBody = 4 << 20
+
 func (a *App) DecodeAndValidate(r *http.Request, dst any) *types.ValidationError {
-	dec := json.NewDecoder(r.Body)
+	dec := json.NewDecoder(io.LimitReader(r.Body, maxJSONBody))
 	dec.DisallowUnknownFields()
 
 	if err := dec.Decode(dst); err != nil {

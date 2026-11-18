@@ -30,7 +30,7 @@ func TestCLIFriendsParity(t *testing.T) {
 	stub := friendStub(t)
 
 	dir := t.TempDir()
-	cfg := testkit.WriteConfig(t, dir, "version: v3.0.0\nhostname: cli-node\n")
+	cfg := testkit.WriteConfig(t, dir, "version: v5.0.0\nhostname: cli-node\n")
 	id := filepath.Join(dir, "identity")
 
 	common := []string{"friends", "--config", cfg, "--identity", id}

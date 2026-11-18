@@ -11,7 +11,7 @@ import (
 func queryAddrConfig(t *testing.T, listen string) *config.Config {
 	t.Helper()
 
-	yaml := `version: v3.0.0
+	yaml := `version: v5.0.0
 hostname: gw
 interfaces:
   lan:

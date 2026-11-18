@@ -39,7 +39,7 @@ type manifest struct {
 }
 
 func Create(outputPath, configPath string, cfg *config.Config) error {
-	out, err := os.Create(outputPath)
+	out, err := os.OpenFile(outputPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
 	if err != nil {
 		return err
 	}

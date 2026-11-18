@@ -37,6 +37,10 @@ func (c *Client) Query(name, qtype string) (*QueryResult, error) {
 		return nil, fmt.Errorf("query requires a name")
 	}
 
+	if strings.HasPrefix(name, "-") || strings.HasPrefix(name, "+") {
+		return nil, fmt.Errorf("invalid query name %q", name)
+	}
+
 	if qtype == "" {
 		qtype = "A"
 	}

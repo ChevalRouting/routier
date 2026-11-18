@@ -83,7 +83,6 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !isUIAdmin(cfg, req.Username) {
-		recordLoginFailure(req.Username)
 		log.Warn().Str("user", req.Username).Msg("login rejected because user is not a UI administrator")
 		types.Err(http.StatusUnauthorized, "invalid credentials").Write(w)
 		return

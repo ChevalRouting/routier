@@ -59,7 +59,7 @@ func Verify(user, password string) (bool, error) {
 	}
 
 	log.Info().Str("user", user).Msg("starting Unix password verification")
-	hash, err := shadowHash(user)
+	hash, err := ShadowHash(user)
 	if err != nil {
 		log.Error().Err(err).Str("user", user).Msg("failed to read Unix password hash")
 		return false, err
@@ -94,7 +94,7 @@ func cryptAlgorithm(hash string) string {
 	return parts[1]
 }
 
-func shadowHash(user string) (string, error) {
+func ShadowHash(user string) (string, error) {
 	f, err := os.Open("/etc/shadow")
 	if err != nil {
 		return "", err

@@ -1,8 +1,8 @@
 # Help test Routier
 
 Routier is young and changes quickly. The most useful thing anyone can do
-right now is run it on networks and hardware we do not have, and tell us what
-broke, what confused you and what you missed. You do not need to read the code
+right now is run it on networks and hardware the maintainers do not have, and
+report what broke, what was confusing and what was missing. You do not need to read the code
 or write Go to help.
 
 ## Before you start

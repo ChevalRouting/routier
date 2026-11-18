@@ -9,7 +9,7 @@ import (
 	"github.com/ChevalRouting/routier/tests/testkit"
 )
 
-const dnsBase = `version: v3.0.0
+const dnsBase = `version: v5.0.0
 hostname: gw
 interfaces:
   region:
@@ -51,7 +51,7 @@ type dnsCase struct {
 
 func TestValidateDNSServerValid(t *testing.T) {
 	cases := map[string]string{
-		"forwarding target": `version: v3.0.0
+		"forwarding target": `version: v5.0.0
 hostname: gw
 interfaces:
   region:
@@ -103,7 +103,7 @@ dns:
     cache:
       disabled: true
 `,
-		"authoritative zones": `version: v3.0.0
+		"authoritative zones": `version: v5.0.0
 hostname: gw
 interfaces:
   lan:
@@ -401,7 +401,7 @@ func TestValidateDNSServer(t *testing.T) {
 }
 
 func TestValidateDNSServerDisabledSkipsChecks(t *testing.T) {
-	yaml := `version: v3.0.0
+	yaml := `version: v5.0.0
 hostname: gw
 dns:
   server:

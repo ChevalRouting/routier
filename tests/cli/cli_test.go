@@ -28,19 +28,9 @@ func TestCLIValidate(t *testing.T) {
 		t.Fatalf("validate valid config: %v\n%s", err, out)
 	}
 
-	bad := testkit.WriteConfig(t, t.TempDir(), "version: v3.0.0\nhostname: x\nwireguard:\n  wg0:\n    addresses: [\"10.0.0.1/24\"]\n")
+	bad := testkit.WriteConfig(t, t.TempDir(), "version: v5.0.0\nhostname: x\nvpn:\n  wireguard:\n    wg0:\n      addresses: [\"10.0.0.1/24\"]\n")
 	if _, err := testkit.RunCLI(t, bin, "validate", "--skip-resolve", bad); err == nil {
 		t.Fatal("expected validate to fail on invalid config")
-	}
-}
-
-func TestCLIMigrate(t *testing.T) {
-	bin := testkit.BuildCLI(t)
-	cfg := testkit.WriteConfig(t, t.TempDir(), "version: v1.0.0\nhostname: x\nmirrors:\n  - name: m\n    url: https://h\n    token: t\n")
-
-	out, err := testkit.RunCLI(t, bin, "migrate", "--dry-run", cfg)
-	if err != nil {
-		t.Fatalf("migrate dry-run: %v\n%s", err, out)
 	}
 }
 

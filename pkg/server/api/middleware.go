@@ -107,7 +107,7 @@ func friendTokenAllowed(f *config.Friend, method, path string) bool {
 		return true
 	case method == http.MethodGet && path == "/api/friends/exports":
 		return true
-	case method == http.MethodGet && strings.HasPrefix(path, "/api/config"):
+	case method == http.MethodGet && path == "/api/config":
 		return true
 	case method == http.MethodGet && path == "/api/apply/pending":
 		return true
@@ -183,6 +183,11 @@ func authenticate(next http.Handler, w http.ResponseWriter, r *http.Request) {
 	if err == nil && token.Valid {
 		claims, _ := token.Claims.(jwt.MapClaims)
 		username, _ := claims["sub"].(string)
+		if !friendTokens.adminAllowed(app.ConfigPath, username, time.Now()) {
+			types.Err(http.StatusUnauthorized, "unauthorized").Write(w)
+			return
+		}
+
 		ctx := appctx.WithUnixUser(appctx.WithUsername(r.Context(), username), username)
 		next.ServeHTTP(w, r.WithContext(ctx))
 		return

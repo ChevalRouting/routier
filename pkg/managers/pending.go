@@ -86,12 +86,22 @@ func setPending(snapID string, timeout int, source, configPath string, persist [
 var ErrNoPending = errors.New("no pending apply")
 
 func takePending() (pendingState, error) {
+	state, err := readPending()
+	if err != nil {
+		return state, err
+	}
+
+	_ = os.Remove(pendingFile)
+
+	return state, nil
+}
+
+func readPending() (pendingState, error) {
 	data, err := os.ReadFile(pendingFile)
 	if err != nil {
 		return pendingState{}, ErrNoPending
 	}
 
-	_ = os.Remove(pendingFile)
 	var state pendingState
 	if err := json.Unmarshal(data, &state); err == nil {
 		return state, nil
@@ -132,15 +142,28 @@ func ClearPending() (string, error) {
 }
 
 func ConfirmPending() (string, error) {
-	state, err := takePending()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	release, err := acquireApplyLock(ctx)
 	if err != nil {
+		return "", err
+	}
+
+	state, err := readPending()
+	if err != nil {
+		release()
 		return "", err
 	}
 
 	id, source := state.SnapID, state.Source
 	if err := persistPending(state); err != nil {
+		release()
 		return id, err
 	}
+
+	_ = os.Remove(pendingFile)
+	release()
 
 	if id != "" {
 		applylog.MarkConfirmed(id)

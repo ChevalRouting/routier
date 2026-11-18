@@ -46,15 +46,7 @@ vfat
 dm-mod
 EOF
 
-: ${ARCH:=$(uname -m)}
-case "$ARCH" in
-	aarch64) SERIAL_TTY=ttyAMA0 ;;
-	*)        SERIAL_TTY=ttyS0   ;;
-esac
-
 makefile root:root 0644 "$tmp/etc/inittab" <<EOF
-# /etc/inittab
-
 ::sysinit:/sbin/openrc sysinit
 ::sysinit:/sbin/openrc boot
 ::wait:/sbin/openrc default
@@ -65,8 +57,6 @@ tty3::respawn:/sbin/getty 38400 tty3
 tty4::respawn:/sbin/getty 38400 tty4
 tty5::respawn:/sbin/getty 38400 tty5
 tty6::respawn:/sbin/getty 38400 tty6
-
-# ${SERIAL_TTY}::respawn:/bin/sh -c 'test -e /dev/${SERIAL_TTY} && exec /sbin/getty -L 115200 ${SERIAL_TTY} vt100 || sleep 2147483647'
 
 ::ctrlaltdel:/sbin/reboot
 

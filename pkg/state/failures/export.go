@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-var secretLine = regexp.MustCompile(`(?i)(private[_-]?key|preshared[_-]?key|eab[_-]?key|password|secret|psk)(\s*[:=]\s*)(\S+)`)
+var secretLine = regexp.MustCompile(`(?i)\b(private[_-]?key|preshared[_-]?key|eab[_-]?key|auth[_-]?pass|auth[_-]?key|password(?:[_-]?hash)?|secret|psk|token|key)\b("?\s*[:=]\s*|\s+)("[^"]*"|'[^']*'|[^\s;,]+)`)
 
 func redactBytes(b []byte) []byte {
 	return secretLine.ReplaceAll(b, []byte("${1}${2}REDACTED"))

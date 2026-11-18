@@ -124,32 +124,32 @@ routing:
                 ipv4-unicast:
                     disabled: true
                 l2vpn-evpn:
-                    route_map_in: CIBI-EVPN
-                    route_map_out: CIBI-EVPN
+                    route_map_in: EVPN-FILTER
+                    route_map_out: EVPN-FILTER
                     extra:
                         - attribute-unchanged next-hop
         address_families:
             ipv4-unicast:
                 redistribute:
-                    - kernel route-map CIBI-INTERNET
+                    - kernel route-map VRF-INTERNET
                 import_vrf:
                     - lab
             l2vpn-evpn:
                 advertise_all_vni: true
         prefix_lists:
-            CIBI-DEFAULT:
+            DEFAULT-ONLY:
                 - seq: 10
                   action: permit
                   prefix: 0.0.0.0/0
         route_maps:
-            CIBI-EVPN:
+            EVPN-FILTER:
                 - seq: 10
                   action: permit
-            CIBI-INTERNET:
+            VRF-INTERNET:
                 - seq: 10
                   action: permit
                   match:
-                    ip address prefix-list: CIBI-DEFAULT
+                    ip address prefix-list: DEFAULT-ONLY
     radvd:
         interfaces:
             servers:
@@ -180,7 +180,7 @@ routing:
                             - connected
                         import_vrf:
                             - default
-                        import_vrf_route_map: CIBI-INTERNET
+                        import_vrf_route_map: VRF-INTERNET
                     l2vpn-evpn:
                         advertise:
                             - ipv4-unicast
@@ -188,33 +188,33 @@ vpn:
     wireguard:
         ra-383ac0e54c:
             listen_port: 51840
-            private_key: REDACTED
+            private_key: y3XXAQ4KM66Mo/ZZHaFE6yuzJwsC2ieKAS0acy30tzU=
             table: "off"
             addresses:
                 - 10.253.10.1/24
             mtu: 1280
             peers:
-                - name: Work Laptop
-                  public_key: 5qleQ1T1+vD8W7cLcm80JrK8Zk25WjguYzmKCzcNyTg=
-                  preshared_key: REDACTED
+                - name: Client A
+                  public_key: +Or43rf0WQqYMQnoGi1+K5BZB3c0R/R2HxSkVcxvfHM=
+                  preshared_key: A4GsWmnlFrPtPydYZJvx1uPMw/syb8EmVr/ok5CHNdw=
                   allowed_ips:
                     - 10.253.10.2/32
-                - name: DNS Laptop
-                  public_key: mR4MY2d6DWsH+C2+YVx8BbXzcu7NZT6KOouZ2KUAvHQ=
-                  preshared_key: REDACTED
+                - name: Client B
+                  public_key: g/aWFkjvwfakYhJpit4M1TkTI+dZyb6LunlODnCdWlg=
+                  preshared_key: PV4o78gGgYQ1CAwCgzqCXJnK9UaE1xovKTOBtjCmTzc=
                   allowed_ips:
                     - 10.253.10.3/32
             allow_inbound: true
         wg-routier-b:
             listen_port: 51820
-            private_key: REDACTED
+            private_key: p/ITp/vscQOrFSp2OmB9ZOHD+P8qab68ImtdHD2No7M=
             table: "off"
             addresses:
                 - 10.255.0.0/31
             peers:
                 - name: routier-b
-                  public_key: Y1nBy/yYicbyfaR26Ua69FyhQ4w+3E/BnaJoutIKTTs=
-                  preshared_key: REDACTED
+                  public_key: rd6y+3SfjAPdEx3UY8nVuIRxtsDb8ie+Iujtn9eDFhA=
+                  preshared_key: 28xnB+7WabZlfo18dB5wCYeffES3KKJ27q3TRkdQi+c=
                   endpoint: 10.80.0.12:51820
                   allowed_ips:
                     - 10.255.0.1/32
@@ -229,14 +229,14 @@ vpn:
             allow_inbound: true
         wg-routier-c:
             listen_port: 51821
-            private_key: REDACTED
+            private_key: c8zIjBvT36C/K+MMIfEm1rx5o412Z6BmcarmHLSGUDo=
             table: "off"
             addresses:
                 - 10.255.0.2/31
             peers:
                 - name: routier-c
-                  public_key: nKKiqZY/Zrv6aVb36Mh2ReJSTj75S7jc+rEI8e4zPyQ=
-                  preshared_key: REDACTED
+                  public_key: QHZ5Qs51JlS9E8OdSODLM/Ma4/mWfNy/e5+J1gpeklE=
+                  preshared_key: mPByA1QG3HeLtGZD2lSCXyUD74aCCqGCAtdbL24tIB0=
                   allowed_ips:
                     - 10.255.0.3/32
                     - 10.51.0.0/24
@@ -647,7 +647,7 @@ friends:
     - name: routier-b
       hostname: routier-b
       url: https://10.255.0.1:8080
-      token: REDACTED
+      token: On9WCVJ-xelKHuSDtQoNGjbU2K3DVd2LXseFlWZrkY0
       tls_skip_verify: true
       enabled: true
       manage: true

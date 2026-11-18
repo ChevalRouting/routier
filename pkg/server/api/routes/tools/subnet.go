@@ -10,7 +10,7 @@ import (
 // @Summary  Compute an ipcalc-style subnet breakdown for an address or CIDR
 // @Tags tools
 // @Produce json
-// @Param cidr query string true "Address or CIDR, e.g. 100.64.12.192/27 or 2001:db8::/64"
+// @Param cidr query string true "Address or CIDR, e.g. 198.51.100.192/27 or 2001:db8::/64"
 // @Success 200 {object} types.Response[ipcalc.SubnetInfo]
 // @Failure 400 {object} types.Response[any]
 // @Security BearerAuth

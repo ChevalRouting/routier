@@ -3,6 +3,7 @@ module github.com/ChevalRouting/routier
 go 1.25.0
 
 require (
+	github.com/ChevalRouting/certs v0.0.0-20261030082911-6886d0d94ffb
 	github.com/creack/pty v1.1.24
 	github.com/go-chi/chi/v5 v5.3.0
 	github.com/go-playground/validator/v10 v10.30.1
@@ -53,7 +54,6 @@ require (
 )
 
 require (
-	github.com/ChevalRouting/certs v0.0.0
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
@@ -69,5 +69,3 @@ require (
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 )
-
-replace github.com/ChevalRouting/certs => ../certs

@@ -25,7 +25,7 @@ func TestConfigDecryptsSealedResponse(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cfg := &config.Config{Hostname: "peer", Version: "v3.0.0"}
+	cfg := &config.Config{Hostname: "peer", Version: "v5.0.0"}
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		serveSealedConfig(sender, recipient, cfg, w, r)
@@ -50,7 +50,7 @@ func TestConfigDecryptsLargeSealedResponse(t *testing.T) {
 	recipient, _ := identity.LoadOrCreate(filepath.Join(t.TempDir(), "recipient"))
 
 	big := strings.Repeat("x", 2<<20)
-	cfg := &config.Config{Hostname: big, Version: "v3.0.0"}
+	cfg := &config.Config{Hostname: big, Version: "v5.0.0"}
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		serveLargeSealedConfig(sender, recipient, cfg, w, r)

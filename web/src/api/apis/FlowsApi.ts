@@ -139,7 +139,7 @@ export class FlowsApi extends runtime.BaseAPI {
     }
 
     /**
-     * Sums stored flows along two or three dimensions (src, dst, service, protocol, in_if, out_if) and returns the largest paths with the total bytes of the window.
+     * Sums stored flows along two or three dimensions (src, dst, service, protocol, in_if, out_if) and returns the largest paths with the total bytes of the window. Names maps path addresses to their cached reverse DNS (PTR) names.
      * Flow paths for a Sankey diagram
      */
     async apiFlowsSankeyGetRaw(requestParameters: ApiFlowsSankeyGetRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<TypesResponseTypesFlowSankeyResponse>> {
@@ -174,7 +174,7 @@ export class FlowsApi extends runtime.BaseAPI {
     }
 
     /**
-     * Sums stored flows along two or three dimensions (src, dst, service, protocol, in_if, out_if) and returns the largest paths with the total bytes of the window.
+     * Sums stored flows along two or three dimensions (src, dst, service, protocol, in_if, out_if) and returns the largest paths with the total bytes of the window. Names maps path addresses to their cached reverse DNS (PTR) names.
      * Flow paths for a Sankey diagram
      */
     async apiFlowsSankeyGet(requestParameters: ApiFlowsSankeyGetRequest = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<TypesResponseTypesFlowSankeyResponse> {

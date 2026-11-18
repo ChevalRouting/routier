@@ -16,20 +16,23 @@ untouched.
 
 ## 1. Download the ISO
 
-Installation media live under [%%REPO_URL%%/iso/](%%REPO_URL%%/iso/):
+Download the newest installer ISO for your architecture:
 
 | File | Use |
 |------|-----|
-| `routier-latest-x86_64.iso` | the newest appliance ISO for 64-bit PCs and most VMs |
-| `routier-<version>-x86_64.iso` | a specific build |
+| [`routier-latest-x86_64.iso`](%%REPO_URL%%/iso/routier-latest-x86_64.iso) | 64-bit PCs and most VMs |
+| [`routier-latest-aarch64.iso`](%%REPO_URL%%/iso/routier-latest-aarch64.iso) | Arm boards and Apple silicon VMs |
 
-The appliance ISO runs the whole stack from memory, so it can be tried
-without installing anything. Arm boards and Apple silicon VMs use the
-`aarch64` images when they are published.
+Each release is also kept under its own name,
+`routier-installer-<version>-r<release>-<arch>.iso`, in the same directory.
+The published ISO installs Routier to a disk; an appliance ISO that runs the
+whole stack from memory can be built with `task iso` (see
+[Building](building.md)).
 
 ## 2. Boot the VM
 
-Attach the ISO and boot. On QEMU, with the uplink forwarded to your machine:
+Attach the ISO and boot. On QEMU on an x86_64 host, with the uplink forwarded
+to your machine:
 
 ```bash
 qemu-img create -f qcow2 routier.qcow2 10G
@@ -41,6 +44,10 @@ qemu-system-x86_64 -enable-kvm -m 2G -smp 2 \
   -netdev socket,id=lan,listen=:4444 \
   -device virtio-net-pci,netdev=lan
 ```
+
+On an aarch64 host, use `qemu-system-aarch64 -M virt -cpu host -accel kvm`
+(or `-accel hvf` on macOS) with UEFI firmware (`-bios QEMU_EFI.fd`) and
+`routier-latest-aarch64.iso`; the other options are the same.
 
 Every interface comes up with DHCP and the console prints where the web UI
 listens, with a one-time password:
@@ -57,12 +64,13 @@ With the QEMU command above, open `https://localhost:8080` instead. The
 certificate is self-signed until you configure one, so the browser asks you to
 accept it once.
 
-## 3. Install, or keep it live
+## 3. Install
 
 After signing in, the web UI offers to install to the VM disk: pick the disk,
 set the hostname, timezone and admin password, confirm, and restart without
-the ISO. On the appliance ISO you can also continue without installing; the
-system then runs from memory and forgets everything on restart.
+the ISO. An appliance ISO built with `task iso` can also continue without
+installing; the system then runs from memory and forgets everything on
+restart.
 
 ## 4. Onboarding
 

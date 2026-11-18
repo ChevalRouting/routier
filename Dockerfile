@@ -1,8 +1,5 @@
 FROM alpine:3.23
 
-# abuild resolves the package's runtime depends at build time, so the builder
-# must have every one of them installed. They are read straight out of APKBUILD
-# rather than duplicated here, so the two cannot drift apart.
 COPY APKBUILD /tmp/APKBUILD
 
 RUN apk update && \
@@ -18,10 +15,7 @@ RUN mkdir /work && chown builder:builder /work
 USER builder
 WORKDIR /home/builder
 COPY --chown=builder:builder go.mod go.sum /home/builder/
-COPY --from=certs --chown=builder:builder . /home/certs/
 
-# github.com/m-vinc/anyk is a personal module the public proxy/sumdb cannot serve,
-# so fetch it (and any other m-vinc module) straight from its source repo.
 ENV GOPRIVATE=github.com/m-vinc/*
 
 RUN go mod download

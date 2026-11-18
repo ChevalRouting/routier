@@ -530,6 +530,14 @@ type ConfigDNSZone struct {
 	Ttl              *int                  `json:"ttl,omitempty"`
 }
 
+// ConfigExporterConfig defines model for config.ExporterConfig.
+type ConfigExporterConfig struct {
+	AllowInbound *[]string `json:"allow_inbound,omitempty"`
+	Enabled      *bool     `json:"enabled,omitempty"`
+	Listen       *[]string `json:"listen,omitempty"`
+	Port         *int      `json:"port,omitempty"`
+}
+
 // ConfigFlowCollector defines model for config.FlowCollector.
 type ConfigFlowCollector struct {
 	Address string `json:"address"`
@@ -688,6 +696,7 @@ type ConfigManagedRule struct {
 // ConfigMonitoringConfig defines model for config.MonitoringConfig.
 type ConfigMonitoringConfig struct {
 	Collection *ConfigCollectionIntervals `json:"collection,omitempty"`
+	Exporter   *ConfigExporterConfig      `json:"exporter,omitempty"`
 	Flows      *ConfigFlowsConfig         `json:"flows,omitempty"`
 	Lldp       *ConfigLLDPConfig          `json:"lldp,omitempty"`
 	Probes     *[]ConfigPingProbe         `json:"probes,omitempty"`
@@ -3416,13 +3425,13 @@ type GetApiToolsRangeParams struct {
 
 // GetApiToolsReverseParams defines parameters for GetApiToolsReverse.
 type GetApiToolsReverseParams struct {
-	// Ip Address or CIDR, e.g. 100.64.12.192 or 2001:db8::/32
+	// Ip Address or CIDR, e.g. 198.51.100.192 or 2001:db8::/32
 	Ip string `form:"ip" json:"ip"`
 }
 
 // GetApiToolsSubnetParams defines parameters for GetApiToolsSubnet.
 type GetApiToolsSubnetParams struct {
-	// Cidr Address or CIDR, e.g. 100.64.12.192/27 or 2001:db8::/64
+	// Cidr Address or CIDR, e.g. 198.51.100.192/27 or 2001:db8::/64
 	Cidr string `form:"cidr" json:"cidr"`
 }
 

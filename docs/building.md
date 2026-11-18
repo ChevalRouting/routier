@@ -185,14 +185,17 @@ migrations; sqlc is not required on an appliance.
 
 ## Package repository
 
-The public repository is a static tree served by Caddy:
+The public repository is a tree of files in a directory, served by any static
+HTTP server; `apk` checks the index signature:
 
 ```
 %%REPO_URL%%/
-  routier.rsa.pub            public signing key
-  nightly/<arch>/            a build of every push to main, kept 30 days
-  stable/<arch>/             tagged releases (v*), kept
-  iso/                       installation media, routier-latest-<arch>.iso
+  index.html                       how to add the repository; every directory has a listing page
+  routier.rsa.pub                  public signing key
+  nightly/<arch>/                  builds of main, kept 30 days
+  stable/<arch>/                   tagged releases (v*), kept
+  iso/                             installation media, routier-latest-<arch>.iso
+  state/releases/<arch>/<version>  last release number published for a version
 ```
 
 Clients add a channel to `/etc/apk/repositories`, so `apk upgrade` and the
@@ -209,72 +212,82 @@ ISO and cloud builds write the same line into the installed system:
 points the image at another repository. Offline ISOs (`OFFLINE=1`) list no
 repository at all.
 
-### Publish
+The scripts write into the directory named by `REPO_TARGET`:
 
 ```bash
-task publish REPO_TARGET=routier@repo-host:/srv/routier/repo VERSION=0.5.4 RELEASE=1
-task publish REPO_TARGET=routier@repo-host:/srv/routier/repo VERSION=0.6.0 CHANNEL=stable
+export REPO_TARGET=/srv/public/repo
+export SIGN_KEY=/path/to/routier.rsa
 ```
 
-`scripts/repo-publish.sh` runs in an Alpine container on the build machine. It
-pulls the packages of the channel, adds the new `routier` and `routier-openrc`
-apks, prunes nightly packages older than `KEEP_DAYS` (30), rebuilds and signs
-`APKINDEX.tar.gz`, and pushes the result: packages first, then the index, then
-the pruning, so clients never see an index that names a missing package. The
-private key never leaves the build machine; the host only stores files.
-`REPO_TARGET` may also be a local directory, which is the quickest way to test
-a change to the script.
+`SIGN_KEY` defaults to `routier.rsa` at the root of the work tree, next to
+`routier.rsa.pub`. The private key never leaves the build machine. Set
+`ALPINE_IMAGE` and `NODE_IMAGE` to use mirrored images.
 
-SSH goes through `SSH_KEY` when set (CI), otherwise through the ssh agent
-(OrbStack and Docker Desktop forward it on macOS). Host keys come from
-`KNOWN_HOSTS`, default `~/.ssh/known_hosts`.
+### Release
 
-### Continuous packaging (GitHub Actions)
+```bash
+sh scripts/release.sh
+SITE_TARGET=/srv/public ISO_FLAVORS="installer lts" sh scripts/release.sh
+REPO_HOST=publisher@repo.example.net sh scripts/release.sh
+```
 
-`.github/workflows/nightly.yml` runs on every push to `main`, on `v*` tags and
-on manual `workflow_dispatch`. On the self-hosted runner it:
+`scripts/release.sh` builds the checked out commit, which must have no local
+changes:
 
-1. computes the channel and version: `<last tag>_git<commit count>` on the
-   nightly channel (for example `0.5.4_git128`, monotonic and valid for an apk
-   `pkgver`), the tag without its `v` on the stable channel,
-2. builds and signs the packages with `task apk`,
-3. publishes them with `scripts/repo-publish.sh`,
-4. builds this documentation site and deploys it to the same host.
+1. it picks the channel and version: the tag without its `v` on the stable
+   channel when the commit carries a `v*` tag, otherwise
+   `<last tag>_git<commit count>` on the nightly channel (for example
+   `0.5.4_git128`, monotonic and valid for an apk `pkgver`);
+2. it reads the next release number of that version from
+   `state/releases/<arch>/<version>`, 0 for a new version, so builders of
+   different architectures number the same commit alike;
+3. it builds and signs the packages with `task apk` and publishes them;
+4. it builds each ISO flavor of `ISO_FLAVORS` (default `installer`) and
+   publishes it;
+5. it records the release number, so a rebuild of the same commit gets the
+   next one;
+6. with `SITE_TARGET`, it builds this documentation site and mirrors it there,
+   leaving the `repo/` directory alone so the repository can live inside it.
 
-The workflow needs these repository secrets and variables:
+With `REPO_HOST`, the release builds locally and publishes on another machine:
+it streams the packages and the ISO over SSH (`REPO_SSH`, default `ssh`) to
+`repo.sh receive` there, then runs the repository commands there. The SSH
+login on that host must run `scripts/repo.sh` with the requested arguments,
+for example through a forced command, so only one machine writes the
+repository and the release counters stay in one place.
 
-- secrets: `ROUTIER_RSA` (PEM private signing key), `ROUTIER_RSA_PUB`,
-  `ROUTIER_STATIC_SSH_KEY`, `ROUTIER_STATIC_KNOWN_HOSTS`
-- variables: `ROUTIER_STATIC_USER`, `ROUTIER_STATIC_HOST`, and optionally
-  `ROUTIER_REPO_PATH` (default `/srv/routier/repo`) and `ROUTIER_STATIC_PATH`
-  (default `/srv/routier/site`)
+`VERSION`, `CHANNEL`, `RELEASE` and `ARCH` override the computed values.
+`task publish REPO_TARGET=...` runs the same script.
 
-Use the same signing key as your manual builds so CI and hand-published
-packages are interchangeable for clients.
+### Repository lifecycle
 
-### Host
+`scripts/repo.sh`, or `task repo REPO_TARGET=... -- <command>`, manages what
+the release script published. It builds the `routier-repo` helper image from
+`scripts/repo/Dockerfile` (Alpine with Python, abuild and openssl, based on
+`ALPINE_IMAGE`) and runs `scripts/repo/repo.py` in it with `REPO_TARGET`
+mounted. Set `REPO_IMAGE` to use an image built elsewhere instead. Commands
+take a lock on `dist/.repo.lock` when `flock` is available.
 
-One small VM serves the site and the repository. On Debian or Ubuntu:
+| Command | Effect |
+| --- | --- |
+| `add <channel> <arch> <version> <release>` | publish `dist/<arch>` packages, then prune the channel |
+| `remove <channel> <arch> <version>-r<release>` | drop a build from a channel |
+| `promote <arch> <version>-r<release>` | copy a nightly build into stable |
+| `prune <channel> <arch>` | drop packages older than `KEEP_DAYS` (30 for nightly, never for stable) |
+| `reindex <channel> <arch>` | rebuild and sign the index |
+| `list` | list packages and images |
+| `iso <arch>` | publish the newest `dist/iso` image as `routier-latest-<arch>.iso`, keeping `ISO_KEEP` (5) |
+| `counter next <arch> <version>`, `counter set <arch> <version> <release>` | read or set the release counter |
+| `site` | mirror `website/build` into the directory, deleting stale files but keeping `repo/` |
+| `page` | rewrite the listing page of every directory, styled by `assets/browse-routier.html`; also done after every channel change and image upload |
+| `receive` | unpack a tar of `<arch>/*.apk` and `iso/*.iso` from stdin into `dist/`, for `REPO_HOST` releases |
 
-1. point DNS for the site (`routier.cloud`) and the repository
-   (`repo.routier.cloud`) at the VM, and open ports 80 and 443;
-2. install Caddy from its official apt repository, plus `rsync`;
-3. create the deploy user and the web roots it owns:
-
-   ```bash
-   sudo adduser --disabled-password --gecos "" routier
-   sudo install -d -o routier -g routier /srv/routier/site /srv/routier/repo
-   ```
-
-4. add the CI and maintainer SSH keys to `~routier/.ssh/authorized_keys`;
-5. install the Caddy configuration: `/etc/caddy/Caddyfile` serves
-   `/srv/routier/site` on the site host, redirects the old `/repo/` paths and
-   serves `/srv/routier/repo` with a browsable index on the repository host,
-   with certificates from Let's Encrypt. `ROUTIER_SITE_HOST` and
-   `ROUTIER_REPO_HOST` in Caddy's environment override the host names.
-
-The first `task publish` creates the channel directories and uploads the
-public key.
+Every change to a channel copies its packages to a staging directory, rebuilds
+and signs `APKINDEX.tar.gz`, checks that the index describes every package and
+carries the signature, then publishes new packages first, the index next and
+deletes pruned packages last, so clients never see an index that names a
+missing package. Each file is written next to its destination and renamed into
+place.
 
 ## Task runner
 

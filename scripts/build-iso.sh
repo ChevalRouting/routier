@@ -14,7 +14,7 @@ export COMMUNITY="${ALPINE_COMMUNITY:-https://dl-cdn.alpinelinux.org/alpine/v3.2
 export OFFLINE="${OFFLINE:-0}"
 export MIRROR_DIR="${MIRROR_DIR:-$HERE/../dist/cache/apkmirror}"
 export FLAVOR="${FLAVOR:-lts}"
-export ROUTIER_REPO_URL="${ROUTIER_REPO_URL-https://repo.routier.cloud}"
+export ROUTIER_REPO_URL="${ROUTIER_REPO_URL-https://routier.chevalrouting.org/repo}"
 export ROUTIER_CHANNEL="${ROUTIER_CHANNEL:-nightly}"
 
 case "$FLAVOR" in

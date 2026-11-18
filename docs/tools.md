@@ -19,11 +19,11 @@ IPv4 host counts follow ipcalc: a `/31` has two usable hosts and no broadcast, a
 the block counts as usable.
 
 ```
-routier ipcalc subnet 100.64.12.192/27
+routier ipcalc subnet 198.51.100.192/27
 routier ipcalc subnet 2001:db8::/64
 ```
 
-API: `GET /api/tools/subnet?cidr=100.64.12.192/27`.
+API: `GET /api/tools/subnet?cidr=198.51.100.192/27`.
 
 ## Reverse DNS
 
@@ -32,11 +32,11 @@ Translates an address into its reverse-DNS (PTR) name: `in-addr.arpa` for IPv4,
 or nibble (IPv6) boundary, the delegation zone is returned as well.
 
 ```
-routier ipcalc reverse 100.64.12.192
+routier ipcalc reverse 198.51.100.192
 routier ipcalc reverse 2001:db8::/32
 ```
 
-API: `GET /api/tools/reverse?ip=100.64.12.192`.
+API: `GET /api/tools/reverse?ip=198.51.100.192`.
 
 ## Range to CIDR
 

@@ -1,5 +1,7 @@
 codeberg.org/miekg/dns v0.6.79 h1:ixlSbch4aCtV/GuhBgbPw33V3tqovMFSOGyPA9u48FM=
 codeberg.org/miekg/dns v0.6.79/go.mod h1:58Y3ZTg6Z5ZEm/ZAAwHehbZfrD4u5mE4RByHoPEMyKk=
+github.com/ChevalRouting/certs v0.0.0-20261030082911-6886d0d94ffb h1:1l+BulC1bS5tyv7s8o2xVz/xNuL2DFFzcGvJRJ7UweI=
+github.com/ChevalRouting/certs v0.0.0-20261030082911-6886d0d94ffb/go.mod h1:Yl9npE8y3tEf/nic2iAPbIILP1UqsDXUbrX/vNGIHUM=
 github.com/KyleBanks/depth v1.2.1 h1:5h8fQADFrWtarTdtDudMmGsC7GPbOAu6RVB3ffsVFHc=
 github.com/KyleBanks/depth v1.2.1/go.mod h1:jzSb9d0L43HxTQfT+oSA1EEp2q+ne2uh6XgeJcm8brE=
 github.com/RaveNoX/go-jsoncommentstrip v1.0.0/go.mod h1:78ihd09MekBnJnxpICcwzCMzGrKSKYe4AqU6PDYYpjk=

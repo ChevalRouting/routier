@@ -8,7 +8,7 @@ vars:
   OFFLINE: '{{.OFFLINE | default "0"}}'
   FLAVOR: '{{.FLAVOR | default "lts"}}'
   CHANNEL: '{{.CHANNEL | default "nightly"}}'
-  PUBLIC_REPO_URL: '{{.PUBLIC_REPO_URL | default "https://repo.routier.cloud"}}'
+  PUBLIC_REPO_URL: '{{.PUBLIC_REPO_URL | default "https://routier.chevalrouting.org/repo"}}'
   MCP_GOOS: '{{.MCP_GOOS | default "linux"}}'
   ALPINE_VERSION: '{{.ALPINE_VERSION | default "3.23"}}'
   ISO_APORTS: '{{.ISO_APORTS | default "./dist/aports"}}'
@@ -32,7 +32,6 @@ vars:
   DOCKER_PLATFORM: '{{.DOCKER_PLATFORM | default (ternary "linux/arm64" "linux/amd64" (eq .ARCH "aarch64"))}}'
   PLATFORM_FLAG: '--platform {{.DOCKER_PLATFORM}}'
   APK_ANYK_MOUNT: '{{if eq .LOCAL_ANYK "1"}}-v {{printf "%s/../anyk:/anyk:z" .ROOT_DIR | shellQuote}}{{end}}'
-  CERTS_MOUNT: '-v {{printf "%s/../certs:/certs:z" .ROOT_DIR | shellQuote}}'
   GO_TAGS: '{{if eq .EMBED "1"}}-tags prod{{end}}'
   DOCKER_STAMP: '.docker-image-{{.ARCH}}-{{.VERSION}}-{{.RELEASE}}'
   PODMAN_TTY:
@@ -225,7 +224,7 @@ tasks:
     cmds:
       - task: 'builder'
       - |
-        EMBED=1 LOCAL_ANYK={{.LOCAL_ANYK}} {{.CONTAINER}} run {{.PLATFORM_FLAG}} -it -e RELEASE="{{.RELEASE}}" -e VERSION="{{.VERSION}}" -e LOCAL_ANYK="{{.LOCAL_ANYK}}" -v {{printf "%s:/app:z" .ROOT_DIR | shellQuote}} {{.APK_ANYK_MOUNT}} {{.CERTS_MOUNT}} --entrypoint ash "routier:{{.VERSION}}-{{.RELEASE}}"
+        EMBED=1 LOCAL_ANYK={{.LOCAL_ANYK}} {{.CONTAINER}} run {{.PLATFORM_FLAG}} -it -e RELEASE="{{.RELEASE}}" -e VERSION="{{.VERSION}}" -e LOCAL_ANYK="{{.LOCAL_ANYK}}" -v {{printf "%s:/app:z" .ROOT_DIR | shellQuote}} {{.APK_ANYK_MOUNT}} --entrypoint ash "routier:{{.VERSION}}-{{.RELEASE}}"
   run-iso:
     desc: 'Boot the ISO in QEMU'
     cmds:
@@ -373,7 +372,7 @@ tasks:
     cmds:
       - |
         set -e
-        {{.CONTAINER}} build {{.PLATFORM_FLAG}} --build-context certs={{printf "%s/../certs" .ROOT_DIR | shellQuote}} -t "routier:{{.VERSION}}-{{.RELEASE}}" -f Dockerfile .
+        {{.CONTAINER}} build {{.PLATFORM_FLAG}} -t "routier:{{.VERSION}}-{{.RELEASE}}" -f Dockerfile .
         touch {{.DOCKER_STAMP}}
   signing-key:
     desc: 'Create the package signing key if missing'
@@ -397,7 +396,7 @@ tasks:
         set -e
         EMBED=1 LOCAL_ANYK={{.LOCAL_ANYK}} {{.CONTAINER}} run {{.PLATFORM_FLAG}} {{.PODMAN_TTY}} --rm \
         	-e RELEASE="{{.RELEASE}}" -e VERSION="{{.VERSION}}" -e LOCAL_ANYK="{{.LOCAL_ANYK}}" \
-        	-v {{printf "%s:/app:z" .ROOT_DIR | shellQuote}} {{.APK_ANYK_MOUNT}} {{.CERTS_MOUNT}} \
+        	-v {{printf "%s:/app:z" .ROOT_DIR | shellQuote}} {{.APK_ANYK_MOUNT}} \
         	--entrypoint sh "routier:{{.VERSION}}-{{.RELEASE}}" /app/scripts/mkpkg.sh
   aports:
     desc: 'Fetch Alpine ISO build scripts'
@@ -439,15 +438,20 @@ tasks:
       - sh scripts/deploy.sh {{.HOST | shellQuote}} {{.VERSION | shellQuote}} {{.RELEASE | shellQuote}}
 
   publish:
-    desc: 'Sign and publish packages to the apk repository (REPO_TARGET=user@host:/srv/routier/repo VERSION=x.y.z)'
+    desc: 'Build, sign and publish packages and ISOs of the checked out commit (REPO_TARGET=/some/dir)'
     requires:
       vars: [REPO_TARGET]
     cmds:
-      - task: 'apk'
       - |
-        REPO_TARGET={{.REPO_TARGET | shellQuote}} CHANNEL={{.CHANNEL | shellQuote}} \
-        VERSION={{.VERSION | shellQuote}} RELEASE={{.RELEASE | shellQuote}} ARCH={{.ARCH | shellQuote}} \
-        CONTAINER={{.CONTAINER | shellQuote}} sh scripts/repo-publish.sh
+        REPO_TARGET={{.REPO_TARGET | shellQuote}} CONTAINER={{.CONTAINER | shellQuote}} TASK={{.TASK_EXE | shellQuote}} sh scripts/release.sh
+
+  repo:
+    desc: 'Manage the apk repository (REPO_TARGET=/some/dir task repo -- list)'
+    requires:
+      vars: [REPO_TARGET]
+    cmds:
+      - |
+        REPO_TARGET={{.REPO_TARGET | shellQuote}} CONTAINER={{.CONTAINER | shellQuote}} sh scripts/repo.sh {{.CLI_ARGS}}
 
   bench:
     desc: 'Benchmark TCP and UDP between routers over their loopbacks (HOSTS="user@loopback ...")'
@@ -466,3 +470,8 @@ tasks:
     desc: 'Test deployment orchestration and installation with mocked commands'
     cmds:
       - python3 scripts/deploy_test.py
+
+  test-repo:
+    desc: 'Test the apk repository listing and index helpers'
+    cmds:
+      - python3 -B scripts/repo/repo_test.py

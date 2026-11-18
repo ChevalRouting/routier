@@ -10,7 +10,7 @@ import (
 	"github.com/ChevalRouting/routier/pkg/render"
 )
 
-const dnsEmptyPrimaryConfig = `version: v3.0.0
+const dnsEmptyPrimaryConfig = `version: v5.0.0
 hostname: gw
 dns:
   server:

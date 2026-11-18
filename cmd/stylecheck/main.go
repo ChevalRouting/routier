@@ -147,7 +147,7 @@ func checkFiles(settings options, paths []string) bool {
 
 func generatedPath(path string) bool {
 	normalized := "/" + filepath.ToSlash(filepath.Clean(path))
-	return strings.Contains(normalized, "/vendor/") || strings.HasSuffix(normalized, "/vendor") || strings.Contains(normalized, "/node_modules/") || strings.Contains(normalized, "/dist/") || strings.Contains(normalized, "/pkg/db/generated/") || strings.Contains(normalized, "/web/src/api/") || strings.Contains(normalized, "/pkg/server/client/generated/") || strings.Contains(normalized, "/pkg/server/api/docs/") || strings.HasPrefix(normalized, "/migrated/")
+	return strings.Contains(normalized, "/vendor/") || strings.HasSuffix(normalized, "/vendor") || strings.Contains(normalized, "/node_modules/") || strings.Contains(normalized, "/dist/") || strings.Contains(normalized, "/pkg/db/generated/") || strings.Contains(normalized, "/web/src/api/") || strings.Contains(normalized, "/pkg/server/client/generated/") || strings.Contains(normalized, "/pkg/server/api/docs/")
 }
 
 func checkText(path string, data []byte) []diagnostic {

@@ -24,13 +24,13 @@ func macroDB(t *testing.T) *webdb.DB {
 	return db
 }
 
-const macroBase = `version: v3.0.0
+const macroBase = `version: v5.0.0
 hostname: gw
 dns:
   nameservers: ["1.1.1.1"]
 `
 
-const macroMod = `version: v3.0.0
+const macroMod = `version: v5.0.0
 hostname: gw
 dns:
   nameservers: ["8.8.8.8"]

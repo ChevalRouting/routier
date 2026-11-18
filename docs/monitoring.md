@@ -186,6 +186,60 @@ The metadata lists the router once per address it sends sFlow from, with
 every kernel interface index, the device name, the Routier interface name as
 the description, and the link speed in Mbps.
 
+## Prometheus exporter
+
+`routier-ui` can serve the router's metrics at `/metrics` in the Prometheus
+text format, for Prometheus, Grafana Alloy or any compatible scraper. It reads
+the same values as the UI and adds no daemon:
+
+```yaml
+monitoring:
+  exporter:
+    enabled: true
+    listen: [10.0.0.1]
+    port: 9469
+    allow_inbound: [lan]
+```
+
+- `listen` holds the IP addresses to serve on, `127.0.0.1` and `::1` when
+  omitted, so the metrics stay local until you choose an address.
+- `port` defaults to 9469.
+- `allow_inbound` opens the port in the firewall on those interfaces, for
+  scrapers on their subnets (see [firewall.md](firewall.md#automatic-allows)).
+
+The exporter follows the configuration within 10 seconds, without an apply of
+the network. There is no authentication: expose it only to trusted networks.
+
+| Metric | Type | Labels | Value |
+| --- | --- | --- | --- |
+| `routier_build_info` | gauge | `version` | always 1 |
+| `routier_interface_up` | gauge | `device`, `interface` | 1 when the operational state is up |
+| `routier_interface_receive_bytes_total`, `routier_interface_transmit_bytes_total` | counter | `device`, `interface` | bytes |
+| `routier_interface_receive_packets_total`, `routier_interface_transmit_packets_total` | counter | `device`, `interface` | packets |
+| `routier_interface_receive_errors_total`, `routier_interface_transmit_errors_total` | counter | `device`, `interface` | errors |
+| `routier_interface_receive_drops_total`, `routier_interface_transmit_drops_total` | counter | `device`, `interface` | dropped packets |
+| `routier_cpu_usage_ratio` | gauge | | CPU busy time, 0 to 1 |
+| `routier_memory_total_bytes`, `routier_memory_used_bytes`, `routier_memory_buffers_bytes`, `routier_memory_cached_bytes` | gauge | | memory |
+| `routier_swap_total_bytes`, `routier_swap_used_bytes` | gauge | | swap |
+| `routier_load1`, `routier_load5`, `routier_load15` | gauge | | load average |
+| `routier_uptime_seconds` | gauge | | time since boot |
+| `routier_processes` | gauge | | number of processes |
+| `routier_conntrack_entries`, `routier_conntrack_entries_max` | gauge | | connection tracking entries and table size |
+| `routier_bgp_peer_up` | gauge | `peer`, `asn` | 1 when the session is established |
+| `routier_bgp_peer_uptime_seconds` | gauge | `peer`, `asn` | time since the session was established, established sessions only |
+| `routier_bgp_peer_prefixes_received` | gauge | `peer`, `asn` | prefixes received |
+| `routier_bgp_peer_messages_received_total`, `routier_bgp_peer_messages_sent_total` | counter | `peer`, `asn` | BGP messages |
+| `routier_ospf_neighbor_full` | gauge | `neighbor`, `interface`, `area` | 1 when the adjacency is full |
+| `routier_probe_up` | gauge | `probe`, `target` | 1 when the last probe got a reply |
+| `routier_probe_rtt_seconds` | gauge | `probe`, `target` | average round-trip time of the last probe, when it got a reply |
+| `routier_probe_timestamp_seconds` | gauge | `probe`, `target` | Unix time of the last probe |
+
+`device` is the kernel name and `interface` the Routier interface name, empty
+for devices the configuration does not name. Every kernel interface is listed,
+loopback included. System, BGP and OSPF values are sampled every 5 seconds,
+interface and conntrack counters are read at each scrape, and probes report
+their last result from the past hour.
+
 ## Routing state
 
 - `GET /api/routing/learned` - learned routes (FRR).

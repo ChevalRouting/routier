@@ -1,0 +1,1 @@
+import{j as t}from"./vendor-xyflow-CHhozP7l.js";import{r as s}from"./vendor-react-SXuDquMo.js";import{_ as a}from"./index-C4pV3ML2.js";const m=s.forwardRef(({className:o,...r},e)=>t.jsx("pre",{ref:e,className:a("m-0 overflow-auto whitespace-pre-wrap break-words rounded-md bg-muted p-3 font-mono text-xs text-foreground",o),...r}));m.displayName="CodeBlock";export{m as C};

@@ -24,7 +24,7 @@ points `nameservers` at a loopback or listen address it serves:
 ```yaml
 dns:
   nameservers: [127.0.0.1]
-  search: [42.school]
+  search: [corp.example]
   server:
     enabled: true
     ...
@@ -32,9 +32,7 @@ dns:
 
 `dns.server` is optional and additive: omit it (or set `enabled: false`) and
 nothing under `/etc/bind/` is rendered, the service is stopped and removed from
-the boot runlevel, and no firewall rules are emitted. No config migration is
-involved, adding `dns.server` to an existing config does not change the schema
-version.
+the boot runlevel, and no firewall rules are emitted.
 
 ## Modes
 
@@ -77,37 +75,37 @@ dns:
 ## Forwarding resolver
 
 The minimum viable resolver is a set of listen addresses, an ACL, and
-upstreams. This is the full configuration of a campus router that forwards one
-internal domain and its reverse space to a campus resolver and everything else
+upstreams. This is the full configuration of a site router that forwards one
+internal domain and its reverse space to an internal resolver and everything else
 to a public one:
 
 ```yaml
 dns:
   nameservers: [127.0.0.1]
-  search: [42.school]
+  search: [corp.example]
   server:
     enabled: true
     listen:
       - 127.0.0.1
-      - iface(region)         # 10.170.32.2
-      - vips(region)          # 10.170.32.1  (VRRP VIP)
-      - iface(workstations)   # 10.170.48.2
-      - vips(workstations)    # 10.170.48.1  (VRRP VIP)
-      - iface(external)       # 10.170.33.2
-      - iface(dum0)           # 10.255.0.53
+      - iface(servers)        # 10.0.10.2
+      - vips(servers)         # 10.0.10.1  (VRRP VIP)
+      - iface(clients)        # 10.0.20.2
+      - vips(clients)         # 10.0.20.1  (VRRP VIP)
+      - iface(guest)          # 10.0.30.2
+      - iface(dum0)           # 10.0.0.53
     allow_from:
-      - 10.170.32.0/24
-      - 10.170.48.0/20
-      - 10.170.33.0/24
+      - 10.0.10.0/24
+      - 10.0.20.0/22
+      - 10.0.30.0/24
       - 127.0.0.1/32
-      - 10.255.0.53/32
-    allow_inbound: [region, workstations, external]
+      - 10.0.0.53/32
+    allow_inbound: [servers, clients, guest]
     upstreams: [1.1.1.1]
     forward:
       - domain: 10.in-addr.arpa
-        servers: [10.255.0.54]
-      - domain: 42.school
-        servers: [10.255.0.54]
+        servers: [10.0.0.54]
+      - domain: corp.example
+        servers: [10.0.0.54]
     cache:
       disabled: true
 ```
@@ -389,7 +387,7 @@ break an internal, unsigned domain. For every `forward[].domain` and every
 ```
 validate-except {
     "10.in-addr.arpa";
-    "42.school";
+    "corp.example";
 };
 disable-empty-zone "10.in-addr.arpa";
 ```
@@ -412,7 +410,7 @@ Each addresses a different failure:
 `disable-empty-zone` is emitted only for names that actually have a built-in
 empty zone, the `in-addr.arpa`, `ip6.arpa`, `home.arpa`, `resolver.arpa`,
 `service.arpa` and `empty.arpa` families. Emitting it for an ordinary domain
-like `42.school` would be a no-op that BIND warns about on every apply, so it
+like `corp.example` would be a no-op that BIND warns about on every apply, so it
 is left out.
 
 Note that `home.arpa`, the conventional choice for an internal zone, and the

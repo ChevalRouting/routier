@@ -142,12 +142,13 @@ func runServe(configPath string, dbPath string, addr string, secretFile string, 
 
 	if certificates == nil {
 		log.Info().Str("addr", addr).Str("config", configPath).Msg("starting web server")
-		return http.ListenAndServe(addr, handler)
+		server := &http.Server{Addr: addr, Handler: handler, ReadHeaderTimeout: 30 * time.Second, IdleTimeout: 2 * time.Minute}
+		return server.ListenAndServe()
 	}
 
 	srv.SetCertificates(certificates)
 	go certificates.Watch(cmd.Context(), managers.LastAppliedPath)
-	server := &http.Server{Addr: addr, Handler: handler, TLSConfig: certificates.TLSConfig(), ReadHeaderTimeout: 30 * time.Second}
+	server := &http.Server{Addr: addr, Handler: handler, TLSConfig: certificates.TLSConfig(), ReadHeaderTimeout: 30 * time.Second, IdleTimeout: 2 * time.Minute}
 	log.Info().Str("addr", addr).Str("mode", certificates.Status().Mode).Msg("starting web server (TLS)")
 	return server.ListenAndServeTLS("", "")
 }

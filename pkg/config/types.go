@@ -185,6 +185,14 @@ type MonitoringConfig struct {
 	Probes     []PingProbe         `yaml:"probes,omitempty" json:"probes,omitempty" validate:"optional"`
 	LLDP       *LLDPConfig         `yaml:"lldp,omitempty" json:"lldp,omitempty" validate:"optional"`
 	Flows      *FlowsConfig        `yaml:"flows,omitempty" json:"flows,omitempty" validate:"optional"`
+	Exporter   *ExporterConfig     `yaml:"exporter,omitempty" json:"exporter,omitempty" validate:"optional"`
+}
+
+type ExporterConfig struct {
+	Enabled      bool     `yaml:"enabled,omitempty"       json:"enabled,omitempty" validate:"optional"`
+	Listen       []string `yaml:"listen,omitempty"        json:"listen,omitempty" validate:"optional"`
+	Port         int      `yaml:"port,omitempty"          json:"port,omitempty" validate:"optional"`
+	AllowInbound []string `yaml:"allow_inbound,omitempty" json:"allow_inbound,omitempty" validate:"optional"`
 }
 
 type FlowsConfig struct {

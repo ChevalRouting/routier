@@ -11,7 +11,7 @@ import (
 
 func TestRenderProducesNftablesTable(t *testing.T) {
 	dir := t.TempDir()
-	path := testkit.WriteConfig(t, dir, `version: v3.0.0
+	path := testkit.WriteConfig(t, dir, `version: v5.0.0
 hostname: rtr
 interfaces:
   lan:
@@ -56,7 +56,7 @@ nftables:
 
 func TestRenderNftVarsExposesInterfaceAddresses(t *testing.T) {
 	dir := t.TempDir()
-	path := testkit.WriteConfig(t, dir, `version: v3.0.0
+	path := testkit.WriteConfig(t, dir, `version: v5.0.0
 hostname: rtr
 interfaces:
   lan:

@@ -91,6 +91,45 @@ func TestFriendBGPPolicyImport(t *testing.T) {
 	}
 }
 
+func TestFriendBGPPolicyImportIPv6(t *testing.T) {
+	cfg := friendBGPCfg()
+	cfg.Routing.BGP.Neighbors = []config.BGPNeighbor{{
+		Address:   "2001:db8::2",
+		RemoteASN: 65002,
+		AddressFamilies: map[string]*config.BGPNeighborAF{
+			"ipv6-unicast": {RouteMapIn: "friends_edge-b_IN"},
+		},
+	}}
+
+	fv := map[string]friends.Vars{
+		"edge-b": {
+			BGPPrefixLists: map[string][]config.PrefixEntry{
+				"ANYCAST": {
+					{Seq: 5, Action: "permit", Prefix: "192.0.2.10/32"},
+					{Seq: 10, Action: "permit", Prefix: "2001:db8:53::10/128"},
+				},
+			},
+			BGPRouteMaps: map[string][]config.RouteMapEntry{
+				"IN": {{Seq: 10, Action: "permit", Match: map[string]string{"ipv6 address prefix-list": "ANYCAST"}}},
+			},
+		},
+	}
+
+	out := renderFrrWithFriends(t, cfg, fv)
+	wants := []string{
+		"!\nip prefix-list friends_edge-b_ANYCAST seq 5 permit 192.0.2.10/32\n",
+		"!\nipv6 prefix-list friends_edge-b_ANYCAST seq 10 permit 2001:db8:53::10/128\n",
+		"route-map friends_edge-b_IN permit 10\n match ipv6 address prefix-list friends_edge-b_ANYCAST\nexit",
+		"route-map ROUTIER-IN-2001_db8__2-ipv6-unicast permit 1000\n call friends_edge-b_IN\n",
+	}
+
+	for _, w := range wants {
+		if !strings.Contains(out, w) {
+			t.Fatalf("expected rendered frr.conf to contain %q, got:\n%s", w, out)
+		}
+	}
+}
+
 func TestFriendBGPSharedMerge(t *testing.T) {
 	cfg := friendBGPCfg()
 	cfg.Routing.BGP.Neighbors[0].AddressFamilies["ipv4-unicast"] = &config.BGPNeighborAF{

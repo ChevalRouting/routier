@@ -6,21 +6,21 @@ import (
 )
 
 func TestSubnetIpcalcExample(t *testing.T) {
-	info, err := Subnet("100.64.12.192/27")
+	info, err := Subnet("198.51.100.192/27")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	want := map[string]string{
-		"Address":   "100.64.12.192",
+		"Address":   "198.51.100.192",
 		"Netmask":   "255.255.255.224",
 		"Wildcard":  "0.0.0.31",
-		"Network":   "100.64.12.192/27",
-		"HostMin":   "100.64.12.193",
-		"HostMax":   "100.64.12.222",
-		"Broadcast": "100.64.12.223",
+		"Network":   "198.51.100.192/27",
+		"HostMin":   "198.51.100.193",
+		"HostMax":   "198.51.100.222",
+		"Broadcast": "198.51.100.223",
 		"Hosts":     "30",
-		"Class":     "A",
+		"Class":     "C",
 	}
 	got := map[string]string{
 		"Address":   info.Address,
@@ -39,7 +39,7 @@ func TestSubnetIpcalcExample(t *testing.T) {
 		}
 	}
 
-	if FormatBinary(info.AddressBits, info.Prefix, true) != "01100100.01000000.00001100.110 00000" {
+	if FormatBinary(info.AddressBits, info.Prefix, true) != "11000110.00110011.01100100.110 00000" {
 		t.Errorf("address bits = %q", FormatBinary(info.AddressBits, info.Prefix, true))
 	}
 
@@ -47,7 +47,7 @@ func TestSubnetIpcalcExample(t *testing.T) {
 		t.Errorf("netmask bits = %q", FormatBinary(info.NetmaskBits, info.Prefix, true))
 	}
 
-	if FormatBinary(info.BroadcastBits, info.Prefix, true) != "01100100.01000000.00001100.110 11111" {
+	if FormatBinary(info.BroadcastBits, info.Prefix, true) != "11000110.00110011.01100100.110 11111" {
 		t.Errorf("broadcast bits = %q", FormatBinary(info.BroadcastBits, info.Prefix, true))
 	}
 }
@@ -93,13 +93,13 @@ func TestSubnetV6(t *testing.T) {
 }
 
 func TestReverse(t *testing.T) {
-	v4, _ := Reverse("100.64.12.192")
-	if v4.Name != "192.12.64.100.in-addr.arpa" {
+	v4, _ := Reverse("198.51.100.192")
+	if v4.Name != "192.100.51.198.in-addr.arpa" {
 		t.Errorf("v4 name = %q", v4.Name)
 	}
 
-	v4z, _ := Reverse("100.64.12.192/24")
-	if v4z.Zone != "12.64.100.in-addr.arpa" {
+	v4z, _ := Reverse("198.51.100.192/24")
+	if v4z.Zone != "100.51.198.in-addr.arpa" {
 		t.Errorf("v4 zone = %q", v4z.Zone)
 	}
 

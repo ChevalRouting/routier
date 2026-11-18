@@ -91,7 +91,7 @@ func runEdit(timeout int, noArm bool, noApply bool, cmd *cobra.Command, args []s
 		return err
 	}
 
-	if err := os.WriteFile(cfgPath, edited, 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, edited, 0o600); err != nil {
 		return fmt.Errorf("save config: %w", err)
 	}
 

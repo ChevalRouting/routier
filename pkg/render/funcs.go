@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"net"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"slices"
@@ -100,12 +101,16 @@ func templateFuncs(data TemplateData) template.FuncMap {
 		"bgpNeighborInAF":    bgpNeighborInAF,
 		"bgpPolicyMap":       bgpPolicyMap,
 		"bgpPolicyRouteMaps": func() string { return bgpPolicyRouteMaps(cfg) },
+		"prefixListCommand":  prefixListCommand,
 		"nftDefines":         func() string { return nftDefines(&data, cfg) },
 		"friendBGPPolicies":  func() string { return friendBGPPolicies(&data) },
 		"renderStr":          func(s string) (string, error) { return renderString(&data, s) },
 		"frrInterfaces":      func() []string { return frrInterfaces(cfg) },
 		"ospfIface":          func(name string) *config.OSPFInterface { return ospfInterface(cfg, name) },
 		"ospf6Iface":         func(name string) *config.OSPF6Interface { return ospf6Interface(cfg, name) },
+		"ospf6Passive":       func(name string) bool { return ospf6Passive(cfg, name) },
+		"vipsPrimary":        vipsPrimary,
+		"vipsExcluded":       vipsExcluded,
 		"pbrPolicy":          func(name string) string { return pbrPolicy(cfg, name) },
 		"bgpNeighborByDesc":  func(desc string) string { return bgpNeighborByDescription(cfg, desc) },
 		"hasOSPF6":           func() bool { return hasOSPF6(cfg) },
@@ -384,23 +389,12 @@ func routierManagedRules(cfg *config.Config) map[string][]string {
 		}
 	}
 
-	if r := cfg.Routing; r != nil {
-		if r.BGP != nil {
-			for _, ifn := range r.BGP.AllowInbound {
-				out["input"] = append(out["input"], scopedAllow(cfg, ifn, "tcp dport 179", "bgp")...)
-			}
-		}
+	out["input"] = append(out["input"], routingAllowRules(cfg)...)
 
-		if r.OSPF != nil {
-			for _, ifn := range r.OSPF.AllowInbound {
-				out["input"] = append(out["input"], scopedAllow(cfg, ifn, "meta l4proto 89", "ospf", "ip")...)
-			}
-		}
-
-		if r.OSPF6 != nil {
-			for _, ifn := range r.OSPF6.AllowInbound {
-				out["input"] = append(out["input"], scopedAllow(cfg, ifn, "meta l4proto 89", "ospf6", "ip6")...)
-			}
+	if cfg.Monitoring.ExporterEnabled() {
+		port := cfg.Monitoring.Exporter.ListenPort()
+		for _, ifn := range cfg.Monitoring.Exporter.AllowInbound {
+			out["input"] = append(out["input"], scopedAllow(cfg, ifn, fmt.Sprintf("tcp dport %d", port), "exporter")...)
 		}
 	}
 
@@ -552,6 +546,66 @@ func scopedAllow(cfg *config.Config, ifaceName, match, comment string, fams ...s
 	return out
 }
 
+func routingAllowRules(cfg *config.Config) []string {
+	if cfg.Routing == nil {
+		return nil
+	}
+
+	instances := []*config.VRFRouting{{BGP: cfg.Routing.BGP, OSPF: cfg.Routing.OSPF, OSPF6: cfg.Routing.OSPF6}}
+	for _, vrf := range sortedKeys(cfg.Routing.VRFs) {
+		if v := cfg.Routing.VRFs[vrf]; v != nil {
+			instances = append(instances, v)
+		}
+	}
+
+	var out []string
+	for _, r := range instances {
+		if r.BGP != nil {
+			for _, ifn := range r.BGP.AllowInbound {
+				out = append(out, scopedAllow(cfg, ifn, "tcp dport 179", "bgp")...)
+			}
+		}
+
+		if r.OSPF != nil {
+			for _, ifn := range r.OSPF.AllowInbound {
+				out = append(out, ospfAllow(cfg, ifn)...)
+			}
+		}
+
+		if r.OSPF6 != nil {
+			for _, ifn := range r.OSPF6.AllowInbound {
+				out = append(out, interfaceAllow(cfg, ifn, "ip6 saddr fe80::/10 meta l4proto 89", "ospf6")...)
+			}
+		}
+	}
+
+	return out
+}
+
+func ospfAllow(cfg *config.Config, ifaceName string) []string {
+	addrs, _ := scopedAddresses(cfg, ifaceName)
+	for _, addr := range addrs {
+		if _, n, err := net.ParseCIDR(addr); err == nil && n.IP.To4() != nil {
+			if ones, _ := n.Mask.Size(); ones == 32 {
+				return interfaceAllow(cfg, ifaceName, "meta l4proto 89", "ospf")
+			}
+		}
+	}
+
+	return scopedAllow(cfg, ifaceName, "meta l4proto 89", "ospf", "ip")
+}
+
+func interfaceAllow(cfg *config.Config, ifaceName, match, comment string) []string {
+	if _, known := scopedAddresses(cfg, ifaceName); !known {
+		log.Warn().Str("interface", ifaceName).Str("feature", comment).
+			Msg("allow_inbound: unknown interface, no firewall rule emitted")
+
+		return nil
+	}
+
+	return []string{fmt.Sprintf("iifname $%s_interfaces %s accept comment %q", sanitizeNftName(ifaceName), match, "routier: "+comment)}
+}
+
 func splitRuleLines(s string) []string {
 	var lines []string
 
@@ -614,26 +668,18 @@ func buildRuleParts(rule *config.ManagedRule) []string {
 			parts = append(parts, "oifname", formatNftSet(m.OIF))
 		}
 
-		af := m.AddrFamily
-		if af == "" && (m.SAddr != "" || m.DAddr != "") {
-			candidate := m.SAddr
-			if candidate == "" {
-				candidate = m.DAddr
-			}
-
-			if strings.Contains(candidate, ":") {
-				af = "ip6"
-			} else {
-				af = "ip"
+		if m.SAddr == "" && m.DAddr == "" {
+			if proto := nfproto(m.AddrFamily); proto != "" {
+				parts = append(parts, "meta nfproto", proto)
 			}
 		}
 
 		if m.SAddr != "" {
-			parts = append(parts, af+" saddr", formatNftSet(m.SAddr))
+			parts = append(parts, ruleAddrFamily(m.AddrFamily, m.SAddr)+" saddr", formatNftSet(m.SAddr))
 		}
 
 		if m.DAddr != "" {
-			parts = append(parts, af+" daddr", formatNftSet(m.DAddr))
+			parts = append(parts, ruleAddrFamily(m.AddrFamily, m.DAddr)+" daddr", formatNftSet(m.DAddr))
 		}
 
 		if m.SPort != "" {
@@ -669,6 +715,29 @@ func buildRuleParts(rule *config.ManagedRule) []string {
 	}
 
 	return parts
+}
+
+func ruleAddrFamily(family, addr string) string {
+	if family != "" {
+		return family
+	}
+
+	if strings.Contains(addr, ":") || (strings.HasPrefix(addr, "$") && strings.HasSuffix(addr, "6")) {
+		return "ip6"
+	}
+
+	return "ip"
+}
+
+func nfproto(family string) string {
+	switch family {
+	case "ip":
+		return "ipv4"
+	case "ip6":
+		return "ipv6"
+	default:
+		return ""
+	}
 }
 
 func natTargetFamily(target string) string {
@@ -979,9 +1048,18 @@ func dedupRouteBySeq(entries []config.RouteMapEntry) []config.RouteMapEntry {
 	return out
 }
 
+func prefixListCommand(prefix string) string {
+	p, err := netip.ParsePrefix(prefix)
+	if err == nil && !p.Addr().Is4() {
+		return prefixFamily6.list
+	}
+
+	return prefixFamily4.list
+}
+
 func renderPrefixList(b *strings.Builder, name string, entries []config.PrefixEntry) {
 	for _, e := range entries {
-		_, _ = fmt.Fprintf(b, "!\nip prefix-list %s seq %d %s %s", name, e.Seq, e.Action, e.Prefix)
+		_, _ = fmt.Fprintf(b, "!\n%s %s seq %d %s %s", prefixListCommand(e.Prefix), name, e.Seq, e.Action, e.Prefix)
 		if e.GE != 0 {
 			_, _ = fmt.Fprintf(b, " ge %d", e.GE)
 		}
@@ -1332,23 +1410,7 @@ func nftDefines(data *TemplateData, cfg *config.Config) string {
 			emitVRRPDefines(&b, emitAddrDefines, sanitized+"_vrrp", vips)
 		}
 
-		if cfg.Routing != nil {
-			for _, r := range cfg.Routing.Static {
-				if r.Via == "" || r.Dev != iface.Device {
-					continue
-				}
-
-				if r.Destination != "0.0.0.0/0" && r.Destination != "::/0" {
-					continue
-				}
-
-				if strings.Contains(r.Via, ":") {
-					_, _ = fmt.Fprintf(&b, "define %s_gateway6 = %s\n", sanitized, r.Via)
-				} else {
-					_, _ = fmt.Fprintf(&b, "define %s_gateway = %s\n", sanitized, r.Via)
-				}
-			}
-		}
+		writeIPSetDefine(&b, sanitized+"_gateway", defaultGateways(cfg, name, iface.Device))
 	}
 
 	sort.Ints(vrrpIDs)
@@ -1445,13 +1507,19 @@ func nftDefines(data *TemplateData, cfg *config.Config) string {
 		rt := cfg.Routing
 		if rt.BGP != nil {
 			neighbors := make([]string, 0, len(rt.BGP.Neighbors))
+			byDescription := map[string][]string{}
 			for _, n := range rt.BGP.Neighbors {
 				neighbors = append(neighbors, n.Address)
 				emitIPSet("bgp_neighbor_"+sanitizeNftName(n.Address), []string{n.Address})
 
 				if n.Description != "" {
-					emitIPSet("bgp_neighbor_"+sanitizeNftName(n.Description), []string{n.Address})
+					key := sanitizeNftName(n.Description)
+					byDescription[key] = append(byDescription[key], n.Address)
 				}
+			}
+
+			for _, key := range sortedKeys(byDescription) {
+				emitIPSet("bgp_neighbor_"+key, byDescription[key])
 			}
 
 			emitIPSet("bgp_neighbors", neighbors)
@@ -1524,6 +1592,72 @@ func nftDefines(data *TemplateData, cfg *config.Config) string {
 		}
 	}
 
+	return dedupeDefines(b.String())
+}
+
+func vipIsV6(vip string) bool {
+	ip := parseHostIP(vip)
+	return ip != nil && ip.To4() == nil
+}
+
+func splitVIPs(vips []string) (primary, excluded []string) {
+	for _, vip := range vips {
+		if vipIsV6(vip) == vipIsV6(vips[0]) {
+			primary = append(primary, vip)
+		} else {
+			excluded = append(excluded, vip)
+		}
+	}
+
+	return primary, excluded
+}
+
+func vipsPrimary(vips []string) []string {
+	primary, _ := splitVIPs(vips)
+	return primary
+}
+
+func vipsExcluded(vips []string) []string {
+	_, excluded := splitVIPs(vips)
+	return excluded
+}
+
+func defaultGateways(cfg *config.Config, name, device string) []string {
+	if cfg.Routing == nil {
+		return nil
+	}
+
+	var vias []string
+	for _, r := range cfg.Routing.Static {
+		if r.Via == "" || r.Dev == "" || (r.Dev != device && r.Dev != name) {
+			continue
+		}
+
+		if (r.Destination == "0.0.0.0/0" || r.Destination == "::/0") && !slices.Contains(vias, r.Via) {
+			vias = append(vias, r.Via)
+		}
+	}
+
+	return vias
+}
+
+func dedupeDefines(defines string) string {
+	var b strings.Builder
+	seen := map[string]bool{}
+	for line := range strings.Lines(defines) {
+		if rest, ok := strings.CutPrefix(line, "define "); ok {
+			name, _, _ := strings.Cut(rest, " ")
+			if seen[name] {
+				log.Warn().Str("define", name).Msg("nftables: duplicate define name, keeping the first")
+				continue
+			}
+
+			seen[name] = true
+		}
+
+		_, _ = b.WriteString(line)
+	}
+
 	return b.String()
 }
 
@@ -1545,14 +1679,18 @@ func renderString(data *TemplateData, s string) (string, error) {
 func frrInterfaces(cfg *config.Config) []string {
 	seen := map[string]struct{}{}
 	if cfg.Routing != nil {
-		if cfg.Routing.OSPF != nil {
-			for name := range cfg.Routing.OSPF.Interfaces {
+		for _, ospf := range ospfInstances(cfg) {
+			for name := range ospf.Interfaces {
 				seen[name] = struct{}{}
 			}
 		}
 
-		if cfg.Routing.OSPF6 != nil {
-			for name := range cfg.Routing.OSPF6.Interfaces {
+		for _, ospf6 := range ospf6Instances(cfg) {
+			for name := range ospf6.Interfaces {
+				seen[name] = struct{}{}
+			}
+
+			for _, name := range ospf6.PassiveInterfaces {
 				seen[name] = struct{}{}
 			}
 		}
@@ -1579,20 +1717,75 @@ func frrInterfaces(cfg *config.Config) []string {
 	return names
 }
 
-func ospfInterface(cfg *config.Config, name string) *config.OSPFInterface {
-	if cfg.Routing == nil || cfg.Routing.OSPF == nil {
+func ospfInstances(cfg *config.Config) []*config.OSPF {
+	if cfg.Routing == nil {
 		return nil
 	}
 
-	return cfg.Routing.OSPF.Interfaces[name]
+	var out []*config.OSPF
+	if cfg.Routing.OSPF != nil {
+		out = append(out, cfg.Routing.OSPF)
+	}
+
+	for _, vrf := range sortedKeys(cfg.Routing.VRFs) {
+		if v := cfg.Routing.VRFs[vrf]; v != nil && v.OSPF != nil {
+			out = append(out, v.OSPF)
+		}
+	}
+
+	return out
+}
+
+func ospf6Instances(cfg *config.Config) []*config.OSPF6 {
+	if cfg.Routing == nil {
+		return nil
+	}
+
+	var out []*config.OSPF6
+	if cfg.Routing.OSPF6 != nil {
+		out = append(out, cfg.Routing.OSPF6)
+	}
+
+	for _, vrf := range sortedKeys(cfg.Routing.VRFs) {
+		if v := cfg.Routing.VRFs[vrf]; v != nil && v.OSPF6 != nil {
+			out = append(out, v.OSPF6)
+		}
+	}
+
+	return out
+}
+
+func ospfInterface(cfg *config.Config, name string) *config.OSPFInterface {
+	for _, ospf := range ospfInstances(cfg) {
+		if i := ospf.Interfaces[name]; i != nil {
+			return i
+		}
+	}
+
+	return nil
 }
 
 func ospf6Interface(cfg *config.Config, name string) *config.OSPF6Interface {
-	if cfg.Routing == nil || cfg.Routing.OSPF6 == nil {
-		return nil
+	for _, ospf6 := range ospf6Instances(cfg) {
+		if i := ospf6.Interfaces[name]; i != nil {
+			return i
+		}
 	}
 
-	return cfg.Routing.OSPF6.Interfaces[name]
+	return nil
+}
+
+func ospf6Passive(cfg *config.Config, name string) bool {
+	device := ifaceDevice(cfg, name)
+	for _, ospf6 := range ospf6Instances(cfg) {
+		for _, passive := range ospf6.PassiveInterfaces {
+			if passive == name || ifaceDevice(cfg, passive) == device {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 func pbrPolicy(cfg *config.Config, name string) string {
@@ -1757,7 +1950,7 @@ func conntrackdNeedsLiberal(cfg *config.Config) bool {
 }
 
 func bindListen4(cfg *config.Config) string {
-	if dnsListenAny(cfg) {
+	if dnsListenAny(cfg, true) {
 		return "any;"
 	}
 
@@ -1770,7 +1963,7 @@ func bindListen4(cfg *config.Config) string {
 }
 
 func bindListen6(cfg *config.Config) string {
-	if dnsListenAny(cfg) {
+	if dnsListenAny(cfg, false) {
 		return "any;"
 	}
 

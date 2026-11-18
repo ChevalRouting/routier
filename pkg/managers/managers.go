@@ -24,7 +24,16 @@ func persistDDNSKey(cfg *config.Config, configPath string) {
 		return
 	}
 
-	if err := config.Save(configPath, cfg); err != nil {
+	raw, err := os.ReadFile(configPath)
+	if err == nil {
+		raw, err = withDDNSKey(raw, cfg)
+	}
+
+	if err == nil {
+		err = writeConfigFile(configPath, raw)
+	}
+
+	if err != nil {
 		log.Warn().Err(err).Str("path", configPath).Msg("ddns: failed to persist generated TSIG key")
 	}
 }
@@ -86,7 +95,8 @@ func Apply(ctx context.Context, cfg *config.Config, vars map[string]friends.Vars
 	}
 
 	var warnings []string
-	snapID, changed, err := ApplyConfig(ctx, cfg, outputs, opts, &warnings)
+	arm := armRequest{exclusive: !opts.DryRun, timeout: armTimeout, persist: persist}
+	snapID, _, armed, err := applyConfig(ctx, cfg, outputs, opts, arm, &warnings)
 	if err != nil {
 		if snapID != "" {
 			if _, rollbackErr := Rollback(snapID); rollbackErr != nil {
@@ -97,15 +107,7 @@ func Apply(ctx context.Context, cfg *config.Config, vars map[string]friends.Vars
 		return Result{SnapID: snapID}, err
 	}
 
-	res := Result{SnapID: snapID}
-	if armTimeout > 0 && snapID != "" && len(changed) > 0 {
-		if perr := setPending(snapID, armTimeout, opts.Source, opts.configPath(), persist); perr != nil {
-			warnings = append(warnings, fmt.Sprintf("failed to set pending: %v", perr))
-		} else {
-			res.Armed = true
-		}
-	}
-
+	res := Result{SnapID: snapID, Armed: armed}
 	if !res.Armed && persist != nil && !opts.DryRun {
 		if err := writeConfigFile(opts.configPath(), persist); err != nil {
 			return res, fmt.Errorf("applied but failed to persist config: %w", err)

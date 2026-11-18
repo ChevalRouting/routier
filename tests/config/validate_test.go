@@ -25,21 +25,22 @@ func validateErr(t *testing.T, yaml string) string {
 }
 
 func TestValidateAcceptsValidConfig(t *testing.T) {
-	yaml := `version: v3.0.0
+	yaml := `version: v5.0.0
 hostname: gw
 interfaces:
   lan:
     select: name=eth0
     addresses: ["192.168.1.1/24"]
-wireguard:
-  wg0:
-    private_key: dGVzdA==
-    listen_port: 51820
-    addresses: ["10.10.0.1/24"]
-    peers:
-      - public_key: cGVlcg==
-        allowed_ips: ["10.10.0.2/32"]
-        endpoint: peer.example.com:51820
+vpn:
+  wireguard:
+    wg0:
+      private_key: dGVzdA==
+      listen_port: 51820
+      addresses: ["10.10.0.1/24"]
+      peers:
+        - public_key: cGVlcg==
+          allowed_ips: ["10.10.0.2/32"]
+          endpoint: peer.example.com:51820
 friends:
   - name: edge
     url: https://10.0.0.2:8080
@@ -57,35 +58,39 @@ friends:
 
 func TestValidateWireguard(t *testing.T) {
 	cases := map[string]string{
-		"missing private key": `version: v3.0.0
+		"missing private key": `version: v5.0.0
 hostname: gw
-wireguard:
-  wg0:
-    addresses: ["10.0.0.1/24"]
+vpn:
+  wireguard:
+    wg0:
+      addresses: ["10.0.0.1/24"]
 `,
-		"bad address cidr": `version: v3.0.0
+		"bad address cidr": `version: v5.0.0
 hostname: gw
-wireguard:
-  wg0:
-    private_key: dGVzdA==
-    addresses: ["not-a-cidr"]
+vpn:
+  wireguard:
+    wg0:
+      private_key: dGVzdA==
+      addresses: ["not-a-cidr"]
 `,
-		"peer without public key": `version: v3.0.0
+		"peer without public key": `version: v5.0.0
 hostname: gw
-wireguard:
-  wg0:
-    private_key: dGVzdA==
-    addresses: ["10.0.0.1/24"]
-    peers:
-      - allowed_ips: ["10.0.0.2/32"]
+vpn:
+  wireguard:
+    wg0:
+      private_key: dGVzdA==
+      addresses: ["10.0.0.1/24"]
+      peers:
+        - allowed_ips: ["10.0.0.2/32"]
 `,
-		"friend tag without friend": `version: v3.0.0
+		"friend tag without friend": `version: v5.0.0
 hostname: gw
-wireguard:
-  wg0:
-    friend: ghost
-    private_key: dGVzdA==
-    addresses: ["10.0.0.1/24"]
+vpn:
+  wireguard:
+    wg0:
+      friend: ghost
+      private_key: dGVzdA==
+      addresses: ["10.0.0.1/24"]
 `,
 	}
 
@@ -100,19 +105,19 @@ wireguard:
 
 func TestValidateFriends(t *testing.T) {
 	cases := map[string]string{
-		"missing token": `version: v3.0.0
+		"missing token": `version: v5.0.0
 hostname: gw
 friends:
   - name: edge
     url: https://10.0.0.2:8080
 `,
-		"missing url": `version: v3.0.0
+		"missing url": `version: v5.0.0
 hostname: gw
 friends:
   - name: edge
     token: secret
 `,
-		"bad fingerprint": `version: v3.0.0
+		"bad fingerprint": `version: v5.0.0
 hostname: gw
 friends:
   - name: edge
@@ -121,7 +126,7 @@ friends:
     identity:
       fingerprint: not-sha256
 `,
-		"unreplicable sync section": `version: v3.0.0
+		"unreplicable sync section": `version: v5.0.0
 hostname: gw
 friends:
   - name: edge
@@ -130,7 +135,7 @@ friends:
     sync:
       sections: [routing]
 `,
-		"duplicate name": `version: v3.0.0
+		"duplicate name": `version: v5.0.0
 hostname: gw
 friends:
   - name: edge
@@ -153,7 +158,7 @@ friends:
 
 func TestValidateDuplicateSeq(t *testing.T) {
 	cases := map[string]string{
-		"prefix-list duplicate seq": `version: v3.0.0
+		"prefix-list duplicate seq": `version: v5.0.0
 hostname: gw
 routing:
   bgp:
@@ -164,7 +169,7 @@ routing:
         - { seq: 10, action: permit, prefix: "10.0.0.0/8" }
         - { seq: 10, action: deny, prefix: "192.168.0.0/16" }
 `,
-		"route-map duplicate seq": `version: v3.0.0
+		"route-map duplicate seq": `version: v5.0.0
 hostname: gw
 routing:
   bgp:
@@ -175,7 +180,7 @@ routing:
         - { seq: 5, action: permit }
         - { seq: 5, action: deny }
 `,
-		"vrf bgp route-map duplicate seq": `version: v3.0.0
+		"vrf bgp route-map duplicate seq": `version: v5.0.0
 hostname: gw
 vrfs:
   blue:
@@ -191,7 +196,7 @@ routing:
             - { seq: 5, action: permit }
             - { seq: 5, action: deny }
 `,
-		"pbr map duplicate seq": `version: v3.0.0
+		"pbr map duplicate seq": `version: v5.0.0
 hostname: gw
 routing:
   pbr:
@@ -212,7 +217,7 @@ routing:
 }
 
 func TestValidateDistinctSeqAccepted(t *testing.T) {
-	yaml := `version: v3.0.0
+	yaml := `version: v5.0.0
 hostname: gw
 routing:
   bgp:
@@ -234,7 +239,7 @@ routing:
 }
 
 func TestValidateFriendPolicyRefsAccepted(t *testing.T) {
-	yaml := `version: v3.0.0
+	yaml := `version: v5.0.0
 hostname: gw
 routing:
   bgp:
@@ -255,7 +260,7 @@ routing:
 }
 
 func TestValidateSharedPolicyMustExist(t *testing.T) {
-	yaml := `version: v3.0.0
+	yaml := `version: v5.0.0
 hostname: gw
 routing:
   bgp:
@@ -279,7 +284,7 @@ routing:
 }
 
 func TestValidateFriendPolicyNameReserved(t *testing.T) {
-	yaml := `version: v3.0.0
+	yaml := `version: v5.0.0
 hostname: gw
 routing:
   bgp:
@@ -296,7 +301,7 @@ routing:
 }
 
 func TestValidateDHCPValid(t *testing.T) {
-	yaml := `version: v3.0.0
+	yaml := `version: v5.0.0
 hostname: gw
 interfaces:
   lan:
@@ -328,7 +333,7 @@ dhcp:
 }
 
 func TestValidateDHCP(t *testing.T) {
-	base := `version: v3.0.0
+	base := `version: v5.0.0
 hostname: gw
 interfaces:
   lan:
@@ -357,7 +362,7 @@ dhcp:
 		"reservation without identifier": base + `      reservations:
         - ip_address: 10.0.0.5
 `,
-		"gateway on v6": `version: v3.0.0
+		"gateway on v6": `version: v5.0.0
 hostname: gw
 dhcp:
   enabled: true
@@ -365,7 +370,7 @@ dhcp:
     - subnet: 2001:db8::/64
       gateway: 2001:db8::1
 `,
-		"family mismatch": `version: v3.0.0
+		"family mismatch": `version: v5.0.0
 hostname: gw
 dhcp:
   enabled: true
@@ -387,34 +392,37 @@ dhcp:
 
 func TestValidateRejectsBadDeviceNames(t *testing.T) {
 	cases := map[string]string{
-		"wireguard too long": `version: v3.0.0
+		"wireguard too long": `version: v5.0.0
 hostname: gw
-wireguard:
-  nuketown_fr_par_2:
-    private_key: dGVzdA==
-    addresses: ["172.31.0.33/29"]
+vpn:
+  wireguard:
+    nuketown_fr_par_2:
+      private_key: dGVzdA==
+      addresses: ["172.31.0.33/29"]
 `,
-		"wireguard with colon": `version: v3.0.0
+		"wireguard with colon": `version: v5.0.0
 hostname: gw
-wireguard:
-  wg:0:
-    private_key: dGVzdA==
+vpn:
+  wireguard:
+    wg:0:
+      private_key: dGVzdA==
 `,
-		"tunnel too long": `version: v3.0.0
+		"tunnel too long": `version: v5.0.0
 hostname: gw
-tunnels:
+interfaces:
   gre-to-the-other-site:
+    type: tunnel
     mode: gre
     local: 10.0.0.1
     remote: 10.0.0.2
 `,
-		"vrf too long": `version: v3.0.0
+		"vrf too long": `version: v5.0.0
 hostname: gw
 vrfs:
   a-very-long-vrf-name:
     table: 100
 `,
-		"dummy too long": `version: v3.0.0
+		"dummy too long": `version: v5.0.0
 hostname: gw
 interfaces:
   loopback-anycast0:
@@ -434,43 +442,47 @@ interfaces:
 
 func TestValidateRejectsReservedDeviceNames(t *testing.T) {
 	cases := map[string]string{
-		"tunnel gre0": `version: v3.0.0
+		"tunnel gre0": `version: v5.0.0
 hostname: gw
-tunnels:
+interfaces:
   gre0:
+    type: tunnel
     mode: gre
     local: 10.0.0.1
     remote: 10.0.0.2
 `,
-		"tunnel gretap0": `version: v3.0.0
+		"tunnel gretap0": `version: v5.0.0
 hostname: gw
-tunnels:
+interfaces:
   gretap0:
+    type: tunnel
     mode: gretap
     local: 10.0.0.1
     remote: 10.0.0.2
 `,
-		"tunnel sit0": `version: v3.0.0
+		"tunnel sit0": `version: v5.0.0
 hostname: gw
-tunnels:
+interfaces:
   sit0:
+    type: tunnel
     mode: sit
     local: 10.0.0.1
     remote: 10.0.0.2
 `,
-		"wireguard tunl0": `version: v3.0.0
+		"wireguard tunl0": `version: v5.0.0
 hostname: gw
-wireguard:
-  tunl0:
-    private_key: dGVzdA==
+vpn:
+  wireguard:
+    tunl0:
+      private_key: dGVzdA==
 `,
-		"vrf ip6tnl0": `version: v3.0.0
+		"vrf ip6tnl0": `version: v5.0.0
 hostname: gw
 vrfs:
   ip6tnl0:
     table: 100
 `,
-		"dummy erspan0": `version: v3.0.0
+		"dummy erspan0": `version: v5.0.0
 hostname: gw
 interfaces:
   erspan0:
@@ -485,10 +497,11 @@ interfaces:
 }
 
 func TestValidateAcceptsNonReservedTunnelName(t *testing.T) {
-	yaml := `version: v3.0.0
+	yaml := `version: v5.0.0
 hostname: gw
-tunnels:
+interfaces:
   gre1:
+    type: tunnel
     mode: gre
     local: 10.0.0.1
     remote: 10.0.0.2
@@ -502,7 +515,7 @@ tunnels:
 
 func TestValidateVXLANExternalAccepted(t *testing.T) {
 	cases := map[string]string{
-		"external without vni": `version: v3.0.0
+		"external without vni": `version: v5.0.0
 hostname: gw
 interfaces:
   vx0:
@@ -510,7 +523,7 @@ interfaces:
     vxlan:
       external: true
 `,
-		"two externals share a port with vnifilter": `version: v3.0.0
+		"two externals share a port with vnifilter": `version: v5.0.0
 hostname: gw
 interfaces:
   vx0:
@@ -537,7 +550,7 @@ interfaces:
 
 func TestValidateVXLANExternalRejected(t *testing.T) {
 	cases := map[string]validateVXLANExternalRejectedCase{
-		"external with vni": {yaml: `version: v3.0.0
+		"external with vni": {yaml: `version: v5.0.0
 hostname: gw
 interfaces:
   vx0:
@@ -546,7 +559,7 @@ interfaces:
       external: true
       vni: 100
 `, want: "vni is ignored when external"},
-		"vnifilter without external": {yaml: `version: v3.0.0
+		"vnifilter without external": {yaml: `version: v5.0.0
 hostname: gw
 interfaces:
   vx0:
@@ -555,14 +568,14 @@ interfaces:
       vni: 100
       vnifilter: true
 `, want: "vnifilter requires external"},
-		"non-external missing vni": {yaml: `version: v3.0.0
+		"non-external missing vni": {yaml: `version: v5.0.0
 hostname: gw
 interfaces:
   vx0:
     type: vxlan
     vxlan: {}
 `, want: "vni must be between"},
-		"two externals share a port without vnifilter": {yaml: `version: v3.0.0
+		"two externals share a port without vnifilter": {yaml: `version: v5.0.0
 hostname: gw
 interfaces:
   vx0:
@@ -583,7 +596,7 @@ interfaces:
 
 func TestValidateBondAccepted(t *testing.T) {
 	cases := map[string]string{
-		"lacp with hash policy": `version: v3.0.0
+		"lacp with hash policy": `version: v5.0.0
 hostname: gw
 interfaces:
   eth0:
@@ -600,7 +613,7 @@ interfaces:
       xmit_hash_policy: layer3+4
       lacp_rate: fast
 `,
-		"active-backup with primary": `version: v3.0.0
+		"active-backup with primary": `version: v5.0.0
 hostname: gw
 interfaces:
   eth0:
@@ -627,7 +640,7 @@ interfaces:
 
 func TestValidateBondRejected(t *testing.T) {
 	cases := map[string]validateBondRejectedCase{
-		"unknown mode": {yaml: `version: v3.0.0
+		"unknown mode": {yaml: `version: v5.0.0
 hostname: gw
 interfaces:
   eth0:
@@ -638,7 +651,7 @@ interfaces:
       mode: turbo
       members: [eth0]
 `, want: "mode \"turbo\" is not one of"},
-		"no members": {yaml: `version: v3.0.0
+		"no members": {yaml: `version: v5.0.0
 hostname: gw
 interfaces:
   bond0:
@@ -646,7 +659,7 @@ interfaces:
     bond:
       mode: balance-rr
 `, want: "at least one member is required"},
-		"unknown member": {yaml: `version: v3.0.0
+		"unknown member": {yaml: `version: v5.0.0
 hostname: gw
 interfaces:
   bond0:
@@ -655,7 +668,7 @@ interfaces:
       mode: balance-rr
       members: [eth9]
 `, want: "member \"eth9\" not found"},
-		"lacp rate on non-lacp mode": {yaml: `version: v3.0.0
+		"lacp rate on non-lacp mode": {yaml: `version: v5.0.0
 hostname: gw
 interfaces:
   eth0:
@@ -667,7 +680,7 @@ interfaces:
       members: [eth0]
       lacp_rate: fast
 `, want: "lacp_rate only applies to 802.3ad"},
-		"hash policy on active-backup": {yaml: `version: v3.0.0
+		"hash policy on active-backup": {yaml: `version: v5.0.0
 hostname: gw
 interfaces:
   eth0:
@@ -679,7 +692,7 @@ interfaces:
       members: [eth0]
       xmit_hash_policy: layer3+4
 `, want: "xmit_hash_policy only applies to"},
-		"primary not a member": {yaml: `version: v3.0.0
+		"primary not a member": {yaml: `version: v5.0.0
 hostname: gw
 interfaces:
   eth0:
@@ -693,7 +706,7 @@ interfaces:
       members: [eth0]
       primary: eth1
 `, want: "primary \"eth1\" must also be a member"},
-		"bond settings without type bond": {yaml: `version: v3.0.0
+		"bond settings without type bond": {yaml: `version: v5.0.0
 hostname: gw
 interfaces:
   eth0:
@@ -713,7 +726,7 @@ interfaces:
 
 func TestValidateRejectsBlankFRRInterfaceNames(t *testing.T) {
 	cases := map[string]string{
-		"ospf blank interface": `version: v3.0.0
+		"ospf blank interface": `version: v5.0.0
 hostname: gw
 routing:
   ospf:
@@ -722,7 +735,7 @@ routing:
       "":
         area: 0.0.0.0
 `,
-		"ospf6 blank interface": `version: v3.0.0
+		"ospf6 blank interface": `version: v5.0.0
 hostname: gw
 routing:
   ospf6:
@@ -731,7 +744,7 @@ routing:
       "":
         area: 0.0.0.0
 `,
-		"pbr blank policy interface": `version: v3.0.0
+		"pbr blank policy interface": `version: v5.0.0
 hostname: gw
 routing:
   pbr:
@@ -754,7 +767,7 @@ routing:
 }
 
 func TestValidateBGPVPNRouteMaps(t *testing.T) {
-	valid := `version: v3.0.0
+	valid := `version: v5.0.0
 hostname: gw
 routing:
   bgp:
@@ -773,7 +786,7 @@ routing:
 		t.Fatalf("expected valid config, got: %s", msg)
 	}
 
-	vrfRefsGlobal := `version: v3.0.0
+	vrfRefsGlobal := `version: v5.0.0
 hostname: gw
 vrfs:
   fabric1:
@@ -800,7 +813,7 @@ routing:
 	}
 
 	cases := map[string]validateBGPVPNRouteMapsCase{
-		"missing route map": {yaml: `version: v3.0.0
+		"missing route map": {yaml: `version: v5.0.0
 hostname: gw
 routing:
   bgp:
@@ -810,7 +823,7 @@ routing:
       ipv4-unicast:
         route_map_vpn_import: nope
 `, want: "route_map_vpn_import \"nope\" not found in route_maps"},
-		"vpn route map on evpn": {yaml: `version: v3.0.0
+		"vpn route map on evpn": {yaml: `version: v5.0.0
 hostname: gw
 routing:
   bgp:
@@ -832,14 +845,15 @@ routing:
 }
 
 func TestValidateAcceptsDeviceNamesAtTheLimit(t *testing.T) {
-	yaml := `version: v3.0.0
+	yaml := `version: v5.0.0
 hostname: gw
-wireguard:
-  fr_par_2:
-    private_key: dGVzdA==
-    addresses: ["172.31.0.33/29"]
-  abcdefghijklmno:
-    private_key: dGVzdA==
+vpn:
+  wireguard:
+    fr_par_2:
+      private_key: dGVzdA==
+      addresses: ["172.31.0.33/29"]
+    abcdefghijklmno:
+      private_key: dGVzdA==
 interfaces:
   dum0:
     type: dummy
@@ -895,7 +909,7 @@ func checkBGPVPNRouteMaps(tc *validateBGPVPNRouteMapsCase, t *testing.T) {
 	}
 }
 
-const dhcpHABase = `version: v3.0.0
+const dhcpHABase = `version: v5.0.0
 hostname: gw1
 interfaces:
   lan:
@@ -979,7 +993,7 @@ func TestValidateDHCPHA(t *testing.T) {
 }
 
 func TestValidateVRRPPrepend(t *testing.T) {
-	base := `version: v3.0.0
+	base := `version: v5.0.0
 hostname: gw
 interfaces:
   lan:
@@ -1022,7 +1036,7 @@ ha:
 }
 
 func TestValidateUsers(t *testing.T) {
-	base := "version: v3.0.0\nhostname: gw\nusers:\n"
+	base := "version: v5.0.0\nhostname: gw\nusers:\n"
 	if got := validateErr(t, base+"  ops:\n    groups: [wheel]\n    shell: /bin/ash\n    password_hash: \"$6$salt$hash\"\n"); got != "" {
 		t.Fatalf("valid user rejected: %s", got)
 	}
@@ -1040,7 +1054,7 @@ func TestValidateUsers(t *testing.T) {
 }
 
 func TestValidatePBRSetVRF(t *testing.T) {
-	accepted := `version: v3.0.0
+	accepted := `version: v5.0.0
 hostname: gw
 routing:
   pbr:
@@ -1055,7 +1069,7 @@ routing:
 	}
 
 	cases := map[string]string{
-		"unknown vrf": `version: v3.0.0
+		"unknown vrf": `version: v5.0.0
 hostname: gw
 routing:
   pbr:
@@ -1063,7 +1077,7 @@ routing:
       P1:
         - { seq: 10, set_vrf: missing }
 `,
-		"two actions": `version: v3.0.0
+		"two actions": `version: v5.0.0
 hostname: gw
 routing:
   pbr:
@@ -1079,7 +1093,7 @@ routing:
 }
 
 func TestValidateStaticRouteType(t *testing.T) {
-	accepted := `version: v3.0.0
+	accepted := `version: v5.0.0
 hostname: gw
 routing:
   static:
@@ -1092,13 +1106,13 @@ routing:
 	}
 
 	cases := map[string]string{
-		"unknown type": `version: v3.0.0
+		"unknown type": `version: v5.0.0
 hostname: gw
 routing:
   static:
     - { destination: 10.0.0.0/8, type: drop }
 `,
-		"blackhole with via": `version: v3.0.0
+		"blackhole with via": `version: v5.0.0
 hostname: gw
 routing:
   static:
@@ -1114,5 +1128,41 @@ routing:
 func checkRejected(yaml string, t *testing.T) {
 	if msg := validateErr(t, yaml); msg == "" {
 		t.Fatal("expected validation error")
+	}
+}
+
+func TestValidateExporter(t *testing.T) {
+	valid := `version: v5.0.0
+hostname: gw
+interfaces:
+  lan:
+    select: name=eth0
+    addresses: ["10.0.0.1/24"]
+monitoring:
+  exporter:
+    enabled: true
+    listen: ["10.0.0.1", "::1"]
+    port: 9500
+    allow_inbound: [lan]
+`
+	if err := validateErr(t, valid); err != "" {
+		t.Fatalf("valid exporter rejected: %s", err)
+	}
+
+	cases := map[string]string{
+		"listen": "monitoring.exporter.listen[0]",
+		"port":   "monitoring.exporter.port",
+		"allow":  "monitoring.exporter.allow_inbound[0]",
+	}
+	bad := map[string]string{
+		"listen": "monitoring:\n  exporter:\n    enabled: true\n    listen: [lan]\n",
+		"port":   "monitoring:\n  exporter:\n    enabled: true\n    port: 70000\n",
+		"allow":  "monitoring:\n  exporter:\n    enabled: true\n    allow_inbound: [dmz]\n",
+	}
+	for name, want := range cases {
+		err := validateErr(t, "version: v5.0.0\nhostname: gw\n"+bad[name])
+		if !strings.Contains(err, want) {
+			t.Errorf("%s: want error about %s, got %q", name, want, err)
+		}
 	}
 }

@@ -118,7 +118,7 @@ func TestRequireNoPending(t *testing.T) {
 }
 
 func TestWithDDNSKeyCarriesGeneratedKey(t *testing.T) {
-	persist := []byte("version: v3.0.0\ndhcp:\n  ddns:\n    enabled: true\n")
+	persist := []byte("version: v5.0.0\ndhcp:\n  ddns:\n    enabled: true\n")
 	cfg := &config.Config{DHCP: &config.DHCP{DDNS: &config.DHCPDDNS{Enabled: true}}}
 	if !config.EnsureDDNSKey(cfg) {
 		t.Fatal("expected a generated key")

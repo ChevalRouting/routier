@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/ChevalRouting/routier/pkg/auth/unixauth"
 	"github.com/ChevalRouting/routier/pkg/config"
 	"github.com/rs/zerolog/log"
 )
@@ -45,7 +46,7 @@ func setPassword(name string, u *config.User, dryRun bool) error {
 		return nil
 	}
 
-	if current, err := shadowHash(name); err == nil && current == u.PasswordHash {
+	if current, err := unixauth.ShadowHash(name); err == nil && current == u.PasswordHash {
 		return nil
 	}
 
@@ -63,24 +64,6 @@ func setPassword(name string, u *config.User, dryRun bool) error {
 
 	log.Info().Str("user", name).Msg("set password")
 	return nil
-}
-
-func shadowHash(name string) (string, error) {
-	f, err := os.Open("/etc/shadow")
-	if err != nil {
-		return "", err
-	}
-
-	defer func(action func() error) { _ = action() }(f.Close)
-	s := bufio.NewScanner(f)
-	for s.Scan() {
-		fields := strings.SplitN(s.Text(), ":", 3)
-		if len(fields) >= 2 && fields[0] == name {
-			return fields[1], nil
-		}
-	}
-
-	return "", fmt.Errorf("user %s not in shadow", name)
 }
 
 func ensureUser(name string, u *config.User, dryRun bool) error {
@@ -119,12 +102,6 @@ func ensureUser(name string, u *config.User, dryRun bool) error {
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
 		return err
-	}
-
-	if fi, err := os.Stat("/etc/routier"); err == nil && fi.IsDir() {
-		if err := exec.Command("chown", "-R", name+":"+name, "/etc/routier").Run(); err != nil {
-			log.Warn().Err(err).Str("user", name).Msg("chown /etc/routier")
-		}
 	}
 
 	return syncGroups(name, u, dryRun)

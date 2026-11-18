@@ -13,6 +13,13 @@
  */
 
 import { mapValues } from '../runtime';
+import type { ConfigExporterConfig } from './ConfigExporterConfig';
+import {
+    ConfigExporterConfigFromJSON,
+    ConfigExporterConfigFromJSONTyped,
+    ConfigExporterConfigToJSON,
+    ConfigExporterConfigToJSONTyped,
+} from './ConfigExporterConfig';
 import type { ConfigLLDPConfig } from './ConfigLLDPConfig';
 import {
     ConfigLLDPConfigFromJSON,
@@ -56,6 +63,12 @@ export interface ConfigMonitoringConfig {
     collection?: ConfigCollectionIntervals;
     /**
      *
+     * @type {ConfigExporterConfig}
+     * @memberof ConfigMonitoringConfig
+     */
+    exporter?: ConfigExporterConfig;
+    /**
+     *
      * @type {ConfigFlowsConfig}
      * @memberof ConfigMonitoringConfig
      */
@@ -92,6 +105,7 @@ export function ConfigMonitoringConfigFromJSONTyped(json: any, ignoreDiscriminat
     return {
 
         'collection': json['collection'] == null ? undefined : ConfigCollectionIntervalsFromJSON(json['collection']),
+        'exporter': json['exporter'] == null ? undefined : ConfigExporterConfigFromJSON(json['exporter']),
         'flows': json['flows'] == null ? undefined : ConfigFlowsConfigFromJSON(json['flows']),
         'lldp': json['lldp'] == null ? undefined : ConfigLLDPConfigFromJSON(json['lldp']),
         'probes': json['probes'] == null ? undefined : ((json['probes'] as Array<any>).map(ConfigPingProbeFromJSON)),
@@ -110,9 +124,9 @@ export function ConfigMonitoringConfigToJSONTyped(value?: ConfigMonitoringConfig
     return {
 
         'collection': ConfigCollectionIntervalsToJSON(value['collection']),
+        'exporter': ConfigExporterConfigToJSON(value['exporter']),
         'flows': ConfigFlowsConfigToJSON(value['flows']),
         'lldp': ConfigLLDPConfigToJSON(value['lldp']),
         'probes': value['probes'] == null ? undefined : ((value['probes'] as Array<any>).map(ConfigPingProbeToJSON)),
     };
 }
-

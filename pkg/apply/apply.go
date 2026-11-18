@@ -4,11 +4,13 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/ChevalRouting/routier/pkg/render"
@@ -77,7 +79,47 @@ func writeFile(o render.Output) error {
 		return err
 	}
 
-	return os.WriteFile(o.Dest, []byte(o.Content), modeFor(o.Dest))
+	return writeAtomic(o.Dest, []byte(o.Content), modeFor(o.Dest))
+}
+
+func writeAtomic(dest string, data []byte, mode os.FileMode) error {
+	uid, gid := -1, -1
+	if info, err := os.Stat(dest); err == nil {
+		mode = info.Mode().Perm()
+		if st, ok := info.Sys().(*syscall.Stat_t); ok {
+			uid, gid = int(st.Uid), int(st.Gid)
+		}
+	}
+
+	tmp, err := os.CreateTemp(filepath.Dir(dest), "."+filepath.Base(dest)+".*")
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = os.Remove(tmp.Name()) }()
+
+	if _, err := tmp.Write(data); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+
+	if err := tmp.Chmod(mode); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+
+	if uid >= 0 {
+		if err := tmp.Chown(uid, gid); err != nil {
+			_ = tmp.Close()
+			return err
+		}
+	}
+
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+
+	return os.Rename(tmp.Name(), dest)
 }
 
 func newSnapID() string {
@@ -151,6 +193,7 @@ func Rollback(id string) ([]string, error) {
 	}
 
 	var names []string
+	var errs []error
 	for dest, old := range s.Files {
 		current, _ := os.ReadFile(dest)
 		if old == "" {
@@ -160,7 +203,7 @@ func Rollback(id string) ([]string, error) {
 			}
 
 			if err := os.Remove(dest); err != nil {
-				log.Error().Str("dest", dest).Err(err).Msg("remove failed")
+				errs = append(errs, fmt.Errorf("remove %s: %w", dest, err))
 				continue
 			}
 
@@ -171,8 +214,8 @@ func Rollback(id string) ([]string, error) {
 				continue
 			}
 
-			if err := os.WriteFile(dest, []byte(old), modeFor(dest)); err != nil {
-				log.Error().Str("dest", dest).Err(err).Msg("restore failed")
+			if err := writeAtomic(dest, []byte(old), modeFor(dest)); err != nil {
+				errs = append(errs, fmt.Errorf("restore %s: %w", dest, err))
 				continue
 			}
 
@@ -184,16 +227,23 @@ func Rollback(id string) ([]string, error) {
 		}
 	}
 
-	return names, nil
+	return names, errors.Join(errs...)
 }
 
 func latestSnapshot() (string, error) {
-	ids, err := ListSnapshots()
-	if err != nil || len(ids) == 0 {
+	infos, err := ListSnapshotInfos()
+	if err != nil || len(infos) == 0 {
 		return "", fmt.Errorf("no snapshots found")
 	}
 
-	return ids[len(ids)-1], nil
+	latest := infos[0]
+	for _, info := range infos[1:] {
+		if info.Time.After(latest.Time) {
+			latest = info
+		}
+	}
+
+	return latest.ID, nil
 }
 
 type SnapshotInfo struct {

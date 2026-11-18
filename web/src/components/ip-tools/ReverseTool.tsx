@@ -5,7 +5,7 @@ import { Card, CardContent, CopyButton, Label } from 'cheval-ui'
 import { useEffect, useState } from 'react'
 
 export function ReverseTool() {
-  const [input, setInput] = useState('100.64.12.192')
+  const [input, setInput] = useState('198.51.100.192')
   const query = useDebounced(input.trim())
   const [result, setResult] = useState<IpcalcReverseDNS | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -30,7 +30,7 @@ export function ReverseTool() {
         hint="A CIDR aligned to an octet (IPv4) or nibble (IPv6) boundary also shows its delegation zone."
         value={input}
         onChange={(e) => setInput(e.target.value)}
-        placeholder="100.64.12.192 or 2001:db8::/32"
+        placeholder="198.51.100.192 or 2001:db8::/32"
       />
       {error && <ErrorNote message={error} />}
       {result && (

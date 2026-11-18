@@ -312,6 +312,72 @@ func testBGPFamilyRouteMapDefaults(t *testing.T, vrf bool) {
 	}
 }
 
+func TestRenderBGPPrefixListFamilies(t *testing.T) {
+	cfg := bgpPrefixListFamiliesConfig()
+	if errs := config.Validate(cfg, false); len(errs) != 0 {
+		t.Fatal(errs)
+	}
+
+	out := renderFrr(t, cfg)
+	wantLines(t, "frr.conf", out,
+		"\nip prefix-list ANYCAST-V4 seq 10 permit 192.0.2.0/24 ge 32 le 32\n",
+		"\nipv6 prefix-list ANYCAST-V6 seq 10 permit 2001:db8:53::10/128\n",
+		"\nip prefix-list BOGONS seq 10 deny 10.0.0.0/8 le 32\n",
+		"\nipv6 prefix-list BOGONS seq 20 deny fc00::/7 le 128\n",
+		"route-map ANYCAST-IN permit 10\n match ip address prefix-list ANYCAST-V4\nexit",
+		"route-map ANYCAST-IN permit 20\n match ipv6 address prefix-list ANYCAST-V6\nexit",
+		"neighbor 2001:db8::2 route-map ROUTIER-IN-2001_db8__2-ipv6-unicast in",
+		"route-map ROUTIER-IN-2001_db8__2-ipv6-unicast permit 1000\n call ANYCAST-IN\n",
+	)
+
+	wantLines(t, "ipv4 unicast", afSection(t, out, "address-family ipv4 unicast"), "neighbor 192.0.2.2 prefix-list BOGONS in")
+	wantLines(t, "ipv6 unicast", afSection(t, out, "address-family ipv6 unicast"), "neighbor 2001:db8::2 prefix-list BOGONS in")
+
+	for _, line := range strings.Split(out, "\n") {
+		if strings.HasPrefix(line, "ip prefix-list ") && strings.Contains(line, ":") {
+			t.Errorf("IPv6 prefix rendered as an ip prefix-list: %q", line)
+		}
+
+		if strings.HasPrefix(line, "ipv6 prefix-list ") && strings.Contains(line, ".") {
+			t.Errorf("IPv4 prefix rendered as an ipv6 prefix-list: %q", line)
+		}
+	}
+}
+
+func bgpPrefixListFamiliesConfig() *config.Config {
+	return &config.Config{
+		Hostname: "rtr",
+		Routing: &config.Routing{BGP: &config.BGP{
+			ASN:      65001,
+			RouterID: "192.0.2.1",
+			Neighbors: []config.BGPNeighbor{
+				{Address: "192.0.2.2", RemoteASN: 65100, AddressFamilies: map[string]*config.BGPNeighborAF{
+					"ipv4-unicast": {RouteMapIn: "ANYCAST-IN", PrefixListIn: "BOGONS"},
+				}},
+				{Address: "2001:db8::2", RemoteASN: 65100, AddressFamilies: map[string]*config.BGPNeighborAF{
+					"ipv6-unicast": {RouteMapIn: "ANYCAST-IN", PrefixListIn: "BOGONS"},
+				}},
+			},
+			PrefixLists: map[string][]config.PrefixEntry{
+				"ANYCAST-V4": {{Seq: 10, Action: "permit", Prefix: "192.0.2.0/24", GE: 32, LE: 32}},
+				"ANYCAST-V6": {{Seq: 10, Action: "permit", Prefix: "2001:db8:53::10/128"}},
+				"BOGONS": {
+					{Seq: 10, Action: "deny", Prefix: "10.0.0.0/8", LE: 32},
+					{Seq: 20, Action: "deny", Prefix: "fc00::/7", LE: 128},
+					{Seq: 30, Action: "permit", Prefix: "0.0.0.0/0", LE: 32},
+					{Seq: 40, Action: "permit", Prefix: "::/0", LE: 128},
+				},
+			},
+			RouteMaps: map[string][]config.RouteMapEntry{
+				"ANYCAST-IN": {
+					{Seq: 10, Action: "permit", Match: map[string]string{"ip address prefix-list": "ANYCAST-V4"}},
+					{Seq: 20, Action: "permit", Match: map[string]string{"ipv6 address prefix-list": "ANYCAST-V6"}},
+				},
+			},
+		}},
+	}
+}
+
 func bgpNeighborAFConfig(disabled bool) *config.Config {
 	return &config.Config{
 		Hostname: "rtr",

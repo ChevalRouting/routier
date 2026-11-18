@@ -1,0 +1,1 @@
+import{j as o}from"./vendor-xyflow-CHhozP7l.js";import{ab as e,aC as n}from"./index-C4pV3ML2.js";function p({title:r,subtitle:m,value:s,onChange:a,placeholder:t}){return o.jsx(e,{title:r,subtitle:m,children:o.jsx(n,{value:s||void 0,onChange:a,placeholder:t,className:"font-mono"})})}export{p as N};

@@ -84,7 +84,7 @@ func servePoll(t *testing.T, hash string, key *[32]byte, w http.ResponseWriter, 
 	}
 
 	if r.URL.Query().Get("have") != hash {
-		poll.Config = json.RawMessage(`{"hostname":"peer","version":"v3.0.0"}`)
+		poll.Config = json.RawMessage(`{"hostname":"peer","version":"v5.0.0"}`)
 	}
 
 	env, _ := json.Marshal(types.Response[types.FriendPoll]{Result: &poll})

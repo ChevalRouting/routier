@@ -1,0 +1,1 @@
+import{j as r}from"./vendor-xyflow-CHhozP7l.js";import{t as o}from"./index-C4pV3ML2.js";import{u as s,e as a}from"./vendor-react-SXuDquMo.js";const n={dhcp:"/dhcp",dns:"/dns",nics:o("system")};function p(){const[t]=s(),e=t.get("tab")??t.get("monitor")??"";return r.jsx(a,{to:n[e]??o(e),replace:!0})}export{p as default};

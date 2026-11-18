@@ -94,53 +94,71 @@ func rawArtifactErrors(err error) []types.ArtifactError {
 	return []types.ArtifactError{{Message: err.Error()}}
 }
 
-func ApplyConfig(ctx context.Context, cfg *config.Config, outputs []render.Output, opts ApplyOptions, warn ...*[]string) (snapID string, changed []string, err error) {
-	source := opts.Source
-	if source == "" {
-		source = "cli"
-	}
+type armRequest struct {
+	exclusive bool
+	timeout   int
+	persist   []byte
+}
 
+func ApplyConfig(ctx context.Context, cfg *config.Config, outputs []render.Output, opts ApplyOptions, warn ...*[]string) (snapID string, changed []string, err error) {
 	var warnings *[]string
 	if len(warn) > 0 {
 		warnings = warn[0]
+	}
+
+	snapID, changed, _, err = applyConfig(ctx, cfg, outputs, opts, armRequest{}, warnings)
+
+	return snapID, changed, err
+}
+
+func applyConfig(ctx context.Context, cfg *config.Config, outputs []render.Output, opts ApplyOptions, arm armRequest, warnings *[]string) (snapID string, changed []string, armed bool, err error) {
+	source := opts.Source
+	if source == "" {
+		source = "cli"
 	}
 
 	var rec *applylog.Recorder
 	if !opts.DryRun {
 		release, lerr := acquireApplyLock(ctx)
 		if lerr != nil {
-			return "", nil, lerr
+			return "", nil, false, lerr
 		}
 
 		defer release()
+
+		if arm.exclusive {
+			if perr := RequireNoPending(); perr != nil {
+				return "", nil, false, perr
+			}
+		}
 
 		rec = applylog.Start(source, opts.ConfigPath)
 		defer func() { finishApply(cfg, outputs, snapID, &err, source, rec) }()
 	}
 
 	if err := apply.PrepareDNSZoneSerials(cfg, outputs); err != nil {
-		return "", nil, err
+		return "", nil, false, err
 	}
 
 	if !opts.DryRun {
 		if verrs := svc.ValidateArtifactsBeforeApply(outputs); len(verrs) > 0 {
 			ve := failures.NewValidationError(verrs)
-			return "", nil, ve
+			return "", nil, false, ve
 		}
 	}
 
 	if err := apply.Hostname(cfg.Hostname, opts.DryRun); err != nil {
-		return "", nil, err
+		return "", nil, false, err
 	}
 
 	if len(cfg.Users) > 0 {
 		if err := apply.Users(cfg.Users, opts.DryRun); err != nil {
-			return "", nil, err
+			return "", nil, false, err
 		}
 	}
 
 	if err := apply.DNS(cfg.DNS, cfg.Hostname, opts.DryRun); err != nil {
-		return "", nil, err
+		return "", nil, false, err
 	}
 
 	previousSwitches := render.ReadSwitchArtifacts()
@@ -153,7 +171,7 @@ func ApplyConfig(ctx context.Context, cfg *config.Config, outputs []render.Outpu
 
 		snapID, changed, err = apply.Write(outputs, opts.DryRun, snapshotAlso...)
 		if err != nil {
-			return "", nil, err
+			return "", nil, false, err
 		}
 	}
 
@@ -166,24 +184,24 @@ func ApplyConfig(ctx context.Context, cfg *config.Config, outputs []render.Outpu
 	}
 
 	if err := svc.ReloadFromOutputs(reloadNames, cfg, opts.DryRun, warnings); err != nil {
-		return snapID, changed, err
+		return snapID, changed, false, err
 	}
 
 	if err := reconcileSwitches(ctx, reloadNames, cfg, previousSwitches, snapID, opts.DryRun, source == "boot", warnings); err != nil {
-		return snapID, changed, err
+		return snapID, changed, false, err
 	}
 
 	if err := svc.ReconcileServices(cfg, opts.DryRun); err != nil {
-		return snapID, changed, err
+		return snapID, changed, false, err
 	}
 
 	if len(cfg.Services) > 0 {
 		if err := svc.EnableServices(cfg.Services, opts.DryRun); err != nil {
-			return snapID, changed, err
+			return snapID, changed, false, err
 		}
 
 		if err := svc.ReloadServices(cfg.Services, reloadNames, opts.DryRun); err != nil {
-			return snapID, changed, err
+			return snapID, changed, false, err
 		}
 	}
 
@@ -192,7 +210,17 @@ func ApplyConfig(ctx context.Context, cfg *config.Config, outputs []render.Outpu
 		pruneSwitchImages()
 	}
 
-	return snapID, changed, nil
+	if arm.timeout > 0 && snapID != "" && len(changed) > 0 {
+		if perr := setPending(snapID, arm.timeout, opts.Source, opts.configPath(), arm.persist); perr != nil {
+			if warnings != nil {
+				*warnings = append(*warnings, fmt.Sprintf("failed to set pending: %v", perr))
+			}
+		} else {
+			armed = true
+		}
+	}
+
+	return snapID, changed, armed, nil
 }
 
 func toAnykServices(services []config.AnycastService) []anyk.AnykService {

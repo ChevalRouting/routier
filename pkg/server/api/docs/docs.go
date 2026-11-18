@@ -1437,6 +1437,31 @@ const docTemplate = `{
                 ],
                 "type": "object"
             },
+            "config.ExporterConfig": {
+                "properties": {
+                    "allow_inbound": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "listen": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "port": {
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
             "config.FlowCollector": {
                 "properties": {
                     "address": {
@@ -1857,6 +1882,9 @@ const docTemplate = `{
                 "properties": {
                     "collection": {
                         "$ref": "#/components/schemas/config.CollectionIntervals"
+                    },
+                    "exporter": {
+                        "$ref": "#/components/schemas/config.ExporterConfig"
                     },
                     "flows": {
                         "$ref": "#/components/schemas/config.FlowsConfig"
@@ -13708,7 +13736,7 @@ const docTemplate = `{
             "get": {
                 "parameters": [
                     {
-                        "description": "Address or CIDR, e.g. 100.64.12.192 or 2001:db8::/32",
+                        "description": "Address or CIDR, e.g. 198.51.100.192 or 2001:db8::/32",
                         "in": "query",
                         "name": "ip",
                         "required": true,
@@ -13754,7 +13782,7 @@ const docTemplate = `{
             "get": {
                 "parameters": [
                     {
-                        "description": "Address or CIDR, e.g. 100.64.12.192/27 or 2001:db8::/64",
+                        "description": "Address or CIDR, e.g. 198.51.100.192/27 or 2001:db8::/64",
                         "in": "query",
                         "name": "cidr",
                         "required": true,

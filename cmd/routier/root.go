@@ -42,7 +42,6 @@ func newRootCommand() *cobra.Command {
 		newUpgradeCommand(),
 		newTakeoverCommand(),
 		newValidateCommand(),
-		newMigrateCommand(),
 		newPlanCommand(),
 		newDiffCommand(),
 		newApplyCommand(),

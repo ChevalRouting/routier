@@ -39,7 +39,10 @@ config.yml ─▶ load + validate ─▶ resolve ─▶ render ─▶ apply ─�
    is saved under `/var/lib/routier/snapshots/`.
 3. **Netlink reconcile** creates and configures links, VLANs, bridges, VRFs,
    addresses and routes. It runs before sysctl so per-interface sysctl keys
-   have an interface to attach to.
+   have an interface to attach to. VPNs are applied after base links are
+   created and before addresses, static routes, firewall rules and dependent
+   services: kernel IP tunnels first, then WireGuard interfaces, then bridge
+   and VRF attachment.
 4. **sysctl and nftables** load next, before any routing daemon starts, so
    traffic is never forwarded through a box whose firewall is not in place.
    The ruleset is validated with `nft -c` before it is loaded.

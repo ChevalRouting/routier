@@ -159,9 +159,9 @@ func splitListenFamilies(addrs []string) (v4, v6 []string) {
 	return
 }
 
-func dnsListenAny(cfg *config.Config) bool {
+func dnsListenAny(cfg *config.Config, v4 bool) bool {
 	for _, addr := range dnsListenAddresses(cfg) {
-		if ip := net.ParseIP(addr); ip != nil && ip.IsUnspecified() {
+		if ip := net.ParseIP(addr); ip != nil && ip.IsUnspecified() && (ip.To4() != nil) == v4 {
 			return true
 		}
 	}
@@ -378,7 +378,34 @@ func quoteTXT(value string) string {
 		return value
 	}
 
-	return fmt.Sprintf("%q", value)
+	var chunks []string
+	for len(value) > 255 {
+		chunks = append(chunks, zoneString(value[:255]))
+		value = value[255:]
+	}
+
+	return strings.Join(append(chunks, zoneString(value)), " ")
+}
+
+func zoneString(raw string) string {
+	var b strings.Builder
+	_ = b.WriteByte('"')
+	for i := 0; i < len(raw); i++ {
+		c := raw[i]
+		switch {
+		case c == '"' || c == '\\':
+			_ = b.WriteByte('\\')
+			_ = b.WriteByte(c)
+		case c < 0x20 || c > 0x7e:
+			_, _ = fmt.Fprintf(&b, "\\%03d", c)
+		default:
+			_ = b.WriteByte(c)
+		}
+	}
+
+	_ = b.WriteByte('"')
+
+	return b.String()
 }
 
 func recordData(r config.DNSRecord) string {

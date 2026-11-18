@@ -56,7 +56,7 @@ func TestInterpolateErrors(t *testing.T) {
 }
 
 func TestInterpolatePassthrough(t *testing.T) {
-	raw := "version: v3.0.0\nhostname: rtr\n"
+	raw := "version: v5.0.0\nhostname: rtr\n"
 	got, err := friends.Interpolate(raw, vars())
 	if err != nil || got != raw {
 		t.Fatalf("passthrough changed config: %q, %v", got, err)
@@ -110,7 +110,7 @@ func TestLoadCacheVarsBGPPolicies(t *testing.T) {
 }
 
 func TestInterpolateConfigRoundTrip(t *testing.T) {
-	raw := `version: v3.0.0
+	raw := `version: v5.0.0
 hostname: gw
 routing:
   static:

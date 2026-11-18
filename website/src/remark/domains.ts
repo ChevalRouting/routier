@@ -1,5 +1,5 @@
-export const SITE_URL = process.env.SITE_URL ?? 'https://routier.cloud';
-export const REPO_URL = process.env.REPO_URL ?? 'https://repo.routier.cloud';
+export const SITE_URL = process.env.SITE_URL ?? 'https://routier.chevalrouting.org';
+export const REPO_URL = process.env.REPO_URL ?? 'https://routier.chevalrouting.org/repo';
 export const GITHUB_URL = process.env.GITHUB_URL ?? 'https://github.com/ChevalRouting/routier';
 
 const tokens: Record<string, string> = {

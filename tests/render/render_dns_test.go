@@ -9,7 +9,7 @@ import (
 	"github.com/ChevalRouting/routier/tests/testkit"
 )
 
-const dnsTargetConfig = `version: v3.0.0
+const dnsTargetConfig = `version: v5.0.0
 hostname: cgw-1
 interfaces:
   region:
@@ -62,7 +62,7 @@ dns:
       disabled: true
 `
 
-const dnsZoneConfig = `version: v3.0.0
+const dnsZoneConfig = `version: v5.0.0
 hostname: gw
 interfaces:
   lan:
@@ -251,7 +251,7 @@ func TestRenderNamedSpecialDomains(t *testing.T) {
 }
 
 func TestRenderNamedListenResolvesRefs(t *testing.T) {
-	conf := namedConf(t, `version: v3.0.0
+	conf := namedConf(t, `version: v5.0.0
 hostname: gw
 interfaces:
   region:
@@ -398,7 +398,7 @@ func assertNoNamed(t *testing.T, out map[string]string) {
 	}
 }
 
-const dnsForwarderOnly = `version: v3.0.0
+const dnsForwarderOnly = `version: v5.0.0
 hostname: gw
 interfaces:
   lan: {select: eth0, addresses: ["10.0.0.1/24"]}
@@ -412,7 +412,7 @@ dns:
       - {domain: corp.example, servers: [10.0.0.53]}
 `
 
-const dnsAuthoritativeOnly = `version: v3.0.0
+const dnsAuthoritativeOnly = `version: v5.0.0
 hostname: gw
 interfaces:
   lan: {select: eth0, addresses: ["10.0.0.1/24"]}
@@ -430,7 +430,7 @@ dns:
           - {name: ns1, type: A, value: 10.0.0.1}
 `
 
-const dnsBothRoles = `version: v3.0.0
+const dnsBothRoles = `version: v5.0.0
 hostname: gw
 interfaces:
   lan: {select: eth0, addresses: ["10.0.0.1/24"]}
@@ -519,7 +519,7 @@ func TestDNSExplicitModeOverridesInference(t *testing.T) {
 	}
 }
 
-const dnsViewsConfig = `version: v3.0.0
+const dnsViewsConfig = `version: v5.0.0
 hostname: gw
 interfaces:
   lan: {select: eth0, addresses: ["10.0.0.1/24"]}

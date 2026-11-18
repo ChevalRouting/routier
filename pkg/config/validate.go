@@ -1,8 +1,10 @@
 package config
 
 import (
+	"bytes"
 	"encoding/base64"
 	"fmt"
+	"maps"
 	"net"
 	"path/filepath"
 	"regexp"
@@ -23,6 +25,11 @@ func isPositiveInt(s string) bool {
 func isValidCIDR(s string) bool {
 	_, _, err := net.ParseCIDR(s)
 	return err == nil
+}
+
+func isValidCIDR6(s string) bool {
+	ip, _, err := net.ParseCIDR(s)
+	return err == nil && ip.To4() == nil
 }
 
 func sameFamily(cidr, ip string) bool {
@@ -320,6 +327,7 @@ func Validate(cfg *Config, resolveIfaces bool) []error {
 	validateHA(cfg, add)
 	validateVPN(cfg, add)
 	validateNftables(cfg, add)
+	validateNftNames(cfg, add)
 	validateFriends(cfg, add)
 	validateUsers(cfg, add)
 	validateServices(cfg, add)
@@ -375,6 +383,30 @@ func validateMonitoring(cfg *Config, add addfunc) {
 	}
 
 	validateFlows(cfg, add)
+	validateExporter(cfg, add)
+}
+
+func validateExporter(cfg *Config, add addfunc) {
+	e := cfg.Monitoring.Exporter
+	if e == nil {
+		return
+	}
+
+	for i, host := range e.Listen {
+		if net.ParseIP(host) == nil {
+			add("monitoring.exporter.listen[%d]: %q is not an IP address", i, host)
+		}
+	}
+
+	if e.Port != 0 && !isValidPort(e.Port) {
+		add("monitoring.exporter.port must be between 1 and 65535")
+	}
+
+	for i, ifName := range e.AllowInbound {
+		if !isKnownInterface(ifName, cfg.Interfaces) {
+			add("monitoring.exporter.allow_inbound[%d]: %q not found in interfaces", i, ifName)
+		}
+	}
 }
 
 func validateVXLANPorts(cfg *Config, add addfunc) {
@@ -408,6 +440,38 @@ func validateVXLANPorts(cfg *Config, add addfunc) {
 				add("interfaces.%s.vxlan: an external vxlan without vnifilter claims every vni on udp port %d, so it cannot share the port with other vxlan interfaces", d.name, port)
 			}
 		}
+	}
+}
+
+func nftName(name string) string {
+	return strings.Map(nftRune, name)
+}
+
+func nftRune(r rune) rune {
+	if r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '_' {
+		return r
+	}
+
+	return '_'
+}
+
+func validateNftNames(cfg *Config, add addfunc) {
+	owners := map[string]string{}
+	names := slices.Sorted(maps.Keys(cfg.Interfaces))
+	for _, name := range slices.Sorted(maps.Keys(cfg.VPN.Wireguard)) {
+		if _, ok := cfg.Interfaces[name]; !ok {
+			names = append(names, name)
+		}
+	}
+
+	for _, name := range names {
+		key := nftName(name)
+		if other, ok := owners[key]; ok {
+			add("interfaces %s and %s map to the same nftables variable prefix %s; rename one", other, name, key)
+			continue
+		}
+
+		owners[key] = name
 	}
 }
 
@@ -896,6 +960,39 @@ type bgpPolicies struct {
 	prefixLists map[string][]PrefixEntry
 }
 
+func vrfBGPPolicies(bgp, global *BGP, path string, add addfunc) bgpPolicies {
+	if global == nil || bgp == global {
+		return bgpPolicies{routeMaps: bgp.RouteMaps, prefixLists: bgp.PrefixLists}
+	}
+
+	policies := bgpPolicies{routeMaps: maps.Clone(global.RouteMaps), prefixLists: maps.Clone(global.PrefixLists)}
+	if policies.routeMaps == nil {
+		policies.routeMaps = map[string][]RouteMapEntry{}
+	}
+
+	if policies.prefixLists == nil {
+		policies.prefixLists = map[string][]PrefixEntry{}
+	}
+
+	for _, name := range slices.Sorted(maps.Keys(bgp.PrefixLists)) {
+		if _, ok := global.PrefixLists[name]; ok {
+			add("%s.prefix_lists.%s: name is already used by routing.bgp.prefix_lists", path, name)
+		}
+
+		policies.prefixLists[name] = bgp.PrefixLists[name]
+	}
+
+	for _, name := range slices.Sorted(maps.Keys(bgp.RouteMaps)) {
+		if _, ok := global.RouteMaps[name]; ok {
+			add("%s.route_maps.%s: name is already used by routing.bgp.route_maps", path, name)
+		}
+
+		policies.routeMaps[name] = bgp.RouteMaps[name]
+	}
+
+	return policies
+}
+
 func (p bgpPolicies) hasRouteMap(name string) bool {
 	_, ok := p.routeMaps[name]
 	return name == "" || isFriendPolicyRef(name) || ok
@@ -907,10 +1004,7 @@ func (p bgpPolicies) hasPrefixList(name string) bool {
 }
 
 func validateBGP(bgp *BGP, global *BGP, path string, vrfNames map[string]bool, bfdProfiles map[string]bool, add addfunc) {
-	var policies bgpPolicies
-	if global != nil {
-		policies = bgpPolicies{routeMaps: global.RouteMaps, prefixLists: global.PrefixLists}
-	}
+	policies := vrfBGPPolicies(bgp, global, path, add)
 
 	if bgp.ASN == 0 {
 		add("%s: asn is required", path)
@@ -1219,14 +1313,14 @@ func validateRADVD(radvd *RADVDConfig, ifaces map[string]*Interface, add addfunc
 		}
 
 		for i, p := range riface.Prefixes {
-			if !isValidCIDR(p.Prefix) {
-				add("routing.radvd.interfaces.%s.prefixes[%d]: prefix %q is not a valid CIDR", ifName, i, p.Prefix)
+			if !isValidCIDR6(p.Prefix) {
+				add("routing.radvd.interfaces.%s.prefixes[%d]: prefix %q is not a valid IPv6 CIDR", ifName, i, p.Prefix)
 			}
 		}
 
 		for i, route := range riface.Routes {
-			if !isValidCIDR(route.Prefix) {
-				add("routing.radvd.interfaces.%s.routes[%d]: prefix %q is not a valid CIDR", ifName, i, route.Prefix)
+			if !isValidCIDR6(route.Prefix) {
+				add("routing.radvd.interfaces.%s.routes[%d]: prefix %q is not a valid IPv6 CIDR", ifName, i, route.Prefix)
 			}
 
 			if route.Preference != "" && !slices.Contains(preferences, route.Preference) {
@@ -1236,8 +1330,8 @@ func validateRADVD(radvd *RADVDConfig, ifaces map[string]*Interface, add addfunc
 
 		if riface.RDNSS != nil {
 			for i, srv := range riface.RDNSS.Servers {
-				if !isValidIP(srv) {
-					add("routing.radvd.interfaces.%s.rdnss.servers[%d]: %q is not a valid IP", ifName, i, srv)
+				if ip := net.ParseIP(srv); ip == nil || ip.To4() != nil {
+					add("routing.radvd.interfaces.%s.rdnss.servers[%d]: %q is not a valid IPv6 address", ifName, i, srv)
 				}
 			}
 		}
@@ -1246,6 +1340,11 @@ func validateRADVD(radvd *RADVDConfig, ifaces map[string]*Interface, add addfunc
 
 func validatePBR(pbr *PBR, vrfNames map[string]bool, add addfunc) {
 	for name, group := range pbr.NexthopGroups {
+		if group == nil {
+			add("routing.pbr.nexthop_groups.%s: at least one nexthop is required", name)
+			continue
+		}
+
 		if len(group.Nexthops) == 0 {
 			add("routing.pbr.nexthop_groups.%s: at least one nexthop is required", name)
 		}
@@ -2359,8 +2458,14 @@ func validateKeaRange(spec string, network *net.IPNet, v6 bool, path string, req
 	}
 
 	if start, end, ok := strings.Cut(spec, "-"); ok {
-		validateKeaRangeIP(strings.TrimSpace(start), network, v6, path+" start", add)
-		validateKeaRangeIP(strings.TrimSpace(end), network, v6, path+" end", add)
+		start, end = strings.TrimSpace(start), strings.TrimSpace(end)
+		validateKeaRangeIP(start, network, v6, path+" start", add)
+		validateKeaRangeIP(end, network, v6, path+" end", add)
+
+		if from, to := net.ParseIP(start), net.ParseIP(end); from != nil && to != nil && bytes.Compare(from.To16(), to.To16()) > 0 {
+			add("%s: start %s is after end %s", path, start, end)
+		}
+
 		return
 	}
 

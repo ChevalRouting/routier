@@ -35,12 +35,12 @@ func rule(s Spec) (string, config.ManagedRule) {
 	switch s.Kind {
 	case KindMasquerade:
 		r.Action = "masquerade"
-		r.Match = &config.RuleMatch{OIF: s.Out, SAddr: s.Source, AddrFamily: sourceFamily(s)}
+		r.Match = &config.RuleMatch{OIF: s.Out, SAddr: s.Source, AddrFamily: s.Family}
 		return chainPostrouting, r
 	case KindSNAT:
 		r.Action = "snat"
 		r.ActionTo = s.To
-		r.Match = &config.RuleMatch{OIF: s.Out, SAddr: s.Source, AddrFamily: sourceFamily(s)}
+		r.Match = &config.RuleMatch{OIF: s.Out, SAddr: s.Source, AddrFamily: s.Family}
 		return chainPostrouting, r
 	case KindDNAT:
 		r.Action = "dnat"
@@ -50,14 +50,6 @@ func rule(s Spec) (string, config.ManagedRule) {
 	}
 
 	return "", r
-}
-
-func sourceFamily(s Spec) string {
-	if s.Source == "" {
-		return ""
-	}
-
-	return s.Family
 }
 
 func Rules(specs []Spec) map[string][]config.ManagedRule {

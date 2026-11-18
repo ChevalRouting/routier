@@ -3,9 +3,11 @@ import {themes as prismThemes} from 'prism-react-renderer';
 import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
-import remarkDomains, {GITHUB_URL, SITE_URL} from './src/remark/domains';
+import remarkDomains, {GITHUB_URL, REPO_URL, SITE_URL} from './src/remark/domains';
 
 const hasReleasedVersions = existsSync('versions.json');
+
+const GITHUB_OWNER_URL = GITHUB_URL.replace(/\/[^/]+\/?$/, '');
 
 const buildCommit = process.env.SITE_COMMIT;
 const buildVersion = process.env.SITE_VERSION ?? '';
@@ -22,10 +24,22 @@ const config: Config = {
   url: SITE_URL,
   baseUrl: process.env.SITE_BASE_URL ?? '/',
 
+  customFields: {
+    repoUrl: REPO_URL,
+    githubUrl: GITHUB_URL,
+  },
+
   organizationName: 'ChevalRouting',
   projectName: 'routier',
 
   onBrokenLinks: 'throw',
+  onBrokenAnchors: 'throw',
+
+  markdown: {
+    hooks: {
+      onBrokenMarkdownLinks: 'throw',
+    },
+  },
 
   i18n: {
     defaultLocale: 'en',
@@ -41,7 +55,7 @@ const config: Config = {
           routeBasePath: '/docs',
           exclude: ['internal/**'],
           sidebarPath: './sidebars.ts',
-          remarkPlugins: [remarkDomains],
+          beforeDefaultRemarkPlugins: [remarkDomains],
           includeCurrentVersion: !hasReleasedVersions,
         },
         blog: false,
@@ -80,10 +94,10 @@ const config: Config = {
     footer: {
       style: 'dark',
       copyright: [
-        '<a href="https://github.com/ChevalRouting/routier/blob/main/LICENSE">MIT License</a>',
-        'Built by <a href="https://github.com/ChevalRouting">@ChevalRouting</a>',
+        `<a href="${GITHUB_URL}/blob/main/LICENSE">MIT License</a>`,
+        `Built by <a href="${GITHUB_OWNER_URL}">@ChevalRouting</a>`,
         buildCommit
-          ? `<a href="https://github.com/ChevalRouting/routier/commit/${buildCommit}">${buildVersion ? `${buildVersion} (${buildCommit})` : buildCommit}</a>`
+          ? `<a href="${GITHUB_URL}/commit/${buildCommit}">${buildVersion ? `${buildVersion} (${buildCommit})` : buildCommit}</a>`
           : null,
       ]
         .filter(Boolean)

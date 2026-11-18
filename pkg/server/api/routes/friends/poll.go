@@ -54,7 +54,15 @@ func Poll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cfgJSON, err := json.Marshal(cfg)
+	shared := cfg
+	if !f.Manage {
+		if shared, err = cfgpkg.Redacted(cfg); err != nil {
+			types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "redact config"))
+			return
+		}
+	}
+
+	cfgJSON, err := json.Marshal(shared)
 	if err != nil {
 		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "marshal config"))
 		return

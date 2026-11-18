@@ -350,7 +350,7 @@ export function RecordRows({ records, onChange, zoneName, zones, onZonesChange }
         <div className="space-y-2 rounded-md bg-muted/30 p-2">
           <Textarea
             className="min-h-[96px] font-mono text-xs"
-            placeholder={'ns1    A     100.64.0.2\nwww    CNAME @\nmail   MX    10 mail.example.net.'}
+            placeholder={'ns1    A     192.0.2.2\nwww    CNAME @\nmail   MX    10 mail.example.net.'}
             value={pasteText}
             onChange={(e) => setPasteText(e.target.value)}
           />

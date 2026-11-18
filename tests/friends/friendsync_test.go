@@ -11,7 +11,7 @@ func haEnabled() *bool { b := true; return &b }
 
 func clusterConfig() *config.Config {
 	return &config.Config{
-		Version: "v3.0.0",
+		Version: "v5.0.0",
 		Interfaces: map[string]*config.Interface{
 			"lan":   {Select: "name=lan0"},
 			"plain": {Select: "name=lan1"},

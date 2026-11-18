@@ -16,7 +16,7 @@ mkdir -p /tmp/routier-${VERSION}
 for entry in .[!.]* *; do
   [ -e "$entry" ] || continue
   case "$entry" in
-    .git|dist) continue ;;
+    .git|dist|*.rsa|*.rsa.pub) continue ;;
   esac
   cp -r "$entry" /tmp/routier-${VERSION}/
 done
@@ -25,9 +25,7 @@ rm -rf /tmp/routier-${VERSION}/web/node_modules
 rm -rf /tmp/routier-${VERSION}/pkg/server/api/dist
 rm -f /tmp/routier-${VERSION}/go.work /tmp/routier-${VERSION}/go.work.sum
 
-cp -r /certs /tmp/certs
-rm -rf /tmp/certs/.git
-EXTRA_DIRS="certs"
+EXTRA_DIRS=""
 if [ "${LOCAL_ANYK}" = "1" ] && [ -d /anyk ]; then
   cp -r /anyk /tmp/anyk
   rm -rf /tmp/anyk/.git
@@ -37,7 +35,7 @@ if [ "${LOCAL_ANYK}" = "1" ] && [ -d /anyk ]; then
 fi
 
 tar czf /work/routier-${VERSION}.tar.gz -C /tmp routier-${VERSION} ${EXTRA_DIRS}
-rm -rf /tmp/routier-${VERSION} /tmp/anyk /tmp/certs
+rm -rf /tmp/routier-${VERSION} /tmp/anyk
 
 chown -Rv builder:builder /work
 

@@ -22,15 +22,15 @@ go test ./tests/... -coverpkg=./pkg/...
 | Package | Area |
 |---------|------|
 | `tests/testkit` | shared helpers (importable, not a test pkg): temp config, in-process API node, JWT minting, CLI build, `MinimalConfig`/`FullConfig` |
-| `tests/config` | load/validate/save round-trip, version rejection, migrations, schema + validation-delta, DNS server/zone/mode/view validation |
+| `tests/config` | load/validate/save round-trip, version rejection, schema + validation-delta, DNS server/zone/mode/view validation |
 | `tests/render` | nftables ownership/defines/files/auto-allows, full-config FRR/keepalived/conntrackd/sysctl/sshd/wireguard, BIND `named.conf`/zone files (validated with the real `named-checkconf` when installed) |
 | `tests/api` | auth (401), config get/section, staging diff/discard, wireguard keygen, nft vars, snapshots, DNS overview/stats/zones and the `dns_server` sub-section |
 | `tests/friends` | two-node protocol (hello challenge, preview, add+TOFU, pair, interfaces, delete cascade), unit logic, WireGuard derivation, HA-sync payload, CLI parity |
 | `tests/lifecycle` | render -> `ApplyConfig` dry-run, FRR reload-vs-restart decision, named zone-reload-vs-reconfig-vs-restart decision, pre-write zone validation, pending-apply/rollback, service-reload mock |
 | `tests/system` | conntrack/ip/vtysh parsing (mocked executors), keepalived parsing, rndc/named-stats/dig parsing, dhcpcd/netlink dry-run, MOTD |
-| `tests/persistence` | apply-log lifecycle, backup round-trip, database migrations and queries, macros |
+| `tests/persistence` | apply-log lifecycle, backup round-trip, database queries, macros |
 | `tests/identity` | ed25519 persist, sign/verify, fingerprint |
-| `tests/cli` | builds the `routier` binary and runs `version`/`validate`/`migrate`, and checks the `dns` subcommands exist |
+| `tests/cli` | builds the `routier` binary and runs `version`/`validate`, and checks the `dns` subcommands exist |
 
 Every `pkg/...` package is exercised. The suite is **hermetic**: no root, no
 host state. Each API node uses a temp config, a temp SQLite DB, and its own

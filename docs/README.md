@@ -105,8 +105,9 @@ backups in one place.
 
 ## AI usage
 
-This project welcomes AI-assisted contributions. I build it with tools like
-Claude Code, and you are free to use Claude, Codex, or your hands. Whatever you
-use, own the result: know what the code does, test it, and be ready to explain
-it. See [code-style.md](code-style.md) for the coding style and other rules,
-and how I review the backend and the frontend differently.
+AI-assisted contributions are welcome. The project is built with tools such as
+Claude Code, and contributors may use Claude, Codex or no assistant at all.
+Whatever the tool, the contributor owns the result: they know what the code
+does, have tested it, and can explain it. See [code-style.md](code-style.md)
+for the coding style, the other rules, and how backend and frontend changes are
+reviewed.

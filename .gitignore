@@ -1,48 +1,32 @@
-# If you prefer the allow list template instead of the deny list, see community template:
-# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
-#
-# Binaries for programs and plugins
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
 
-# Test binary, built with `go test -c`
 *.test
 
-# Code coverage profiles and other test artifacts
 *.out
 coverage.*
 *.coverprofile
 profile.cov
 
-# Dependency directories (remove the comment below to include it)
-# vendor/
-
-# Go workspace file
 go.work
 go.work.sum
 
-# env file
 .env
 
 .DS_Store
 .codex/
 
-# Editor/IDE
-# .idea/
-# .vscode/
 /web/node_modules
 /routier.rsa
 /routier.rsa.pub
 
-# Built binaries
 /routier
 /routier-ui
 /routier-mcp
 
-# Packaging output
 /dist/
 /.docker-image-*
 /pkg/server/api/dist/
@@ -51,7 +35,6 @@ go.work.sum
 !docs/**/*.md
 docs/internal/
 
-# Local scratch files
 /nft.yml
 /deploy/
 !website/**/*.md
@@ -60,6 +43,5 @@ vendor/
 web/vendor/*
 !web/vendor/cheval-ui.tgz
 
-# Task runner cache
 /.task/
 routier-mcp.yml

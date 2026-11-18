@@ -51,6 +51,7 @@ func Import(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var sender *cfgpkg.Friend
 	if name, isFriend := appctx.FriendUsername(r.Context()); isFriend {
 		if r.Header.Get("Content-Type") != types.SealedContentType {
 			types.Err(http.StatusBadRequest, "friend config push must be encrypted").Write(w)
@@ -68,7 +69,7 @@ func Import(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		sender := friendspkg.Get(cfg, name)
+		sender = friendspkg.Get(cfg, name)
 		if sender == nil || sender.Identity.PublicKey == "" {
 			types.Err(http.StatusForbidden, "unknown or unpaired friend").Write(w)
 			return
@@ -94,7 +95,18 @@ func Import(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	incoming := payload.Config
+	local, err := cfgpkg.Load(app.ConfigPath)
+	if err != nil {
+		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "read local config"))
+		return
+	}
+
+	if sender != nil {
+		if err := scopeFriendPayload(local, sender, &payload); err != nil {
+			types.Err(http.StatusForbidden, err.Error()).Write(w)
+			return
+		}
+	}
 
 	for path, content := range payload.Files {
 		if err := validateImportFilePath(path); err != nil {
@@ -113,13 +125,7 @@ func Import(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	local, err := cfgpkg.Load(app.ConfigPath)
-	if err != nil {
-		types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, err, "read local config"))
-		return
-	}
-
-	mergeIncoming(local, incoming)
+	mergeIncoming(local, payload.Config)
 
 	if err := cfgstore.WriteStaging(app.ConfigPath, username, local); err != nil {
 		types.Error(log.Logger, w, cfgstore.StagingError(err, "write staging"))

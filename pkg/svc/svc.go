@@ -2,11 +2,13 @@ package svc
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/user"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/ChevalRouting/routier/pkg/config"
@@ -550,7 +552,7 @@ func syncDDNSZone(client *bind.Client, cfg *config.Config, zone string) error {
 	thaw := func() { thawZoneOnce(client, zone, &thawed) }
 	defer thaw()
 
-	frozen, err := os.ReadFile(path)
+	frozen, err := readNoFollow(path)
 	if err != nil {
 		return fmt.Errorf("read frozen zone %s: %w", zone, err)
 	}
@@ -560,7 +562,7 @@ func syncDDNSZone(client *bind.Client, cfg *config.Config, zone string) error {
 		return nil
 	}
 
-	if err := os.WriteFile(path, []byte(merged), 0644); err != nil {
+	if err := replaceFile(path, []byte(merged), 0644); err != nil {
 		return fmt.Errorf("write merged zone %s: %w", zone, err)
 	}
 
@@ -590,7 +592,43 @@ func chownNamed(path string) error {
 		return err
 	}
 
-	return os.Chown(path, uid, gid)
+	return os.Lchown(path, uid, gid)
+}
+
+func readNoFollow(path string) ([]byte, error) {
+	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() { _ = f.Close() }()
+
+	return io.ReadAll(f)
+}
+
+func replaceFile(path string, data []byte, mode os.FileMode) error {
+	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".*")
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = os.Remove(tmp.Name()) }()
+
+	if _, err := tmp.Write(data); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+
+	if err := tmp.Chmod(mode); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+
+	return os.Rename(tmp.Name(), path)
 }
 
 func applyKeaDDNS() error {
@@ -621,7 +659,12 @@ func ensureDynamicZones(cfg *config.Config) {
 
 	for _, name := range render.DDNSZoneNames(cfg) {
 		path := filepath.Join(render.NamedZoneDir, render.ZoneFileName(name))
-		if _, err := os.Stat(path); err == nil {
+		if info, err := os.Lstat(path); err == nil {
+			if !info.Mode().IsRegular() {
+				log.Warn().Str("file", path).Msg("ddns: zone file is not a regular file, leaving it alone")
+				continue
+			}
+
 			if err := chownNamed(path); err != nil {
 				log.Warn().Err(err).Str("file", path).Msg("ddns: own existing zone file")
 			}
@@ -630,7 +673,7 @@ func ensureDynamicZones(cfg *config.Config) {
 		}
 
 		content := render.DDNSBootstrapZoneFile(cfg, name)
-		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		if err := replaceFile(path, []byte(content), 0644); err != nil {
 			log.Warn().Err(err).Str("file", path).Msg("ddns: write bootstrap zone file")
 			continue
 		}

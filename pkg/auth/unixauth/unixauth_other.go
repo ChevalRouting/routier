@@ -11,3 +11,7 @@ func Verify(user, password string) (bool, error) {
 func Hash(password string) (string, error) {
 	return "", errors.New("unixauth: unsupported platform")
 }
+
+func ShadowHash(user string) (string, error) {
+	return "", errors.New("unixauth: unsupported platform")
+}

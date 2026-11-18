@@ -1,9 +1,9 @@
 package configtest
 
 import (
-	"github.com/ChevalRouting/routier/tests/testkit"
-	"strings"
 	"testing"
+
+	"github.com/ChevalRouting/routier/tests/testkit"
 
 	"github.com/ChevalRouting/routier/pkg/config"
 )
@@ -49,53 +49,5 @@ func TestConfigRejectsVersionlessAndBadVersion(t *testing.T) {
 
 	if _, err := config.Load(testkit.WriteConfig(t, dir, "version: v0.0.0\nhostname: x\n")); err == nil {
 		t.Fatal("expected error for incompatible major version")
-	}
-}
-
-func TestMigrationV1ToCurrent(t *testing.T) {
-	in := `version: v1.0.0
-hostname: rtr
-mirrors:
-  - name: peer
-    url: https://10.0.0.2
-    token: secret
-ha_keys:
-  - name: k
-    token: t
-nftables:
-  chains:
-    input:
-      rules:
-        - ct state established,related accept
-        - tcp dport 22 accept
-`
-
-	out, changed, err := config.MigrateBytes([]byte(in))
-	if err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
-
-	if !changed {
-		t.Fatal("expected migration to change the config")
-	}
-
-	s := string(out)
-	if strings.Contains(s, "mirrors") || strings.Contains(s, "ha_keys") {
-		t.Fatalf("legacy HA not dropped:\n%s", s)
-	}
-
-	if !strings.Contains(s, "version: "+config.CurrentVersion) {
-		t.Fatalf("not migrated to current version:\n%s", s)
-	}
-
-	dir := t.TempDir()
-	cfg, err := config.Load(testkit.WriteConfig(t, dir, s))
-	if err != nil {
-		t.Fatalf("load migrated: %v", err)
-	}
-
-	rules := cfg.Nftables.Chains["input"].Rules
-	if !strings.Contains(rules, "\n") || !strings.Contains(rules, "dport 22") {
-		t.Fatalf("rules not converted to block:\n%q", rules)
 	}
 }

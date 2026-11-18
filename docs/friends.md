@@ -207,11 +207,11 @@ routing:
 ```
 
 Cross-references inside an imported route-map are rewritten to the same
-namespace: a `match ip address prefix-list` and a `call` to another route-map
-resolve to the friend's imported copies. References to policy types that are not
-synced (as-path lists, community lists) are left unchanged and must exist
-locally. The `friends_` prefix is reserved: locally defined prefix-list and
-route-map names may not start with it.
+namespace: a `match ip address prefix-list`, a `match ipv6 address prefix-list`
+and a `call` to another route-map resolve to the friend's imported copies.
+References to policy types that are not synced (as-path lists, community lists)
+are left unchanged and must exist locally. The `friends_` prefix is reserved:
+locally defined prefix-list and route-map names may not start with it.
 
 ### Shared policy
 

@@ -90,6 +90,7 @@ func New(ctx context.Context, configPath, dbPath string, jwtSecret []byte, debug
 	workers.StartFriendPoll(ctx, group, configPath)
 	workers.StartSwitchPoll(ctx, group, app.Switches, configPath)
 	workers.StartFlows(ctx, group, db, configPath)
+	workers.StartExporter(ctx, group, db, configPath)
 	workers.StartCibiJoin(ctx, group, db, app.Identity, filepath.Join(filepath.Dir(dbPath), cibi.PendingFilename))
 	return &Server{router: buildRouter(app, nil), app: app, workers: group}, nil
 }
@@ -176,6 +177,10 @@ func serveStatic(staticFS fs.FS, fileServer http.Handler, w http.ResponseWriter,
 		types.Err(http.StatusNotFound, "not found").Write(w)
 		return
 	}
+
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("X-Frame-Options", "DENY")
+	w.Header().Set("Referrer-Policy", "no-referrer")
 
 	path := strings.TrimPrefix(req.URL.Path, "/")
 	if path == "" {

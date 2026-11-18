@@ -74,6 +74,8 @@ needed:
   `allow_from` ACL rather than by the interface subnet, because a resolver's
   clients are routed rather than on-link. Firewall and daemon therefore always
   agree on who may query.
+- the Prometheus exporter via `monitoring.exporter.allow_inbound`, on its
+  `port` (9469 by default), scoped like the routing protocols.
 
 Frames switched inside a bridge are not filtered: Routier keeps them out of
 netfilter when `br_netfilter` is loaded (see [interfaces.md](interfaces.md)).

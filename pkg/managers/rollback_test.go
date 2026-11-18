@@ -8,7 +8,7 @@ import (
 
 func TestLoadRollbackConfigResolvesDevices(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "last-applied.yml")
-	data := `version: v3.0.0
+	data := `version: v5.0.0
 interfaces:
   uplink:
     select: lo

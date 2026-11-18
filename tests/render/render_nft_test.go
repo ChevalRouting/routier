@@ -505,3 +505,22 @@ func TestNftTypedTunnelDefinesOnceWithVRF(t *testing.T) {
 		}
 	}
 }
+
+func TestNftExporterAllowInbound(t *testing.T) {
+	cfg := &config.Config{
+		Hostname: "rtr",
+		Interfaces: map[string]*config.Interface{
+			"lan": {Device: "eth1", Addresses: []string{"10.0.0.1/24"}},
+		},
+		Monitoring: &config.MonitoringConfig{Exporter: &config.ExporterConfig{Enabled: true, Port: 9500, AllowInbound: []string{"lan"}}},
+	}
+	out := renderNft(t, cfg)
+	if !strings.Contains(out, `iifname $lan_interfaces ip saddr $lan_network tcp dport 9500 accept comment "routier: exporter"`) {
+		t.Fatalf("expected scoped exporter allow, got:\n%s", out)
+	}
+
+	cfg.Monitoring.Exporter.Enabled = false
+	if out := renderNft(t, cfg); strings.Contains(out, "routier: exporter") {
+		t.Fatalf("disabled exporter must not open the firewall, got:\n%s", out)
+	}
+}

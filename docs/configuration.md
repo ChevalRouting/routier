@@ -15,6 +15,7 @@ applies them; there is no other source of truth.
 | `vpn` | WireGuard interfaces |
 | `routing` | static routes, BGP, OSPF, BFD, PBR |
 | `ha` | high availability: VRRP and conntrackd |
+| `dhcp` | Kea DHCP subnets, reservations, DDNS and HA ([dhcp.md](dhcp.md)) |
 | `nftables` | firewall rules in the routier-owned table |
 | `sysctl` | kernel sysctl keys |
 | `users` | local users |
@@ -25,7 +26,7 @@ applies them; there is no other source of truth.
 | `ssh` | SSH server settings |
 | `boot_modules` | kernel modules to load at boot |
 | `gai` | `gai.conf` address-selection policy |
-| `monitoring` | stats collection intervals |
+| `monitoring` | stats collection, probes, LLDP, flows and the Prometheus exporter ([monitoring.md](monitoring.md)) |
 | `switches` | managed switches: port VLANs and bonds |
 | `web` | web UI certificate: self-signed, files, or ACME ([web-tls.md](web-tls.md)) |
 
@@ -42,27 +43,14 @@ nftables:
 ```
 
 This overrides service `allow_inbound` settings for WireGuard, DNS, BGP, OSPF,
-OSPF6, VRRP, and conntrackd. User rules, includes, defines, and chain policies
+OSPF6, VRRP, conntrackd, Kea HA and the Prometheus exporter. User rules, includes, defines, and chain policies
 still apply; add any required service allow rules yourself. Omit the option or
 set it to `false` to keep automatic rule creation enabled.
 
-## Versioning and migrations
+## Versioning
 
 The config carries a `version` (`vX.Y.Z`). Routier compares the **major**
-version with its own `CurrentVersion` and rejects a major mismatch.
-
-Breaking schema changes bump `CurrentVersion` and ship a **migration** that
-upgrades older documents. Migrations run automatically when a config is
-loaded, so an older file keeps working without intervention. To rewrite files
-on disk to the current schema:
-
-```
-routier migrate [config]        # file or directory
-routier migrate --dry-run       # show what would change
-```
-
-For example, the v1 -> v2 migration converts firewall chain rules from a list
-of lines into a single block string (preserving indentation).
+version with its own `CurrentVersion` (`v5.0.0`) and rejects a major mismatch.
 
 ## Validation
 
@@ -98,14 +86,3 @@ API equivalents: `GET /api/config`, `GET /api/config/{section}`,
 
 Reusable, parameterized config fragments that can be previewed (diff) and
 applied. See [macros.md](macros.md).
-
-The v3 -> v4 migration moves top-level `wireguard` and `tunnels` maps into
-`vpn.wireguard` and `vpn.tunnels`. The v4 to v5 migration moves IP tunnels into `interfaces`
-with `type: tunnel`. Names, keys, addresses, and peer definitions
-are preserved.
-If both a legacy subsection and its nested replacement exist in the same
-file, migration fails rather than overwriting either definition.
-
-VPNs are applied after base links are created and before addresses, static
-routes, firewall rules, and dependent services. The stage reconciles kernel
-IP tunnels and then WireGuard interfaces; bridge and VRF attachment follows.

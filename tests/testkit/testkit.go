@@ -19,7 +19,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-const MinimalConfig = `version: v3.0.0
+const MinimalConfig = `version: v5.0.0
 hostname: rtr1
 interfaces:
   lan:
@@ -27,7 +27,7 @@ interfaces:
     addresses: ["192.168.1.1/24"]
 `
 
-const FullConfig = `version: v3.0.0
+const FullConfig = `version: v5.0.0
 hostname: core
 interfaces:
   wan:
@@ -61,14 +61,15 @@ ha:
 ssh:
   port: 2222
   permit_root_login: "no"
-wireguard:
-  wg0:
-    private_key: dGVzdA==
-    listen_port: 51820
-    addresses: ["10.10.0.1/24"]
-    peers:
-      - public_key: cGVlcg==
-        allowed_ips: ["10.10.0.2/32"]
+vpn:
+  wireguard:
+    wg0:
+      private_key: dGVzdA==
+      listen_port: 51820
+      addresses: ["10.10.0.1/24"]
+      peers:
+        - public_key: cGVlcg==
+          allowed_ips: ["10.10.0.2/32"]
 dns:
   nameservers: ["127.0.0.1"]
   search: ["example.net"]
@@ -147,7 +148,7 @@ func MintJWT(t *testing.T, secret []byte) string {
 	t.Helper()
 
 	tok := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"sub": "admin",
+		"sub": "routier",
 		"iat": time.Now().Unix(),
 		"exp": time.Now().Add(time.Hour).Unix(),
 	})

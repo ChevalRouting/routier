@@ -30,6 +30,14 @@ func RollbackSource(id, source string) (resolvedID string, err error) {
 
 	defer release()
 
+	if source == "watchdog" {
+		state, perr := readPending()
+		if perr != nil || state.SnapID != id {
+			log.Info().Str("snapshot", id).Msg("watchdog: apply confirmed or replaced meanwhile, skipping rollback")
+			return "", nil
+		}
+	}
+
 	rec := applylog.Start(source, "")
 	defer func() { finishRollback(resolvedID, err, rec) }()
 
@@ -45,9 +53,9 @@ func RollbackSource(id, source string) (resolvedID string, err error) {
 	}
 
 	rolledBackSwitches := render.ReadSwitchArtifacts()
-	names, err := apply.Rollback(id)
-	if err != nil {
-		return "", err
+	names, restoreErr := apply.Rollback(id)
+	if restoreErr != nil && len(names) == 0 {
+		return "", restoreErr
 	}
 
 	var restoredCfg *config.Config
@@ -65,6 +73,10 @@ func RollbackSource(id, source string) (resolvedID string, err error) {
 
 	if serr := restoreSwitches(ctx, names, restoredCfg, rolledBackSwitches, id); serr != nil {
 		log.Error().Err(serr).Msg("rollback: switches could not be restored, check them by hand")
+	}
+
+	if restoreErr != nil {
+		return id, fmt.Errorf("rollback restored files only partially: %w", restoreErr)
 	}
 
 	_ = os.Remove(pendingFile)
@@ -93,8 +105,9 @@ func finishRollback(resolvedID string, err error, rec *applylog.Recorder) {
 		result = "failed"
 	}
 
-	rec.Finish(resolvedID, result)
 	if err == nil {
 		applylog.MarkRolledBack(resolvedID)
 	}
+
+	rec.Finish(resolvedID, result)
 }

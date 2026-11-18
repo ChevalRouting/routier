@@ -8,7 +8,7 @@ import (
 	"github.com/ChevalRouting/routier/tests/testkit"
 )
 
-const dnsAPIConfig = `version: v3.0.0
+const dnsAPIConfig = `version: v5.0.0
 hostname: rtr1
 interfaces:
   lan:

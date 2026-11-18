@@ -3,6 +3,8 @@ set -eu
 
 install -dm700 /var/lib/routier
 install -dm700 /var/lib/routier/snapshots
+chown -R root:root /etc/routier 2>/dev/null || true
+chmod 750 /etc/routier 2>/dev/null || true
 
 if [ -x /usr/bin/routier ]; then
 	/usr/bin/routier version > /etc/routier/version 2>/dev/null || true

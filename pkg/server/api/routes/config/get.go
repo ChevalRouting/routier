@@ -41,7 +41,18 @@ func GetConfig(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		sealed, serr := sealForFriend(app, cfg, name, cfg)
+		payload := cfg
+		if !f.Manage {
+			redacted, rerr := cfgpkg.Redacted(cfg)
+			if rerr != nil {
+				types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, rerr, "redact config for friend"))
+				return
+			}
+
+			payload = redacted
+		}
+
+		sealed, serr := sealForFriend(app, cfg, name, payload)
 		if serr != nil {
 			types.Error(log.Logger, w, types.Wrap(http.StatusInternalServerError, serr, "seal config for friend"))
 			return

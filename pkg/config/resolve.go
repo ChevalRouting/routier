@@ -179,15 +179,35 @@ func listNetDevices(prefix string) ([]string, error) {
 		return nil, err
 	}
 
-	var devs []string
+	names := make([]string, 0, len(entries))
 	for _, e := range entries {
-		if strings.HasPrefix(e.Name(), prefix) {
-			devs = append(devs, e.Name())
-		}
+		names = append(names, e.Name())
 	}
 
-	sort.Strings(devs)
-	return devs, nil
+	return indexedDevices(names, prefix), nil
+}
+
+func indexedDevices(names []string, prefix string) []string {
+	var devs []string
+	index := map[string]int{}
+	for _, name := range names {
+		suffix, ok := strings.CutPrefix(name, prefix)
+		if !ok || suffix == "" || strings.Trim(suffix, "0123456789") != "" {
+			continue
+		}
+
+		n, err := strconv.Atoi(suffix)
+		if err != nil {
+			continue
+		}
+
+		devs = append(devs, name)
+		index[name] = n
+	}
+
+	sort.Slice(devs, func(i, j int) bool { return index[devs[i]] < index[devs[j]] })
+
+	return devs
 }
 
 func checkIfaceExists(name string) error {

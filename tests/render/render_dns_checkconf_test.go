@@ -80,7 +80,7 @@ func checkNamedConfPasses(yaml string, t *testing.T) {
 	}
 }
 
-const dnsServerBaseSourceConfig = `version: v3.0.0
+const dnsServerBaseSourceConfig = `version: v5.0.0
 hostname: gw
 dns:
   server:

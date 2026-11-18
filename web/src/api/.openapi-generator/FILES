@@ -66,6 +66,7 @@ models/ConfigDNSServer.ts
 models/ConfigDNSTransferKey.ts
 models/ConfigDNSView.ts
 models/ConfigDNSZone.ts
+models/ConfigExporterConfig.ts
 models/ConfigFlowCollector.ts
 models/ConfigFlowRetention.ts
 models/ConfigFlowsConfig.ts

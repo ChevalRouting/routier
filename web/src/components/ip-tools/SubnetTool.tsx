@@ -5,7 +5,7 @@ import { Badge } from 'cheval-ui'
 import { useEffect, useState } from 'react'
 
 export function SubnetTool() {
-  const [input, setInput] = useState('100.64.12.192/27')
+  const [input, setInput] = useState('198.51.100.192/27')
   const query = useDebounced(input.trim())
   const [info, setInfo] = useState<IpcalcSubnetInfo | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -45,7 +45,7 @@ export function SubnetTool() {
         hint="A bare address is treated as a host route"
         value={input}
         onChange={(e) => setInput(e.target.value)}
-        placeholder="100.64.12.192/27"
+        placeholder="198.51.100.192/27"
       />
       {error && <ErrorNote message={error} />}
       {info && (

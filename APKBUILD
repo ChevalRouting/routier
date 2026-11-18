@@ -30,17 +30,12 @@ check() {
 }
 
 package() {
-	# routier is installed setuid-root, group wheel, mode 4750: the root daemon
-	# runs it as root, members of wheel (the routier admin user) escalate through
-	# it, and other users cannot run it at all.
 	install -Dm755 routier "$pkgdir/usr/bin/routier"
 	chgrp wheel "$pkgdir/usr/bin/routier"
 	chmod 4750 "$pkgdir/usr/bin/routier"
 	install -Dm755 routier-ui "$pkgdir/usr/bin/routier-ui"
-	# Convenience symlink so admins can run setup from PATH on the live ISO.
 	install -dm755 "$pkgdir/usr/sbin"
 	ln -s /usr/bin/routier "$pkgdir/usr/sbin/setup-routier"
-	# doas rule: routier user may run anything as root (manages network, nftables, etc.)
 	install -Dm640 scripts/routier.doas "$pkgdir/etc/doas.d/routier.conf"
 	install -Dm644 scripts/routier.crontab "$pkgdir/etc/cron.d/routier"
 	install -Dm755 scripts/routier.commit-hook "$pkgdir/etc/apk/commit_hooks.d/10-routier"

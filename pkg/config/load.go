@@ -130,11 +130,6 @@ func loadFile(path string) (*Config, error) {
 }
 
 func LoadBytes(data []byte) (*Config, error) {
-	data, _, err := MigrateBytes(data)
-	if err != nil {
-		return nil, err
-	}
-
 	dec := yaml.NewDecoder(bytes.NewReader(data))
 	dec.KnownFields(true)
 

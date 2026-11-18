@@ -10,7 +10,7 @@ import (
 	"github.com/ChevalRouting/routier/pkg/types"
 )
 
-const nodeAConfig = `version: v3.0.0
+const nodeAConfig = `version: v5.0.0
 hostname: node-a
 interfaces:
   wan:
@@ -19,7 +19,7 @@ interfaces:
 `
 
 func nodeBConfig(token string) string {
-	return `version: v3.0.0
+	return `version: v5.0.0
 hostname: node-b
 interfaces:
   lan:
@@ -166,7 +166,7 @@ func TestFriendsPreviewAddPair(t *testing.T) {
 }
 
 func TestFriendDeleteCascade(t *testing.T) {
-	c := testkit.NewNode(t, `version: v3.0.0
+	c := testkit.NewNode(t, `version: v5.0.0
 hostname: node-c
 friends:
   - name: peer
@@ -175,14 +175,15 @@ friends:
     enabled: true
     identity:
       fingerprint: SHA256:abc
-wireguard:
-  wg-fr-peer:
-    friend: peer
-    private_key: dGVzdA==
-    addresses: ["169.254.0.0/31"]
-    peers:
-      - public_key: cGVlcg==
-        allowed_ips: ["169.254.0.1/32"]
+vpn:
+  wireguard:
+    wg-fr-peer:
+      friend: peer
+      private_key: dGVzdA==
+      addresses: ["169.254.0.0/31"]
+      peers:
+        - public_key: cGVlcg==
+          allowed_ips: ["169.254.0.1/32"]
 `)
 
 	status, raw := c.Do(t, http.MethodDelete, "/api/friends/peer", nil)

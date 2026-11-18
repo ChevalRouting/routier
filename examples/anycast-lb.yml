@@ -5,20 +5,27 @@ hostname: anycast-node-01
 interfaces:
   wan:
     select: eth[0]
-    addresses: [198.51.100.1/24]
+    addresses: [198.51.100.1/24, 2001:db8:100::1/64]
+  lan:
+    select: eth[1]
+    addresses: [2001:db8:10::1/64]
 
 sysctl:
   net.ipv4.ip_forward: "1"
   net.ipv4.conf.all.rp_filter: "2"
+  net.ipv6.conf.all.forwarding: "1"
 
 routing:
   static:
     - destination: 0.0.0.0/0
       via: 198.51.100.254
+    - destination: ::/0
+      via: 2001:db8:100::fe
 
   bgp:
     asn: 65100
     router_id: 198.51.100.1
+    no_default_ipv4_unicast: true
     neighbors:
       - address: 198.51.100.254
         remote_asn: 65000
@@ -27,16 +34,28 @@ routing:
           ipv4-unicast:
             route_map_in: ACCEPT-ALL
             route_map_out: ANYCAST-OUT
+      - address: 2001:db8:100::fe
+        remote_asn: 65000
+        description: upstream fabric v6
+        address_families:
+          ipv6-unicast:
+            route_map_in: ACCEPT-ALL
+            route_map_out: ANYCAST-OUT-V6
     prefix_lists:
       ANYCAST-NETS:
         - { seq: 10, action: permit, prefix: "192.0.2.10/32" }
         - { seq: 20, action: permit, prefix: "192.0.2.20/32" }
         - { seq: 100, action: deny, prefix: "0.0.0.0/0", le: 32 }
+      ANYCAST-NETS-V6:
+        - { seq: 10, action: permit, prefix: "2001:db8:53::10/128" }
+        - { seq: 100, action: deny, prefix: "::/0", le: 128 }
     route_maps:
       ACCEPT-ALL:
         - { seq: 10, action: permit }
       ANYCAST-OUT:
         - { seq: 10, action: permit, match: { "ip address prefix-list": ANYCAST-NETS } }
+      ANYCAST-OUT-V6:
+        - { seq: 10, action: permit, match: { "ipv6 address prefix-list": ANYCAST-NETS-V6 } }
 
   anycast:
     services:
@@ -44,8 +63,15 @@ routing:
         active: true
         anycast_ips:
           - 192.0.2.10/32
+          - 2001:db8:53::10/128
         endpoints:
           - ip: 127.0.0.1
+            distance: 1
+            dns_check:
+              type: A
+              query: health.example.com
+              expected: "93.184.216.34"
+          - ip: 2001:db8:10::53
             distance: 1
             dns_check:
               type: A
