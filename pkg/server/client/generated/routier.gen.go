@@ -863,9 +863,16 @@ type ConfigRADVDInterface struct {
 	AdvSendAdvert        *bool                `json:"adv_send_advert,omitempty"`
 	MaxRtrAdvInterval    *int                 `json:"max_rtr_adv_interval,omitempty"`
 	MinRtrAdvInterval    *int                 `json:"min_rtr_adv_interval,omitempty"`
+	Nat64Prefixes        *[]ConfigRADVDNAT64  `json:"nat64_prefixes,omitempty"`
 	Prefixes             *[]ConfigRADVDPrefix `json:"prefixes,omitempty"`
 	Rdnss                *ConfigRADVDRDNSS    `json:"rdnss,omitempty"`
 	Routes               *[]ConfigRADVDRoute  `json:"routes,omitempty"`
+}
+
+// ConfigRADVDNAT64 defines model for config.RADVDNAT64.
+type ConfigRADVDNAT64 struct {
+	Lifetime *int   `json:"lifetime,omitempty"`
+	Prefix   string `json:"prefix"`
 }
 
 // ConfigRADVDPrefix defines model for config.RADVDPrefix.

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"maps"
 	"net"
+	"net/netip"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -1297,6 +1298,17 @@ func isKnownInterface(name string, ifaces map[string]*Interface) bool {
 	return false
 }
 
+func validateNAT64Prefix(ifName string, i int, nat64 RADVDNAT64, add addfunc) {
+	prefix, err := netip.ParsePrefix(nat64.Prefix)
+	if err != nil || !prefix.Addr().Is6() || prefix.Addr().Is4In6() || prefix.Masked() != prefix || !slices.Contains([]int{32, 40, 48, 56, 64, 96}, prefix.Bits()) {
+		add("routing.radvd.interfaces.%s.nat64_prefixes[%d]: prefix %q must be an IPv6 network of length 32, 40, 48, 56, 64 or 96", ifName, i, nat64.Prefix)
+	}
+
+	if nat64.Lifetime < 0 || nat64.Lifetime > 65528 {
+		add("routing.radvd.interfaces.%s.nat64_prefixes[%d]: lifetime must be between 0 and 65528 seconds", ifName, i)
+	}
+}
+
 func validateRADVD(radvd *RADVDConfig, ifaces map[string]*Interface, add addfunc) {
 	preferences := []string{"low", "medium", "high"}
 	for ifName, riface := range radvd.Interfaces {
@@ -1326,6 +1338,10 @@ func validateRADVD(radvd *RADVDConfig, ifaces map[string]*Interface, add addfunc
 			if route.Preference != "" && !slices.Contains(preferences, route.Preference) {
 				add("routing.radvd.interfaces.%s.routes[%d]: preference must be low, medium, or high", ifName, i)
 			}
+		}
+
+		for i, nat64 := range riface.NAT64Prefixes {
+			validateNAT64Prefix(ifName, i, nat64, add)
 		}
 
 		if riface.RDNSS != nil {

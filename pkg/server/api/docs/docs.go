@@ -2406,6 +2406,13 @@ const docTemplate = `{
                     "min_rtr_adv_interval": {
                         "type": "integer"
                     },
+                    "nat64_prefixes": {
+                        "items": {
+                            "$ref": "#/components/schemas/config.RADVDNAT64"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
                     "prefixes": {
                         "items": {
                             "$ref": "#/components/schemas/config.RADVDPrefix"
@@ -2424,6 +2431,20 @@ const docTemplate = `{
                         "uniqueItems": false
                     }
                 },
+                "type": "object"
+            },
+            "config.RADVDNAT64": {
+                "properties": {
+                    "lifetime": {
+                        "type": "integer"
+                    },
+                    "prefix": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "prefix"
+                ],
                 "type": "object"
             },
             "config.RADVDPrefix": {

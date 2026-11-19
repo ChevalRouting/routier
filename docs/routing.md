@@ -292,5 +292,22 @@ routing:
 - `routing.anycast` - advertise anycast prefixes (works with BGP).
 - `routing.radvd` - IPv6 router advertisements per interface.
 
+`nat64_prefixes` advertises the NAT64 prefix (PREF64, RFC 8781) so IPv6-only
+hosts running CLAT, or 464XLAT clients such as Android and iOS, learn where to
+send IPv4 traffic. The prefix length must be 32, 40, 48, 56, 64 or 96, and the
+lifetime, in seconds, at most 65528 (radvd's default when omitted). The NAT64
+translator itself is not part of this setting.
+
+```yaml
+routing:
+  radvd:
+    interfaces:
+      lan:
+        adv_send_advert: true
+        nat64_prefixes:
+          - prefix: 64:ff9b::/96
+            lifetime: 1800
+```
+
 VRRP failover and conntrackd live under the `ha:` section (see
 [high availability](ha.md)).

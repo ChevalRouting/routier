@@ -553,6 +553,12 @@ type RADVDInterface struct {
 	Prefixes             []RADVDPrefix `yaml:"prefixes,omitempty"               json:"prefixes,omitempty" validate:"optional"`
 	RDNSS                *RADVDRDNSS   `yaml:"rdnss,omitempty"                  json:"rdnss,omitempty" validate:"optional"`
 	Routes               []RADVDRoute  `yaml:"routes,omitempty"                 json:"routes,omitempty" validate:"optional"`
+	NAT64Prefixes        []RADVDNAT64  `yaml:"nat64_prefixes,omitempty"         json:"nat64_prefixes,omitempty" validate:"optional"`
+}
+
+type RADVDNAT64 struct {
+	Prefix   string `yaml:"prefix"             json:"prefix"`
+	Lifetime int    `yaml:"lifetime,omitempty" json:"lifetime,omitempty" validate:"optional"`
 }
 
 type RADVDPrefix struct {

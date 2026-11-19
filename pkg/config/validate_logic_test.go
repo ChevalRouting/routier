@@ -82,3 +82,23 @@ func TestVRFBGPPolicies(t *testing.T) {
 		t.Fatal("vrf prefix list is not referenceable")
 	}
 }
+
+func TestValidateRADVDNAT64Prefixes(t *testing.T) {
+	radvd := &RADVDConfig{Interfaces: map[string]*RADVDInterface{"lan": {
+		NAT64Prefixes: []RADVDNAT64{{Prefix: "64:ff9b::/96", Lifetime: 1800}, {Prefix: "2001:db8::/80"}, {Prefix: "64:ff9b::1/96"}, {Prefix: "2001:db8:64::/64", Lifetime: 70000}},
+	}}}
+
+	got := collectErrors(func(add addfunc) {
+		validateRADVD(radvd, map[string]*Interface{"lan": {}}, add)
+	})
+
+	for _, want := range []string{"nat64_prefixes[1]", "nat64_prefixes[2]", "nat64_prefixes[3]: lifetime"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q in %q", want, got)
+		}
+	}
+
+	if strings.Contains(got, "nat64_prefixes[0]") {
+		t.Errorf("the well-known prefix was rejected: %q", got)
+	}
+}
