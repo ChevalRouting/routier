@@ -81,6 +81,12 @@ export interface ConfigBGPAddressFamily {
     import_vrf_route_map?: string;
     /**
      *
+     * @type {string}
+     * @memberof ConfigBGPAddressFamily
+     */
+    kernel_route_map?: string;
+    /**
+     *
      * @type {boolean}
      * @memberof ConfigBGPAddressFamily
      */
@@ -186,6 +192,7 @@ export function ConfigBGPAddressFamilyFromJSONTyped(json: any, ignoreDiscriminat
         'import_vpn': json['import_vpn'] == null ? undefined : json['import_vpn'],
         'import_vrf': json['import_vrf'] == null ? undefined : json['import_vrf'],
         'import_vrf_route_map': json['import_vrf_route_map'] == null ? undefined : json['import_vrf_route_map'],
+        'kernel_route_map': json['kernel_route_map'] == null ? undefined : json['kernel_route_map'],
         'label_vpn_export_auto': json['label_vpn_export_auto'] == null ? undefined : json['label_vpn_export_auto'],
         'maximum_paths': json['maximum_paths'] == null ? undefined : json['maximum_paths'],
         'networks': json['networks'] == null ? undefined : json['networks'],
@@ -223,6 +230,7 @@ export function ConfigBGPAddressFamilyToJSONTyped(value?: ConfigBGPAddressFamily
         'import_vpn': value['import_vpn'],
         'import_vrf': value['import_vrf'],
         'import_vrf_route_map': value['import_vrf_route_map'],
+        'kernel_route_map': value['kernel_route_map'],
         'label_vpn_export_auto': value['label_vpn_export_auto'],
         'maximum_paths': value['maximum_paths'],
         'networks': value['networks'],

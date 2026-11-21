@@ -661,6 +661,7 @@ type BGPAddressFamily struct {
 	ImportVRFRouteMap       string   `yaml:"import_vrf_route_map,omitempty" json:"import_vrf_route_map,omitempty" validate:"optional"`
 	RouteMapIn              string   `yaml:"route_map_in,omitempty"      json:"route_map_in,omitempty" validate:"optional"`
 	RouteMapOut             string   `yaml:"route_map_out,omitempty"     json:"route_map_out,omitempty" validate:"optional"`
+	KernelRouteMap          string   `yaml:"kernel_route_map,omitempty"  json:"kernel_route_map,omitempty" validate:"optional"`
 	DefaultOriginate        bool     `yaml:"default_originate,omitempty" json:"default_originate,omitempty" validate:"optional"`
 	MaximumPaths            int      `yaml:"maximum_paths,omitempty"     json:"maximum_paths,omitempty" validate:"optional"`
 	AdvertiseAllVNI         bool     `yaml:"advertise_all_vni,omitempty" json:"advertise_all_vni,omitempty" validate:"optional"`

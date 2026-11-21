@@ -1024,6 +1024,10 @@ func validateBGP(bgp *BGP, global *BGP, path string, vrfNames map[string]bool, b
 		if afConfig != nil {
 			validateBGPAddressFamily(af, afConfig, policies, vrfNames, path, add)
 		}
+
+		if afConfig != nil && afConfig.KernelRouteMap != "" && bgp != global {
+			add("%s.address_families.%s: kernel_route_map is only supported in routing.bgp", path, af)
+		}
 	}
 
 	for i, n := range bgp.Neighbors {
@@ -1141,6 +1145,14 @@ func validateBGPAddressFamily(af string, afConfig *BGPAddressFamily, policies bg
 		if vrfName != "default" && vrfName != "main" && !vrfNames[vrfName] {
 			add("%s.address_families.%s.import_vrf[%d]: vrf %q not declared in vrfs", path, af, i, vrfName)
 		}
+	}
+
+	if afConfig.KernelRouteMap != "" && af != "ipv4-unicast" && af != "ipv6-unicast" {
+		add("%s.address_families.%s: kernel_route_map requires the ipv4-unicast or ipv6-unicast address family", path, af)
+	}
+
+	if !policies.hasRouteMap(afConfig.KernelRouteMap) {
+		add("%s.address_families.%s: kernel_route_map %q not found in route_maps", path, af, afConfig.KernelRouteMap)
 	}
 }
 

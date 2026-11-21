@@ -32,6 +32,7 @@ export interface BGPAddressFamily {
   export_vpn?: boolean
   route_map_vpn_import?: string
   route_map_vpn_export?: string
+  kernel_route_map?: string
   extra?: string[]
 }
 

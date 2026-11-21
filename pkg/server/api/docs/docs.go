@@ -570,6 +570,9 @@ const docTemplate = `{
                     "import_vrf_route_map": {
                         "type": "string"
                     },
+                    "kernel_route_map": {
+                        "type": "string"
+                    },
                     "label_vpn_export_auto": {
                         "type": "boolean"
                     },

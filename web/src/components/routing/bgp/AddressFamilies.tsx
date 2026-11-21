@@ -87,6 +87,14 @@ export function BGPAddressFamiliesPanel({
             </PreferencesGroup>
 
             {isUnicast && (
+              <PreferencesGroup title="Kernel Routes" description="Route map applied when BGP routes are installed, such as set src to a loopback">
+                <ComboRow title="Kernel Route Map">
+                  <NameSelect value={open.kernel_route_map} onChange={(v) => set({ kernel_route_map: v })} names={routeMapNames} />
+                </ComboRow>
+              </PreferencesGroup>
+            )}
+
+            {isUnicast && (
               <PreferencesGroup title="VPN Route Leaking" description="Requires a route distinguisher, matching route targets, and import or export in each VRF">
                 <EntryRow title="Route Distinguisher" value={open.rd ?? ''} onChange={(e) => set({ rd: e.target.value || undefined })} placeholder="65000:1" className="font-mono" />
                 <ComboRow title="Import Route Targets">

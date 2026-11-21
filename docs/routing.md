@@ -135,6 +135,34 @@ wrapper is built in fixed slots:
 Moving neighbors onto the wrappers rebinds their route-maps in one FRR reload.
 FRR applies the change with a soft refresh, without resetting the sessions.
 
+### Kernel route map
+
+`kernel_route_map` in the `ipv4-unicast` or `ipv6-unicast` address family of
+`routing.bgp` names a route map that zebra applies when it installs BGP routes
+in the kernel. It renders as `ip protocol bgp route-map` or
+`ipv6 protocol bgp route-map`. The usual case is `set src`, so traffic the
+router originates leaves from its loopback, which every peer that learns the
+loopback can route back to, instead of from whichever interface address the
+route uses:
+
+```yaml
+routing:
+  bgp:
+    route_maps:
+      LOOPBACK-SRC:
+        - { seq: 10, action: permit, match: { interface: eth4 } }
+        - { seq: 20, action: permit, set: { src: 192.0.2.1 } }
+    address_families:
+      ipv4-unicast:
+        kernel_route_map: LOOPBACK-SRC
+```
+
+- A route the map denies is not installed in the kernel, so end the map with a
+  permit.
+- The source must be an address on the router.
+- Keep the interface address for routes through peers that do not learn the
+  loopback, as the first entry does for `eth4`.
+
 `allow_inbound` lists the interfaces on which BGP (TCP 179) is accepted by the
 firewall. Acceptance is scoped to those interfaces and their subnets, so
 enabling BGP does not open port 179 anywhere else (see

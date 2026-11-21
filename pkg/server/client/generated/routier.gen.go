@@ -265,6 +265,7 @@ type ConfigBGPAddressFamily struct {
 	ImportVpn               *bool     `json:"import_vpn,omitempty"`
 	ImportVrf               *[]string `json:"import_vrf,omitempty"`
 	ImportVrfRouteMap       *string   `json:"import_vrf_route_map,omitempty"`
+	KernelRouteMap          *string   `json:"kernel_route_map,omitempty"`
 	LabelVpnExportAuto      *bool     `json:"label_vpn_export_auto,omitempty"`
 	MaximumPaths            *int      `json:"maximum_paths,omitempty"`
 	Networks                *[]string `json:"networks,omitempty"`
